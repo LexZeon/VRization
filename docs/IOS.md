@@ -13,7 +13,7 @@ The native iOS client connects to the same Windows host as Android. It targets *
 | --- | --- |
 | `VRization-Windows-x64.zip` | The Windows 10 / 11 x64 host for both phone platforms. |
 | `VRization-iOS-source.zip` | Editable Xcode project, reusable Swift package, license and offline documentation. Open the project on a Mac to sign for your own iPhone. |
-| `VRization-iOS-Simulator.zip` | Compiled application for the **Mac's iOS Simulator** architecture used by CI. It cannot be installed on an iPhone or run on Windows; build locally for a different Mac architecture. |
+| `VRization-iOS-Simulator.zip` | The verified CI application is **arm64**, for the iOS Simulator on an **Apple Silicon Mac**. Intel Mac users need to build the source locally for their simulator architecture. It cannot be installed on an iPhone or run on Windows. |
 
 There is no universally installable unsigned iPhone IPA. The cloud build checks the iPhone device SDK without signing, and builds / exercises the simulator app. Apple signing and provisioning are still needed for physical installation. Signing credentials are never included in this repository or requested by the app.
 
@@ -35,6 +35,10 @@ This is direct USB framing through Apple's USB service, not Personal Hotspot, Wi
 
 Leaving the foreground or changing language stops the listener and connection. Tap **Connect** to resume waiting; this prevents a background app from silently resuming control.
 
+![Full-screen stereo over simulated USB in the native iOS Simulator](images/ios-usb-vr.png)
+
+Original calibration stream in the native iPhone 17 Pro Max Simulator, iOS 26.2. The USB test uses a **simulated usbmux service** and the real application listener / relay; this is not a physical iPhone USB test. Both eyes are complete at 85% scale.
+
 ### 📶 Alternative: trusted LAN
 
 1. Connect the Windows PC and iPhone to the same trusted LAN. The PC may use Ethernet. Guest Wi-Fi isolation, a VPN or a firewall can prevent local connections.
@@ -45,16 +49,32 @@ Leaving the foreground or changing language stops the listener and connection. T
 
 `ws://` is unencrypted and the six-digit code is not encryption. The app declares local networking for this LAN protocol, while keeping the Internet transport defaults. Use trusted networks only. See [security](../SECURITY.md).
 
+![English connection screen in the native iOS Simulator](images/ios.png)
+
+Native iOS Simulator receiving the original calibration stream through the **LAN / WebSocket code path on CI loopback**. The screenshot's `127.0.0.1:18765` and displayed statistics belong to that simulator test; enter your Windows host's displayed LAN address and port for everyday use.
+
 ### 🥽 Viewing and controls
 
 - **Full screen:** fixed side-by-side images, no motion sensor needed.
 - **Cinema:** a virtual screen; Core Motion changes the viewing direction. Recenter after placing the phone in the viewer.
 - **FPS:** fixed side-by-side images and rotation messages to Windows. The phone cannot arm mouse input. Authorize it explicitly on Windows and use **F8** to stop.
-- Adjust scale, horizontal / vertical offset, eye separation, field of view, distance, distortion, sensitivity and invert Y. These are viewing parameters, not a measurement of physical interpupillary distance.
+- Adjust scale, horizontal / vertical offset, eye separation, field of view, distance, distortion, sensitivity and invert Y. Drag a slider for larger changes; use its **− / +** buttons for exact one-step adjustments (scale changes by 1%). These are viewing parameters, not a measurement of physical interpupillary distance.
 - Hide the controls for viewing; use the app's recovery gesture to restore them. Double-tap to recenter. Returning to the background, changing language or disconnecting ends the connection and motion updates; reconnect explicitly when ready.
 - A device without usable motion support falls back to fixed viewing. The simulator cannot validate physical gyro axes, drift or headset comfort.
 
 Both eyes show the same 2D source. There is no automatic stereo conversion, audio or promised VR latency. Windows / iOS client versions share [protocol v1](PROTOCOL.md); older hosts can omit revision fields, but the current host gives stronger settings synchronization. The client validates incoming values and keeps only bounded latest-frame work.
+
+![Headset-fit settings with precise minus and plus buttons](images/ios-settings.png)
+
+Native iOS Simulator with the original calibration stream behind the controls: scale 85%, zero offsets and eye separation 0.030. The normal **− / +** buttons were used to confirm exact values and synchronized settings.
+
+![Unobstructed full-screen stereo in the native iOS Simulator](images/ios-vr.png)
+
+The same original 2D calibration image appears in both eyes after hiding the controls. This native Simulator screenshot uses the LAN / loopback WebSocket test; it verifies rendering, not physical headset optics.
+
+![Saved Simplified Chinese selection after restarting the native iOS app](images/ios-zh.png)
+
+The native iOS Simulator after an app restart, before connecting: **中文** and Chinese controls are preserved. English remains the default until the user changes the selection.
 
 ### 🧩 Reuse and build
 
@@ -85,7 +105,7 @@ xcodebuild -project ios/VRization.xcodeproj -scheme VRization \
 | --- | --- |
 | `VRization-Windows-x64.zip` | 同时服务两类手机的 Windows 10 / 11 x64 电脑端。 |
 | `VRization-iOS-source.zip` | 可编辑的 Xcode 工程、可复用 Swift 包、许可与离线文档；在 Mac 上打开，为自己的 iPhone 签名安装。 |
-| `VRization-iOS-Simulator.zip` | 为 CI 所用 **Mac 的 iOS 模拟器**架构编译的应用，不能安装到 iPhone 或在 Windows 运行；不同 Mac 架构可本地重新构建。 |
+| `VRization-iOS-Simulator.zip` | 已验收的 CI 应用为 **arm64**，适用于 **Apple Silicon Mac 的 iOS 模拟器**；Intel Mac 需从源码本地编译对应模拟器架构。不能安装到 iPhone 或在 Windows 运行。 |
 
 没有一种无需签名就能通用安装的 iPhone IPA。云端构建会检查真机 SDK 编译，并构建、运行模拟器应用；实际手机安装仍需 Apple 签名和配置描述文件。仓库不包含签名凭据，软件也不会索取这些凭据。
 
@@ -107,6 +127,10 @@ Windows 安装 Apple 官方 [Apple Devices](https://support.apple.com/guide/devi
 
 进入后台或切换语言会停止监听和连接；点击 **Connect / 连接** 才重新等待，避免后台应用悄悄恢复控制。
 
+![原生 iOS 模拟器通过模拟 USB 显示完整双眼画面](images/ios-usb-vr.png)
+
+原生 iPhone 17 Pro Max 模拟器（iOS 26.2）显示原创校准串流。USB 测试使用**模拟 usbmux 服务**和实际应用监听器 / 中继，并非真实 iPhone USB 测试；85% 缩放下两眼画面完整。
+
 ### 📶 可选：可信局域网
 
 1. Windows 与 iPhone 连同一个可信局域网，电脑可接网线。访客网络隔离、VPN 或防火墙可能阻止本地连接。
@@ -117,16 +141,32 @@ Windows 安装 Apple 官方 [Apple Devices](https://support.apple.com/guide/devi
 
 `ws://` 是明文，六位配对码并非加密。应用为局域网协议声明本地网络访问，并保留互联网传输默认限制。仅用于可信网络，参见 [安全说明](../SECURITY.md)。
 
+![原生 iOS 模拟器中的英文连接界面](images/ios.png)
+
+原生 iOS 模拟器经 **CI 本机回环上的局域网 / WebSocket 代码路径**接收原创校准串流。截图中的 `127.0.0.1:18765` 及统计值属于该模拟器测试；日常使用应填写 Windows 主机显示的局域网地址和端口。
+
 ### 🥽 模式和操作
 
 - **全屏**：固定左右眼图像，不需要运动传感器。
 - **大屏幕**：把图像放在虚拟屏幕上，用 Core Motion 改变观看方向；放入盒子后回正。
 - **FPS**：固定双眼图像，向 Windows 发送旋转姿态。手机不能主动授权鼠标，须在电脑明确授权，按 **F8** 停止。
-- 可调缩放、水平 / 垂直偏移、眼间距、视场角、距离、畸变、灵敏度和 Y 反转。这些是观看参数，不是对实际瞳距的测量。
+- 可调缩放、水平 / 垂直偏移、眼间距、视场角、距离、畸变、灵敏度和 Y 反转。拖动滑条可大幅调整，使用旁边的 **− / +** 按钮可精确微调一格（缩放每次 1%）。这些是观看参数，不是对实际瞳距的测量。
 - 观看时隐藏操作区，用应用的恢复手势重新显示；双击回正。进入后台、切换语言或断线会终止连接与运动更新，需要时手动重连。
 - 没有可用运动支持时回退固定观看。模拟器不能验证真实陀螺仪轴向、漂移和盒子舒适度。
 
 两眼显示同一张二维源画面，不自动变成立体、不提供音频，也不承诺 VR 延迟。Windows / iOS 共享 [协议 v1](PROTOCOL.md)；旧主机可以不带 revision，新主机提供更完整的同步。客户端校验传入值，并限制最新帧处理队列。
+
+![盒子适配设置和精确减加按钮](images/ios-settings.png)
+
+原生 iOS 模拟器的设置区，背景为原创校准串流：缩放 85%、偏移为零、眼间距 0.030。实际通过正常 **− / +** 按钮检查了精确值与设置同步。
+
+![原生 iOS 模拟器中隐藏设置后的全屏双眼画面](images/ios-vr.png)
+
+隐藏操作区后，两眼显示同一张原创二维校准图。本原生模拟器截图来自局域网 / 回环 WebSocket 测试，验证画面渲染，不代表真实盒子镜片已通过。
+
+![原生 iOS 应用重启后保存的简体中文选择](images/ios-zh.png)
+
+原生 iOS 模拟器重启应用、尚未连接时，**中文**选择与中文控件仍然保留；用户主动切换前仍默认英文。
 
 ### 🧩 复用与构建
 
