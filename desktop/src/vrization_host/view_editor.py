@@ -32,7 +32,7 @@ class HeadsetEditor:
 
         heading = ttk.Frame(self.window, padding=16)
         heading.pack(fill="x")
-        ttk.Label(heading, text=owner.tr("Drag corners to resize · Horizontal movement is reversed"),
+        ttk.Label(heading, text=owner.tr("Drag one eye sideways · The other eye moves oppositely"),
                   font=("Microsoft YaHei UI", 14, "bold")).pack(anchor="w")
         ttk.Label(heading, text=owner.tr("Both eyes move together. The preview uses a flat picture; your viewing mode and lens settings are retained."),
                   wraplength=870, style="Muted.TLabel").pack(anchor="w", pady=(8, 0))
@@ -155,20 +155,19 @@ class HeadsetEditor:
         for px, py, sx, sy in ((left, top, -1, 1), (right, top, 1, 1),
                                 (left, bottom, -1, -1), (right, bottom, 1, -1)):
             if math.hypot(event.x - px, event.y - py) <= 22:
-                self.gesture = (self.draft, "resize", event.x, event.y, (sx, sy), width, height, image_aspect)
+                self.gesture = (self.draft, "resize", event.x, event.y, (sx, sy), width, height, image_aspect, eye)
                 return
         if left <= event.x <= right and top <= event.y <= bottom:
-            self.gesture = (self.draft, "pan", event.x, event.y, (1, 1), width, height, image_aspect)
+            self.gesture = (self.draft, "eye_pan", event.x, event.y, (1, 1), width, height, image_aspect, eye)
 
     def move(self, event):
         if self.gesture is None:
             return
-        entry, kind, x, y, signs, width, height, image_aspect = self.gesture
-        horizontal_direction = -1 if kind == "pan" else 1
-        self.transaction.preview(kind, horizontal_direction * (event.x - x) * 4 / width,
+        entry, kind, x, y, signs, width, height, image_aspect, eye = self.gesture
+        self.transaction.preview(kind, (event.x - x) * 4 / width,
                                  -(event.y - y) * 2 / height, image_aspect,
                                  width / 2 / height, corner_signs=signs,
-                                 gesture_start=entry)
+                                 gesture_start=entry, eye=eye)
         self.draw(force=True)
 
     def end(self):

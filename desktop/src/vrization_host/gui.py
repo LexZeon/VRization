@@ -434,7 +434,7 @@ class HostWindow:
     def _fit_tab(self, tab):
         ttk.Label(tab, text=self.tr("Fit the picture by dragging"),
                   font=("Microsoft YaHei UI", 18, "bold")).pack(anchor="w", pady=(0, 10))
-        self._paragraph(tab, self.tr("Drag a corner to resize around the center. Drag inside to move: left moves the picture right, and right moves it left. Both eyes change together. Save syncs the fit; Discard keeps your previous fit."),
+        self._paragraph(tab, self.tr("Drag one eye sideways to adjust eye spacing: that eye follows your drag and the other moves oppositely. Drag vertically to move both, or drag a corner to resize. Save syncs the fit; Discard keeps your previous fit."),
                         style="Muted.TLabel").pack(fill="x", pady=(0, 14))
         ttk.Button(tab, text=self.tr("Open visual headset editor"), style="Primary.TButton",
                    command=self.open_editor).pack(fill="x", pady=(0, 14))
@@ -452,11 +452,11 @@ class HostWindow:
         self.editor = HeadsetEditor(self, settings)
 
     def commit_editor(self, draft):
-        # Only the editor's three fit fields change; preserve any other settings
+        # Only the editor's four fit fields change; preserve any other settings
         # committed by the phone while the local preview was open.
         self.server.disarm("headset fit saved")
         self.server.update_settings({key: getattr(draft, key)
-                                     for key in ("scale", "offsetX", "offsetY")})
+                                     for key in ("scale", "offsetX", "offsetY", "eyeSeparation")})
         self.server.recenter()
         self._save()
 
