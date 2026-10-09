@@ -17,6 +17,7 @@ Include the release version, PC OS / GPU, phone and Android / derivative or iOS 
 2. Add meaningful tests for pose, validation or authorization changes. Documentation / appearance changes do not need mechanical tests.
 3. Run affected checks and describe untested hardware / platforms.
 4. Update documentation and compatibility records; describe trigger, changed behavior and validation.
+5. Record user-visible changes in [CHANGELOG.md](CHANGELOG.md)'s Unreleased section, in English and Chinese. At release time, group them under the actual version / UTC date, state affected app versions and link the release. Keep previous entries.
 
 Retain explicit PC arming and an emergency stop. Remote clients must not unlock input themselves. Add codecs / adapters through interfaces instead of mixing platform implementations into Android `vr-core` or Swift `VRizationCore`. Preserve v1 WebSocket behavior for old Android clients; new codecs / per-eye formats require explicit negotiation. Default USB detection must not steal existing reverse ports, manage wireless ADB, kill the ADB server, create Apple trust records or start OS input automatically. Keep bootstrap local and browser-origin restrictions intact.
 
@@ -73,6 +74,7 @@ Keep the shared y-up per-eye geometry, linked mirrored horizontal spacing with a
 2. 对姿态、协议校验、输入授权等核心行为补充有意义的测试；纯文档或外观修改无需机械添加测试。
 3. 运行受影响模块的检查，记录无法测试的设备与平台。
 4. 更新文档与兼容性记录，PR 描述说明触发条件、行为变化和验证方法。
+5. 将用户可见变化同步写入 [CHANGELOG.md](CHANGELOG.md) 的中英“未发布”段；发布时按实际版本 / UTC 日期归档，注明各端版本并链接发布页，保留旧记录。
 
 保留“电脑主动授权 + 紧急停止”边界，不让远程客户端自行解锁鼠标。编码器 / 适配器通过接口接入，避免把平台实现混入 Android `vr-core` 或 Swift `VRizationCore`。保留旧 Android 的 v1 WebSocket 行为，新编码 / 左右眼格式需显式协商。默认 USB 检测不得抢占已有 reverse 端口、管理无线 ADB、关闭 ADB server、创建 Apple 信任记录或自动启动系统输入；保留 bootstrap 的本机与浏览器来源限制。
 

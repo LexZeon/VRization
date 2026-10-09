@@ -19,6 +19,8 @@ USB is the default connection preference on the host and both phone platforms. K
 
 When publishing a release in the user's local workspace, preserve verified historical version downloads and refresh a complete extracted latest runnable Windows copy with `scripts/archive_releases.py --destination <local archive folder>`. Keep private local paths out of public documentation. iOS source / Simulator outputs must never be described as signed, directly installable iPhone applications.
 
+Keep [CHANGELOG.md](CHANGELOG.md) updated for every user-visible feature, fix, optimization, compatibility change or default-setting change. Record implemented changes under Unreleased in both language sections during development. Before publishing, move them into the matching version entry with the actual UTC publication date, affected component versions and a release link. Label documentation-only changes and distinguish completed work from plans. Preserve older entries; do not replace published binaries or move an existing tag merely to update the log. The root Markdown changelog is automatically included in future Windows and iOS source packages. Refresh a standalone changelog at the local archive root when saving a new release, without editing verified historical downloads.
+
 ---
 
 <!-- vrization:chinese -->
@@ -37,3 +39,5 @@ When publishing a release in the user's local workspace, preserve verified histo
 电脑端与两类手机都默认优先 USB 连接，并保留显式局域网选项。区分真实 USB 测试、模拟桥接及仅接入充电线。低延迟默认参数允许调整，记录实际 FPS / 往返时间，不冒充端到端延迟。
 
 在用户本地工作区发布版本时，用 `scripts/archive_releases.py --destination <本地归档目录>` 保留已校验历史版本，并更新完整解压、可直接运行的最新版 Windows 程序。公共文档不要包含用户私有路径。iOS 源码 / 模拟器产物不能描述为已签名、可直接安装的 iPhone 应用。
+
+每次新增用户可见功能、修复、优化、兼容性变化或默认设置变化，都更新 [CHANGELOG.md](CHANGELOG.md)。开发期间将已实现变化同步记在两种语言的“未发布”段；发布前归入对应版本，记录实际 UTC 发布日期、各端版本范围与发布链接。纯文档变化须注明，已完成内容与计划分开。保留旧条目，不为更新日志替换已发布二进制或移动已有标签。根目录 Markdown 日志会自动附带在今后的 Windows 与 iOS 源码包中；保存新发布时同步刷新本地归档根目录的独立日志，不修改已校验历史下载。

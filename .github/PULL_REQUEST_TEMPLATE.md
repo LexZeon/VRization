@@ -14,6 +14,7 @@ List meaningful checks, devices / OS versions tested and anything still unverifi
 ### Documentation and attribution
 
 - [ ] Public documentation contains complete English first and Chinese below on the same page; `python scripts/check_docs.py` passes.
+- [ ] User-visible changes are recorded in both Unreleased sections of `CHANGELOG.md`, or this PR has no user-visible change.
 - [ ] New dependencies / copied assets have exact upstream provenance, license texts and required notices.
 - [ ] Input authorization, F8 stop and disconnect boundaries are retained where affected.
 
@@ -35,6 +36,7 @@ Translation quality requires human review; the automated check verifies structur
 ### 文档与来源
 
 - [ ] 公共文档同一页完整英文在上、完整中文在下，`python scripts/check_docs.py` 通过。
+- [ ] 用户可见变化已同步记入 `CHANGELOG.md` 的中英“未发布”段，或本次 PR 没有用户可见变化。
 - [ ] 新依赖 / 引用素材记录精确上游来源，附带许可与必要声明。
 - [ ] 涉及输入时保留主动授权、F8 停止与断线停止边界。
 
