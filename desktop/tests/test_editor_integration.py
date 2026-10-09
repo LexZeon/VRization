@@ -138,17 +138,17 @@ class EditorIntegrationTests(unittest.TestCase):
         editor.draw = Mock()
         return editor
 
-    def test_pointer_pan_is_y_up_moves_both_eyes_and_never_accumulates_events(self):
+    def test_pointer_pan_reverses_x_moves_both_eyes_and_never_accumulates_events(self):
         editor = self.pointer_editor()
         before = [editor.bounds(eye) for eye in (0, 1)]
         editor.begin(SimpleNamespace(x=242.5, y=225))
         for _ in range(3):
             editor.move(SimpleNamespace(x=267.5, y=202.5))
-        self.assertAlmostEqual(editor.draft.offsetX, .1)
+        self.assertAlmostEqual(editor.draft.offsetX, -.1)
         self.assertAlmostEqual(editor.draft.offsetY, .1)
         for eye in (0, 1):
             after = editor.bounds(eye)
-            self.assertAlmostEqual(after[0] - before[eye][0], 25)
+            self.assertAlmostEqual(after[0] - before[eye][0], -25)
             self.assertAlmostEqual(after[1] - before[eye][1], -22.5)
             self.assertAlmostEqual(after[2] - after[0], before[eye][2] - before[eye][0])
 

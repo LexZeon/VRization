@@ -59,6 +59,8 @@ ENGLISH = {
 
 CHINESE = {
     'Headset editor': '画面编辑',
+    'Drag a corner to resize around the center. Drag inside to move: left moves the picture right, and right moves it left. Both eyes change together. Save syncs the fit; Discard keeps your previous fit.': '拖动顶点围绕中心等比例缩放。拖动内部移动：向左拖，画面向右；向右拖，画面向左。双眼同步变化，保存同步适配设置，弃用保留之前的设置。',
+    'Drag corners to resize · Horizontal movement is reversed': '拖动顶点缩放 · 水平移动反向',
     'Fit the picture by dragging': '拖动画面，适配你的手机盒子',
     'Drag a corner to resize around the center, or drag inside to move. Both eyes change together. Save applies the preview; Discard keeps your previous fit.': '拖动顶点围绕中心等比例缩放，拖动画面内部移动。双眼同步变化。保存后应用预览，弃用保留之前的适配设置。',
     'Open visual headset editor': '打开可视画面编辑器',

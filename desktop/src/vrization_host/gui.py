@@ -434,7 +434,7 @@ class HostWindow:
     def _fit_tab(self, tab):
         ttk.Label(tab, text=self.tr("Fit the picture by dragging"),
                   font=("Microsoft YaHei UI", 18, "bold")).pack(anchor="w", pady=(0, 10))
-        self._paragraph(tab, self.tr("Drag a corner to resize around the center, or drag inside to move. Both eyes change together. Save applies the preview; Discard keeps your previous fit."),
+        self._paragraph(tab, self.tr("Drag a corner to resize around the center. Drag inside to move: left moves the picture right, and right moves it left. Both eyes change together. Save syncs the fit; Discard keeps your previous fit."),
                         style="Muted.TLabel").pack(fill="x", pady=(0, 14))
         ttk.Button(tab, text=self.tr("Open visual headset editor"), style="Primary.TButton",
                    command=self.open_editor).pack(fill="x", pady=(0, 14))

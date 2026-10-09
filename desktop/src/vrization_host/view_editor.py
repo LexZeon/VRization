@@ -32,7 +32,7 @@ class HeadsetEditor:
 
         heading = ttk.Frame(self.window, padding=16)
         heading.pack(fill="x")
-        ttk.Label(heading, text=owner.tr("Drag corners to resize · Drag inside to move"),
+        ttk.Label(heading, text=owner.tr("Drag corners to resize · Horizontal movement is reversed"),
                   font=("Microsoft YaHei UI", 14, "bold")).pack(anchor="w")
         ttk.Label(heading, text=owner.tr("Both eyes move together. The preview uses a flat picture; your viewing mode and lens settings are retained."),
                   wraplength=870, style="Muted.TLabel").pack(anchor="w", pady=(8, 0))
@@ -164,7 +164,8 @@ class HeadsetEditor:
         if self.gesture is None:
             return
         entry, kind, x, y, signs, width, height, image_aspect = self.gesture
-        self.transaction.preview(kind, (event.x - x) * 4 / width,
+        horizontal_direction = -1 if kind == "pan" else 1
+        self.transaction.preview(kind, horizontal_direction * (event.x - x) * 4 / width,
                                  -(event.y - y) * 2 / height, image_aspect,
                                  width / 2 / height, corner_signs=signs,
                                  gesture_start=entry)
