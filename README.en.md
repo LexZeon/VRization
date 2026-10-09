@@ -18,7 +18,7 @@
 
 VRization streams a Windows desktop or rectangular region to an Android phone, iPhone or iPad, renders the image side by side, and optionally maps phone rotation to PC mouse movement. Its reusable Android library, Swift core package and separated host components provide a starting point for embedding these features in other applications.
 
-**v0.3.2-alpha — adjustable First-person stabilization and portable USB tools.** All three apps use version 0.3.2. The new stabilization slider defaults to **0%**, preserving the previous input behavior; filtering runs only on the PC. Committed values synchronize and persist, with compatible ten-field / eleven-field settings negotiation inside protocol v1. Windows also improves USB tool lookup outside packaged-app storage and offers a manual official-tools import flow. New build / hardware acceptance is being completed; see [release status and limits](docs/RELEASE_NOTES.md).
+**v0.3.2-alpha — adjustable First-person stabilization and portable USB tools.** All three apps use version 0.3.2. The new stabilization slider defaults to **0%**, preserving the previous input behavior; filtering runs only on the PC. Committed values synchronize and persist, with compatible ten-field / eleven-field settings negotiation inside protocol v1. Windows also improves USB tool lookup outside packaged-app storage and offers a manual official-tools import flow. Physical Huawei slider / synchronization / restart checks and clean-environment packaged Windows USB discovery passed; see [verified results and limits](docs/RELEASE_NOTES.md).
 
 Visual headset fitting and saved phone profiles from v0.3 remain available. An original Windows DXGI / D3D11 backend crops, rotates and scales on the GPU before smaller pixel readback; the CPU encodes JPEG for the existing WebSocket protocol. GDI / MSS remain compatibility paths. Both eyes receive the same 2D source: ordinary games do not acquire stereoscopic depth. See [performance and measurement limits](docs/PERFORMANCE.md).
 
@@ -136,7 +136,7 @@ Windows 桌面串流 · Android / 兼容 Android 的系统 · iPhone / iPad · �
 
 VRization 是一个开源的电脑 → 手机串流实验项目。Windows 端采集显示器或指定矩形区域，Android、iPhone / iPad 客户端将画面显示在 VR 盒子的左右眼区域。你可以让画面固定在眼前，也可以把它当成一个随头部转动观看的虚拟大屏幕，或者用手机的姿态控制电脑游戏视角。
 
-> **v0.3.2-alpha — 可调 第一人称防抖与便携 USB 工具。** 三端应用均为 0.3.2。新增防抖滑块默认 **0%**，保留此前输入行为，滤波只在电脑执行；已提交值同步保存，在协议 v1 内兼容十字段 / 十一字段配置协商。Windows 改进打包应用存储之外的 USB 工具查找，并提供手动导入官方工具的流程。新构建 / 真机验收仍在完成，见 [发布状态与限制](docs/RELEASE_NOTES.md)。
+> **v0.3.2-alpha — 可调第一人称防抖与便携 USB 工具。** 三端应用均为 0.3.2。新增防抖滑块默认 **0%**，保留此前输入行为，滤波只在电脑执行；已提交值同步保存，在协议 v1 内兼容十字段 / 十一字段配置协商。Windows 改进打包应用存储之外的 USB 工具查找，并提供手动导入官方工具的流程。华为真机滑块 / 同步 / 重启及独立环境的打包 Windows USB 发现检查已通过，见 [实际结果与限制](docs/RELEASE_NOTES.md)。
 
 v0.3 的可视盒子适配与手机配置保存继续保留。原创 Windows DXGI / D3D11 后端在 GPU 裁切、旋转和缩放，再回读较小像素；CPU 编码 JPEG，经已有 WebSocket 协议传输，保留 GDI / MSS 兼容路径。左右眼接收同一张二维桌面图像，**不会把普通游戏自动变成立体 3D**。实测范围见 [性能与测量](docs/PERFORMANCE.md)。
 

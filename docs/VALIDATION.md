@@ -7,6 +7,19 @@
 
 Updated 2026-10-09. Automated checks, desktop capture and emulator observations are distinguished from hardware capabilities that remain untested.
 
+### v0.3.2-alpha — current checks
+
+- Final [Actions 37991498159](https://github.com/LexZeon/VRization/actions/runs/37991498159), source `a9afaceabc5f237d31794a271ac5bc2ed6eb006b`, passed all Windows / Android / iOS / documentation jobs. The Windows suite passed **220 tests**, and its complete public ZIP passed a clean run without a developer SDK. Android APK / AAR tests, builds and lint passed. Documentation checks establish section / link structure, not translation quality.
+- The frozen local x64 Windows EXE matched **19 project modules, 47 notice files and 38 recorded native components** in a static audit, with no forbidden research runtime or system D3D DLL bundled. Its SHA-256 is `19eaebd0d1420872b76db7add6fa3aee0835a4f18987a2bd997bcccee665378d`. With SDK variables cleared and fresh application preferences, this EXE selected **portable_executable** tools, found one authorized physical USB phone and completed diagnostics without errors; no legacy developer-SDK fallback was found. Official tools are still separately installed.
+- The physical **HUAWEI Pura 70 Ultra** installed the final Android candidate; the pulled APK matched SHA-256 `1a3094c8c182930bcf96c571412442104df2e4b7123914cf6316a1e7b7a1ff7e`. An actual stabilization slider change saved **50%** locally and reached the host. A **65%** host update persisted on the phone, survived restart and restored to the host. The earlier viewing profile was retained and OS mouse moves stayed zero. These are settings / persistence checks, not real-game smoothing acceptance. The [unmodified settings screenshot](STABILIZATION.md#physical-android-example) shows a temporary 65%; the default remains 0%.
+- A custom GLES runner on the same physical phone passed **288 offscreen mask cases across both eyes**, covering the resolved physical display range. This exercises graphics code / pixels, not viewer lenses or motion-to-photon latency.
+- Phone-first USB retry passed with the original calibration card: the test host started **6.08 seconds** after the phone; the phone connected at **7.67 seconds** from its start, or **1.59 seconds** after the host. Its profile was unchanged and OS mouse moves stayed zero. This is one bounded startup result, not permanent background reconnection or a long-duration stability guarantee.
+- Final [Actions 37991498159](https://github.com/LexZeon/VRization/actions/runs/37991498159) passed **77 Swift core tests and five genuine native UI cases**, with zero failures / skips, on the arm64 iPhone 17 Pro Max Simulator running iOS 26.2 (Xcode 26.3.0 / macOS 15.7.9). Both Simulator and unsigned device-target builds passed. LAN / simulated USB Metal color and row-orientation checks passed for both eyes, as did exact viewport seam-boundary pixel checks. These are Simulator / software-bridge results, not a physical iPhone, real Apple USB service or signed IPA.
+
+The official Windows Platform Tools 37.0.1 ZIP was actually imported into a separate test folder with its complete NOTICE preserved. Actual importer-GUI interaction is not claimed. An ordinary launcher with earlier builds was also confirmed visible by the user after portable SDK configuration. SDK visibility across packaged-app storage was a verified discovery issue; shared ADB-session and phone-authorization drops were observed separately. One authorized restart did not remove the need for the user to toggle phone USB debugging before recovery. No old-host GUI or port collision was found, and the full historical failure sequence is **not** attributed solely to MSIX.
+
+Synthetic filter checks cover 0% exact bypass, moving input, smoothing and reset / no-output boundaries; they do not measure real-game feel or physical delay. Physical iPhone USB, actual viewer optics, real first-person game input, new Windows editor-GUI interactions and end-to-end latency remain unverified. Earlier performance numbers below keep their original release / configuration scope.
+
 ### Completed for the first release
 
 | Check | Environment and result | What it establishes |
@@ -124,6 +137,19 @@ Final [GitHub Actions 37897738507](https://github.com/LexZeon/VRization/actions/
 ## 简体中文
 
 更新日期：2026-10-09。这里区分自动检查、电脑采集和模拟器观察；未验证的硬件能力不以截图或单元测试代替。
+
+### v0.3.2-alpha — 当前检查
+
+- 最终 [Actions 37991498159](https://github.com/LexZeon/VRization/actions/runs/37991498159)，源码 `a9afaceabc5f237d31794a271ac5bc2ed6eb006b`，Windows / Android / iOS / 文档任务全部通过。Windows **220 项测试通过**，完整公开 ZIP 通过脱离开发 SDK 的独立运行检查；Android APK / AAR 测试、构建、lint 通过。文档检查验证分区 / 链接结构，不评价翻译质量。
+- 冻结本地 x64 Windows EXE 静态审计匹配 **19 个自有模块、47 份通知及 38 个已记录原生组件**，未附带禁止的研究运行库或系统 D3D DLL。SHA-256 为 `19eaebd0d1420872b76db7add6fa3aee0835a4f18987a2bd997bcccee665378d`。清空 SDK 变量、使用新偏好后，该 EXE 选择 **portable_executable** 工具，识别一台已授权真实 USB 手机，诊断完成且无错误，没有发现旧开发 SDK 回退；官方工具仍另行安装。
+- **HUAWEI Pura 70 Ultra 真机**安装最终 Android 候选，拉回 APK 匹配 SHA-256 `1a3094c8c182930bcf96c571412442104df2e4b7123914cf6316a1e7b7a1ff7e`。实际拖动防抖滑块后，**50%** 本地保存并到达主机；主机更新 **65%** 后手机保存，重启保留并恢复到主机。原观看配置保留，操作系统鼠标移动为零。这是设置 / 持久化检查，不是真实游戏防抖验收。[未修改的设置截图](STABILIZATION.md#android-真机示例) 为临时 65%，默认仍为 0%。
+- 同一真机自定义 GLES 检查通过**双眼共 288 个离屏遮罩用例**，覆盖解析后的物理显示范围；这是图形代码 / 像素检查，不是盒子镜片或运动到光子延迟。
+- 原创卡的手机先启动 USB 重试通过：手机启动后 **6.08 秒**才启动测试主机，手机启动后 **7.67 秒**成功连接，即主机启动后 **1.59 秒**。配置不变、操作系统鼠标移动为零。这是一次有限启动结果，不是永久后台重连或长期稳定保证。
+- 最终 [Actions 37991498159](https://github.com/LexZeon/VRization/actions/runs/37991498159) 在 arm64 iPhone 17 Pro Max 模拟器、iOS 26.2（Xcode 26.3.0 / macOS 15.7.9）通过 **77 项 Swift 核心与五项真实原生界面用例**，零失败 / 跳过；模拟器与未签名真机目标构建都通过。局域网 / 模拟 USB 的 Metal 双眼颜色与行方向，以及准确视口中缝边界像素检查通过。这是模拟器 / 软件桥接结果，不是 iPhone 真机、真实 Apple USB 服务或已签名 IPA。
+
+官方 Windows Platform Tools 37.0.1 ZIP 已实际导入独立测试目录，完整 NOTICE 保留；不宣称导入器界面交互已验收。较早构建的普通启动器也在便携 SDK 配置后由用户确认可见画面。打包应用存储的 SDK 可见性是一个已核实的发现问题，共享 ADB 会话和手机授权掉线另有实际观察；一次授权重启后，仍需用户切换手机 USB 调试才恢复。未发现旧电脑端界面或端口冲突，**不把全部历史故障过程只归因于 MSIX**。
+
+合成滤波检查覆盖 0% 精确绕过、运动输入、平滑与重置 / 不输出边界，不测量真实游戏手感或物理延迟。真实 iPhone USB、盒子镜片、真实第一人称游戏输入、新 Windows 编辑器界面交互与端到端延迟仍未验证。下方历史性能数字保留原发布 / 配置范围。
 
 ### 首发已完成
 

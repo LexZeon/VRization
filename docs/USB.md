@@ -29,6 +29,10 @@ For later sessions, connect and unlock the phone, start PC streaming, and open t
 
 If USB works only when launched from a development / packaged app, check the PC's displayed official tool path. An SDK inside a packaged application's virtualized AppData can be invisible to an ordinary double-clicked process. Use the importer or manually select an official installation in an ordinary folder. The default is `tools/android-sdk` beside a standalone EXE, or at the managed archive root outside `latest`; launchers conditionally set SDK variables only for their child. Keep that separately installed folder when updating. This changes tool discovery, not device trust; the phone must still authorize USB debugging. See [download / archive layout](DOWNLOADS.md).
 
+The packaged v0.3.2 EXE was checked with SDK environment variables cleared and fresh preferences: it selected separately installed portable tools, found an authorized physical device and completed diagnostics without errors. Tool discovery does not repair a dropped ADB session or phone authorization. Both were separately observed during development; no old-host GUI or port collision was found, and not every historical failure is attributed to AppData virtualization. If Windows sees the USB interface but the app reports no authorized phone, check the phone's current debugging approval and data connection; avoid restarting a shared ADB server that other tools may use.
+
+A bounded phone-first test on the Huawei succeeded when PC streaming started 6.08 seconds after the phone attempt: connection arrived at 7.67 seconds from phone startup. This verifies that startup order in one run, not a persistent background retry or long-duration guarantee. See [version-scoped validation](VALIDATION.md).
+
 ### iPhone / iPad: first setup and present limits
 
 **The iOS USB path currently has software bridge / fake-device tests, not a successful real-iPhone USB test.** A Simulator, unsigned device build or connected charging cable does not establish hardware compatibility. Check [iOS build and signing](IOS.md) and [compatibility records](COMPATIBILITY.md) for the current evidence.
@@ -74,7 +78,7 @@ USB discovery / authorization is unchanged. A saved phone VR profile is applied 
 
 Windows 电脑端、Android 端和 iOS 端都默认优先 USB。需要支持数据传输的线缆以及相应平台授权。原生 USB 传输不要求开启热点、USB 网络共享或连接同一 Wi-Fi。每次使用一部手机，电脑端同时接受一个观看端。
 
-电脑启用 USB 选项后会自动检测已授权的 USB 设备。**电脑必须由你点击“开始串流”。** 手机软件新启动时在前台发起一次 USB 连接：Android v0.3.2 在含握手的最长 30 秒窗口内重试 bootstrap 发现，iOS 打开本地监听并等待电脑连接。失败后用手机连接按钮重试。手机进入后台或切换语言会断开，回来后需要手动连接，不会悄悄重连。USB 不会自动开启 第一人称鼠标控制：仍须在电脑主动允许控制、五秒内切换到游戏，并可随时按 **F8** 停止。
+电脑启用 USB 选项后会自动检测已授权的 USB 设备。**电脑必须由你点击“开始串流”。** 手机软件新启动时在前台发起一次 USB 连接：Android v0.3.2 在含握手的最长 30 秒窗口内重试 bootstrap 发现，iOS 打开本地监听并等待电脑连接。失败后用手机连接按钮重试。手机进入后台或切换语言会断开，回来后需要手动连接，不会悄悄重连。USB 不会自动开启第一人称鼠标控制：仍须在电脑主动允许控制、五秒内切换到游戏，并可随时按 **F8** 停止。
 
 ### 找到电脑端 USB 控件与状态
 
@@ -95,6 +99,10 @@ USB 状态位于顶部连接卡片、电脑地址和连接提示下方，状态�
 ### 便携工具与不同 Windows 启动环境
 
 若只有从开发 / 打包应用内启动才能连接 USB，先看电脑显示的官方工具路径。打包应用虚拟化 AppData 内的 SDK 可能不被普通双击进程看到；用导入器或手动选择普通文件夹中的官方安装。独立 EXE 默认用旁边 `tools/android-sdk`，已管理归档放根目录、在 `latest` 之外；启动器只为子应用有条件设置 SDK 变量。更新时保留另装工具目录。这改的是工具发现，不是设备信任，手机仍需授权 USB 调试，见 [下载 / 归档结构](DOWNLOADS.md)。
+
+打包 v0.3.2 EXE 已在清空 SDK 环境变量、使用新偏好时检查：选中另行安装的便携工具，识别已授权真实设备，诊断完成且无错误。工具发现不会修复掉线的 ADB 会话或手机授权；开发期间两种问题另有实际观察，未发现旧电脑端界面或端口冲突，不能把全部历史故障归因于 AppData 虚拟化。Windows 能看到 USB 接口而软件没有已授权手机时，核对手机当前调试批准和数据连接；避免重启其他工具共用的 ADB 服务。
+
+华为一次有限的手机先启动检查通过：手机尝试后 6.08 秒才开始电脑串流，手机启动后 7.67 秒连接成功。这验证该次启动顺序，不是持续后台重试或长期连接保证。见 [按版本记录的验证](VALIDATION.md)。
 
 ### iPhone / iPad：首次设置与当前限制
 

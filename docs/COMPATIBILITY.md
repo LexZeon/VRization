@@ -12,12 +12,12 @@ Support targets and observed tests are separate. Passing an emulator test does n
 | Component | Target and requirements | Evidence / limits |
 | --- | --- | --- |
 | Windows host | Windows 10 / 11 x64; Microsoft Visual C++ v14 x64 runtime | Local physical machine runs Windows 11 build 26200. Windows 10 has not been physically tested. |
-| Android client | Android 6.0 / API 23 or later, OpenGL ES 2.0, APK-compatible system | Java application with no bundled ABI-specific native library. v0.2.0 and v0.3.0 were installed and streamed over USB on a physical HUAWEI Pura 70 Ultra reporting Android 12 / API 31 compatibility; other derivatives require device testing. |
+| Android client | Android 6.0 / API 23 or later, OpenGL ES 2.0, APK-compatible system | Java application with no bundled ABI-specific native library. v0.2.0, v0.3.0 and v0.3.2 were installed and streamed over USB on a physical HUAWEI Pura 70 Ultra reporting Android 12 / API 31 compatibility; other derivatives require device testing. |
 | iOS client | iOS / iPadOS 15+, landscape, Metal, local-network permission | Native Swift / UIKit client. Xcode on macOS builds and signs it; the Windows host serves both phone platforms. See [iOS guide](IOS.md) for exact installation / test limits. |
 | Google services | Not required | First-release API 23 emulator uses no Google services. |
 | Full screen | Network and graphics support | No rotation sensor required; verified on the sensor-less API 23 emulator. |
-| Cinema / FPS | Compatible Android rotation sensor or iOS Core Motion | Real gyro axes, drift and headset tracking still need a physical phone. |
-| FPS game input | Game accepts ordinary relative mouse input; PC authorization and F8 | Real FPS games and anti-cheat / raw-input combinations remain unverified. |
+| Cinema / First person | Compatible Android rotation sensor or iOS Core Motion | Real gyro axes, drift and headset tracking still need a physical phone. |
+| First-person game input | Game accepts ordinary relative mouse input; PC authorization and F8 | Real FPS games and anti-cheat / raw-input combinations remain unverified. |
 
 ### Interface language
 
@@ -49,7 +49,11 @@ Targets are unchanged. The new flat editor, shared geometry with dynamic seam li
 
 ### v0.3.2 compatibility scope
 
-The new First-person stabilization setting defaults to 0, preserving previous behavior. Full ten-field profiles migrate to eleven fields with stabilization 0; current clients negotiate settings schema 2 inside protocol v1 and omit the new network field for legacy hosts while retaining its local value. A newer host is needed for stabilization to take effect. Windows / Android / iOS targets above are unchanged. New final binaries, Mac CI and physical stabilization-slider / synchronization acceptance are pending; earlier checks below remain evidence for their named version. The ordinary archived Windows launcher has separately been confirmed to show the stream on the Huawei after configuring a portable official SDK outside packaged-app storage; that check used the prior host / phone builds, not final v0.3.2 binaries. A subsequent ADB debugging-channel drop remains under investigation; USB-interface presence alone and one successful session do not establish durable connectivity. See [current release status](RELEASE_NOTES.md) and [stabilization](STABILIZATION.md).
+The new First-person stabilization setting defaults to 0, preserving previous behavior. Full ten-field profiles migrate to eleven fields with stabilization 0; current clients negotiate settings schema 2 inside protocol v1 and omit the new network field for legacy hosts while retaining its local value. A newer host is needed for stabilization to take effect. Windows / Android / iOS targets above are unchanged.
+
+On the physical Huawei, the v0.3.2 slider synchronized **50%** to the host; a **65%** host update persisted on the phone, survived restart and restored to the host. The previous committed profile was retained and OS mouse moves stayed zero. A custom GLES runner on the phone passed **288 offscreen mask cases across both eyes**, not headset-optics checks. Phone-first USB connection succeeded when the host started 6.08 seconds later, at 7.67 seconds from phone startup.
+
+The final packaged Windows EXE found one authorized physical device using a separately installed portable SDK with SDK variables cleared and fresh preferences; diagnostics completed without errors. SDK lookup and ADB / phone-authorization availability are separate: shared debugging-session / authorization drops were also observed, and the original historical faults are not all attributed to MSIX storage. Windows / Android / iOS / documentation CI jobs passed; iOS passed 77 Swift core tests / five genuine UI cases and both SDK builds on an arm64 iOS 26.2 Simulator. Both-eye LAN / simulated-USB color / row checks and exact seam-boundary checks passed; there is still no real-iPhone USB result. Earlier results retain their original version scope. See [current release status](RELEASE_NOTES.md), [validation](VALIDATION.md) and [stabilization](STABILIZATION.md).
 
 ---
 
@@ -63,12 +67,12 @@ The new First-person stabilization setting defaults to 0, preserving previous be
 | 部分 | 目标与要求 | 已有证据 / 限制 |
 | --- | --- | --- |
 | Windows 电脑端 | Windows 10 / 11 x64；Microsoft Visual C++ v14 x64 运行库 | 本机实际运行 Windows 11 build 26200；未在 Windows 10 实机测试。 |
-| Android 手机端 | Android 6.0 / API 23+、OpenGL ES 2.0、可安装 APK 的兼容系统 | Java 应用，不附带 ABI 专用原生库。v0.2.0 与 v0.3.0 已在报告 Android 12 / API 31 兼容层的 HUAWEI Pura 70 Ultra 真机安装并经 USB 串流；其他衍生系统需分别实测。 |
+| Android 手机端 | Android 6.0 / API 23+、OpenGL ES 2.0、可安装 APK 的兼容系统 | Java 应用，不附带 ABI 专用原生库。v0.2.0、v0.3.0 与 v0.3.2 已在报告 Android 12 / API 31 兼容层的 HUAWEI Pura 70 Ultra 真机安装并经 USB 串流；其他衍生系统需分别实测。 |
 | iOS 手机端 | iOS / iPadOS 15+、横屏、Metal、本地网络权限 | 原生 Swift / UIKit 客户端，macOS 用 Xcode 构建和签名；Windows 主机同时服务两类手机。安装与实测边界见 [iOS 教程](IOS.md)。 |
 | Google 服务 | 不需要 | 首版 API 23 模拟器不含 Google 服务。 |
 | 全屏模式 | 网络与图形支持 | 无需旋转传感器，已在无传感器 API 23 模拟器检查。 |
-| 大屏幕 / FPS | 兼容 Android 旋转传感器或 iOS Core Motion | 真实轴向、漂移与头部追踪仍需手机实测。 |
-| FPS 游戏输入 | 游戏接受普通相对鼠标；电脑主动授权与 F8 | 真实 FPS、反作弊与原始输入组合尚未验证。 |
+| 大屏幕 / 第一人称 | 兼容 Android 旋转传感器或 iOS Core Motion | 真实轴向、漂移与头部追踪仍需手机实测。 |
+| 第一人称游戏输入 | 游戏接受普通相对鼠标；电脑主动授权与 F8 | 真实 FPS、反作弊与原始输入组合尚未验证。 |
 
 ### 界面语言
 
@@ -101,4 +105,8 @@ USB 需要官方 Platform Tools / Android 调试授权，或 iOS 的 Apple Windo
 
 ### v0.3.2 兼容范围
 
-新增 第一人称防抖默认 0，保留此前行为。十字段完整配置迁移为十一字段时添加防抖零值；当前客户端在协议 v1 内协商配置 schema 2，面对旧主机只从网络去掉新字段，本地值保留。防抖生效需新版电脑端，上表 Windows / Android / iOS 目标不变。新最终二进制、Mac 自动检查和真机防抖滑块 / 同步验收仍待完成，较早结果只证明所标版本。普通归档 Windows 启动器在打包应用存储之外配置便携官方 SDK 后，用户已确认华为可见串流；该检查使用较早电脑 / 手机构建，不是最终 v0.3.2；后续 ADB 调试链路掉线仍在排查，USB 接口存在和一次成功不能证明持久连接。见 [当前发布状态](RELEASE_NOTES.md) 与 [防抖说明](STABILIZATION.md)。
+新增第一人称防抖默认 0，保留此前行为。十字段完整配置迁移为十一字段时添加防抖零值；当前客户端在协议 v1 内协商配置 schema 2，面对旧主机只从网络去掉新字段，本地值保留。防抖生效需新版电脑端，上表 Windows / Android / iOS 目标不变。
+
+华为真机 v0.3.2 滑块 **50%** 同步主机；主机更新 **65%** 后手机保存，重启保留并恢复到主机。此前已提交配置保留，操作系统鼠标移动为零。手机自定义 GLES 检查通过**双眼共 288 项离屏遮罩用例**，不是盒子镜片检查。手机先启动，主机 6.08 秒后启动，手机启动后 7.67 秒连接成功。
+
+最终打包 Windows EXE 在清空 SDK 变量、使用新偏好时，通过另行安装的便携 SDK 发现一台已授权真实设备，诊断完成且无错误。SDK 查找与 ADB / 手机授权可用性属于不同问题：另观察到共享调试会话 / 授权掉线，不把全部历史故障归因于 MSIX 存储。Windows / Android / iOS / 文档 CI 任务通过；iOS 在 arm64 iOS 26.2 模拟器通过 77 项 Swift 核心 / 五项真实界面用例与两种 SDK 构建，双眼局域网 / 模拟 USB 的颜色 / 行方向及准确接缝边界检查通过；仍无 iPhone 真机 USB 结果。较早结果保留对应版本范围，见 [当前发布状态](RELEASE_NOTES.md)、[验证记录](VALIDATION.md) 与 [防抖说明](STABILIZATION.md)。

@@ -10,11 +10,23 @@ The **First-person stabilization** slider controls how much the Windows host smo
 ### Adjust it while playing
 
 1. Use v0.3.2 or newer host and phone applications, connect, then choose First-person mode.
-2. Find **First-person stabilization** in the PC's game controls or the phone's settings. Start at 0% and raise it gradually if small involuntary movements make aiming jittery.
+2. Find **First-person stabilization strength** in the PC / iOS controls, or **Gyro stabilization (First-person)** in Android settings. Start at 0% and raise it gradually if small involuntary movements make aiming jittery.
 3. Keep **Mouse sensitivity** separate: sensitivity changes movement gain; stabilization smooths movement. Stronger smoothing can increase the feeling of following behind your head. Lower the strength if turns feel slow.
 4. Recenter and explicitly arm input on the PC. **F8** stops input. Changing the slider never arms or resumes input by itself.
 
 The 0–100% control represents `stabilization` from 0 to 1. A connected update uses normal validated settings, acknowledgments and broadcasts, so the PC and phone show the accepted value and retain their committed profiles. An offline phone change is saved locally and restored once after the next validated connection; if both sides changed offline, the saved phone profile wins on reconnect. **Reset all settings** restores stabilization to 0%, along with the other documented [reset defaults](EDITING.md).
+
+### Physical Android example
+
+![HUAWEI Pura 70 Ultra, v0.3.2 Chinese settings with stabilization at 65%](images/huawei-stabilization-v032.png)
+
+This unmodified screenshot is from the physical HUAWEI Pura 70 Ultra receiving VRization's original calibration card over USB. The Chinese **陀螺仪防抖（第一人称）** control shows **65%**, a temporary synchronization-test value; the product default remains **0%**. The screenshot shows the setting, not measured game smoothing or latency.
+
+### Native iOS Simulator example
+
+![Native iPhone 17 Pro Max Simulator, v0.3.2 English stabilization control at 60%](images/ios-stabilization-v032.png)
+
+This unmodified image comes from the genuine UI checks on the arm64 iPhone 17 Pro Max Simulator running iOS 26.2. The English control shows **60%**, a temporary test value; the default remains **0%**. It is Simulator evidence, not a physical iPhone or real Apple USB connection.
 
 ### Older hosts and saved profiles
 
@@ -34,7 +46,9 @@ Algorithm credit: **Géry Casiez, Nicolas Roussel and Daniel Vogel**, CHI 2012, 
 
 ### Verification scope
 
-Synthetic input checks exercise jitter reduction, moving input, exact 0% bypass and reset / no-output boundaries. Synthetic comparisons are **not** real-game acceptance, measured hardware latency or end-to-end video delay. New release builds, Mac CI and physical slider / synchronization acceptance are pending until recorded for v0.3.2. Prior [performance measurements](PERFORMANCE.md) retain their original version and configuration.
+Synthetic input checks exercise jitter reduction, moving input, exact 0% bypass and reset / no-output boundaries. On the physical Huawei, an actual phone-slider change saved **50%** locally and reached the host; a **65%** host update persisted on the phone and survived restart, then restored to the host. The earlier committed viewing profile was preserved, and no OS mouse moves were emitted. Windows / Android build and test jobs passed. iOS passed 77 Swift core tests and five genuine Simulator UI cases; this remains simulated-USB / LAN evidence, without a physical-iPhone result. Exact scope is in [validation](VALIDATION.md).
+
+These are algorithm and settings-flow checks, **not** real-game control acceptance, measured smoothing lag or end-to-end video delay. Prior [performance measurements](PERFORMANCE.md) retain their original version and configuration.
 
 ---
 
@@ -45,12 +59,24 @@ Synthetic input checks exercise jitter reduction, moving input, exact 0% bypass 
 
 ### 游戏时如何调节
 
-1. 使用 v0.3.2 或更新的电脑端与手机端，连接后选择 第一人称模式。
-2. 在电脑游戏控制区或手机设置找到“**第一人称防抖强度**”。从 0% 开始，若细小的不自主移动让瞄准抖动，再逐步提高。
+1. 使用 v0.3.2 或更新的电脑端与手机端，连接后选择第一人称模式。
+2. 在电脑 / iOS 控件找到“**第一人称防抖强度**”，Android 设置中对应“**陀螺仪防抖（第一人称）**”。从 0% 开始，若细小的不自主移动让瞄准抖动，再逐步提高。
 3. “**鼠标灵敏度**”单独调整：灵敏度改变移动倍率，防抖平滑移动。更强平滑可能让视角跟随头部时稍显迟缓；转头感觉慢时降低防抖。
 4. 回正后仍需在电脑主动授权输入，**F8** 停止控制。滑块变化不会自行授权或恢复控制。
 
 0–100% 对应 `stabilization` 的 0–1。已连接时经普通设置校验、确认与广播同步，电脑和手机显示接受的值并保存已提交配置。手机离线修改会本地保存，在下次合法连接后恢复一次；双方都离线改过时，重连以手机保存配置优先。“**一键重置所有设置**”会将防抖恢复 0%，其他范围见 [重置说明](EDITING.md)。
+
+### Android 真机示例
+
+![HUAWEI Pura 70 Ultra，v0.3.2 中文设置，防抖 65%](images/huawei-stabilization-v032.png)
+
+这张未经修改的截图来自 HUAWEI Pura 70 Ultra 真机，通过 USB 接收 VRization 原创校准卡。“**陀螺仪防抖（第一人称）**”显示 **65%**，这是同步测试临时值，产品默认仍为 **0%**。截图证明设置状态，不是游戏平滑效果或延迟测量。
+
+### 原生 iOS 模拟器示例
+
+![原生 iPhone 17 Pro Max 模拟器，v0.3.2 英文防抖控件 60%](images/ios-stabilization-v032.png)
+
+这张未修改原图来自 arm64 iPhone 17 Pro Max 模拟器、iOS 26.2 的真实界面检查。英文控件显示 **60%**，属于临时测试值，默认仍为 **0%**。这是模拟器证据，不是 iPhone 真机或真实 Apple USB 连接。
 
 ### 较早电脑端与保存配置
 
@@ -70,4 +96,6 @@ Synthetic input checks exercise jitter reduction, moving input, exact 0% bypass 
 
 ### 验证范围
 
-合成输入检查覆盖抖动降低、运动输入、0% 精确绕过与重置 / 不输出边界。合成对比**不是**真实游戏验收、硬件延迟测量或端到端视频延迟。v0.3.2 的新构建、Mac 自动检查及真机滑块 / 同步验收，在有记录前仍待完成。[已有性能测量](PERFORMANCE.md) 保留对应版本与配置范围。
+合成输入检查覆盖抖动降低、运动输入、0% 精确绕过与重置 / 不输出边界。华为真机实际拖动滑块后，**50%** 本地保存并到达主机；主机更新 **65%** 后手机保存，重启仍保留并恢复到主机。此前已提交的观看配置保留，没有操作系统鼠标移动。Windows / Android 构建与测试任务通过；iOS 通过 77 项 Swift 核心与五项真实模拟器界面用例，仍属于模拟 USB / 局域网证据，没有 iPhone 真机结果。精确范围见 [验证记录](VALIDATION.md)。
+
+这些是算法与设置流程检查，**不是**真实游戏控制验收、平滑迟滞测量或端到端视频延迟。[已有性能测量](PERFORMANCE.md) 保留对应版本与配置范围。

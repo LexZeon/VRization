@@ -5,7 +5,7 @@
 <!-- vrization:english -->
 ## English
 
-This version updates the Windows host, Android app / library and iOS app to **0.3.2**, retaining **protocol v1**. It adds adjustable First-person gyro stabilization with **0% as the default**, preserving the previous unfiltered behavior, and improves USB tools setup for an ordinary downloaded Windows application. Final builds / CI and this version's physical acceptance are being completed; implemented behavior and observed results are distinguished below.
+This version updates the Windows host, Android app / library and iOS app to **0.3.2**, retaining **protocol v1**. It adds adjustable First-person gyro stabilization with **0% as the default**, preserving the previous unfiltered behavior, and improves USB tools setup for an ordinary downloaded Windows application. Windows / Android build and test jobs, clean-environment packaged USB discovery and physical Huawei settings acceptance passed. The iOS test / build job also passed; the version-specific evidence and remaining limits are below.
 
 ### First-person stabilization
 
@@ -19,7 +19,7 @@ The original filter acknowledges One Euro Filter by Géry Casiez, Nicolas Rousse
 
 ### Display naming and range
 
-The visible FPS mode is renamed **First person / 第一人称**; the stored / wire identifier remains `fps` for compatibility. All phone viewing modes honor the resolved physical per-eye display rectangle, including cinema / distortion; perspective content need not fill the masked rectangle. Existing flat editor, seam contact and saved profiles remain available. New rendering acceptance is version-scoped when completed.
+The visible FPS mode is renamed **First person / 第一人称**; the stored / wire identifier remains `fps` for compatibility. All phone viewing modes honor the resolved physical per-eye display rectangle, including cinema / distortion; perspective content need not fill the masked rectangle. Existing flat editor, seam contact and saved profiles remain available. A physical-device custom GLES runner passed 288 offscreen mask cases across both eyes; this is shader / pixel evidence, not headset optics or physical display-latency validation.
 
 ### USB tools and ordinary Windows launch
 
@@ -31,7 +31,12 @@ Android USB detection uses a bounded attempt of up to 30 seconds, covering boots
 
 ### Verification and limits
 
-After configuring a separate portable official SDK and relative child environment, the user double-clicked the existing archived **Start-Windows.bat**, selected PC Start and phone Detect, and confirmed the stream was visible on the HUAWEI Pura 70 Ultra. This used the previous host / phone builds: it establishes that ordinary-launch configuration's connection result, **not final v0.3.2 build or stabilization acceptance**. A later debugging-channel drop is being investigated: a Windows USB interface being present did not ensure an online ADB device. The earlier visible result is not a sustained-connection guarantee. The exact official tools ZIP has been imported and its complete NOTICE preserved in a separate test folder; importer GUI interaction, final package diagnostics, platform CI and physical slider / persistence checks remain pending until recorded.
+- The final packaged Windows EXE was tested with SDK variables cleared and fresh application preferences. It selected the separate portable tools beside the executable, found one authorized physical USB device and completed diagnostics without errors; no developer-SDK fallback was found. Its static audit matched 19 project modules, 47 notice files and 38 recorded native components. The public Windows ZIP also passed CI's run-without-a-developer-SDK check. Official tools remain separately installed.
+- On the physical **HUAWEI Pura 70 Ultra**, the phone slider saved **50%** and synchronized to the host. A host update to **65%** persisted on the phone, survived restart and restored to the host. The earlier viewing profile was retained; no OS mouse moves were recorded. The installed APK matched the candidate's SHA-256.
+- Phone-first USB retry passed: the phone started first, the test host started **6.08 seconds** later, and connection succeeded at **7.67 seconds** from phone startup (**1.59 seconds** after the host). The profile stayed unchanged and mouse output remained zero. This is one bounded startup result, not a long-duration connection guarantee.
+- [Actions 37991498159](https://github.com/LexZeon/VRization/actions/runs/37991498159) passed Windows, Android, iOS and documentation jobs, including **220 Windows tests, 77 Swift core tests and five native iOS Simulator UI cases**. Simulator / unsigned device builds, both-eye LAN / simulated-USB Metal color / row-direction checks and exact seam-boundary checks passed; these are not physical-iPhone USB results. The exact official tools ZIP was imported into a separate test folder with the complete NOTICE retained; actual importer-GUI interaction is not claimed.
+
+An earlier ordinary double-click launch with the previous builds also showed the stream after portable SDK configuration. SDK visibility across packaged-app storage was one verified discovery issue, **not a proven explanation of every historical USB failure**. Shared ADB-session / phone-authorization drops were observed separately; recovery required the user's USB-debugging toggle after one authorized restart. No old-host GUI or port collision was found. A Windows USB interface alone does not establish an online, authorized debugging channel.
 
 Synthetic filter traces test an algorithm, not a real game or end-to-end latency. No new FPS / latency claim follows from the USB lookup fix. Earlier v0.3.0 measurements and v0.3.1 visible connection results remain in [archived notes](releases/README.md). Physical iPhone USB, viewer optics, real first-person input and end-to-end latency remain unverified; no new Windows visual-editor GUI acceptance is claimed. See [validation](VALIDATION.md), [performance](PERFORMANCE.md) and [compatibility](COMPATIBILITY.md).
 
@@ -52,7 +57,7 @@ For an older host, stabilization stays a local preference until a capable host i
 <!-- vrization:chinese -->
 ## 简体中文
 
-本版将 Windows 电脑端、Android 应用 / 库及 iOS 应用都更新至 **0.3.2**，保留 **协议 v1**。新增可调 第一人称陀螺仪防抖，默认 **0%** 保留此前无滤波行为，并改进普通下载 Windows 应用的 USB 工具设置。最终构建 / 自动检查与本版真机验收仍在完成，下方区分实现行为和实际观察。
+本版将 Windows 电脑端、Android 应用 / 库及 iOS 应用都更新至 **0.3.2**，保留 **协议 v1**。新增可调第一人称陀螺仪防抖，默认 **0%** 保留此前无滤波行为，并改进普通下载 Windows 应用的 USB 工具设置。Windows / Android 构建与测试、独立环境的打包 USB 发现及华为真机设置验收通过，iOS 测试 / 构建任务也通过；下方按版本记录证据与剩余限制。
 
 ### 第一人称防抖
 
@@ -66,7 +71,7 @@ For an older host, stabilization stays a local preference until a capable host i
 
 ### 模式名称与显示范围
 
-界面 FPS 模式改称“**First person / 第一人称**”，保存 / 协议标识仍为 `fps`，保持兼容；所有手机观看模式遵守解析后的物理单眼显示矩形，包括大屏幕 / 畸变，透视内容不一定填满遮罩范围。平面编辑、接缝相接及配置保存继续保留，新渲染验收完成后按本版记录。
+界面 FPS 模式改称“**First person / 第一人称**”，保存 / 协议标识仍为 `fps`，保持兼容；所有手机观看模式遵守解析后的物理单眼显示矩形，包括大屏幕 / 畸变，透视内容不一定填满遮罩范围。平面编辑、接缝相接及配置保存继续保留。真机自定义 GLES 检查通过双眼共 288 个离屏遮罩用例，这是着色器 / 像素证据，不是盒子镜片或物理屏幕延迟验证。
 
 ### USB 工具与普通 Windows 启动
 
@@ -78,9 +83,14 @@ Android USB 检测采用最长 30 秒的有限尝试，覆盖 bootstrap 发现�
 
 ### 检查与限制
 
-独立便携官方 SDK 及相对子进程环境配置好后，用户普通双击已有归档 **Start-Windows.bat**、电脑点开始、手机点检测，确认 HUAWEI Pura 70 Ultra 可见串流。该检查使用较早电脑 / 手机构建，证明对应普通启动配置的连接结果，**不是最终 v0.3.2 构建或防抖验收**。后续调试链路掉线仍在排查，Windows USB 接口存在不等于 ADB 设备在线；此前可见结果不是持久连接保证。精确官方工具包已实际导入独立测试目录并保留完整 NOTICE；导入器界面交互、最终打包诊断、平台自动检查和真机滑块 / 保存验收，有记录前仍待完成。
+- 最终打包 Windows EXE 在清空 SDK 变量、使用全新应用偏好的条件下，选中程序旁独立便携工具，识别一台已授权真实 USB 设备，诊断完成且无错误，没有找到开发 SDK 回退。静态审计匹配 19 个自有模块、47 份通知与 38 个已记录原生组件。公开 Windows ZIP 也通过 CI 的脱离开发 SDK 运行检查；官方工具仍另行安装。
+- **HUAWEI Pura 70 Ultra 真机**滑块保存 **50%** 并同步主机；主机更新 **65%** 后手机保存，重启仍保留并恢复到主机。原观看配置保留，没有操作系统鼠标移动，已安装 APK 的 SHA-256 与候选一致。
+- 手机先启动的 USB 重试通过：手机启动后 **6.08 秒**才启动测试主机，手机启动后 **7.67 秒**连接成功，即主机启动后 **1.59 秒**；配置不变、鼠标输出为零。这是一次有限启动检查，不是长期连接保证。
+- [Actions 37991498159](https://github.com/LexZeon/VRization/actions/runs/37991498159) 的 Windows、Android、iOS、文档任务全部通过，包含 **220 项 Windows、77 项 Swift 核心和五项原生 iOS 模拟器界面用例**；模拟器 / 未签名真机目标构建、双眼局域网 / 模拟 USB 的 Metal 颜色 / 行方向及准确中缝边界检查通过，不是 iPhone 真机 USB 结果。精确官方工具包实际导入独立测试目录并保留完整 NOTICE，不宣称导入器界面交互已验收。
 
-合成轨迹是算法检查，不是真实游戏或端到端延迟，USB 查找修复不推导新增 FPS / 延迟结论；较早 v0.3.0 测量与 v0.3.1 可见连接保留在 [历史说明](releases/README.md)。真实 iPhone USB、盒子镜片、真实 第一人称输入与端到端延迟仍未验证，不宣称新增 Windows 可视编辑器界面验收。见 [验证](VALIDATION.md)、[性能](PERFORMANCE.md)、[兼容性](COMPATIBILITY.md)。
+此前较早构建也在配置便携 SDK 后，由用户普通双击启动并确认可见画面。打包应用存储的 SDK 可见性是一个已核实的发现问题，**不能据此解释全部历史 USB 故障**。另观察到共享 ADB 会话 / 手机授权掉线，经一次授权重启后仍需用户切换 USB 调试才恢复；未发现旧电脑端界面或端口冲突。Windows USB 接口存在本身不代表调试链路在线且已授权。
+
+合成轨迹是算法检查，不是真实游戏或端到端延迟，USB 查找修复不推导新增 FPS / 延迟结论；较早 v0.3.0 测量与 v0.3.1 可见连接保留在 [历史说明](releases/README.md)。真实 iPhone USB、盒子镜片、真实第一人称输入与端到端延迟仍未验证，不宣称新增 Windows 可视编辑器界面验收。见 [验证](VALIDATION.md)、[性能](PERFORMANCE.md)、[兼容性](COMPATIBILITY.md)。
 
 ### 更新与产物
 
