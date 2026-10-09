@@ -14,11 +14,11 @@
 ![iOS](https://img.shields.io/badge/iOS%2FiPadOS-15%2B-black)
 [![Build](https://github.com/LexZeon/VRization/actions/workflows/build.yml/badge.svg)](https://github.com/LexZeon/VRization/actions/workflows/build.yml)
 
-[简体中文](#简体中文) · [Quick start](docs/QUICKSTART.md) · [🔌 USB setup](docs/USB.md) · [📦 Downloads](docs/DOWNLOADS.md) · [🍎 iPhone + Windows](docs/IOS.md) · [Build](docs/BUILD.md) · [Architecture](docs/ARCHITECTURE.md)
+[简体中文](#简体中文) · [Quick start](docs/QUICKSTART.md) · [🔌 USB setup](docs/USB.md) · [⚡ Performance](docs/PERFORMANCE.md) · [📦 Downloads](docs/DOWNLOADS.md) · [🍎 iPhone + Windows](docs/IOS.md) · [Build](docs/BUILD.md) · [Architecture](docs/ARCHITECTURE.md)
 
 VRization streams a Windows desktop or rectangular region to an Android phone, iPhone or iPad, renders the image side by side, and optionally maps phone rotation to PC mouse movement. Its reusable Android library, Swift core package and separated host components provide a starting point for embedding these features in other applications.
 
-**v0.2.0-alpha is an experimental baseline.** CPU JPEG over WebSocket establishes the capture, viewing, settings and input paths. It does not promise production VR latency. Both eyes receive the same 2D source: ordinary games do not acquire stereoscopic depth.
+**v0.2.0-alpha is an experimental baseline.** An original Windows DXGI / D3D11 backend crops, rotates and scales on the GPU before smaller pixel readback; the CPU encodes JPEG for the existing WebSocket protocol. GDI / MSS remain compatibility paths. Both eyes receive the same 2D source: ordinary games do not acquire stereoscopic depth. See [performance and measurement limits](docs/PERFORMANCE.md).
 
 | Mode | Behavior |
 | --- | --- |
@@ -26,7 +26,9 @@ VRization streams a Windows desktop or rectangular region to an Android phone, i
 | 🎬 Cinema | A virtual screen viewed through phone rotation. |
 | 🎯 FPS | Side-by-side viewing plus rotation-to-mouse input, explicitly armed on the PC. Press **F8** to stop input. |
 
-Adjust image scale and offsets for large phones, eye separation, field of view, screen distance, distortion, recentering, mouse sensitivity and vertical inversion. **USB is the default on both phone platforms and the Windows host**, with authorized-device detection. The default low-latency profile uses a 960-pixel longest edge, a 60 FPS target and JPEG quality 60; stable / quality presets and custom controls are also available. Targets are not guaranteed achieved frame rates.
+Adjust image scale and offsets for large phones, eye separation, field of view, screen distance, distortion, recentering, mouse sensitivity and vertical inversion. **USB is the default on both phone platforms and the Windows host**, with authorized-device detection. Profiles use longest edge / target FPS / JPEG quality: low latency **640 / 60 / Q45**, stable **640 / 30 / Q50**, quality **960 / 30 / Q60**, or custom. Targets are not guaranteed achieved frame rates.
+
+The first production ASUS full-output → Huawei USB check showed phone decoded-FPS readings of **59.9 and 57.7**, with mean host sent FPS **59.66**. Repeated static frames and physical presentation are separate; these results do not establish 60 unique displayed images per second or end-to-end latency. See [the measured configuration and limits](docs/PERFORMANCE.md).
 
 ### 📸 Interface
 
@@ -66,7 +68,7 @@ LAN transport uses **unencrypted `ws://`**. The pairing code is an access gate, 
 
 ### 🤝 License and credit
 
-Original code is [MIT](LICENSE), including commercial use subject to its notice requirements. Dependencies retain their licenses. See [third-party notices](THIRD_PARTY_NOTICES.md), [NOTICE](NOTICE) and [contributing](CONTRIBUTING.md). No implementation source was copied from another VR application.
+Original code is [MIT](LICENSE), including commercial use subject to its notice requirements. Dependencies retain their licenses. See [third-party notices](THIRD_PARTY_NOTICES.md), [NOTICE](NOTICE) and [contributing](CONTRIBUTING.md). No implementation source was copied from another VR application. Capture / optimization ideas are credited even when rewritten; DXcam, NumPy and comtypes were research tools, and Sunshine / Moonlight architecture references are not bundled code.
 
 ### ✨ Fit different phones and viewers
 
@@ -115,12 +117,12 @@ Windows 桌面串流 · Android / 兼容 Android 的系统 · iPhone / iPad · �
 ![iOS](https://img.shields.io/badge/iOS%2FiPadOS-15%2B-black)
 [![Build](https://github.com/LexZeon/VRization/actions/workflows/build.yml/badge.svg)](https://github.com/LexZeon/VRization/actions/workflows/build.yml)
 
-[🚀 上手教程](docs/QUICKSTART.md) · [🔌 USB 连接](docs/USB.md) · [📦 下载与本地备份](docs/DOWNLOADS.md) · [🍎 iPhone 与 Windows](docs/IOS.md) · [🛠️ 开发与构建](docs/BUILD.md) · [🧩 集成指南](docs/ARCHITECTURE.md) · [English](README.en.md)
+[🚀 上手教程](docs/QUICKSTART.md) · [🔌 USB 连接](docs/USB.md) · [⚡ 性能与测量](docs/PERFORMANCE.md) · [📦 下载与本地备份](docs/DOWNLOADS.md) · [🍎 iPhone 与 Windows](docs/IOS.md) · [🛠️ 开发与构建](docs/BUILD.md) · [🧩 集成指南](docs/ARCHITECTURE.md) · [English](README.en.md)
 
 
 VRization 是一个开源的电脑 → 手机串流实验项目。Windows 端采集显示器或指定矩形区域，Android、iPhone / iPad 客户端将画面显示在 VR 盒子的左右眼区域。你可以让画面固定在眼前，也可以把它当成一个随头部转动观看的虚拟大屏幕，或者用手机的姿态控制电脑游戏视角。
 
-> **当前版本：可运行的 Alpha 基础版。** 使用 CPU 编码 JPEG + WebSocket，优先打通安装、串流、调节与模块复用；尚未达到专用 VR 串流产品的画质、延迟和稳定性。左右眼接收同一张二维桌面图像，**不会把普通游戏自动变成立体 3D**。
+> **当前版本：可运行的 Alpha 基础版。** 原创 Windows DXGI / D3D11 后端在 GPU 裁切、旋转和缩放，再回读较小像素；CPU 编码 JPEG，经已有 WebSocket 协议传输，保留 GDI / MSS 兼容路径。左右眼接收同一张二维桌面图像，**不会把普通游戏自动变成立体 3D**。实测范围见 [性能与测量](docs/PERFORMANCE.md)。
 
 ### 🎮 三种观看方式
 
@@ -139,9 +141,11 @@ FPS 控制需要在**电脑端主动授权**。手机连接或切换模式不会
 - **重新居中**：把当前头部方向设为正前方。
 - **鼠标灵敏度与 Y 轴反转**：调整 FPS 头部控制手感。
 - **显示器 / 矩形选区、输出最长边、帧率和 JPEG 质量**：保持画面比例，同时限制横屏与竖屏的解码负担。
-- **纯局域网、无需 Google 服务**：Android 6.0+，可在提供 Android APK 兼容层的系统上尝试安装。兼容性仍取决于设备的图形、网络与传感器实现；全屏模式不要求陀螺仪。
+- **USB / 可信局域网、无需 Google 服务**：Android 6.0+，可在提供 Android APK 兼容层的系统上尝试安装。兼容性仍取决于设备的图形、网络与传感器实现；全屏模式不要求陀螺仪。
 
-**两种手机端与 Windows 均默认 USB 连接**，自动检测已授权设备。新配置默认使用低延迟预设：最长边 960、目标 60 FPS、JPEG 质量 60，也可选稳定 / 画质预设或自定义。目标帧率不代表实际达到的帧率。
+**两种手机端与 Windows 均默认 USB 连接**，自动检测已授权设备。预设按最长边 / 目标 FPS / JPEG 质量表示：低延迟默认 **640 / 60 / Q45**，稳定 **640 / 30 / Q50**，画质 **960 / 30 / Q60**，也可自定义。目标帧率不代表实际达到的帧率。
+
+首轮正式 ASUS 全输出 → 华为 USB 实测，手机解码 FPS 两次读数为 **59.9、57.7**，主机平均发送 FPS **59.66**。重复静态帧与物理呈现需另外区分，不能当作每秒 60 张不同图像实际显示或端到端延迟。配置与限制详见 [实测说明](docs/PERFORMANCE.md)。
 
 ### 📸 看看界面
 
@@ -206,7 +210,7 @@ Alpha 版尚未提供音频、硬件视频编码、WebRTC、原生立体渲染�
 
 ### 🤝 开源与致谢
 
-原创代码以 [MIT](LICENSE) 授权，允许商业使用并要求保留相关许可与版权声明。依赖保留各自许可证；来源、用途、作者与分发注意事项记录在 [第三方声明](THIRD_PARTY_NOTICES.md) 和 [NOTICE](NOTICE)。本项目没有复制其他 VR 应用的实现源码。
+原创代码以 [MIT](LICENSE) 授权，允许商业使用并要求保留相关许可与版权声明。依赖保留各自许可证；来源、用途、作者与分发注意事项记录在 [第三方声明](THIRD_PARTY_NOTICES.md) 和 [NOTICE](NOTICE)。本项目没有复制其他 VR 应用的实现源码；采集 / 优化思路即使重写也鸣谢。DXcam、NumPy 和 comtypes 属研究工具，Sunshine / Moonlight 仅作架构参考，不是随包代码。
 
 感谢 aiohttp、MSS、Pillow、OkHttp、Okio、Kotlin 及相关工具的维护者。欢迎提交兼容性记录、问题、翻译与 PR，开始前可看 [贡献指南](CONTRIBUTING.md)。
 

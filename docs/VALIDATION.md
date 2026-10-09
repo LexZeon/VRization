@@ -51,8 +51,8 @@ No FATAL, native-fatal or out-of-memory errors were observed. One `EGL_BAD_SURFA
 
 ### v0.2.0-alpha checks
 
-- Windows host: **69 automated tests passed**, including USB discovery / mapping ownership, iOS relay framing / pairing checks, loopback bootstrap restrictions, Windows DPI fallback, actual WebSocket wire messages and capture pacing. A new local Windows EXE was built with CPython 3.12.14.
-- Android: **27 tests passed** (6 core and 21 app), APK build / lint passed. The same local debug certificate upgraded the attached HUAWEI Pura 70 Ultra from version code 1 to code 3 without uninstalling.
+- Windows host: **104 automated tests passed**, including USB discovery / mapping ownership, iOS relay framing / pairing checks, loopback bootstrap restrictions, Windows DPI fallback, actual WebSocket wire messages, capture pacing, original GPU resources and fallback / cache integration. Local Windows builds use CPython 3.12.14.
+- Android: **36 tests passed** (8 core and 28 app), APK / AAR build and lint passed after the final latency improvements. The same local debug certificate upgraded the attached HUAWEI Pura 70 Ultra from version code 1 to code 3 without uninstalling.
 - Physical phone: HUAWEI Pura 70 Ultra, reporting Android 12 / API 31 compatibility, received the original **960 × 540** calibration card over an actual data cable. USB and English were default. Authorized discovery, fresh-launch automatic connection, both-eye rendering and hidden controls / Back recovery passed. No manual IP or pairing code was entered in USB mode.
 - Chinese persisted after force-stop / reopen; switching language disconnected the host and required an explicit reconnect. A new process launch made its documented one-time USB connection attempt. In FPS mode the host received **877 real sensor pose messages** during the observed interval. No operating-system mouse input was armed; the fake sink remained empty. These observations do not verify physical gyro axes or real-game control.
 - USB detection encountered a real Huawei difference: ADB did not return a usable USB path. The final Windows implementation verifies the physical USB serial through native SetupAPI enumeration. Emulators and network ADB remain excluded.
@@ -65,7 +65,19 @@ The actual ASUS desktop USB session used the native GDI backend and produced **5
 
 CS2 and Discord remained running as requested. GPU 3D utilization was observed near full load, while Discord used approximately one CPU core. These are concurrent-load observations, not a controlled performance comparison, and do not establish which application caused the capture limit. The local native / MSS timing trials likewise ran on the busy desktop; their results must not be presented as controlled backend benchmarks.
 
-The new EXE started on the actual ASUS display in English with USB discovery. A clean preference profile selected 960 / 60 / 60 automatically; existing capture settings remained Custom. The desktop preview automation tool later failed to capture its window during a changed display-resolution / scaling layout, so further GUI interaction was not counted as passing.
+After the user reported exiting Discord, the first short retest stopped on another real display-layout change. A fresh **540 × 960** USB session on the new layout then recorded **14 host-send samples averaging 8.62 FPS (7.87–9.54)**, no capture errors and no operating-system mouse moves. Discord background processes remained but used approximately 0% of one CPU core in a two-second sample. The primary display resolution differed from the earlier session, so these observations cannot isolate Discord as a cause. Both test hosts were stopped and their owned USB mappings removed.
+
+The pre-optimization EXE started on the actual ASUS display in English with USB discovery. Its clean preference profile selected 960 / 60 / 60; existing capture settings remained Custom. The desktop preview automation tool later failed to capture its window during a changed display-resolution / scaling layout, so further GUI interaction was not counted as passing.
+
+#### Original GPU capture follow-up
+
+The production `MssCaptureSource` selected the original DXGI / D3D11 backend on the ASUS PA279, performed rotation / resize on the GPU and streamed its actual **2160 × 3840 desktop as 360 × 640 / Q45 / target 60 FPS** over USB. The HUAWEI phone's decoded-frame UI readings were **59.9 and 57.7 FPS**, with link round trips of **2 and 7 ms**. The host recorded **41 send-stat samples averaging 59.66 FPS**, range **45.97 startup–60.14**; excluding the initial startup sample, mean send FPS was **60.00**. There were **2,338 distinct JPEGs, 173 repeated / static reads, zero empty reads and zero capture errors**. Repeated packets are not distinct desktop updates. Mean production read / resize / JPEG time was **4.06 ms**. No operating-system mouse input was emitted. DXcam, NumPy and comtypes were absent from the production runtime.
+
+The stable preset captured an original **1280 × 720** animation window on ASUS as **640 × 360 / Q50 / target 30 FPS**. The phone read **30.2 FPS**; 13 send-stat samples averaged **29.43 FPS including startup**, or **30.00** after the startup sample. All **391 JPEGs differed**, with no repeats or capture errors. An owned calibration image had red / green / blue / yellow in the correct four corners, verifying crop, portrait-source rotation and channel order. The quality preset captured the full portrait display as **540 × 960 / Q60 / target 30 FPS**: the phone read **30.0 FPS**; 14 host samples averaged **29.56 including startup**, or **30.00** afterward, with 417 distinct JPEGs and five repeated reads. Mean read times were **4.26 ms stable / 7.71 ms quality**.
+
+These are bounded sessions on one GPU / display / phone setup, with an original moving window on the desktop. They establish an actual desktop-to-phone path above 30 FPS for the default, without a controlled same-resolution comparison to the earlier GDI tests. **Capture time plus ping RTT is not end-to-end video latency.** Decode, render scheduling, screen scanout and input-to-photon latency require separate measurement. Current defaults are 640 / 60 / Q45, stable 640 / 30 / Q50, quality 960 / 30 / Q60. See [performance and attribution](PERFORMANCE.md).
+
+The final latency-improved APK upgraded this Huawei phone in place with the same signing certificate. Its UI showed **59.9 decoded FPS**, **7 ms link RTT** and **11.3 ms mean phone-local processing from complete-JPEG reception to texture submission**. That phone metric excludes PC capture, link transport and physical display. In the bounded final host session, 39 send samples averaged **59.68 FPS**; after startup, host capture averaged **4.06 ms**, latest-frame queue **0.30 ms** and submission to the local transport **0.11 ms**. The original moving window started partway through: there were 1,117 distinct JPEGs and 1,280 repeated / static reads, so the whole session is not a 60-distinct-update benchmark. No capture errors or operating-system mouse moves occurred. Phone decoding now hands frames directly to the renderer through a session gate, and same-size / same-format uploads reuse the texture. These independently measured components must not be added and labelled end-to-end latency.
 
 The release retains the previous API 23 / 36 results above as historical evidence; they are not fresh coverage of every v0.2.0 change. The complete iOS validation result remains pending; it is not recorded as passed. Physical iPhone USB remains untested.
 
@@ -139,8 +151,8 @@ Microsoft Visual C++ v14 x64 runtime is installed by the system, not shipped ins
 
 ### v0.2.0-alpha 检查
 
-- Windows 电脑端 **69 项自动检查通过**，包含 USB 识别 / 映射归属、iOS 中继分帧 / 配对、回环 bootstrap 限制、Windows DPI 回退、实际 WebSocket 报文与采集节奏。本地使用 CPython 3.12.14 重新构建 Windows EXE。
-- Android **27 项检查通过**（核心 6、应用 21），APK 构建 / lint 通过。同一本地 debug 证书在接入的 HUAWEI Pura 70 Ultra 从 version code 1 覆盖升级到 code 3，无需卸载。
+- Windows 电脑端 **104 项自动检查通过**，包含 USB 识别 / 映射归属、iOS 中继分帧 / 配对、回环 bootstrap 限制、Windows DPI 回退、实际 WebSocket 报文、采集节奏、原创 GPU 资源及回退 / 缓存接入。本地 Windows 使用 CPython 3.12.14 构建。
+- Android **36 项检查通过**（核心 8、应用 28），最终延迟优化后的 APK / AAR 构建与 lint 通过。同一本地 debug 证书在接入的 HUAWEI Pura 70 Ultra 从 version code 1 覆盖升级到 code 3，无需卸载。
 - 真机 HUAWEI Pura 70 Ultra 报告 Android 12 / API 31 兼容层，经真实数据线接收 **960 × 540** 原创校准卡。默认 USB 和英文，授权发现、新启动自动连接、双眼渲染、隐藏设置 / 返回恢复通过，USB 未手填 IP 或配对码。
 - 中文在强制停止 / 重开后保留；切换语言会断开并要求显式重连。新进程启动进行了文档约定的一次 USB 自动尝试。FPS 模式的观察区间收到 **877 条真实传感器姿态消息**，未授权操作系统鼠标，假接收器保持为空。这不代表陀螺仪实际轴向或真实游戏控制已经验证。
 - 真机测试发现华为差异：ADB 未提供可用 USB 路径。最终 Windows 实现通过原生 SetupAPI 枚举确认真实 USB 序列号，继续排除模拟器与网络 ADB。
@@ -153,7 +165,19 @@ Microsoft Visual C++ v14 x64 runtime is installed by the system, not shipped ins
 
 按用户要求，CS2 和 Discord 保持运行。观察到 GPU 3D 利用率接近满载，Discord 约占用一个 CPU 核心。这些只是同时运行负载的观察，不是受控性能对比，也不能确定哪个应用造成采集限制。本地原生后端 / MSS 计时试验同样在忙碌桌面运行，不把读数作为受控后端性能基准。
 
-新 EXE 在实际 ASUS 显示器以英文启动并识别 USB。全新偏好默认选中 960 / 60 / 60，已有采集设置保留为自定义。桌面分辨率 / 缩放布局变化期间，界面预览自动化工具随后无法捕获窗口，因此不把后续 GUI 操作计为通过。
+用户报告退出 Discord 后，第一次短复测因另一次实际显示布局变化停止。按新布局重新启动 **540 × 960** USB 会话后，**14 个电脑发送样本均值 8.62 FPS（7.87–9.54）**，没有采集错误，没有操作系统鼠标移动。Discord 后台进程仍存在，但两秒采样约占一个 CPU 核心的 0%。主显示器分辨率与之前不同，因此这些观察无法单独确定 Discord 是否造成问题。两个测试主机均已停止，并移除了各自建立的 USB 映射。
+
+优化前的 EXE 在实际 ASUS 显示器以英文启动并识别 USB，当时全新偏好选中 960 / 60 / 60，已有采集设置保留为自定义。桌面分辨率 / 缩放布局变化期间，界面预览自动化工具随后无法捕获窗口，因此不把后续 GUI 操作计为通过。
+
+#### 原创 GPU 采集补充检查
+
+正式 `MssCaptureSource` 在 ASUS PA279 选择原创 DXGI / D3D11 后端，在 GPU 完成旋转和缩放，把真实 **2160 × 3840 桌面以 360 × 640 / Q45 / 目标 60 FPS** 经 USB 发送。华为手机解码帧率读数为 **59.9、57.7 FPS**，链路往返分别为 **2、7 ms**。电脑 **41 个发送样本均值 59.66 FPS**，范围 **启动阶段 45.97–60.14**；去掉首个启动样本后均值 **60.00**。统计到 **2,338 张不同 JPEG、173 次重复 / 静态读取、零空读取、零采集错误**；重复发送不算新的桌面更新。正式采集 / 缩放 / JPEG 平均 **4.06 ms**，没有发出操作系统鼠标输入。正式运行环境没有 DXcam、NumPy 或 comtypes。
+
+稳定预设在 ASUS 采集原创 **1280 × 720** 动画窗口，输出 **640 × 360 / Q50 / 目标 30 FPS**。手机读数 **30.2 FPS**；电脑 13 个发送样本含启动均值 **29.43 FPS**，去掉首个启动样本后 **30.00**。**391 张 JPEG 均不同**，无重复、无采集错误。原创校准画面的红 / 绿 / 蓝 / 黄四角位置正确，验证了选区、竖屏来源旋转与颜色通道。画质预设采集竖屏全屏，输出 **540 × 960 / Q60 / 目标 30 FPS**，手机 **30.0 FPS**；电脑 14 个样本含启动均值 **29.56**，之后 **30.00**，417 张不同 JPEG、五次重复读取。平均读取时间分别为稳定 **4.26 ms** / 画质 **7.71 ms**。
+
+这是同一 GPU / 显示器 / 手机上的限时会话，桌面包含原创动态窗口。默认预设的真实桌面到手机路径超过 30 FPS，但与此前 GDI 测试没有做相同分辨率的严格对照。**采集耗时加 ping 往返不是端到端视频延迟。** 解码、渲染调度、屏幕扫描和输入到显示仍需分别测量。当前默认 640 / 60 / Q45，稳定 640 / 30 / Q50，画质 960 / 30 / Q60。见 [性能与来源说明](PERFORMANCE.md)。
+
+最终低延迟 APK 用相同签名在此华为手机覆盖安装。界面显示 **59.9 解码 FPS**、**7 ms 链路往返**，以及从完整 JPEG 接收到纹理提交的 **11.3 ms 手机本地平均处理耗时**；该手机指标不含电脑采集、链路和物理屏幕显示。最终限时电脑会话 39 个发送样本均值 **59.68 FPS**；启动之后电脑采集平均 **4.06 ms**、最新帧排队 **0.30 ms**、提交给本地连接 **0.11 ms**。原创动态窗口在会话中途启动，统计 1,117 张不同 JPEG、1,280 次重复 / 静态读取，因此整个会话不能当作每秒 60 次不同桌面更新的基准。没有采集错误或操作系统鼠标移动。手机解码通过会话门直接把帧交给渲染器，相同尺寸 / 格式上传复用纹理。这些独立测得的环节不能相加并称为端到端延迟。
 
 上面的 API 23 / 36 结果保留为历史证据，不代表重新覆盖 v0.2.0 的所有改动。完整 iOS 验证结果仍待定，不记为已经通过。真实 iPhone USB 仍未验证。
 

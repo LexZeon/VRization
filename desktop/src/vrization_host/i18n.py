@@ -60,9 +60,9 @@ ENGLISH = {
 CHINESE = {
     'USB is preferred. Open the phone app after starting. LAN: use the address and code above.': '优先使用 USB。电脑开始串流后打开手机软件。局域网连接可使用上方地址和配对码。',
     'Performance profile': '性能预设',
-    'Low latency · 960 / 60 FPS / Q60': '低延迟 · 960 / 60 FPS / 质量 60',
-    'Stable · 1280 / 30 FPS / Q65': '稳定 · 1280 / 30 FPS / 质量 65',
-    'Quality · 1920 / 30 FPS / Q80': '画质 · 1920 / 30 FPS / 质量 80',
+    'Low latency · 640 / 60 FPS / Q45': '低延迟 · 640 / 60 FPS / 质量 45',
+    'Stable · 640 / 30 FPS / Q50': '稳定 · 640 / 30 FPS / 质量 50',
+    'Quality · 960 / 30 FPS / Q60': '画质 · 960 / 30 FPS / 质量 60',
     'Custom': '自定义',
     'Low latency is the default for new users. FPS is a capture target; actual latency depends on the phone and connection. Try borderless mode for black games. Audio is not streamed.': '新用户默认低延迟预设。帧率是捕获目标，实际延迟取决于手机和连接。游戏黑屏可尝试无边框窗口模式。暂不串流声音。',
     'USB connection': 'USB 连接',

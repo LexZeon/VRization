@@ -128,7 +128,7 @@ class UsbOwnershipTests(unittest.TestCase):
         self.assertEqual(initial_capture(old, True), old)
         self.assertEqual(capture_profile(old), CUSTOM)
         first = initial_capture(old, False)
-        self.assertEqual((first.width, first.fps, first.quality), (960, 60, 60))
+        self.assertEqual((first.width, first.fps, first.quality), (640, 60, 45))
         self.assertEqual((first.monitor, first.region), (old.monitor, old.region))
         for name in PROFILES:
             self.assertEqual(capture_profile(apply_profile(old, name)), name)

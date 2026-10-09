@@ -57,7 +57,7 @@ public final class MainActivity extends Activity {
     private LinearLayout overlay;
     private Button panelButton, connectButton;
     private TextView status, frameStatus;
-    private TextView transportHelp, linkStatus, connectionNotice;
+    private TextView transportHelp, linkStatus, processingStatus, connectionNotice;
     private LinearLayout lanInputs;
     private EditText hostInput, portInput, codeInput;
     private Spinner modeInput;
@@ -68,8 +68,6 @@ public final class MainActivity extends Activity {
     private boolean trackingActive;
     private boolean destroyed;
     private boolean panelVisible = true;
-    private long lastUiFrame;
-    private int receivedFrames;
     private long lastSettingsSent;
     private final SettingsSync settingsSync = new SettingsSync();
     private ConnectionMode connectionMode = ConnectionMode.USB;
@@ -103,8 +101,9 @@ public final class MainActivity extends Activity {
         renderer.setSettings(settings);
         client = new StreamClient(this, new StreamClient.Listener() {
             @Override public void onSessionStarted() {
-                settingsSync.newSession(); receivedFrames = 0; lastUiFrame = 0;
+                settingsSync.newSession();
                 frameStatus.setText(R.string.waiting_frame); linkStatus.setText(R.string.waiting_ping);
+                processingStatus.setText(R.string.waiting_processing);
             }
             @Override public void onStatus(String text, boolean connected) {
                 runOnUiThread(() -> {
@@ -129,26 +128,21 @@ public final class MainActivity extends Activity {
                     }
                 });
             }
-            @Override public void onFrame(android.graphics.Bitmap bitmap) {
-                int frameWidth = bitmap.getWidth(), frameHeight = bitmap.getHeight();
-                renderer.submitFrame(bitmap);
+            @Override public void onFrame(android.graphics.Bitmap bitmap, long session, long receivedAtNanos) {
+                renderer.submitFrame(bitmap, session, receivedAtNanos);
                 surface.requestRender();
-                long now = android.os.SystemClock.elapsedRealtime();
-                if (lastUiFrame == 0) lastUiFrame = now;
-                receivedFrames++;
-                if (now - lastUiFrame > 1000) {
-                    float fps = receivedFrames * 1000f / (now - lastUiFrame);
-                    lastUiFrame = now;
-                    receivedFrames = 0;
-                    runOnUiThread(() -> {
-                        if (!destroyed) frameStatus.setText(getString(R.string.frame_stats, frameWidth, frameHeight, fps));
-                    });
-                }
+            }
+            @Override public void onDecodedStats(int width, int height, double fps) {
+                if (!destroyed) frameStatus.setText(getString(R.string.frame_stats, width, height, fps));
+            }
+            @Override public void onProcessingStats(double milliseconds) {
+                if (!destroyed) processingStatus.setText(getString(R.string.processing_stats, milliseconds));
             }
             @Override public void onRoundTrip(long milliseconds) {
                 if (!destroyed) linkStatus.setText(getString(R.string.ping_stats, milliseconds));
             }
         });
+        renderer.setTextureSubmissionListener(client::recordTextureSubmission);
         createUi();
         immersive();
     }
@@ -239,6 +233,7 @@ public final class MainActivity extends Activity {
                     preferences.edit().putString("transport", selected.preferenceValue).apply();
                     status.setText(selected == ConnectionMode.USB ? R.string.usb_ready : R.string.connection_help);
                     frameStatus.setText(R.string.waiting_frame); linkStatus.setText(R.string.waiting_ping);
+                    processingStatus.setText(R.string.waiting_processing);
                     updateTransportUi();
                 }
             }
@@ -250,6 +245,7 @@ public final class MainActivity extends Activity {
         content.addView(status);
         frameStatus = text(getString(R.string.waiting_frame), 12, MUTED, false); content.addView(frameStatus);
         linkStatus = text(getString(R.string.waiting_ping), 12, MUTED, false); content.addView(linkStatus);
+        processingStatus = text(getString(R.string.waiting_processing), 12, MUTED, false); content.addView(processingStatus);
         hostInput = input(getString(R.string.host_hint), preferences.getString("host", ""), InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
         portInput = input(getString(R.string.port_hint), preferences.getString("port", "8765"), InputType.TYPE_CLASS_NUMBER);
         codeInput = input(getString(R.string.code_hint), "", InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_VARIATION_PASSWORD);

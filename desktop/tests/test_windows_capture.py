@@ -105,7 +105,7 @@ class SelectionAndFallbackTests(unittest.TestCase):
         screen.monitors = self.monitors
         screen.grab.return_value = SimpleNamespace(size=(500, 800), bgra=bytes(500 * 800 * 4))
         native = Mock(); native.grab.side_effect = OSError("unsupported")
-        source = MssCaptureSource(); source._screen = screen
+        source = MssCaptureSource(prefer_gpu=False); source._screen = screen
         with patch("vrization_host.capture.os.name", "nt"), \
                 patch("vrization_host.windows_capture.WindowsDisplayLayout"), \
                 patch("vrization_host.windows_capture.WindowsGdiCapture", return_value=native) as factory:

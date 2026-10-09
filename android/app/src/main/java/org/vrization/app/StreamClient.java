@@ -39,8 +39,10 @@ final class StreamClient {
         void onStatus(String text, boolean connected);
         void onSettings(JSONObject json, Long revision, Long clientSeq);
         void onRoundTrip(long milliseconds);
-        /** Ownership of bitmap transfers to the listener. */
-        void onFrame(Bitmap bitmap);
+        /** Decoder-thread handoff only: ownership transfers; do not manipulate UI here. */
+        void onFrame(Bitmap bitmap, long session, long receivedAtNanos);
+        void onDecodedStats(int width, int height, double fps);
+        void onProcessingStats(double milliseconds);
     }
     private static final int MAX_FRAME_BYTES = 8 * 1024 * 1024;
     private final Listener listener;
@@ -61,6 +63,7 @@ final class StreamClient {
     private volatile boolean connecting;
     private Call discovery;
     private final PingTracker ping = new PingTracker();
+    private final PhoneFrameStats frameStats = new PhoneFrameStats();
     private final Runnable pingTick = new Runnable() {
         @Override public void run() {
             if (!connected || sessions.isClosed()) return;
@@ -71,10 +74,8 @@ final class StreamClient {
     };
     private byte[] pendingJpeg;
     private long pendingEpoch;
+    private long pendingReceivedAt;
     private boolean decoding;
-    private Bitmap pendingBitmap;
-    private long bitmapEpoch;
-    private boolean bitmapDeliveryPosted;
 
     StreamClient(Context context, Listener listener) { this.context = context; this.listener = listener; }
     boolean isConnected() { return connected; }
@@ -142,6 +143,7 @@ final class StreamClient {
             @Override public void onOpen(WebSocket webSocket, Response response) {
                 sessions.dispatch(connectionEpoch, () -> {
                     connected = true; connecting = false;
+                    frameStats.newSession(connectionEpoch);
                     ping.reset(); main.removeCallbacks(pingTick); main.post(pingTick);
                     listener.onSessionStarted();
                     try {
@@ -174,7 +176,8 @@ final class StreamClient {
             }
             @Override public void onMessage(WebSocket webSocket, ByteString bytes) {
                 if (!sessions.isCurrent(connectionEpoch) || bytes.size() > MAX_FRAME_BYTES || bytes.size() < 4) return;
-                queueJpeg(bytes.toByteArray(), connectionEpoch);
+                long receivedAt = SystemClock.elapsedRealtimeNanos();
+                queueJpeg(bytes.toByteArray(), connectionEpoch, receivedAt);
             }
             @Override public void onClosed(WebSocket webSocket, int code, String reason) {
                 ended(connectionEpoch, context.getString(R.string.connection_ended, code));
@@ -210,10 +213,10 @@ final class StreamClient {
             && number <= 9007199254740991d && number == Math.floor(number) ? (long) number : null;
     }
 
-    private void queueJpeg(byte[] jpeg, long connectionEpoch) {
+    private void queueJpeg(byte[] jpeg, long connectionEpoch, long receivedAt) {
         synchronized (decodeLock) {
             if (!sessions.isCurrent(connectionEpoch)) return;
-            pendingJpeg = jpeg; pendingEpoch = connectionEpoch;
+            pendingJpeg = jpeg; pendingEpoch = connectionEpoch; pendingReceivedAt = receivedAt;
             if (decoding) return;
             decoding = true;
             try { decoder.execute(this::decodeLatest); }
@@ -224,9 +227,9 @@ final class StreamClient {
     private void decodeLatest() {
         while (true) {
             byte[] jpeg;
-            long frameEpoch;
+            long frameEpoch, receivedAt;
             synchronized (decodeLock) {
-                jpeg = pendingJpeg; frameEpoch = pendingEpoch; pendingJpeg = null;
+                jpeg = pendingJpeg; frameEpoch = pendingEpoch; receivedAt = pendingReceivedAt; pendingJpeg = null;
                 if (jpeg == null || sessions.isClosed()) { decoding = false; return; }
             }
             if (!sessions.isCurrent(frameEpoch) || !connected) continue;
@@ -245,35 +248,34 @@ final class StreamClient {
             try { bitmap = BitmapFactory.decodeByteArray(jpeg, 0, jpeg.length, options); }
             catch (OutOfMemoryError ignored) { continue; }
             if (bitmap != null) {
-                publishBitmap(bitmap, frameEpoch);
+                publishBitmap(bitmap, frameEpoch, receivedAt);
             }
         }
     }
 
-    private void publishBitmap(Bitmap bitmap, long frameEpoch) {
-        synchronized (decodeLock) {
-            if (!sessions.isCurrent(frameEpoch) || !connected) { bitmap.recycle(); return; }
-            if (pendingBitmap != null) pendingBitmap.recycle();
-            pendingBitmap = bitmap; bitmapEpoch = frameEpoch;
-            if (bitmapDeliveryPosted) return;
-            bitmapDeliveryPosted = true;
-            main.post(() -> {
-                Bitmap latest; long generation;
-                synchronized (decodeLock) {
-                    latest = pendingBitmap; generation = bitmapEpoch;
-                    pendingBitmap = null; bitmapDeliveryPosted = false;
-                }
-                if (latest == null) return;
-                if (!sessions.isCurrent(generation) || !connected) latest.recycle();
-                else listener.onFrame(latest);
-            });
-        }
+    private void publishBitmap(Bitmap bitmap, long frameEpoch, long receivedAt) {
+        // The renderer has its own one-slot handoff. Avoid waiting behind UI work,
+        // while serializing this short transfer with disconnect/session invalidation.
+        boolean delivered = sessions.deliverCurrent(frameEpoch, () -> {
+            if (!connected) { bitmap.recycle(); return; }
+            int width = bitmap.getWidth(), height = bitmap.getHeight();
+            listener.onFrame(bitmap, frameEpoch, receivedAt);
+            Double fps = frameStats.decoded(frameEpoch, SystemClock.elapsedRealtimeNanos());
+            if (fps != null) sessions.dispatch(frameEpoch, () -> listener.onDecodedStats(width, height, fps));
+        });
+        if (!delivered) bitmap.recycle();
+    }
+    void recordTextureSubmission(long frameEpoch, long receivedAt, long submittedAt) {
+        sessions.deliverCurrent(frameEpoch, () -> {
+            Double milliseconds = frameStats.uploaded(frameEpoch, receivedAt, submittedAt);
+            if (milliseconds != null) sessions.dispatch(frameEpoch, () -> listener.onProcessingStats(milliseconds));
+        });
     }
     private void clearPending() {
         synchronized (decodeLock) {
             pendingJpeg = null;
-            if (pendingBitmap != null) { pendingBitmap.recycle(); pendingBitmap = null; }
         }
+        frameStats.clear();
     }
     boolean sendSettings(VrSettings settings, long sequence) {
         try { return send(message("settings").put("settings", SettingsJson.encode(settings)).put("clientSeq", sequence)); }

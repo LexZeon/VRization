@@ -9,11 +9,17 @@ final class SessionDispatcher {
     private final AtomicLong generation = new AtomicLong();
     private volatile boolean closed;
     SessionDispatcher(Executor owner) { this.owner = owner; }
-    long invalidate() { return generation.incrementAndGet(); }
+    synchronized long invalidate() { return generation.incrementAndGet(); }
     boolean isCurrent(long value) { return !closed && generation.get() == value; }
     boolean isClosed() { return closed; }
     void dispatch(long value, Runnable action) {
-        owner.execute(() -> { if (isCurrent(value)) action.run(); });
+        owner.execute(() -> deliverCurrent(value, action));
     }
-    void close() { closed = true; invalidate(); }
+    /** A short transport/render handoff can bypass the UI queue without racing invalidation. */
+    synchronized boolean deliverCurrent(long value, Runnable action) {
+        if (!isCurrent(value)) return false;
+        action.run();
+        return true;
+    }
+    synchronized void close() { closed = true; invalidate(); }
 }

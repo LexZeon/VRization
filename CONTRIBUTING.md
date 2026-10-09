@@ -32,7 +32,7 @@ English is the default and primary software language. Windows, Android and iOS a
 
 ### Attribution and licensing
 
-Original contributions are submitted under this repository's MIT license. Before adding third-party code, assets or dependencies, inspect the exact upstream version's terms and record URL, author, version / commit, purpose, modifications and license in [third-party notices](THIRD_PARTY_NOTICES.md). Preserve required copyrights, NOTICE and full license texts.
+Original contributions are submitted under this repository's MIT license. Before adding third-party code, assets, dependencies **or ideas used to guide an optimization**, inspect the exact upstream material's terms and record URL, author, version / commit or document, referenced idea, purpose, modifications / original rewrite and license in [third-party notices](THIRD_PARTY_NOTICES.md). Keep this credit even when no source was copied. Distinguish bundled runtime components, adapted code and research-only references. Rewriting does not remove applicable license obligations. Preserve required copyrights, NOTICE and full license texts; do not edit original upstream notices to match a project summary.
 
 Prefer compatible commercially usable MIT, BSD or Apache-2.0 dependencies. Free installation is not a source-code commercial-use license. Explain unusual conditions in the PR; never silently copy snippets. Icons and tutorial images also need distributable provenance.
 
@@ -84,7 +84,7 @@ Symptoms, reproduction, measurement method:
 
 ### 来源与许可
 
-原创贡献按本仓库 MIT 许可提交。引用第三方代码、素材或依赖时，先核对精确版本的上游许可，并在 [第三方声明](THIRD_PARTY_NOTICES.md) 记录原始 URL、作者、版本 / commit、用途、修改情况和许可文件。保留必要的版权、NOTICE 和许可证文本。
+原创贡献按本仓库 MIT 许可提交。引用第三方代码、素材、依赖或**用于指导优化的思路**时，先核对实际上游材料的条款，并在 [第三方声明](THIRD_PARTY_NOTICES.md) 记录原始 URL、作者、版本 / commit 或文档、参考思路、用途、修改 / 原创重写情况和许可文件。即使没有复制源码也保留鸣谢，区分随包运行组件、改编代码与仅研究参考；重写不消除适用许可义务。保留必要的版权、NOTICE 和许可证全文，不为配合项目摘要而修改上游声明原文。
 
 优先采用允许商业使用的 MIT、BSD、Apache-2.0 等兼容依赖。不要把“能免费下载安装”当作代码可商用许可。新增带特殊许可条件的依赖需要在 PR 明确解释，不要悄悄复制代码片段。图标和教程截图也需要有可分发来源。
 

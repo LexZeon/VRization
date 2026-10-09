@@ -39,11 +39,15 @@ flowchart LR
 
 ### Replace the host image source
 
-`CaptureSource` defines `read(config: CaptureConfig) -> Frame` and `close()`. `Frame` contains JPEG bytes, width, height and monotonic `captured_at`. The default source captures and encodes the desktop. An adapter can supply game-rendered images, remote application output or test frames.
+`CaptureSource` defines `read(config: CaptureConfig) -> Frame | None` and `close()`. `Frame` contains JPEG bytes, width, height and monotonic `captured_at`; `None` means no frame is ready yet. The default source captures and encodes the desktop. An adapter can supply game-rendered images, remote application output or test frames.
 
-On Windows, the original GDI backend scales the selected physical-pixel rectangle into a bounded top-down DIB before copying pixels into Python. It completes GDI writes before reading the bitmap, returns an owned byte copy, and creates / releases resources on the dedicated capture thread. If the native operation is unsupported or fails, MSS captures **the same validated rectangle**. `MssCaptureSource(prefer_native=False)` selects MSS explicitly. Pre-scaling reduces the bytes copied into Python but does not guarantee the target frame rate, especially for a busy high-resolution desktop.
+The original Windows GPU backend in [windows_gpu.py](https://github.com/LexZeon/VRization/blob/main/desktop/src/vrization_host/windows_gpu.py) uses DXGI Desktop Duplication and D3D11. It selects the adapter / output that fully contains the requested physical-pixel rectangle, copies the acquired image into an owned GPU texture, and applies crop, display rotation and linear downscaling in a shader. Only the smaller output texture is mapped into owned BGRX bytes for Pillow's RGB conversion and JPEG encoding. The bindings, shaders and lifecycle are original MIT code. Python `ctypes` calls Windows-supplied `dxgi`, `d3d11` and `d3dcompiler_47`; DXcam, NumPy and comtypes are research references, not dependencies of this backend. See [sources and credits](../THIRD_PARTY_NOTICES.md).
 
-Before either Windows backend reads pixels, a fresh display-layout query checks output names and coordinates against the cached monitor selection. A mismatch or unverifiable layout stops new frames instead of capturing stale coordinates; Stop, reselect the display / region, then Start again. Output names identify Windows display outputs, not physical panel serial numbers. Any capture error immediately disarms FPS mouse control; resuming requires explicit authorization again. See the measured session and its limits in [validation](VALIDATION.md).
+`WindowsGpuCapture.grab(rectangle, size, force_latest=False)` returns owned BGRX bytes or `None` when no new duplication frame is available. `force_latest=True` can re-render the owned GPU image after a same-output crop / size change, including a static desktop. Acquired duplication frames are released before returning; their borrowed textures are never kept as the cache. Creation, use and release stay on the same capture thread.
+
+The source validates the requested output against Windows physical layout, output name, HMONITOR, rotation and panel identity before and after GPU work. Output names identify Windows display outputs rather than panel serial numbers. A layout / identity mismatch, protected-content condition, access loss or other fatal resource error closes the session and stops new frames; it does not silently choose another output or rebuild a lost session. Stop, reselect the display / region, then Start again. Any capture error immediately disarms FPS mouse control; resuming requires explicit authorization again.
+
+A verified region spanning multiple outputs, or an explicitly unsupported initial GPU API / session, can use **the same validated rectangle** through GDI, then MSS. A layout / identity error does not permit fallback. The original GDI backend pre-scales into a bounded top-down DIB, flushes writes before reading, and returns an owned byte copy on the capture thread. MSS captures the same rectangle and scales in CPU memory when that path is needed. `MssCaptureSource(prefer_gpu=False, prefer_native=False)` selects MSS explicitly. The default adapter reuses an owned JPEG on a static desktop, retaining its original `captured_at`; refresh packets are not necessarily new captures. Hardware, load and fallback availability still determine the achieved rate. See [performance and measurement boundaries](PERFORMANCE.md) and [validation](VALIDATION.md).
 
 Inject adapters with `HostServer(capture_source=..., input_sink=...)`. Capture and input are independent; sending images does not require enabling input.
 
@@ -73,7 +77,7 @@ usb.start(enabled=True)
 
 Android uses an owned, non-rebinding official ADB reverse mapping and a guarded loopback bootstrap. Native Windows SetupAPI verifies physical USB instances when ADB omits its USB path. iOS uses Apple's local USB service, an existing pairing record and the app's loopback listener; the relay bridges an authenticated host WebSocket into bounded JSON / JPEG frames. Neither route arms mouse input. See [protocol details](PROTOCOL.md) and [USB prerequisites](USB.md). No ADB, Apple driver or libusbmuxd library is bundled.
 
-Capture profiles alter only maximum long edge, target FPS and JPEG quality: low latency `960 / 60 / 60` for new GUI users, stable `1280 / 30 / 65`, quality `1920 / 30 / 80`, or custom. Existing saved capture settings and monitor / region selection are retained. Embedding `CaptureConfig()` retains its `1280 / 30 / 75` defaults. Latest-frame handoff bounds stale work; it does not eliminate capture, JPEG, USB / network, decoder or presentation latency. Received FPS and link RTT are separate diagnostics, not end-to-end measurements.
+Capture profiles alter only maximum long edge, target FPS and JPEG quality: low latency `640 / 60 / 45` for new GUI users, stable `640 / 30 / 50`, quality `960 / 30 / 60`, or custom. Existing saved capture settings and monitor / region selection are retained. Embedding `CaptureConfig()` now also defaults to `640 / 60 / 45`. Latest-frame handoff bounds stale work; it does not eliminate capture, JPEG, USB / network, decoder or presentation latency. Received FPS and link RTT are separate diagnostics, not end-to-end measurements. See [profile selection](PERFORMANCE.md).
 
 ### Embed in an Android application / game
 
@@ -99,6 +103,8 @@ if (pose.isAvailable()) {
 ```
 
 Integrate this wiring with your Activity lifecycle. Resume `GLSurfaceView`, call `renderer.resumeFrames()` and start sensors on foreground entry. Stop sensors, disconnect, call `renderer.pauseFrames()` and pause the surface on exit. **`submitFrame(bitmap)` transfers ownership**: the renderer recycles that Bitmap, so do not reuse it. Decode / receive off the main thread and avoid queues of stale frames.
+
+The Android app keeps one pending JPEG and one renderer Bitmap slot. Its decoder hands the Bitmap directly through a session gate to the renderer and calls `requestRender()`, avoiding a per-frame main-thread post; invalidation rejects old-session work. GLES reuses texture storage when dimensions / format match, uses `texSubImage2D` for those updates, and caches shader locations per context. UI statistics update separately. Optional `TextureSubmissionListener` timing uses the phone's monotonic clock from complete JPEG reception to return of the texture-upload call; it excludes PC work, earlier transport, GPU completion and physical presentation. The handoff and system API sources are credited in [third-party notices](../THIRD_PARTY_NOTICES.md).
 
 `PoseMath` has no Android dependency and can seed a separate math core; the complete AAR still needs Android. You can reuse pose only for a host camera, or render your own images without the Windows mouse adapter. Preserve original MIT notices when redistributing the library.
 
@@ -171,11 +177,15 @@ flowchart LR
 
 ### 替换电脑画面来源
 
-桌面端 `CaptureSource` 接口定义 `read(config: CaptureConfig) -> Frame` 和 `close()`。`Frame` 包含 `jpeg: bytes`、`width`、`height` 和单调时钟 `captured_at`；默认实现采集并编码桌面。其他软件可以提供自己的 JPEG 帧，例如游戏已渲染的图像、远程应用输出或测试画面，再交给同一主机服务。
+桌面端 `CaptureSource` 接口定义 `read(config: CaptureConfig) -> Frame | None` 和 `close()`。`Frame` 包含 `jpeg: bytes`、`width`、`height` 和单调时钟 `captured_at`；`None` 表示暂时没有可用帧，默认实现采集并编码桌面。其他软件可以提供自己的 JPEG 帧，例如游戏已渲染的图像、远程应用输出或测试画面，再交给同一主机服务。
 
-Windows 上的原创 GDI 后端先把选定的物理像素矩形缩放到大小受限、从上到下排列的 DIB，再把像素复制进 Python。读取位图前完成 GDI 写入，返回拥有独立内存的字节副本；资源在专用采集线程创建和释放。原生操作不受支持或失败时，MSS 采集**同一个已校验矩形**；`MssCaptureSource(prefer_native=False)` 可显式选择 MSS。预缩放减少复制进 Python 的像素数据量，但不保证达到目标帧率，尤其在忙碌的高分辨率桌面上。
+原创 Windows GPU 后端位于 [windows_gpu.py](https://github.com/LexZeon/VRization/blob/main/desktop/src/vrization_host/windows_gpu.py)，使用 DXGI Desktop Duplication 与 D3D11。它选择完整包含指定物理像素矩形的显卡 / 输出，将取得的画面复制到自有 GPU 纹理，再由着色器完成选区裁切、显示旋转和线性缩小。只将较小的输出纹理映射并复制为独立 BGRX 字节，交给 Pillow 转换 RGB、编码 JPEG。绑定、着色器与生命周期代码均为原创 MIT 实现；Python `ctypes` 调用 Windows 自带的 `dxgi`、`d3d11`、`d3dcompiler_47`，DXcam、NumPy 和 comtypes 是研究参考，不是该后端依赖。详见 [来源与鸣谢](../THIRD_PARTY_NOTICES.md)。
 
-任一 Windows 后端读取像素前，都会重新查询显示布局，把输出名称与坐标同缓存的显示器选择核对。失配或无法确认布局时，停止产生新帧，不继续采集旧坐标；需停止串流、重新选择显示器 / 区域，再启动。输出名称代表 Windows 显示输出，不是物理面板序列号。任何采集错误都会立即解除 FPS 鼠标授权；恢复控制必须重新明确授权。实际测量及其限制见 [验证记录](VALIDATION.md)。
+`WindowsGpuCapture.grab(rectangle, size, force_latest=False)` 返回独立 BGRX 字节，没有新的 duplication 帧时返回 `None`。`force_latest=True` 能在同一输出改变选区 / 尺寸后重新渲染自有 GPU 图像，静止桌面也适用。取得的 duplication 帧会在返回前释放，不把借用的纹理保留作缓存；创建、使用与释放均在同一采集线程。
+
+GPU 操作前后都会把目标同 Windows 物理布局、输出名称、HMONITOR、旋转和面板身份核对。输出名称表示 Windows 显示输出，不是面板序列号。布局 / 身份不匹配、受保护内容、访问丢失或其他致命资源错误会关闭会话并停止产生新帧，不悄悄换输出、不自动重建失效会话。需停止串流、重新选择显示器 / 区域，再启动。任何采集错误都会立即解除 FPS 鼠标授权，恢复控制必须重新明确授权。
+
+已确认跨越多个输出的合法区域，或初始化时明确不支持 GPU 的 API / 会话，可对**同一个已校验矩形**依次采用 GDI、MSS。布局 / 身份错误不允许回退。原创 GDI 后端先缩放到有尺寸上限的顶向下 DIB，读取前完成写入，在采集线程返回独立字节副本；需要 MSS 时，仍采集同一区域并在 CPU 内存缩放。`MssCaptureSource(prefer_gpu=False, prefer_native=False)` 显式选择 MSS。默认适配器在静止桌面复用自有 JPEG，保留原始 `captured_at`，刷新传输包不一定是新采集。实际速度仍取决于硬件、负载与可用后端，见 [性能与测量边界](PERFORMANCE.md) 和 [验证记录](VALIDATION.md)。
 
 通过 `HostServer(capture_source=..., input_sink=...)` 注入适配器。画面与输入接口分开，集成者可以只发送图像而不启用任何输入。
 
@@ -207,7 +217,7 @@ usb.start(enabled=True)
 
 Android 使用自己拥有且不重新绑定他人端口的官方 ADB reverse，再经受保护的回环 bootstrap 配对；ADB 不提供 USB 路径时，用 Windows 原生 SetupAPI 验证物理 USB 实例。iOS 使用 Apple 本地 USB 服务、已有配对记录及手机回环监听；中继把已认证主机 WebSocket 桥接成有限长 JSON / JPEG 帧。两条路线都不自动授权鼠标。详见 [协议](PROTOCOL.md)、[USB 前提](USB.md)。软件不附带 ADB、Apple 驱动或 libusbmuxd 库。
 
-捕获预设只改变最长边、目标帧率和 JPEG 质量：新界面用户默认低延迟 `960 / 60 / 60`，稳定 `1280 / 30 / 65`，画质 `1920 / 30 / 80`，或自定义。已有保存配置以及显示器 / 选区均保留。嵌入 `CaptureConfig()` 仍默认 `1280 / 30 / 75`。最新帧交接限制旧任务积累，但不消除采集、JPEG、USB / 网络、解码与显示延迟；接收帧率和链路 RTT 是独立诊断，不是端到端测量。
+捕获预设只改变最长边、目标帧率和 JPEG 质量：新界面用户默认低延迟 `640 / 60 / 45`，稳定 `640 / 30 / 50`，画质 `960 / 30 / 60`，或自定义。已有保存配置以及显示器 / 选区均保留。嵌入 `CaptureConfig()` 现在也默认 `640 / 60 / 45`。最新帧交接限制旧任务积累，但不消除采集、JPEG、USB / 网络、解码与显示延迟；接收帧率和链路 RTT 是独立诊断，不是端到端测量。见 [预设选择](PERFORMANCE.md)。
 
 ### 嵌入 Android 软件 / 游戏
 
@@ -234,6 +244,8 @@ if (pose.isAvailable()) {
 这是接线片段，需放到宿主 Activity 的生命周期中。`PoseMath` 中的角度处理不依赖 Android，可作为抽出跨平台数学核心的起点；整个 AAR 仍依赖 Android。
 
 嵌入时让宿主负责生命周期：进入前台时恢复 `GLSurfaceView`、调用 `renderer.resumeFrames()` 并启用传感器；离开时停止传感器、断开连接、调用 `renderer.pauseFrames()` 并暂停 `GLSurfaceView`。`submitFrame(bitmap)` **接管 Bitmap 所有权**，渲染器会回收提交的 Bitmap；不要再复用该实例。确保画面解码与网络接收不阻塞主线程；避免积累过期帧增加延迟。
+
+Android 应用保留一张待解码 JPEG 和一个渲染 Bitmap 槽。解码线程经过会话门直接把 Bitmap 交给渲染器，并调用 `requestRender()`，避免每帧向主线程排任务；会话失效后拒绝旧任务。尺寸 / 格式一致时，GLES 复用纹理存储，用 `texSubImage2D` 更新，并按 context 缓存着色器位置；界面统计另行更新。可选 `TextureSubmissionListener` 用手机单调时钟测量完整 JPEG 接收至纹理上传调用返回，不含电脑工作、此前链路、GPU 完成或物理显示。帧交接与系统 API 来源见 [第三方鸣谢](../THIRD_PARTY_NOTICES.md)。
 
 只需要头部输入时可以复用姿态接口，自行映射到宿主相机；只需要 VR 盒子显示时可以用自己的图像来源，不运行 Windows 鼠标适配器。
 

@@ -94,6 +94,37 @@ class CapturePacingTests(unittest.TestCase):
 
 
 class SenderStatisticsTests(unittest.IsolatedAsyncioTestCase):
+    async def test_host_component_timings_exclude_static_refresh_age(self):
+        now, events = [0.0], []
+        first = Frame(b"one", 640, 360, 0, capture_ms=3, ready_at=.1)
+        last = Frame(b"two", 640, 360, 0, capture_ms=5, ready_at=.9)
+
+        class Buffer:
+            sequence = 0
+            async def next(buffer, after):
+                now[0] = (.105, .5, .91)[buffer.sequence]
+                frame = (first, first, last)[buffer.sequence]
+                buffer.sequence += 1
+                return buffer.sequence, frame
+
+        class Socket:
+            closed = False
+            sends = 0
+            async def send_bytes(socket, data):
+                now[0] = (.12, .52, 1.2)[socket.sends]
+                socket.sends += 1
+                socket.closed = socket.sends == 3
+
+        host = HostServer.__new__(HostServer)
+        host._buffer, host.on_event = Buffer(), events.append
+        with patch("vrization_host.server.time.perf_counter", side_effect=lambda: now[0]):
+            await host._send_frames(Socket())
+        self.assertEqual(len(events), 1)
+        self.assertAlmostEqual(events[0]["captureMs"], 4)
+        self.assertAlmostEqual(events[0]["queueMs"], 7.5)
+        self.assertAlmostEqual(events[0]["sendMs"], (15 + 20 + 290) / 3)
+        self.assertAlmostEqual(events[0]["fps"], 3 / 1.2)
+
     async def test_send_rate_uses_precise_elapsed_time_and_completed_sends(self):
         now, events = [0.0], []
 

@@ -253,17 +253,35 @@ class HostServer:
     async def _send_frames(self, ws):
         after = self._buffer.sequence
         count, sent_bytes, started = 0, 0, time.perf_counter()
+        capture_total = queue_total = send_total = 0.0
+        fresh_count = 0
+        previous_frame = None
         try:
             while not ws.closed:
                 after, frame = await self._buffer.next(after)
+                send_started = time.perf_counter()
                 await asyncio.wait_for(ws.send_bytes(frame.jpeg), timeout=2)
+                sent_at = time.perf_counter()
+                send_total += (sent_at - send_started) * 1000
+                if frame is not previous_frame and frame.ready_at is not None and frame.capture_ms is not None:
+                    # Same host QPC clock only. Static refresh packets must not
+                    # inflate queue latency; these are not phone/video latency.
+                    queue_total += max(0, (send_started - frame.ready_at) * 1000)
+                    capture_total += frame.capture_ms
+                    fresh_count += 1
+                previous_frame = frame
                 count += 1
                 sent_bytes += len(frame.jpeg)
-                elapsed = time.perf_counter() - started
+                elapsed = sent_at - started
                 if elapsed >= 1:
                     self._emit("stats", fps=count / elapsed, mbps=sent_bytes * 8 / elapsed / 1_000_000,
-                               width=frame.width, height=frame.height)
-                    count, sent_bytes, started = 0, 0, time.perf_counter()
+                               width=frame.width, height=frame.height,
+                               captureMs=capture_total / fresh_count if fresh_count else None,
+                               queueMs=queue_total / fresh_count if fresh_count else None,
+                               sendMs=send_total / count)
+                    count, sent_bytes, started = 0, 0, sent_at
+                    capture_total = queue_total = send_total = 0.0
+                    fresh_count = 0
         except (asyncio.TimeoutError, ConnectionError, RuntimeError):
             self.controller.disarm("stream connection stalled")
             await ws.close(code=1001, message=b"stream stalled")

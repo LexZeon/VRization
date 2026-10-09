@@ -14,7 +14,7 @@ This older tutorial URL is preserved for existing links. **Start with the curren
 3. **iPhone / iPad:** install a signed iOS 15+ app using [the Xcode guide](IOS.md). Install Apple Devices / Apple Mobile Device support on Windows, connect one phone, unlock it and **Trust This Computer**. Keep the signed app foreground with USB selected, using **Connect** to wait again if necessary. The Simulator ZIP cannot be installed on a phone.
 4. USB does not need an IP, six-digit code, hotspot or shared Wi-Fi. The PC still starts streaming and explicitly authorizes FPS mouse control. **F8 stops control**. Backgrounding, phone language changes and disconnects require explicit reconnection.
 
-The low-latency preset is `960 / 60 FPS / Q60` for new users; stable, quality and custom remain available, and previously saved capture settings are retained. Received FPS and ping RTT are not end-to-end video latency. Physical Huawei Android evidence and iOS simulated-usbmux / Simulator evidence are separate; real iPhone USB, actual FPS games and viewer optics remain unverified. Consult [validation](VALIDATION.md) for concrete results.
+Profiles use longest edge / target FPS / JPEG quality: low latency `640 / 60 / Q45` for new users, stable `640 / 30 / Q50`, quality `960 / 30 / Q60`, or custom. Previously saved capture settings are retained. Windows prefers original GPU crop / rotation / scaling before smaller readback, with compatible same-region GDI / MSS paths. Received FPS and ping RTT are not end-to-end video latency; see [performance](PERFORMANCE.md). Physical Huawei Android evidence and iOS simulated-usbmux / Simulator evidence are separate; real iPhone USB, actual FPS games and viewer optics remain unverified. Consult [validation](VALIDATION.md) for concrete results.
 
 ### Illustrated controls
 
@@ -43,7 +43,7 @@ Allow necessary private-network firewall access for LAN only; do not disable the
 3. **iPhone / iPad：**按 [Xcode 教程](IOS.md) 安装已签名 iOS 15+ 应用。Windows 安装 Apple Devices / Apple Mobile Device 支持，只接一台手机，解锁并**信任此电脑**。已签名应用保持前台 USB，需要时点 **Connect / 连接**重新等待；模拟器 ZIP 不能装到手机。
 4. USB 不需要填写 IP、六位码、热点或同一 Wi-Fi。电脑仍须主动开始串流和授权 FPS 鼠标，**F8 停止控制**。手机进入后台、切语言或断线后需显式重连。
 
-新用户低延迟预设为 `960 / 60 FPS / 质量 60`，另有稳定、画质和自定义，已有捕获设置继续保留。接收帧率与 ping RTT 不是端到端视频延迟。华为 Android 真机与 iOS 模拟 usbmux / 模拟器证据分开；真实 iPhone USB、真实 FPS 游戏和盒子镜片仍未验证。具体结果见 [验证记录](VALIDATION.md)。
+预设按最长边 / 目标 FPS / JPEG 质量表示：新用户默认低延迟 `640 / 60 / Q45`，稳定 `640 / 30 / Q50`，画质 `960 / 30 / Q60`，或自定义；已有捕获设置继续保留。Windows 优先原创 GPU 裁切 / 旋转 / 缩放再回读小画面，保留同区域 GDI / MSS 兼容路径。接收帧率与 ping RTT 不是端到端视频延迟，见 [性能](PERFORMANCE.md)。华为 Android 真机与 iOS 模拟 usbmux / 模拟器证据分开；真实 iPhone USB、真实 FPS 游戏和盒子镜片仍未验证。具体结果见 [验证记录](VALIDATION.md)。
 
 ### 操作图示
 

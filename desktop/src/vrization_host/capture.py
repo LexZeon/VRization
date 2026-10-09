@@ -13,9 +13,9 @@ from typing import Protocol, runtime_checkable
 class CaptureConfig:
     monitor: int = 1
     region: tuple[int, int, int, int] | None = None  # left, top, width, height (physical pixels)
-    width: int = 1280
-    quality: int = 75
-    fps: int = 30
+    width: int = 640
+    quality: int = 45
+    fps: int = 60
 
     def __post_init__(self):
         if type(self.monitor) is not int or self.monitor < 0:
@@ -38,6 +38,9 @@ class Frame:
     width: int
     height: int
     captured_at: float
+    # Optional host-only diagnostics; never added to the protocol-v1 JPEG.
+    capture_ms: float | None = None
+    ready_at: float | None = None  # perf_counter(), shared only within the host
 
 
 def output_size(width: int, height: int, max_edge: int) -> tuple[int, int]:
@@ -54,7 +57,7 @@ class CaptureSource(Protocol):
 
     read() and close() are called on the same dedicated capture thread.
     """
-    def read(self, config: CaptureConfig) -> Frame: ...
+    def read(self, config: CaptureConfig) -> Frame | None: ...
     def close(self) -> None: ...
 
 
@@ -77,12 +80,27 @@ def capture_rectangle(config: CaptureConfig, monitors: list[dict]) -> dict:
 
 
 class MssCaptureSource:
-    def __init__(self, prefer_native: bool = True):
+    def __init__(self, prefer_native: bool = True, prefer_gpu: bool = True):
         self._screen = None
         self._native = None
         self._layout = None
         self._prefer_native = prefer_native
         self._native_failed = False
+        self._prefer_gpu = prefer_gpu
+        self._gpu = None
+        self._gpu_failed = False
+        self._gpu_error = None
+        self._selection = None
+        self._gpu_key = None
+        self._gpu_pixels = None
+        self._gpu_frame = None
+        self._gpu_quality = None
+        self._gpu_captured_at = None
+        self._gpu_started = False
+
+    def _clear_gpu_cache(self):
+        self._gpu_key = self._gpu_pixels = self._gpu_frame = None
+        self._gpu_quality = self._gpu_captured_at = None
 
     @staticmethod
     def monitors() -> list[dict]:
@@ -90,20 +108,94 @@ class MssCaptureSource:
         with MSS() as screen:
             return [dict(item) for item in screen.monitors]
 
-    def read(self, config: CaptureConfig) -> Frame:
+    def read(self, config: CaptureConfig) -> Frame | None:
         from mss import MSS
         from PIL import Image
+        read_started = time.perf_counter()
         if self._screen is None:
             self._screen = MSS()
         if os.name == "nt":
+            if self._gpu_error is not None:
+                raise OSError(self._gpu_error)
             if self._layout is None:
                 from .windows_capture import WindowsDisplayLayout
                 self._layout = WindowsDisplayLayout()
+            from .windows_capture import CaptureLayoutChanged
             # MSS caches monitor coordinates. Fail before either backend reads
             # pixels if a display moves/disconnects or another device replaces it.
-            self._layout.validate(self._screen.monitors)
+            try:
+                self._layout.validate(self._screen.monitors)
+            except (OSError, CaptureLayoutChanged) as error:
+                self._gpu_error = str(error)
+                self._clear_gpu_cache()
+                if self._gpu is not None:
+                    try:
+                        self._gpu.close()
+                    finally:
+                        self._gpu = None
+                raise
         monitor = capture_rectangle(config, self._screen.monitors)
         dimensions = output_size(monitor["width"], monitor["height"], config.width)
+        selection = config.monitor, config.region
+        if selection != self._selection:
+            if self._gpu is not None:
+                self._gpu.close()
+                self._gpu = None
+            self._clear_gpu_cache()
+            self._gpu_failed = False
+            self._gpu_started = False
+            self._selection = selection
+        if self._prefer_gpu and os.name == "nt" and not self._gpu_failed:
+            from .windows_gpu import UnsupportedGpuCapture, WindowsGpuCapture
+            try:
+                if self._gpu is None:
+                    self._gpu = WindowsGpuCapture(expected_monitors=self._screen.monitors)
+                key = tuple(monitor[name] for name in ("left", "top", "width", "height")), dimensions
+                pixels = self._gpu.grab(monitor, dimensions, force_latest=key != self._gpu_key)
+                self._gpu_started = True
+                if pixels is not None:
+                    self._gpu_pixels = pixels
+                    self._gpu_captured_at = time.monotonic()
+                    self._gpu_key = key
+                elif self._gpu_pixels is None:
+                    # No first desktop update yet. Wait without reading another
+                    # screen or starting an expensive CPU capture.
+                    return None
+                if pixels is not None or self._gpu_quality != config.quality:
+                    image = Image.frombytes("RGB", dimensions, self._gpu_pixels, "raw", "BGRX")
+                    output = BytesIO()
+                    image.save(output, "JPEG", quality=config.quality, optimize=False)
+                    ready = time.perf_counter()
+                    self._gpu_frame = Frame(output.getvalue(), image.width, image.height, self._gpu_captured_at,
+                                            (ready - read_started) * 1000, ready)
+                    self._gpu_quality = config.quality
+                # A static desktop can reuse the owned JPEG. Its original
+                # timestamp distinguishes refresh packets from new captures.
+                return self._gpu_frame
+            except UnsupportedGpuCapture as error:
+                # Never treat a later failure as initial unsupported hardware.
+                if self._gpu_started:
+                    self._gpu_error = str(error)
+                if self._gpu is not None:
+                    try:
+                        self._gpu.close()
+                    finally:
+                        self._gpu = None
+                self._clear_gpu_cache()
+                if self._gpu_started:
+                    raise
+                self._gpu_failed = True
+            except Exception as error:
+                self._gpu_error = str(error)
+                self._clear_gpu_cache()
+                if self._gpu is not None:
+                    try:
+                        self._gpu.close()
+                    finally:
+                        self._gpu = None
+                # Access loss, identity/layout changes and resource failures
+                # stop this session. Only initial unsupported APIs may fall back.
+                raise
         image = None
         if self._prefer_native and os.name == "nt" and not self._native_failed:
             try:
@@ -126,17 +218,31 @@ class MssCaptureSource:
                 image = image.resize(dimensions, Image.Resampling.BILINEAR)
         output = BytesIO()
         image.save(output, "JPEG", quality=config.quality, optimize=False)
-        return Frame(output.getvalue(), image.width, image.height, time.monotonic())
+        ready = time.perf_counter()
+        return Frame(output.getvalue(), image.width, image.height, time.monotonic(),
+                     (ready - read_started) * 1000, ready)
 
     def close(self):
-        if self._native is not None:
-            self._native.close()
-            self._native = None
+        error = None
+        for name in ("_gpu", "_native", "_screen"):
+            resource = getattr(self, name)
+            if resource is not None:
+                try:
+                    resource.close()
+                except Exception as failure:
+                    if error is None:
+                        error = failure
+                finally:
+                    setattr(self, name, None)
+        self._gpu_failed = False
+        self._gpu_started = False
+        self._gpu_error = None
+        self._selection = None
+        self._clear_gpu_cache()
         self._native_failed = False
         self._layout = None
-        if self._screen is not None:
-            self._screen.close()
-            self._screen = None
+        if error is not None:
+            raise error
 
 
 class LatestFrameBuffer:
@@ -197,11 +303,12 @@ class CaptureWorker:
                 try:
                     frame = self.source.read(config)
                     # At most one callback in the event-loop queue, even if it stalls.
-                    with self._handoff_lock:
-                        self._pending = frame
-                        if not self._scheduled:
-                            self._scheduled = True
-                            self.loop.call_soon_threadsafe(self._publish)
+                    if frame is not None:
+                        with self._handoff_lock:
+                            self._pending = frame
+                            if not self._scheduled:
+                                self._scheduled = True
+                                self.loop.call_soon_threadsafe(self._publish)
                 except Exception as exc:
                     self.on_error(str(exc))
                     self.stop_event.wait(0.5)

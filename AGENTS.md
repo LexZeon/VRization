@@ -9,6 +9,8 @@ All project-owned public GitHub pages must contain complete English first, follo
 
 Use the existing `<!-- vrization:english -->` and `<!-- vrization:chinese -->` section markers with `## English` and `## 简体中文`. Run `python scripts/check_docs.py` after documentation changes. Its checks cover structure, nonempty sections and relative file links; human review remains responsible for translation accuracy and completeness.
 
+Credit the source of optimization ideas as well as reused code: record the upstream project, authors, exact version / commit or document, URL, license, what was referenced, and what was changed or rewritten. Rewriting an implementation does not remove its provenance or applicable license obligations. Distinguish bundled dependencies, reused code, and architecture-only references. Maintain these records in both languages.
+
 Preserve original license and copyright texts verbatim. Project-written bilingual explanation must not replace the controlling upstream text. Document concrete tests and limitations accurately; do not claim untested hardware or Android derivatives passed.
 
 English is the default and primary software language. Both desktop and phone applications must offer selectable English and Simplified Chinese. Keep language choice local to each application, and preserve the host's explicit input authorization / emergency stop boundaries.
@@ -25,6 +27,8 @@ When publishing a release in the user's local workspace, preserve verified histo
 所有项目自有 GitHub 公共页面必须在同一页先提供完整英文，再提供完整中文。范围包括 README、教程、架构 / 协议、兼容性记录、发布说明、Issue / PR 模板与仓库简介。今后的修改必须同步维护两种语言。
 
 沿用 `<!-- vrization:english -->`、`<!-- vrization:chinese -->` 分区标记及 `## English`、`## 简体中文` 标题。文档修改后运行 `python scripts/check_docs.py`；它只检查结构、内容非空与相对文件链接，翻译含义与完整性仍需人工审阅。
+
+优化思路与复用代码都要记录来源并鸣谢：写明上游项目、作者、准确版本 / commit 或文档、链接、许可、参考内容，以及修改或重写的部分。重写实现不会消除来源记录或适用的许可义务。区分随包依赖、采用的代码和仅参考架构的材料，并同步维护中英文记录。
 
 许可证与版权原文必须保持完整。项目编写的双语解释不能替代上游控制文本。准确记录实际检查与限制，不把未验证硬件或 Android 衍生系统说成已经通过。
 

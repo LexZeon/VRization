@@ -3,9 +3,9 @@
 from dataclasses import replace
 
 PROFILES = {
-    "Low latency · 960 / 60 FPS / Q60": {"width": 960, "fps": 60, "quality": 60},
-    "Stable · 1280 / 30 FPS / Q65": {"width": 1280, "fps": 30, "quality": 65},
-    "Quality · 1920 / 30 FPS / Q80": {"width": 1920, "fps": 30, "quality": 80},
+    "Low latency · 640 / 60 FPS / Q45": {"width": 640, "fps": 60, "quality": 45},
+    "Stable · 640 / 30 FPS / Q50": {"width": 640, "fps": 30, "quality": 50},
+    "Quality · 960 / 30 FPS / Q60": {"width": 960, "fps": 30, "quality": 60},
 }
 CUSTOM = "Custom"
 

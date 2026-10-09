@@ -31,7 +31,7 @@
     ],
     "license_files": [
       "licenses/python/aiohttp-3.14.4/LICENSE.txt",
-      "licenses/python/aiohttp-3.14.4/LICENSE"
+      "licenses/python/aiohttp-3.14.4/vendor/llhttp/LICENSE"
     ],
     "sbom_files": []
   },

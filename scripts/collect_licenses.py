@@ -35,7 +35,11 @@ def collect() -> None:
             if ".dist-info/" in str(entry).replace("\\", "/") and any(
                 term in entry.name.lower() for term in ("license", "copying", "notice")
             ):
-                target = out / entry.name
+                relative = str(entry).replace("\\", "/").split(".dist-info/", 1)[1]
+                if relative.startswith("licenses/"):
+                    relative = relative.removeprefix("licenses/")
+                target = out / relative
+                target.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(dist.locate_file(entry), target)
                 copied.append(str(target.relative_to(ROOT)).replace("\\", "/"))
             if ".dist-info/sboms/" in str(entry).replace("\\", "/"):

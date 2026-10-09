@@ -21,6 +21,8 @@
     <string name="waiting_ping">连接往返：等待连接 · 不是画面延迟</string>
     <string name="ping_stats">连接往返：%1$d 毫秒 · 不是画面端到端延迟</string>
     <string name="waiting_frame">等待电脑画面</string>
+    <string name="waiting_processing">手机处理：等待画面 · 不是完整视频延迟</string>
+    <string name="processing_stats">手机处理：平均 %1$.1f 毫秒 · 接收到纹理提交；不含电脑、链路和屏幕呈现</string>
     <string name="host_hint">电脑 IP，例如 192.168.1.10</string>
     <string name="port_hint">端口</string>
     <string name="code_hint">六位配对码</string>

@@ -4,14 +4,23 @@ import android.graphics.Bitmap;
 import android.opengl.GLES20;
 import android.opengl.GLSurfaceView;
 import android.opengl.GLUtils;
+import android.os.SystemClock;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
+import java.util.HashMap;
+import java.util.Map;
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
 
 /** Reusable GLES2 stereo video surface, independent of transport and application UI. */
 public final class VrRenderer implements GLSurfaceView.Renderer {
+    /** Called on the GL thread after the texture upload call, before physical presentation. */
+    public interface TextureSubmissionListener {
+        void onSubmitted(long session, long receivedAtNanos, long submittedAtNanos);
+    }
+    private static final String[] UNIFORMS = {"uTexture", "uAspect", "uImageAspect", "uScale", "uOffsetX",
+        "uOffsetY", "uEyeShift", "uEyeSign", "uDistortion", "uFov", "uDistance", "uYaw", "uPitch", "uRoll", "uCinema"};
     private static final String VERTEX =
         "attribute vec2 aPosition; varying vec2 vUv; void main(){vUv=(aPosition+1.0)*0.5; gl_Position=vec4(aPosition,0.0,1.0);}";
     private static final String FRAGMENT =
@@ -33,10 +42,14 @@ public final class VrRenderer implements GLSurfaceView.Renderer {
     private final FloatBuffer vertices = ByteBuffer.allocateDirect(8 * 4).order(ByteOrder.nativeOrder()).asFloatBuffer();
     private final Object frameLock = new Object();
     private Bitmap pending;
+    private long pendingSession, pendingReceivedAt = -1;
+    private final TextureStorage storage = new TextureStorage();
+    private final Map<String, Integer> uniforms = new HashMap<>();
+    private volatile TextureSubmissionListener submissionListener;
     private boolean acceptingFrames = true;
     private volatile VrSettings settings = new VrSettings();
     private volatile float yaw, pitch, roll;
-    private int program, texture, width, height, imageWidth = 16, imageHeight = 9, maxTextureSize = 2048;
+    private int program, texture, positionLocation, width, height, imageWidth = 16, imageHeight = 9, maxTextureSize = 2048;
     private boolean hasTexture;
 
     public VrRenderer() { vertices.put(new float[]{-1,-1, 1,-1, -1,1, 1,1}).position(0); }
@@ -44,14 +57,17 @@ public final class VrRenderer implements GLSurfaceView.Renderer {
     public void setPose(float yaw, float pitch) { this.yaw = yaw; this.pitch = pitch; }
     public void setPose(float yaw, float pitch, float roll) { this.yaw = yaw; this.pitch = pitch; this.roll = roll; }
     /** Transfers ownership. Every submitted Bitmap is recycled by this renderer. */
-    public void submitFrame(Bitmap bitmap) {
+    public void submitFrame(Bitmap bitmap) { submitFrame(bitmap, 0, -1); }
+    /** Optional phone-local timing metadata, using SystemClock.elapsedRealtimeNanos(). */
+    public void submitFrame(Bitmap bitmap, long session, long receivedAtNanos) {
         if (bitmap == null) return;
         synchronized (frameLock) {
             if (!acceptingFrames) { bitmap.recycle(); return; }
             if (pending != null) pending.recycle();
-            pending = bitmap;
+            pending = bitmap; pendingSession = session; pendingReceivedAt = receivedAtNanos;
         }
     }
+    public void setTextureSubmissionListener(TextureSubmissionListener listener) { submissionListener = listener; }
     /** Drop queued frames when Activity stops. A resumed renderer accepts frames again. */
     public void pauseFrames() {
         synchronized (frameLock) {
@@ -68,13 +84,16 @@ public final class VrRenderer implements GLSurfaceView.Renderer {
         GLES20.glLinkProgram(program);
         int[] linked = new int[1]; GLES20.glGetProgramiv(program, GLES20.GL_LINK_STATUS, linked, 0);
         if (linked[0] == 0) throw new IllegalStateException("GLES link: " + GLES20.glGetProgramInfoLog(program));
+        uniforms.clear();
+        for (String name : UNIFORMS) uniforms.put(name, GLES20.glGetUniformLocation(program, name));
+        positionLocation = GLES20.glGetAttribLocation(program, "aPosition");
         int[] textures = new int[1]; GLES20.glGenTextures(1, textures, 0); texture = textures[0];
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, texture);
         GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR);
         GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR);
         GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE);
         GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE);
-        hasTexture = false;
+        hasTexture = false; storage.reset();
         GLES20.glClearColor(0, 0, 0, 1);
         int[] maximum = new int[1]; GLES20.glGetIntegerv(GLES20.GL_MAX_TEXTURE_SIZE, maximum, 0);
         if (maximum[0] > 0) maxTextureSize = maximum[0];
@@ -83,7 +102,10 @@ public final class VrRenderer implements GLSurfaceView.Renderer {
     @Override public void onDrawFrame(GL10 unused) {
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
         Bitmap latest;
-        synchronized (frameLock) { latest = pending; pending = null; }
+        long session, receivedAt;
+        synchronized (frameLock) {
+            latest = pending; session = pendingSession; receivedAt = pendingReceivedAt; pending = null;
+        }
         if (latest != null) {
             if (latest.getWidth() > maxTextureSize || latest.getHeight() > maxTextureSize) {
                 float factor = (float) maxTextureSize / Math.max(latest.getWidth(), latest.getHeight());
@@ -93,15 +115,23 @@ public final class VrRenderer implements GLSurfaceView.Renderer {
             }
             GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, texture);
             imageWidth = latest.getWidth(); imageHeight = latest.getHeight();
-            GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, latest, 0);
+            Bitmap.Config format = latest.getConfig();
+            if (storage.needsAllocation(imageWidth, imageHeight, format)) {
+                GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, latest, 0);
+                storage.allocated(imageWidth, imageHeight, format);
+            } else {
+                GLUtils.texSubImage2D(GLES20.GL_TEXTURE_2D, 0, 0, 0, latest);
+            }
             latest.recycle(); hasTexture = true;
+            TextureSubmissionListener callback = submissionListener;
+            if (callback != null && receivedAt >= 0) callback.onSubmitted(session, receivedAt, SystemClock.elapsedRealtimeNanos());
         }
         if (!hasTexture || width < 2 || height < 1) return;
         VrSettings current = settings;
         GLES20.glUseProgram(program);
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0); GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, texture);
-        GLES20.glUniform1i(GLES20.glGetUniformLocation(program, "uTexture"), 0);
-        int position = GLES20.glGetAttribLocation(program, "aPosition");
+        GLES20.glUniform1i(uniforms.get("uTexture"), 0);
+        int position = positionLocation;
         vertices.position(0); GLES20.glEnableVertexAttribArray(position);
         GLES20.glVertexAttribPointer(position, 2, GLES20.GL_FLOAT, false, 0, vertices);
         uniform("uImageAspect", (float) imageWidth / imageHeight); uniform("uScale", current.scale);
@@ -120,7 +150,7 @@ public final class VrRenderer implements GLSurfaceView.Renderer {
         }
         GLES20.glDisableVertexAttribArray(position);
     }
-    private void uniform(String name, float value) { GLES20.glUniform1f(GLES20.glGetUniformLocation(program, name), value); }
+    private void uniform(String name, float value) { GLES20.glUniform1f(uniforms.get(name), value); }
     private static int compile(int type, String source) {
         int shader = GLES20.glCreateShader(type); GLES20.glShaderSource(shader, source); GLES20.glCompileShader(shader);
         int[] status = new int[1]; GLES20.glGetShaderiv(shader, GLES20.GL_COMPILE_STATUS, status, 0);

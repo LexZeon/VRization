@@ -71,12 +71,12 @@ Each JSON message requires integer `v: 1` and string `type`. On connection the h
     "eyeSeparation": 0.03, "fov": 80.0, "distance": 3.0,
     "distortion": 0.0, "sensitivity": 1000.0, "invertY": false
   },
-  "stream": {"codec": "jpeg", "fps": 60, "maxWidth": 960},
+  "stream": {"codec": "jpeg", "fps": 60, "maxWidth": 640},
   "mouseArmed": false
 }
 ```
 
-Stream numbers are examples. v1 retains `maxWidth` as a width bound; the current host also limits the **longest edge** to this value. A 2160 × 3840 source becomes 720 × 1280 at limit 1280. Render the actual JPEG dimensions rather than inferring aspect ratio from this bound.
+Stream numbers are examples. v1 retains `maxWidth` as a width bound; the current host also limits the **longest edge** to this value. A 2160 × 3840 source becomes 360 × 640 at limit 640. Render the actual JPEG dimensions rather than inferring aspect ratio from this bound. GPU crop / rotation / scaling changes the host implementation, not the JPEG payload or protocol version. Static refresh packets can repeat an owned JPEG; v1 has no wire capture timestamp or distinct-frame counter.
 
 Use `hello.settings` for the session instead of overwriting a new host with stale client settings. Optional client handshake: `{"v":1,"type":"hello"}`.
 
@@ -126,7 +126,7 @@ FPS needs a valid session, `mode: fps`, recent pose and explicit PC arming. Pose
 
 Application ping / pong messages are `{"v":1,"type":"ping"}` and `{"v":1,"type":"pong"}`. Errors use `{"v":1,"type":"error","message":"..."}`.
 
-Clients display received-frame FPS and application-ping round-trip time. Neither measures end-to-end video latency: ping excludes capture, encoding, decoding and presentation. The GUI's new-user low-latency preset is maximum long edge 960, target 60 FPS and JPEG quality 60; stable is 1280 / 30 / 65, quality is 1920 / 30 / 80. Existing saved capture settings remain effective. These are capture goals, not wire-version changes or measured latency promises.
+Clients display received-frame FPS and application-ping round-trip time. Neither measures end-to-end video latency: ping excludes capture, encoding, decoding and presentation. The GUI's new-user low-latency preset is maximum long edge 640, target 60 FPS and JPEG quality 45; stable is 640 / 30 / 50, quality is 960 / 30 / 60. Existing saved capture settings remain effective. These are capture goals, not wire-version changes or measured latency promises. See [performance metrics and queue boundaries](PERFORMANCE.md).
 
 Client text messages are limited to 16 KiB. Repeated invalid messages or excessive message rates close with `1008`; client binary messages close with `1003`. Host shutdown or blocked frame sending can close with `1001`. WebSocket ping / pong keeps connections alive but does not replace the FPS pose heartbeat.
 
@@ -205,12 +205,12 @@ WebSocket 的 JPEG 内容没有自定义二进制头、帧序号、时间戳、�
     "eyeSeparation": 0.03, "fov": 80.0, "distance": 3.0,
     "distortion": 0.0, "sensitivity": 1000.0, "invertY": false
   },
-  "stream": {"codec": "jpeg", "fps": 60, "maxWidth": 960},
+  "stream": {"codec": "jpeg", "fps": 60, "maxWidth": 640},
   "mouseArmed": false
 }
 ```
 
-`stream` 数值仅为示例，以主机当次配置为准。`maxWidth` 保留 v1 字段名，表示输出宽度上限；当前主机也把该数值作为**最长边**限制，以控制竖屏帧的解码负担。例如 2160 × 3840 的源画面在限值 1280 下输出 720 × 1280。客户端应以实际 JPEG 尺寸渲染，不根据该上限猜测帧的纵横比。
+`stream` 数值仅为示例，以主机当次配置为准。`maxWidth` 保留 v1 字段名，表示输出宽度上限；当前主机也把该数值作为**最长边**限制，以控制竖屏帧的解码负担。例如 2160 × 3840 的源画面在限值 640 下输出 360 × 640。客户端应以实际 JPEG 尺寸渲染，不根据该上限猜测帧的纵横比。GPU 裁切 / 旋转 / 缩放改变主机实现，不改变 JPEG 内容或协议版本；静态刷新包可能重复自有 JPEG，v1 没有传输采集时间戳或不同帧计数。
 
 客户端应以 `hello.settings` 为当前会话设置，不用自己的旧设置覆盖新主机。可选客户端握手：
 
@@ -271,7 +271,7 @@ FPS 控制需要有效会话、`mode: fps`、近期姿态和电脑端主动授�
 {"v":1,"type":"pong"}
 ```
 
-手机显示接收帧率和应用 ping 往返时间，两者都不测量端到端视频延迟：ping 不包括采集、编码、解码与呈现。电脑界面新用户低延迟预设为最长边 960、目标 60 FPS、JPEG 质量 60；稳定为 1280 / 30 / 65，画质为 1920 / 30 / 80；已有保存配置继续生效。预设是捕获目标，不改变协议版本，也不承诺测得的延迟。
+手机显示接收帧率和应用 ping 往返时间，两者都不测量端到端视频延迟：ping 不包括采集、编码、解码与呈现。电脑界面新用户低延迟预设为最长边 640、目标 60 FPS、JPEG 质量 45；稳定为 640 / 30 / 50，画质为 960 / 30 / 60；已有保存配置继续生效。预设是捕获目标，不改变协议版本，也不承诺测得的延迟。详见 [性能指标与队列边界](PERFORMANCE.md)。
 
 协议错误时主机返回 `{"v":1,"type":"error","message":"..."}`。客户端文本消息最多 16 KiB；持续无效消息或超过消息速率会以 `1008` 关闭。客户端发送二进制消息会以 `1003` 关闭。主机停止或帧发送阻塞时可使用 `1001` 关闭。WebSocket ping / pong 还用于连接保活，不能替代 FPS 姿态心跳。
 

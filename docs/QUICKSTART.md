@@ -37,7 +37,7 @@ For FPS, select the mode with a working rotation sensor, enable **Allow phone he
 
 ### 4. Choose a performance profile
 
-In **Stream → Performance profile**, use low latency `960 / 60 FPS / Q60`, stable `1280 / 30 / Q65`, quality `1920 / 30 / Q80` or custom. New users default to low latency; previous saved choices stay effective. The size limits the longest edge and preserves aspect ratio. Target FPS is not a guarantee. Received FPS and link ping RTT help troubleshooting; neither is end-to-end video latency.
+In **Stream → Performance profile**, use low latency `640 / 60 FPS / Q45`, stable `640 / 30 / Q50`, quality `960 / 30 / Q60` or custom. New users default to low latency; previous saved choices stay effective. The size limits the longest edge and preserves aspect ratio. The Windows GPU backend crops, rotates and scales before smaller readback; explicitly unsupported initial capture can use the same selected rectangle through GDI / MSS. Target FPS is not a guarantee. Received FPS and link ping RTT help troubleshooting; neither is end-to-end video latency. See [measured performance and delay](PERFORMANCE.md).
 
 ### Alternative: trusted LAN
 
@@ -82,7 +82,7 @@ FPS 使用可用旋转传感器，在手机选择模式，在电脑勾选“**�
 
 ### 4. 性能预设
 
-在“**串流设置 → 性能预设**”选择低延迟 `960 / 60 FPS / 质量 60`、稳定 `1280 / 30 / 65`、画质 `1920 / 30 / 80` 或自定义。新用户默认低延迟，已有保存选择继续生效。尺寸限制最长边并保持比例，目标帧率不是保证。接收帧率与链路 ping RTT 用于排查，均不是端到端视频延迟。
+在“**串流设置 → 性能预设**”选择低延迟 `640 / 60 FPS / 质量 45`、稳定 `640 / 30 / 50`、画质 `960 / 30 / 60` 或自定义。新用户默认低延迟，已有保存选择继续生效。尺寸限制最长边并保持比例；Windows GPU 后端先裁切、旋转和缩小，再回读较少像素，初始化时明确不支持的采集可对同一选区采用 GDI / MSS。目标帧率不是保证，接收帧率与链路 ping RTT 用于排查，均不是端到端视频延迟。详见 [实测性能与延迟](PERFORMANCE.md)。
 
 ### 可选：可信局域网
 

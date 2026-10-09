@@ -21,6 +21,8 @@
     <string name="waiting_ping">Link round trip: waiting for connection · not video latency</string>
     <string name="ping_stats">Link round trip: %1$d ms · not end-to-end video latency</string>
     <string name="waiting_frame">Waiting for desktop video</string>
+    <string name="waiting_processing">Phone processing: waiting for video · not total video latency</string>
+    <string name="processing_stats">Phone processing: %1$.1f ms mean · receive to texture submission; excludes PC, link and display</string>
     <string name="host_hint">Computer IP, e.g. 192.168.1.10</string>
     <string name="port_hint">Port</string>
     <string name="code_hint">Six-digit pairing code</string>

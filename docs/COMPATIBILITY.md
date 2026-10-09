@@ -37,6 +37,8 @@ A HUAWEI Pura 70 Ultra reporting Android 12 / API 31 compatibility upgraded in p
 
 USB support requires official Platform Tools / Android debugging authorization, or Apple's Windows device software / Trust for iOS. Neither driver stack is bundled. The iOS relay is tested with simulated USB devices; there is no real-iPhone USB result. See [USB prerequisites](USB.md).
 
+The original Windows DXGI / D3D11 capture backend uses system DLLs, with GPU crop / rotation / resize before small pixel readback. On the ASUS portrait desktop, the default 640 / 60 / Q45 USB stream reached **57.7–59.9 decoded FPS on this Huawei phone**. The stable and quality preset readings were 30.2 and 30.0 FPS. Initial unsupported GPU selections retain exact-region GDI / MSS fallback; layout or access changes stop the session. Other GPUs and Windows 10 hardware remain untested. See [performance](PERFORMANCE.md).
+
 ### Still unverified
 
 Other Android phones / derivatives, physical iPhones / iPads including the oldest target iOS 15, actual viewer optics, gyro-axis accuracy / drift / comfort, real FPS games, Windows 10 hardware and measured end-to-end video latency. Windows ARM64 / x86 native builds are not supplied. Please submit device results with version, settings and measurement method through [contributing](../CONTRIBUTING.md).
@@ -77,6 +79,8 @@ Windows 11 采集真实 ASUS 竖屏，2160 × 3840 在最长边 1280 时输出 7
 报告 Android 12 / API 31 兼容层的 HUAWEI Pura 70 Ultra 从此前本地 APK 覆盖升级到 v0.2.0（code 3）。默认英文和 USB，授权后的 USB 服务发现、新启动自动连接、960 × 540 原创校准串流接收与双眼渲染通过。FPS 模式手机可发送旋转姿态；测试使用假输入接收器，没有操作系统鼠标输出。中文在强制停止 / 重开后保留，切换语言按设计断开串流。这不推断其营销系统版本，也不代表全部华为型号、陀螺仪轴向或盒子舒适度。详见 [完整验证记录](VALIDATION.md)。
 
 USB 需要官方 Platform Tools / Android 调试授权，或 iOS 的 Apple Windows 设备软件 / 信任，均不在包内附带。iOS 中继通过模拟 USB 设备测试，尚无 iPhone 真机 USB 结果。详见 [USB 前提](USB.md)。
+
+原创 Windows DXGI / D3D11 后端使用系统 DLL，先在 GPU 选区 / 旋转 / 缩放，再读回小画面。ASUS 竖屏桌面的默认 640 / 60 / Q45 USB 串流，在此华为手机达到 **57.7–59.9 解码 FPS**，稳定与画质预设分别为 30.2、30.0 FPS。GPU 首次不支持时保留相同选区的 GDI / MSS 回退；布局或访问变化会停止会话。其他 GPU 与 Windows 10 硬件尚未实测，见 [性能说明](PERFORMANCE.md)。
 
 ### 仍未验证
 
