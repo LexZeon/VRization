@@ -30,7 +30,7 @@ public struct VRSettings: Codable, Equatable {
         guard ["full", "cinema", "fps"].contains(mode) else { throw VRCoreError.invalid("Unknown viewing mode") }
         let values: [(String, Double, ClosedRange<Double>)] = [
             ("scale", scale, 0.5...1), ("offsetX", offsetX, -0.3...0.3),
-            ("offsetY", offsetY, -0.3...0.3), ("eyeSeparation", eyeSeparation, 0...0.2),
+            ("offsetY", offsetY, -0.3...0.3), ("eyeSeparation", eyeSeparation, -1...0.2),
             ("fov", fov, 50...110), ("distance", distance, 1...8),
             ("distortion", distortion, 0...0.5), ("sensitivity", sensitivity, 100...3000)
         ]

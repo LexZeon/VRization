@@ -268,18 +268,18 @@ final class ViewerSmokeTests: XCTestCase {
         }.resume()
         wait(for: [completed], timeout: 8); XCTAssertNil(failure); XCTAssertEqual(status, 200)
     }
-    private func panEditor(eye: Int = 0, horizontal: CGFloat = -28) {
+    private func panEditor(eye: Int = 0, horizontal: CGFloat = -28, vertical: CGFloat = -22) {
         let image = app.otherElements["editor.eye\(eye).interior"]
         XCTAssertTrue(image.isHittable)
         let start = image.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.6))
-        let end = start.withOffset(CGVector(dx: horizontal, dy: -22))
+        let end = start.withOffset(CGVector(dx: horizontal, dy: vertical))
         start.press(forDuration: 0.1, thenDragTo: end)
     }
-    private func resizeEditor() {
+    private func resizeEditor(horizontal: CGFloat = -32, vertical: CGFloat = -18) {
         let corner = app.otherElements["editor.eye0.bottomRight"]
         XCTAssertTrue(corner.isHittable)
         let start = corner.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
-        start.press(forDuration: 0.1, thenDragTo: start.withOffset(CGVector(dx: -32, dy: -18)))
+        start.press(forDuration: 0.1, thenDragTo: start.withOffset(CGVector(dx: horizontal, dy: vertical)))
     }
     private func openFitEditor() {
         let open = app.buttons["view.editor"]; reveal(open); open.tap()
@@ -334,8 +334,21 @@ final class ViewerSmokeTests: XCTestCase {
         XCTAssertEqual(afterDiscard.settings, entry.settings)
         reveal(app.staticTexts["setting.scale.label"])
         XCTAssertTrue(app.staticTexts["setting.scale.label"].label.contains("85%"))
-        openFitEditor(); panEditor(); resizeEditor()
+        // Genuine corner touches make a small image. A long inward left-eye
+        // drag reaches the new contact bound; no hidden settings setter exists.
+        openFitEditor(); resizeEditor(horizontal: -180, vertical: -80)
+        panEditor(horizontal: 350)
+        let joined = try draftSettings()
+        XCTAssertEqual(joined.scale, 0.5, accuracy: 0.000001)
+        XCTAssertEqual(joined.eyeSeparation, -0.5, accuracy: 0.000001)
+        XCTAssertEqual(joined.offsetX, 0, accuracy: 0.000001)
+        screenshot("EDITOR-06-small-images-touch")
+        resizeEditor(horizontal: 60, vertical: 40)
         let saved = try draftSettings()
+        XCTAssertGreaterThan(saved.scale, joined.scale)
+        XCTAssertEqual(saved.eyeSeparation, saved.scale - 1, accuracy: 0.000001)
+        XCTAssertLessThan(saved.eyeSeparation, 0)
+        XCTAssertEqual(saved.offsetX, 0, accuracy: 0.000001)
         let left = app.otherElements["editor.eye0.interior"].frame, right = app.otherElements["editor.eye1.interior"].frame
         XCTAssertEqual(left.width, right.width, accuracy: 1); XCTAssertEqual(left.height, right.height, accuracy: 1)
         XCTAssertEqual(saved.mode, entry.settings.mode); XCTAssertEqual(saved.distortion, entry.settings.distortion)
@@ -348,6 +361,11 @@ final class ViewerSmokeTests: XCTestCase {
         XCTAssertEqual(committed.settingsCount, entry.settingsCount + 1)
         XCTAssertEqual(committed.settings, saved)
         XCTAssertTrue(committed.mouseMoves.isEmpty)
+        app.buttons["settings.hide"].tap()
+        Thread.sleep(forTimeInterval: 2)
+        screenshot("EDITOR-05-negative-seam-Metal")
+        app.otherElements["vr.surface"].press(forDuration: 1.2)
+        XCTAssertTrue(app.scrollViews["settings.scroll"].waitForExistence(timeout: 5))
         try updateFixtureDesktopScale(0.78)
         reveal(app.staticTexts["setting.scale.label"])
         waitLabel(app.staticTexts["setting.scale.label"], contains: "78%")

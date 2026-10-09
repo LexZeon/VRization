@@ -84,9 +84,12 @@ final class StereoRenderer: NSObject, MTKViewDelegate {
                 for eye in 0..<2 {
                     let eyeWidth = eye == 0 ? leftWidth : width - leftWidth
                     let sign: Float = eye == 0 ? -1 : 1
+                    let resolved = (try? HeadsetFit.resolvedFit(settings: s,
+                        imageAspect: Double(currentTexture.width) / Double(currentTexture.height),
+                        eyeAspect: Double(eyeWidth) / Double(height))) ?? s
                     var u = Uniforms(
-                        optics: SIMD4(Float(eyeWidth) / Float(height), Float(currentTexture.width) / Float(currentTexture.height), Float(s.scale), Float(s.offsetX)),
-                        placement: SIMD4(Float(s.offsetY), Float(s.eyeSeparation) * sign, Float(s.distortion), Float(s.fov)),
+                        optics: SIMD4(Float(eyeWidth) / Float(height), Float(currentTexture.width) / Float(currentTexture.height), Float(resolved.scale), Float(resolved.offsetX)),
+                        placement: SIMD4(Float(resolved.offsetY), Float(resolved.eyeSeparation) * sign, Float(s.distortion), Float(s.fov)),
                         scene: SIMD4(Float(s.distance), Float(p.yaw), Float(p.pitch), Float(p.roll)),
                         flags: SIMD4(s.mode == "cinema" ? 1 : 0, sign, 0, 0))
                     encoder.setViewport(MTLViewport(originX: eye == 0 ? 0 : Double(leftWidth), originY: 0,

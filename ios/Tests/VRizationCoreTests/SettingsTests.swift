@@ -25,7 +25,7 @@ final class SettingsTests: XCTestCase {
     func testInvalidPartialUpdatesNeverCoerceOrClamp() throws {
         let invalid: [[String: Any]] = [[:], ["unknown": 1], ["scale": true], ["scale": "0.8"],
             ["invertY": 1], ["mode": "vr"], ["distance": NSNull()], ["offsetX": 0.30000001],
-            ["eyeSeparation": -0.01], ["fov": Double.nan], ["distortion": Double.infinity]]
+            ["eyeSeparation": -1.01], ["fov": Double.nan], ["distortion": Double.infinity]]
         for patch in invalid { XCTAssertThrowsError(try VRSettings().applying(patch), "Accepted \(patch)") }
     }
     func testCompleteDecodeRejectsMissingUnknownAndWrongTypedFields() throws {

@@ -11,7 +11,8 @@ final class HeadsetFitTests: XCTestCase {
     func testMirroredPanAllFourDirectionsKeepsOffsetXAndOtherSettings() throws {
         let entry = try VRSettings().applying(["eyeSeparation": 0.1, "offsetX": 0.12, "offsetY": -0.1, "distortion": 0.3, "mode": "cinema"])
         for (eye, dx, expected) in [(-1.0, -0.05, 0.15), (-1.0, 0.05, 0.05), (1.0, 0.05, 0.15), (1.0, -0.05, 0.05)] {
-            let result = try HeadsetFit.mirroredPan(entry: entry, delta: FitPoint(x: dx, y: 0.08), eyeSign: eye)
+            let result = try HeadsetFit.mirroredPan(entry: entry, delta: FitPoint(x: dx, y: 0.08), eyeSign: eye,
+                imageAspect: 2, eyeAspect: 1)
             XCTAssertEqual(result.eyeSeparation, expected, accuracy: 0.000001)
             XCTAssertEqual(result.offsetY, -0.02, accuracy: 0.000001)
             var preserved = result; preserved.eyeSeparation = entry.eyeSeparation; preserved.offsetY = entry.offsetY
@@ -19,14 +20,14 @@ final class HeadsetFitTests: XCTestCase {
         }
     }
     func testMirroredPanClampsSpacingAndHeightAndRejectsInvalidEye() throws {
-        let entry = try VRSettings().applying(["offsetX": 0.2])
-        let wide = try HeadsetFit.mirroredPan(entry: entry, delta: FitPoint(x: -1, y: 1), eyeSign: -1)
-        let narrow = try HeadsetFit.mirroredPan(entry: entry, delta: FitPoint(x: -1, y: -1), eyeSign: 1)
+        let entry = try VRSettings().applying(["offsetX": 0.2, "eyeSeparation": 0.1])
+        let wide = try HeadsetFit.mirroredPan(entry: entry, delta: FitPoint(x: -1, y: 1), eyeSign: -1, imageAspect: 2, eyeAspect: 1)
+        let narrow = try HeadsetFit.mirroredPan(entry: entry, delta: FitPoint(x: -1, y: -1), eyeSign: 1, imageAspect: 2, eyeAspect: 1)
         XCTAssertEqual(wide.eyeSeparation, 0.2); XCTAssertEqual(wide.offsetY, 0.3)
-        XCTAssertEqual(narrow.eyeSeparation, 0); XCTAssertEqual(narrow.offsetY, -0.3)
-        XCTAssertEqual(wide.offsetX, 0.2); XCTAssertEqual(narrow.offsetX, 0.2)
-        XCTAssertThrowsError(try HeadsetFit.mirroredPan(entry: entry, delta: FitPoint(x: 0, y: 0), eyeSign: 0))
-        XCTAssertThrowsError(try HeadsetFit.mirroredPan(entry: entry, delta: FitPoint(x: .nan, y: 0), eyeSign: 1))
+        XCTAssertEqual(narrow.eyeSeparation, -0.15, accuracy: 0.000001); XCTAssertEqual(narrow.offsetY, -0.3)
+        XCTAssertEqual(wide.offsetX, 0.2); XCTAssertEqual(narrow.offsetX, 0, accuracy: 0.000001)
+        XCTAssertThrowsError(try HeadsetFit.mirroredPan(entry: entry, delta: FitPoint(x: 0, y: 0), eyeSign: 0, imageAspect: 2, eyeAspect: 1))
+        XCTAssertThrowsError(try HeadsetFit.mirroredPan(entry: entry, delta: FitPoint(x: .nan, y: 0), eyeSign: 1, imageAspect: 2, eyeAspect: 1))
     }
     func testAspectFitForPortraitLandscapeAndSquare() throws {
         XCTAssertEqual(try HeadsetFit.fit(imageAspect: 2, eyeAspect: 1), FitPoint(x: 1, y: 0.5))
@@ -59,12 +60,55 @@ final class HeadsetFitTests: XCTestCase {
             var unchanged = next; unchanged.scale = start.scale; XCTAssertEqual(unchanged, start)
         } }
     }
-    func testResizeClampsWithoutImplicitlyMovingCenter() throws {
+    func testResizeKeepsPlacementExceptAtTheSeamBoundary() throws {
         let start = try VRSettings().applying(["offsetX": 0.3, "offsetY": -0.3])
         let small = try HeadsetFit.resize(entry: start, delta: FitPoint(x: -10, y: -10), cornerSign: FitPoint(x: 1, y: 1), imageAspect: 1, eyeAspect: 1)
         let big = try HeadsetFit.resize(entry: start, delta: FitPoint(x: 10, y: 10), cornerSign: FitPoint(x: 1, y: 1), imageAspect: 1, eyeAspect: 1)
         XCTAssertEqual(small.scale, 0.5); XCTAssertEqual(big.scale, 1)
-        XCTAssertEqual(small.offsetX, 0.3); XCTAssertEqual(big.offsetY, -0.3)
+        XCTAssertEqual(small.offsetX, 0.18, accuracy: 0.000001)
+        XCTAssertEqual(big.offsetX, 0.03, accuracy: 0.000001); XCTAssertEqual(big.offsetY, -0.3)
+    }
+    func testSmallAndPortraitImagesJoinWithoutCrossingEitherViewport() throws {
+        let entry = try VRSettings().applying(["scale": 0.5, "eyeSeparation": -1.0, "offsetX": 0.3, "offsetY": 0.1])
+        for (imageAspect, expectedSeparation) in [(2.0, -0.5), (0.5, -0.75)] {
+            let result = try HeadsetFit.resolvedFit(settings: entry, imageAspect: imageAspect, eyeAspect: 1)
+            XCTAssertEqual(result.eyeSeparation, expectedSeparation, accuracy: 0.000001)
+            XCTAssertEqual(result.offsetX, 0, accuracy: 0.000001); XCTAssertEqual(result.offsetY, 0.1)
+            let left = try HeadsetFit.eyeRect(settings: result, imageAspect: imageAspect, eyeAspect: 1, eyeSign: -1)
+            let right = try HeadsetFit.eyeRect(settings: result, imageAspect: imageAspect, eyeAspect: 1, eyeSign: 1)
+            XCTAssertEqual(left.center.x + left.halfSize.x, 1, accuracy: 0.000001)
+            XCTAssertEqual(right.center.x - right.halfSize.x, -1, accuracy: 0.000001)
+        }
+    }
+    func testNearContactHorizontalOffsetConsumesOnlyRemainingGap() throws {
+        let entry = try VRSettings().applying(["scale": 0.5, "eyeSeparation": -0.4, "offsetX": 0.3])
+        let result = try HeadsetFit.resolvedFit(settings: entry, imageAspect: 2, eyeAspect: 1)
+        XCTAssertEqual(result.eyeSeparation, -0.4); XCTAssertEqual(result.offsetX, 0.1, accuracy: 0.000001)
+        let contact = try HeadsetFit.mirroredPan(entry: entry, delta: FitPoint(x: 0.2, y: 0), eyeSign: -1,
+            imageAspect: 2, eyeAspect: 1)
+        XCTAssertEqual(contact.eyeSeparation, -0.5); XCTAssertEqual(contact.offsetX, 0)
+    }
+    func testEnlargingAJoinedImageMovesSpacingOutwardAndKeepsContact() throws {
+        let entry = try VRSettings().applying(["scale": 0.5, "eyeSeparation": -0.5, "offsetY": 0.1,
+                                               "mode": "fps", "distortion": 0.2])
+        let result = try HeadsetFit.resize(entry: entry, delta: FitPoint(x: 0.2, y: 0.2), cornerSign: FitPoint(x: 1, y: 1),
+            imageAspect: 1, eyeAspect: 1)
+        XCTAssertEqual(result.scale, 0.7, accuracy: 0.000001)
+        XCTAssertEqual(result.eyeSeparation, -0.3, accuracy: 0.000001)
+        XCTAssertEqual(result.offsetX, 0); XCTAssertEqual(result.offsetY, 0.1)
+        XCTAssertEqual(result.mode, "fps"); XCTAssertEqual(result.distortion, 0.2)
+        let smaller = try HeadsetFit.resize(entry: result, delta: FitPoint(x: -0.2, y: -0.2), cornerSign: FitPoint(x: 1, y: 1),
+            imageAspect: 1, eyeAspect: 1)
+        XCTAssertEqual(smaller.scale, 0.5, accuracy: 0.000001)
+        XCTAssertEqual(smaller.eyeSeparation, result.eyeSeparation)
+    }
+    func testSignedSeparationRoundTripsAndStillRejectsOutOfRangeOrBoolean() throws {
+        for separation in [-1.0, -0.75, -0.5, 0.2] {
+            let settings = try VRSettings().applying(["eyeSeparation": separation])
+            XCTAssertEqual(try VRSettings.decode(JSONEncoder().encode(settings)), settings)
+        }
+        let badValues: [Any] = [-1.01, 0.21, true]
+        for bad in badValues { XCTAssertThrowsError(try VRSettings().applying(["eyeSeparation": bad])) }
     }
     func testInvalidGeometryAndNonFiniteDeltasAreRejected() {
         for aspect in [0, -1, Double.nan, Double.infinity] { XCTAssertThrowsError(try HeadsetFit.fit(imageAspect: aspect, eyeAspect: 1)) }

@@ -42,10 +42,10 @@
 "invertY" = "Invert vertical FPS movement";
 "reset" = "Reset all phone settings";
 "editorOpen" = "Visual headset fit editor";
-"editorHelp" = "Drag an eye horizontally to move it and mirror the other eye. Left eye left or right eye right widens the gap; reverse to narrow it. Vertical moves both; corners resize. Save commits; Discard restores. Settings stay on this phone.";
+"editorHelp" = "Drag an eye horizontally; the other mirrors it. Left eye left or right eye right widens the gap; reverse until small images meet. At the seam they align automatically. Vertical moves both; corners resize. Save commits; Discard restores.";
 "editorSave" = "Save";
 "editorDiscard" = "Discard";
-"editorPan" = "Drag an eye to mirror the other eye and adjust spacing; vertical moves both";
+"editorPan" = "Drag an eye to mirror the other eye; move inward until the images meet. Vertical moves both";
 "editorResize" = "Drag corner to resize both eyes around the center";
 "editorSummary" = "Drag an eye to adjust spacing · corners resize\nScale %.0f%% · Gap %.3f · Y %.3f";
 "licenses" = "About and licenses";

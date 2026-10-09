@@ -9,6 +9,7 @@ final class HeadsetEditorView: UIView, UIGestureRecognizerDelegate {
     private var dragCorner: FitPoint?
     private var dragImageAspect = 16.0 / 9, dragEyeAspect = 1.0
     private var dragEyeSign = -1.0
+    private var dragEyeWidth = 1.0
     private var dragSize = CGSize.zero
     private let imageAspect: () -> Double
     private var interiors: [UIView] = [], handles: [[UIView]] = [], borders: [CAShapeLayer] = []
@@ -69,16 +70,21 @@ final class HeadsetEditorView: UIView, UIGestureRecognizerDelegate {
         button.heightAnchor.constraint(equalToConstant: 44).isActive = true; return button
     }
     private func eyeRect(_ eye: Int) -> CGRect {
+        let viewport = eyeViewport(eye)
         guard bounds.width > 0, bounds.height > 0,
               let rect = try? HeadsetFit.eyeRect(settings: draft, imageAspect: imageAspect(),
-                    eyeAspect: Double(bounds.width / 2 / bounds.height), eyeSign: eye == 0 ? -1 : 1) else { return .zero }
-        let width = bounds.width / 2, x = CGFloat(eye) * width
+                    eyeAspect: Double(viewport.width / bounds.height), eyeSign: eye == 0 ? -1 : 1) else { return .zero }
+        let width = viewport.width, x = viewport.minX
         return CGRect(x: x + (CGFloat(rect.center.x - rect.halfSize.x) + 1) * width / 2,
                       y: (1 - CGFloat(rect.center.y + rect.halfSize.y)) * bounds.height / 2,
                       width: CGFloat(rect.halfSize.x) * width, height: CGFloat(rect.halfSize.y) * bounds.height)
     }
     private func eyeViewport(_ eye: Int) -> CGRect {
-        return CGRect(x: CGFloat(eye) * bounds.width / 2, y: 0, width: bounds.width / 2, height: bounds.height)
+        // Match Metal's integer-pixel left/right split, including an odd pixel.
+        let pixelsPerPoint = max(1, contentScaleFactor)
+        let leftWidth = floor(bounds.width * pixelsPerPoint / 2) / pixelsPerPoint
+        return CGRect(x: eye == 0 ? 0 : leftWidth, y: 0,
+                      width: eye == 0 ? leftWidth : bounds.width - leftWidth, height: bounds.height)
     }
     override func layoutSubviews() {
         super.layoutSubviews()
@@ -92,11 +98,10 @@ final class HeadsetEditorView: UIView, UIGestureRecognizerDelegate {
             for corner in 0..<4 {
                 let sign = signs[corner]
                 let raw = CGPoint(x: sign.x < 0 ? rect.minX : rect.maxX, y: sign.y > 0 ? rect.minY : rect.maxY)
-                let eyeStart = CGFloat(eye) * bounds.width / 2
                 // Even an offset portrait stream can extend beyond its eye
                 // viewport. Keep the four real controls reachable, while the
                 // projected resize still uses the actual centered image.
-                let point = CGPoint(x: min(eyeStart + bounds.width / 2 - 16, max(eyeStart + 16, raw.x)),
+                let point = CGPoint(x: min(viewport.maxX - 16, max(viewport.minX + 16, raw.x)),
                     y: min(bounds.height - 16, max(toolbar.frame.maxY + 16, raw.y)))
                 handles[eye][corner].frame = CGRect(x: point.x - 14, y: point.y - 14, width: 28, height: 28)
             }
@@ -119,27 +124,33 @@ final class HeadsetEditorView: UIView, UIGestureRecognizerDelegate {
             let location = gesture.location(in: self), translation = gesture.translation(in: self)
             let start = CGPoint(x: location.x - translation.x, y: location.y - translation.y)
             dragEntry = nil; dragCorner = nil
-            let eye = start.x < bounds.width / 2 ? 0 : 1
+            let eye = start.x < eyeViewport(0).maxX ? 0 : 1
             dragEyeSign = eye == 0 ? -1 : 1
             for corner in 0..<4 where handles[eye][corner].frame.insetBy(dx: -14, dy: -14).contains(start) {
                 dragEntry = draft; dragCorner = signs[corner]; break
             }
             if dragEntry == nil && eyeRect(eye).intersection(eyeViewport(eye)).contains(start) { dragEntry = draft }
             dragImageAspect = imageAspect(); dragSize = bounds.size
-            dragEyeAspect = Double(bounds.width / 2 / bounds.height)
+            dragEyeWidth = Double(eyeViewport(eye).width)
+            dragEyeAspect = dragEyeWidth / Double(bounds.height)
+            if let entry = dragEntry {
+                dragEntry = try? HeadsetFit.resolvedFit(settings: entry,
+                    imageAspect: dragImageAspect, eyeAspect: dragEyeAspect)
+            }
         }
         guard let entry = dragEntry, dragSize == bounds.size, dragSize.width > 0, dragSize.height > 0 else { return }
         if gesture.state == .changed || gesture.state == .ended {
             let translation = gesture.translation(in: self)
-            let delta = FitPoint(x: Double(translation.x * 4 / dragSize.width), y: Double(-translation.y * 2 / dragSize.height))
+            let delta = FitPoint(x: Double(translation.x) * 2 / dragEyeWidth, y: Double(-translation.y * 2 / dragSize.height))
             let next: VRSettings?
             if let corner = dragCorner {
                 next = try? HeadsetFit.resize(entry: entry, delta: delta, cornerSign: corner,
                     imageAspect: dragImageAspect, eyeAspect: dragEyeAspect)
             } else if let panDelta = try? HeadsetFit.touchDelta(
                 screenDelta: FitPoint(x: Double(translation.x), y: Double(translation.y)),
-                eyeSize: FitPoint(x: Double(dragSize.width / 2), y: Double(dragSize.height))) {
-                next = try? HeadsetFit.mirroredPan(entry: entry, delta: panDelta, eyeSign: dragEyeSign)
+                eyeSize: FitPoint(x: dragEyeWidth, y: Double(dragSize.height))) {
+                next = try? HeadsetFit.mirroredPan(entry: entry, delta: panDelta, eyeSign: dragEyeSign,
+                    imageAspect: dragImageAspect, eyeAspect: dragEyeAspect)
             } else { next = nil }
             if let next = next { draft = next; updateSummary(); setNeedsLayout(); onDraft?(draft) }
         }

@@ -126,6 +126,49 @@ def check_rendered_card_colors():
     print("Both real LAN/USB Metal screenshots preserve card RGB, row origin and both eyes.", flush=True)
 
 
+def check_rendered_seam(report):
+    """Inspect the original fullscreen Metal screenshot after a negative-gap Save."""
+    from PIL import Image, ImageOps
+
+    folder = OUT / "screenshots"
+    manifest = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))
+    attachments = [item for group in manifest for item in group["attachments"]]
+    matches = [item for item in attachments if item["suggestedHumanReadableName"].startswith("EDITOR-05-negative-seam-Metal_")]
+    assert len(matches) == 1, "Missing real negative-separation Metal screenshot"
+    saved = next(item["settings"] for item in report["checkpoints"] if item["name"] == "editor-saved")
+    with Image.open(folder / matches[0]["exportedFileName"]) as raw:
+        image = ImageOps.exif_transpose(raw).convert("RGB")
+    width, height = image.size
+    assert width > height, "Contact screenshot is not landscape"
+    middle = width // 2
+    samples, failures = [], []
+    for eye in range(2):
+        eye_width = middle if eye == 0 else width - middle
+        fit_x = min(1, (1280 / 720) / (eye_width / height))
+        fit_y = min(1, (eye_width / height) / (1280 / 720))
+        half_width = fit_x * saved["scale"]
+        separation = max(half_width - 1, saved["eyeSeparation"])
+        assert abs(1 + separation - half_width) < 1e-6 and abs(saved["offsetX"]) < 1e-6, "Saved profile does not reach contact"
+        # Source V=.43 avoids the original card's horizontal grid lines. These
+        # points lie immediately on either side of the physical eye boundary.
+        x = middle - 4 if eye == 0 else middle + 4
+        y = round(height * (.5 - ((1 - 2 * .43) * fit_y * saved["scale"] + saved["offsetY"]) / 2))
+        pixels = [image.getpixel((x + dx, y + dy)) for dx in (-1, 0, 1) for dy in (-1, 0, 1)]
+        actual = tuple(round(median(pixel[channel] for pixel in pixels)) for channel in range(3))
+        expected = (13, 22, 41)
+        boundary_x = middle - 1 if eye == 0 else middle
+        boundary = [image.getpixel((boundary_x, y + dy)) for dy in (-1, 0, 1)]
+        samples.append({"eye": eye, "screenXY": (x, y), "expectedRGB": expected,
+                        "actualRGB": actual, "boundaryRGB": boundary})
+        if max(abs(a - b) for a, b in zip(actual, expected)) > 12:
+            failures.append(f"Eye {eye} has a gap or wrong video at the seam: {actual}")
+        if any(pixel[2] <= 20 or sum(pixel) <= 35 for pixel in boundary):
+            failures.append(f"Eye {eye} has black pixels at its exact viewport boundary")
+    (folder / "seam-check.json").write_text(json.dumps({"samples": samples, "failures": failures}, indent=2), encoding="utf-8")
+    assert not failures, "; ".join(failures)
+    print("The real Metal screenshot has video on both sides of the contact seam.", flush=True)
+
+
 def main():
     if sys.platform != "darwin":
         raise SystemExit("This script requires macOS with Xcode. The Windows host has a separate build script.")
@@ -208,12 +251,14 @@ def main():
     saved = checkpoints["editor-saved"]
     assert saved["settingsCount"] == before["settingsCount"] + 1, "Editor Save was not one real settings transaction"
     assert saved["settings"]["scale"] != before["settings"]["scale"], "Real corner drag did not resize the saved image"
-    assert saved["settings"]["eyeSeparation"] > before["settings"]["eyeSeparation"], "Real mirrored eye drag did not widen spacing"
-    assert saved["settings"]["offsetX"] == before["settings"]["offsetX"], "Mirrored eye drag changed the common horizontal offset"
+    assert saved["settings"]["eyeSeparation"] < 0, "Real inward eye drag did not save negative spacing"
+    assert abs(saved["settings"]["eyeSeparation"] - (saved["settings"]["scale"] - 1)) < 1e-6, "Resizing joined images did not preserve contact"
+    assert saved["settings"]["offsetX"] == 0, "Contact did not align the common horizontal offset"
     desktop = checkpoints["editor-desktop-updated"]
     assert desktop["settingsCount"] == saved["settingsCount"] + 1 and desktop["settings"]["scale"] == .78, "Real PC update was not broadcast"
     assert checkpoints["editor-local-restored"]["settings"]["scale"] != saved["settings"]["scale"], "Offline phone profile was not restored over old host state"
     check_rendered_card_colors()
+    check_rendered_seam(report)
     run("python3", "scripts/package_release.py", "--ios-only")
 
 

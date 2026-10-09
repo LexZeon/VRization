@@ -20,7 +20,7 @@ final class PhonePreferencesTests: XCTestCase {
             var profile = PhonePreferences(); profile.language = "zh-Hans"; profile.transport = "lan"; profile.host = "pc.local"; profile.port = "19000"
             profile.hasCommittedProfile = true
             profile.settings = try VRSettings().applying(["mode": "fps", "scale": 0.62, "offsetX": 0.15, "offsetY": -0.11,
-                "eyeSeparation": 0.08, "fov": 100.0, "distance": 7.0, "distortion": 0.2, "sensitivity": 1700.0, "invertY": true])
+                "eyeSeparation": -0.6, "fov": 100.0, "distance": 7.0, "distortion": 0.2, "sensitivity": 1700.0, "invertY": true])
             try store.save(profile)
             XCTAssertEqual(PhonePreferencesStore(defaults: defaults).load(), profile)
             let wire = String(data: defaults.data(forKey: PhonePreferencesStore.key)!, encoding: .utf8)!

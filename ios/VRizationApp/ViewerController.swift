@@ -211,7 +211,7 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
         addSlider("scale", path: \.scale, min: 0.5, max: 1, steps: 50)
         addSlider("offsetX", path: \.offsetX, min: -0.3, max: 0.3, steps: 120)
         addSlider("offsetY", path: \.offsetY, min: -0.3, max: 0.3, steps: 120)
-        addSlider("eyeSeparation", path: \.eyeSeparation, min: 0, max: 0.2, steps: 100)
+        addSlider("eyeSeparation", path: \.eyeSeparation, min: -1, max: 0.2, steps: 120)
         addSlider("distortion", path: \.distortion, min: 0, max: 0.5, steps: 100)
         addSlider("fov", path: \.fov, min: 50, max: 110, steps: 60)
         addSlider("distance", path: \.distance, min: 1, max: 8, steps: 140)
