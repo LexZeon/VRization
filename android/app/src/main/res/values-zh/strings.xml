@@ -45,8 +45,8 @@
     <string name="invert_y">FPS 垂直方向反转</string>
     <string name="reset_view">恢复显示设置</string>
     <string name="edit_headset">可视化适配 VR 盒子</string>
-    <string name="editor_gestures">拖动四角围绕中心等比例缩放。画面内部向左拖，画面向右移；向右拖则向左移，上下跟随手指。两眼同步；平面预览，头部控制已暂停。</string>
-    <string name="editor_values">缩放 %1$.0f%% · 水平 %2$.2f · 垂直 %3$.2f</string>
+    <string name="editor_gestures">拖动四角围绕中心等比例缩放。在任一眼画面内部向外拖，两眼分开；向内拖则靠近，上下拖动同步移动。平面预览，头部控制已暂停。</string>
+    <string name="editor_values">缩放 %1$.0f%% · 双眼间距 %2$.2f · 水平 %3$.2f · 垂直 %4$.2f</string>
     <string name="editor_save">保存</string>
     <string name="editor_discard">放弃</string>
     <string name="reset_all">重置全部手机设置</string>

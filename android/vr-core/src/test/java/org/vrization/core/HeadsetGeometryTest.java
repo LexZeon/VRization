@@ -40,14 +40,39 @@ public final class HeadsetGeometryTest {
     @Test(expected = IllegalArgumentException.class) public void nonfiniteTouchCannotEscapeBounds() {
         HeadsetGeometry.pan(new VrSettings(), Float.NaN, 0);
     }
+    @Test public void mirroredPanMovesEyeCentersOppositelyWithoutMovingSharedHorizontalCenter() {
+        VrSettings entry = new VrSettings(); entry.offsetX = .17f; entry.offsetY = -.1f; entry.eyeSeparation = .1f;
+        for (int eye : new int[]{-1, 1}) for (int direction : new int[]{-1, 1}) {
+            VrSettings value = HeadsetGeometry.mirroredPan(entry, eye, direction * .04f, .05f);
+            float separation = .1f + eye * direction * .04f;
+            assertEquals(separation, value.eyeSeparation, .00001f);
+            assertEquals(.17f, value.offsetX, 0); assertEquals(-.05f, value.offsetY, .00001f);
+            float[] left = HeadsetGeometry.bounds(value, 16f / 9, 1, -1);
+            float[] right = HeadsetGeometry.bounds(value, 16f / 9, 1, 1);
+            assertEquals(.17f, (left[0] + right[0]) / 2, .00001f);
+            assertEquals(2 * separation, right[0] - left[0], .00001f);
+        }
+        assertEquals(.1f, entry.eyeSeparation, 0); assertEquals(-.1f, entry.offsetY, 0);
+    }
+    @Test public void mirroredPanClampsSpacingAndVerticalWhileRejectingInvalidEyeOrDelta() {
+        VrSettings entry = new VrSettings(); entry.offsetX = -.19f;
+        assertEquals(.2f, HeadsetGeometry.mirroredPan(entry, -1, -20, 10).eyeSeparation, 0);
+        assertEquals(.3f, HeadsetGeometry.mirroredPan(entry, -1, -20, 10).offsetY, 0);
+        assertEquals(0, HeadsetGeometry.mirroredPan(entry, -1, 20, -10).eyeSeparation, 0);
+        assertEquals(-.3f, HeadsetGeometry.mirroredPan(entry, -1, 20, -10).offsetY, 0);
+        assertEquals(-.19f, HeadsetGeometry.mirroredPan(entry, 1, 20, 0).offsetX, 0);
+        try { HeadsetGeometry.mirroredPan(entry, 0, .1f, 0); fail(); } catch (IllegalArgumentException expected) { }
+        try { HeadsetGeometry.mirroredPan(entry, 1, Float.NaN, 0); fail(); } catch (IllegalArgumentException expected) { }
+    }
     @Test public void saveChangesOnlyFitAndPreservesOriginalModeAndOptics() {
         VrSettings entry = new VrSettings(); entry.mode = "fps"; entry.distortion = .4f; entry.fov = 103; entry.invertY = true;
         HeadsetEdit edit = new HeadsetEdit(entry);
         assertEquals("full", edit.preview().mode); assertEquals(0, edit.preview().distortion, 0);
         VrSettings geometry = HeadsetGeometry.pan(edit.draft(), .1f, .2f); geometry.scale = .7f;
-        geometry.mode = "cinema"; geometry.distortion = .1f; edit.update(geometry);
+        geometry.eyeSeparation = .16f; geometry.mode = "cinema"; geometry.distortion = .1f; edit.update(geometry);
         VrSettings saved = edit.save();
         assertEquals(.7f, saved.scale, 0); assertEquals(.1f, saved.offsetX, 0); assertEquals(.2f, saved.offsetY, 0);
+        assertEquals(.16f, saved.eyeSeparation, 0);
         assertEquals("fps", saved.mode); assertEquals(.4f, saved.distortion, 0); assertEquals(103, saved.fov, 0); assertTrue(saved.invertY);
         assertEquals(.85f, entry.scale, 0); assertEquals(0, entry.offsetX, 0);
         try { edit.save(); fail("Cannot save the transaction twice"); } catch (IllegalStateException expected) { }
@@ -55,10 +80,11 @@ public final class HeadsetGeometryTest {
     @Test public void discardRestoresIndependentEntrySnapshotAndHasNoCommitValue() {
         VrSettings entry = new VrSettings(); entry.mode = "cinema"; entry.distortion = .25f;
         HeadsetEdit edit = new HeadsetEdit(entry); entry.mode = "full";
-        edit.update(HeadsetGeometry.pan(edit.draft(), .3f, -.3f));
+        edit.update(HeadsetGeometry.mirroredPan(edit.draft(), -1, -.1f, -.3f));
         VrSettings discarded = edit.discard();
         assertEquals("cinema", discarded.mode); assertEquals(0, discarded.offsetX, 0);
         assertEquals(0, discarded.offsetY, 0); assertEquals(.25f, discarded.distortion, 0);
+        assertEquals(.03f, discarded.eyeSeparation, 0);
         try { edit.save(); fail("Discarded editor cannot commit"); } catch (IllegalStateException expected) { }
     }
 }

@@ -13,6 +13,7 @@ public final class HeadsetEdit {
     }
     public void update(VrSettings geometry) {
         requireActive(); draft.scale = geometry.scale; draft.offsetX = geometry.offsetX; draft.offsetY = geometry.offsetY;
+        draft.eyeSeparation = geometry.eyeSeparation;
         draft.normalize();
     }
     public VrSettings save() { requireActive(); active = false; return draft.copy(); }

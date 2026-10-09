@@ -403,7 +403,7 @@ public final class MainActivity extends Activity {
     private void previewHeadsetEdit() {
         if (headsetEdit == null) return;
         VrSettings draft = headsetEdit.draft(); renderer.setSettings(headsetEdit.preview()); surface.requestRender();
-        editorValues.setText(getString(R.string.editor_values, draft.scale * 100, draft.offsetX, draft.offsetY));
+        editorValues.setText(getString(R.string.editor_values, draft.scale * 100, draft.eyeSeparation, draft.offsetX, draft.offsetY));
     }
     private void finishHeadsetEdit(boolean save, boolean recenterTracking) {
         if (headsetEdit == null) return;

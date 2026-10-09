@@ -25,6 +25,15 @@ public final class HeadsetGeometry {
         value.offsetY = Math.max(-.3f, Math.min(.3f, start.offsetY + deltaY));
         return value;
     }
+    /** Interior dragging adjusts the two eye centers symmetrically around offsetX. */
+    public static VrSettings mirroredPan(VrSettings start, int eyeSign, float deltaX, float deltaY) {
+        finite(deltaX); finite(deltaY);
+        if (eyeSign != -1 && eyeSign != 1) throw new IllegalArgumentException("Invalid eye");
+        VrSettings value = start.copy();
+        value.eyeSeparation = Math.max(0, Math.min(.2f, start.eyeSeparation + eyeSign * deltaX));
+        value.offsetY = Math.max(-.3f, Math.min(.3f, start.offsetY + deltaY));
+        return value;
+    }
     /** Proportional corner scaling keeps the center fixed; deltas are from gesture start. */
     public static VrSettings resize(VrSettings start, float imageAspect, float eyeAspect,
                                     int signX, int signY, float deltaX, float deltaY) {

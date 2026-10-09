@@ -6,19 +6,22 @@ import org.vrization.core.VrSettings;
 import static org.junit.Assert.*;
 
 public final class HeadsetTouchTest {
-    @Test public void horizontalFingerMovementIsInvertedButVerticalMovementIsPreserved() {
-        VrSettings entry = new VrSettings(); entry.offsetX = .04f; entry.offsetY = -.02f;
-        VrSettings right = HeadsetTouch.pan(entry, .1f, .08f);
-        assertEquals(-.06f, right.offsetX, .00001f); assertEquals(.06f, right.offsetY, .00001f);
-        VrSettings left = HeadsetTouch.pan(entry, -.1f, -.08f);
-        assertEquals(.14f, left.offsetX, .00001f); assertEquals(-.1f, left.offsetY, .00001f);
-        assertEquals(.04f, entry.offsetX, 0); assertEquals(-.02f, entry.offsetY, 0);
+    @Test public void eitherEyeOutwardDragWidensAndInwardDragNarrowsWhileVerticalMovesTogether() {
+        VrSettings entry = new VrSettings(); entry.offsetX = .04f; entry.offsetY = -.02f; entry.eyeSeparation = .1f;
+        for (int eye : new int[]{-1, 1}) {
+            VrSettings outward = HeadsetTouch.pan(entry, eye, eye * .04f, .08f);
+            assertEquals(.14f, outward.eyeSeparation, .00001f); assertEquals(.06f, outward.offsetY, .00001f);
+            VrSettings inward = HeadsetTouch.pan(entry, eye, -eye * .04f, -.08f);
+            assertEquals(.06f, inward.eyeSeparation, .00001f); assertEquals(-.1f, inward.offsetY, .00001f);
+            assertEquals(.04f, outward.offsetX, 0); assertEquals(.04f, inward.offsetX, 0);
+        }
+        assertEquals(.1f, entry.eyeSeparation, 0); assertEquals(-.02f, entry.offsetY, 0);
     }
-    @Test public void invertedTouchPanClampsWhileEnginePanRetainsMathematicalDirection() {
+    @Test public void touchClampsSpacingWithoutChangingEngineOffsetPan() {
         VrSettings entry = new VrSettings();
-        assertEquals(-.3f, HeadsetTouch.pan(entry, 2, 0).offsetX, 0);
-        assertEquals(.3f, HeadsetTouch.pan(entry, -2, 0).offsetX, 0);
-        assertEquals(.3f, HeadsetTouch.pan(entry, 0, 2).offsetY, 0);
+        assertEquals(.2f, HeadsetTouch.pan(entry, -1, -2, 0).eyeSeparation, 0);
+        assertEquals(0, HeadsetTouch.pan(entry, 1, -2, 0).eyeSeparation, 0);
+        assertEquals(.3f, HeadsetTouch.pan(entry, 1, 0, 2).offsetY, 0);
         assertEquals(.1f, HeadsetGeometry.pan(entry, .1f, 0).offsetX, 0);
     }
     @Test public void everyCornerRetainsPhysicalOutwardResizeAndFixedCenter() {
