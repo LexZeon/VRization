@@ -83,6 +83,43 @@ class EditorIntegrationTests(unittest.TestCase):
         host.running = False
         self.assertIsNone(host.get_latest_frame())
 
+    def pointer_editor(self):
+        editor = HeadsetEditor.__new__(HeadsetEditor)
+        editor.transaction = EditTransaction(Settings())
+        editor.geometry = lambda: (0, 0, 1000, 450)
+        editor.image = None
+        editor.gesture = None
+        editor.draw = Mock()
+        return editor
+
+    def test_pointer_pan_is_y_up_moves_both_eyes_and_never_accumulates_events(self):
+        editor = self.pointer_editor()
+        before = [editor.bounds(eye) for eye in (0, 1)]
+        editor.begin(SimpleNamespace(x=242.5, y=225))
+        for _ in range(3):
+            editor.move(SimpleNamespace(x=267.5, y=202.5))
+        self.assertAlmostEqual(editor.draft.offsetX, .1)
+        self.assertAlmostEqual(editor.draft.offsetY, .1)
+        for eye in (0, 1):
+            after = editor.bounds(eye)
+            self.assertAlmostEqual(after[0] - before[eye][0], 25)
+            self.assertAlmostEqual(after[1] - before[eye][1], -22.5)
+            self.assertAlmostEqual(after[2] - after[0], before[eye][2] - before[eye][0])
+
+    def test_right_eye_corner_resize_keeps_centers_and_uses_gesture_start_aspect(self):
+        editor = self.pointer_editor()
+        before = [editor.bounds(eye) for eye in (0, 1)]
+        # 16:9 image fits a 500x450 eye: fit=(1,.625), scale=.85.
+        editor.begin(SimpleNamespace(x=970, y=105.46875))
+        editor.image = SimpleNamespace(width=9, height=16)  # arriving frame cannot alter this drag
+        editor.move(SimpleNamespace(x=995, y=91.40625))
+        self.assertAlmostEqual(editor.draft.scale, .95)
+        editor.image = None
+        for eye in (0, 1):
+            after = editor.bounds(eye)
+            self.assertAlmostEqual((after[0] + after[2]) / 2, (before[eye][0] + before[eye][2]) / 2)
+            self.assertAlmostEqual((after[1] + after[3]) / 2, (before[eye][1] + before[eye][3]) / 2)
+
 
 if __name__ == "__main__":
     unittest.main()
