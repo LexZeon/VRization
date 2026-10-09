@@ -104,6 +104,7 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
             guard self.renderer != nil else { return }
             self.frames += 1; self.sampleFrames += 1
             self.frameWidth = image.width; self.frameHeight = image.height
+            self.updateTestingGeometry()
             let now = ProcessInfo.processInfo.systemUptime
             if self.frames == 1 { self.updateFrameStatus() }
             if now - self.frameSampleAt >= 1 {
@@ -185,7 +186,7 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
         modes.setEnabled(motion.available, forSegmentAt: 1); modes.setEnabled(motion.available, forSegmentAt: 2)
         modes.addTarget(self, action: #selector(modeChanged), for: .valueChanged); content.addArrangedSubview(modes)
         content.addArrangedSubview(label(L.text("headsetFit"), size: 18))
-        addSlider("scale", path: \.scale, min: 0.5, max: 1, steps: 100)
+        addSlider("scale", path: \.scale, min: 0.5, max: 1, steps: 50)
         addSlider("offsetX", path: \.offsetX, min: -0.3, max: 0.3, steps: 120)
         addSlider("offsetY", path: \.offsetY, min: -0.3, max: 0.3, steps: 120)
         addSlider("eyeSeparation", path: \.eyeSeparation, min: 0, max: 0.2, steps: 100)
@@ -330,7 +331,8 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
             "deviceOrientation=\(UIDevice.current.orientation.rawValue)",
             "windowBounds=\(window.bounds)", "windowFrame=\(window.frame)", "viewBounds=\(view.bounds)",
             "scrollFrame=\(scroll.convert(scroll.bounds, to: view))", "contentSize=\(scroll.contentSize)",
-            "contentOffset=\(scroll.contentOffset)", "drawableSize=\(metalView.drawableSize)"
+            "contentOffset=\(scroll.contentOffset)", "drawableSize=\(metalView.drawableSize)",
+            "texture=\(renderer?.diagnostic ?? "unavailable")"
         ].joined(separator: "; ")
     }
     override func viewWillTransition(to size: CGSize, with coordinator: UIViewControllerTransitionCoordinator) {
@@ -370,7 +372,9 @@ private final class SettingSlider: NSObject {
     }
     private func show(_ value: Double) {
         let formatted = key == "scale" ? String(format: "%.0f%%", value * 100) : String(format: "%.2f", value)
-        label.text = L.text(key) + "  " + formatted; control.accessibilityValue = formatted
+        // Keep UIKit's slider accessibility value tied to its native thumb
+        // position. The adjacent accessible label announces the actual value.
+        label.text = L.text(key) + "  " + formatted
     }
     @objc private func start() { begin?() }
     @objc private func update() { let next = value; show(next); change?(next, !control.isTracking) }

@@ -7,6 +7,7 @@ from pathlib import Path
 import platform
 import re
 import signal
+from statistics import median
 import subprocess
 import sys
 import time
@@ -67,6 +68,62 @@ def export_ui_report():
         (screenshots / "test-summary.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired, ValueError) as error:
         print(f"Warning: could not export UI summary: {type(error).__name__}", flush=True)
+
+
+def check_rendered_card_colors():
+    """Check actual Metal screenshots from both transports against the original card.
+
+    Native screenshot EXIF is honored. Sampling opaque, flat card regions detects
+    a skipped-alpha/channel upload error; the upper heading also checks row origin.
+    No screenshot is modified or substituted for the exported test evidence.
+    """
+    from PIL import Image, ImageOps
+
+    folder = OUT / "screenshots"
+    manifest = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))
+    attachments = [item for group in manifest for item in group["attachments"]]
+    records, failures = [], []
+    for name in ("05-full-stereo-Metal", "USB-02-real-Metal-stereo"):
+        matches = [item for item in attachments if item["suggestedHumanReadableName"].startswith(name + "_")]
+        if len(matches) != 1:
+            raise AssertionError(f"Expected one real screenshot for {name}; found {len(matches)}")
+        with Image.open(folder / matches[0]["exportedFileName"]) as raw:
+            image = ImageOps.exif_transpose(raw).convert("RGB")
+        width, height = image.size
+        if width <= height:
+            raise AssertionError(f"{name}: the physical screen is not landscape")
+        left_width = width // 2
+        for eye in range(2):
+            eye_width = left_width if eye == 0 else width - left_width
+            origin = 0 if eye == 0 else left_width
+            fit_y = min(1.0, (eye_width / height) / (1280 / 720))
+            sign = -1 if eye == 0 else 1
+
+            def point(u, v):
+                # Default full mode, scale .85, eye separation .03, no offsets
+                # or distortion: match the displayed card's placement.
+                x = origin + eye_width * (.5 + ((u * 2 - 1) * .85 + sign * .03) / 2)
+                y = height * (.5 - ((1 - v * 2) * fit_y * .85) / 2)
+                return round(x), round(y)
+
+            for uv, expected in (((.97, .05), (13, 21, 40)), ((.8, .4), (20, 38, 60)), ((.8, .65), (20, 38, 60))):
+                x, y = point(*uv)
+                neighborhood = [image.getpixel((x + dx, y + dy)) for dx in (-1, 0, 1) for dy in (-1, 0, 1)]
+                actual = tuple(round(median(pixel[channel] for pixel in neighborhood)) for channel in range(3))
+                records.append({"screenshot": name, "eye": eye, "sourceUV": uv,
+                                "screenXY": (x, y), "expectedRGB": expected, "actualRGB": actual})
+                if max(abs(a - b) for a, b in zip(actual, expected)) > 12:
+                    failures.append(f"{name} eye {eye}: RGB {actual}, expected near {expected}")
+            x0, y0 = point(.15, .24)
+            x1, y1 = point(.58, .40)
+            heading = image.crop((min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1)))
+            teal = sum(g > 150 and g - r > 60 and b > 100 for r, g, b in heading.get_flattened_data())
+            records.append({"screenshot": name, "eye": eye, "upperHeadingTealPixels": teal})
+            if teal < 40:
+                failures.append(f"{name} eye {eye}: the upper teal heading is missing or upside down")
+    (folder / "color-check.json").write_text(json.dumps({"samples": records, "failures": failures}, indent=2), encoding="utf-8")
+    assert not failures, "; ".join(failures)
+    print("Both real LAN/USB Metal screenshots preserve card RGB, row origin and both eyes.", flush=True)
 
 
 def main():
@@ -143,6 +200,7 @@ def main():
     assert not report["mouseMoves"], "The fixture must never move the OS mouse"
     assert any(event["event"] == "connection" and event.get("connected") for event in report["events"]), "UI tests never connected to the host"
     assert any(event["event"] == "settings" for event in report["events"]), "UI tests never synchronized settings"
+    check_rendered_card_colors()
     run("python3", "scripts/package_release.py", "--ios-only")
 
 

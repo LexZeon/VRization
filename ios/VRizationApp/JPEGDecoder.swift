@@ -1,5 +1,6 @@
 import Foundation
 import ImageIO
+import CoreGraphics
 
 /// One active decode, one waiting JPEG and one waiting decoded image, across all sessions.
 final class JPEGDecoder {
@@ -49,7 +50,8 @@ final class JPEGDecoder {
                     kCGImageSourceThumbnailMaxPixelSize: 2048,
                     kCGImageSourceShouldCacheImmediately: true
                 ]
-                return CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary)
+                guard let thumbnail = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else { return nil }
+                return Self.rgba8(thumbnail)
             }
             guard let image = image else { continue }
             lock.lock()
@@ -68,5 +70,20 @@ final class JPEGDecoder {
                 if let result = result, result.1 == current { self.onImage?(result.0, result.1) }
             }
         }
+    }
+
+    /// ImageIO can return an opaque, skipped-first ARGB image. Make the byte
+    /// order explicit on this decode queue before Metal reads the provider.
+    /// The resulting CGImage keeps the same top-to-bottom image coordinates.
+    private static func rgba8(_ image: CGImage) -> CGImage? {
+        guard image.width > 0, image.height > 0, image.width <= 2048, image.height <= 2048,
+              let color = CGColorSpace(name: CGColorSpace.sRGB),
+              let context = CGContext(data: nil, width: image.width, height: image.height,
+                  bitsPerComponent: 8, bytesPerRow: image.width * 4, space: color,
+                  bitmapInfo: CGBitmapInfo.byteOrder32Big.rawValue | CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+        context.setBlendMode(.copy)
+        context.interpolationQuality = .none
+        context.draw(image, in: CGRect(x: 0, y: 0, width: CGFloat(image.width), height: CGFloat(image.height)))
+        return context.makeImage()
     }
 }
