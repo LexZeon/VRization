@@ -208,7 +208,8 @@ def main():
     saved = checkpoints["editor-saved"]
     assert saved["settingsCount"] == before["settingsCount"] + 1, "Editor Save was not one real settings transaction"
     assert saved["settings"]["scale"] != before["settings"]["scale"], "Real corner drag did not resize the saved image"
-    assert saved["settings"]["offsetX"] != before["settings"]["offsetX"], "Real image drag did not move the saved image"
+    assert saved["settings"]["eyeSeparation"] > before["settings"]["eyeSeparation"], "Real mirrored eye drag did not widen spacing"
+    assert saved["settings"]["offsetX"] == before["settings"]["offsetX"], "Mirrored eye drag changed the common horizontal offset"
     desktop = checkpoints["editor-desktop-updated"]
     assert desktop["settingsCount"] == saved["settingsCount"] + 1 and desktop["settings"]["scale"] == .78, "Real PC update was not broadcast"
     assert checkpoints["editor-local-restored"]["settings"]["scale"] != saved["settings"]["scale"], "Offline phone profile was not restored over old host state"

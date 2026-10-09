@@ -8,6 +8,7 @@ final class HeadsetEditorView: UIView, UIGestureRecognizerDelegate {
     private var dragEntry: VRSettings?
     private var dragCorner: FitPoint?
     private var dragImageAspect = 16.0 / 9, dragEyeAspect = 1.0
+    private var dragEyeSign = -1.0
     private var dragSize = CGSize.zero
     private let imageAspect: () -> Double
     private var interiors: [UIView] = [], handles: [[UIView]] = [], borders: [CAShapeLayer] = []
@@ -104,7 +105,7 @@ final class HeadsetEditorView: UIView, UIGestureRecognizerDelegate {
     }
     func refreshVideoAspect() { setNeedsLayout() }
     private func updateSummary() {
-        summary.text = String(format: L.text("editorSummary"), draft.scale * 100, draft.offsetX, draft.offsetY)
+        summary.text = String(format: L.text("editorSummary"), draft.scale * 100, draft.eyeSeparation, draft.offsetY)
         // This is a read-only description of the real draft, also useful to
         // assistive clients. It never provides a settings mutation path.
         if let data = try? JSONEncoder().encode(draft) { summary.accessibilityValue = String(data: data, encoding: .utf8) }
@@ -119,6 +120,7 @@ final class HeadsetEditorView: UIView, UIGestureRecognizerDelegate {
             let start = CGPoint(x: location.x - translation.x, y: location.y - translation.y)
             dragEntry = nil; dragCorner = nil
             let eye = start.x < bounds.width / 2 ? 0 : 1
+            dragEyeSign = eye == 0 ? -1 : 1
             for corner in 0..<4 where handles[eye][corner].frame.insetBy(dx: -14, dy: -14).contains(start) {
                 dragEntry = draft; dragCorner = signs[corner]; break
             }
@@ -134,10 +136,10 @@ final class HeadsetEditorView: UIView, UIGestureRecognizerDelegate {
             if let corner = dragCorner {
                 next = try? HeadsetFit.resize(entry: entry, delta: delta, cornerSign: corner,
                     imageAspect: dragImageAspect, eyeAspect: dragEyeAspect)
-            } else if let panDelta = try? HeadsetFit.mobilePanDelta(
+            } else if let panDelta = try? HeadsetFit.touchDelta(
                 screenDelta: FitPoint(x: Double(translation.x), y: Double(translation.y)),
                 eyeSize: FitPoint(x: Double(dragSize.width / 2), y: Double(dragSize.height))) {
-                next = try? HeadsetFit.pan(entry: entry, delta: panDelta)
+                next = try? HeadsetFit.mirroredPan(entry: entry, delta: panDelta, eyeSign: dragEyeSign)
             } else { next = nil }
             if let next = next { draft = next; updateSummary(); setNeedsLayout(); onDraft?(draft) }
         }

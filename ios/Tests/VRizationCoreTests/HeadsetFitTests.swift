@@ -2,11 +2,31 @@ import XCTest
 @testable import VRizationCore
 
 final class HeadsetFitTests: XCTestCase {
-    func testMobileHorizontalTouchIsOppositeAndVerticalFollowsFinger() throws {
-        XCTAssertEqual(try HeadsetFit.mobilePanDelta(screenDelta: FitPoint(x: -20, y: 20), eyeSize: FitPoint(x: 200, y: 400)), FitPoint(x: 0.2, y: -0.1))
-        XCTAssertEqual(try HeadsetFit.mobilePanDelta(screenDelta: FitPoint(x: 20, y: -20), eyeSize: FitPoint(x: 200, y: 400)), FitPoint(x: -0.2, y: 0.1))
-        XCTAssertThrowsError(try HeadsetFit.mobilePanDelta(screenDelta: FitPoint(x: .nan, y: 0), eyeSize: FitPoint(x: 200, y: 400)))
-        XCTAssertThrowsError(try HeadsetFit.mobilePanDelta(screenDelta: FitPoint(x: 0, y: 0), eyeSize: FitPoint(x: 0, y: 400)))
+    func testTouchPixelsNormalizeHorizontalDirectlyAndVerticalUpward() throws {
+        XCTAssertEqual(try HeadsetFit.touchDelta(screenDelta: FitPoint(x: -20, y: 20), eyeSize: FitPoint(x: 200, y: 400)), FitPoint(x: -0.2, y: -0.1))
+        XCTAssertEqual(try HeadsetFit.touchDelta(screenDelta: FitPoint(x: 20, y: -20), eyeSize: FitPoint(x: 200, y: 400)), FitPoint(x: 0.2, y: 0.1))
+        XCTAssertThrowsError(try HeadsetFit.touchDelta(screenDelta: FitPoint(x: .nan, y: 0), eyeSize: FitPoint(x: 200, y: 400)))
+        XCTAssertThrowsError(try HeadsetFit.touchDelta(screenDelta: FitPoint(x: 0, y: 0), eyeSize: FitPoint(x: 0, y: 400)))
+    }
+    func testMirroredPanAllFourDirectionsKeepsOffsetXAndOtherSettings() throws {
+        let entry = try VRSettings().applying(["eyeSeparation": 0.1, "offsetX": 0.12, "offsetY": -0.1, "distortion": 0.3, "mode": "cinema"])
+        for (eye, dx, expected) in [(-1.0, -0.05, 0.15), (-1.0, 0.05, 0.05), (1.0, 0.05, 0.15), (1.0, -0.05, 0.05)] {
+            let result = try HeadsetFit.mirroredPan(entry: entry, delta: FitPoint(x: dx, y: 0.08), eyeSign: eye)
+            XCTAssertEqual(result.eyeSeparation, expected, accuracy: 0.000001)
+            XCTAssertEqual(result.offsetY, -0.02, accuracy: 0.000001)
+            var preserved = result; preserved.eyeSeparation = entry.eyeSeparation; preserved.offsetY = entry.offsetY
+            XCTAssertEqual(preserved, entry)
+        }
+    }
+    func testMirroredPanClampsSpacingAndHeightAndRejectsInvalidEye() throws {
+        let entry = try VRSettings().applying(["offsetX": 0.2])
+        let wide = try HeadsetFit.mirroredPan(entry: entry, delta: FitPoint(x: -1, y: 1), eyeSign: -1)
+        let narrow = try HeadsetFit.mirroredPan(entry: entry, delta: FitPoint(x: -1, y: -1), eyeSign: 1)
+        XCTAssertEqual(wide.eyeSeparation, 0.2); XCTAssertEqual(wide.offsetY, 0.3)
+        XCTAssertEqual(narrow.eyeSeparation, 0); XCTAssertEqual(narrow.offsetY, -0.3)
+        XCTAssertEqual(wide.offsetX, 0.2); XCTAssertEqual(narrow.offsetX, 0.2)
+        XCTAssertThrowsError(try HeadsetFit.mirroredPan(entry: entry, delta: FitPoint(x: 0, y: 0), eyeSign: 0))
+        XCTAssertThrowsError(try HeadsetFit.mirroredPan(entry: entry, delta: FitPoint(x: .nan, y: 0), eyeSign: 1))
     }
     func testAspectFitForPortraitLandscapeAndSquare() throws {
         XCTAssertEqual(try HeadsetFit.fit(imageAspect: 2, eyeAspect: 1), FitPoint(x: 1, y: 0.5))

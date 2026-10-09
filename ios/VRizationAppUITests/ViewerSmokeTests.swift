@@ -268,11 +268,11 @@ final class ViewerSmokeTests: XCTestCase {
         }.resume()
         wait(for: [completed], timeout: 8); XCTAssertNil(failure); XCTAssertEqual(status, 200)
     }
-    private func panEditor() {
-        let image = app.otherElements["editor.eye0.interior"]
+    private func panEditor(eye: Int = 0, horizontal: CGFloat = -28) {
+        let image = app.otherElements["editor.eye\(eye).interior"]
         XCTAssertTrue(image.isHittable)
         let start = image.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.6))
-        let end = start.withOffset(CGVector(dx: 28, dy: -22))
+        let end = start.withOffset(CGVector(dx: horizontal, dy: -22))
         start.press(forDuration: 0.1, thenDragTo: end)
     }
     private func resizeEditor() {
@@ -302,17 +302,27 @@ final class ViewerSmokeTests: XCTestCase {
         // Let the initial local-profile acknowledgment settle before counting edits.
         Thread.sleep(forTimeInterval: 1)
         let entry = try observeHost(checkpoint: "editor-entry")
-        openFitEditor(); panEditor()
+        openFitEditor()
+        let leftBefore = app.otherElements["editor.eye0.interior"].frame
+        let rightBefore = app.otherElements["editor.eye1.interior"].frame
+        panEditor()
         let panned = try draftSettings()
+        XCTAssertGreaterThan(panned.eyeSeparation, entry.settings.eyeSeparation)
+        XCTAssertLessThan(app.otherElements["editor.eye0.interior"].frame.midX, leftBefore.midX)
+        XCTAssertGreaterThan(app.otherElements["editor.eye1.interior"].frame.midX, rightBefore.midX)
+        panEditor(eye: 1, horizontal: 28)
+        let rightPanned = try draftSettings()
+        XCTAssertGreaterThan(rightPanned.eyeSeparation, panned.eyeSeparation)
         resizeEditor()
         let discarded = try draftSettings()
         XCTAssertNotEqual(discarded.scale, entry.settings.scale)
-        XCTAssertNotEqual(discarded.offsetX, entry.settings.offsetX)
-        // The genuine right/up finger pan moves both images left/up. Corner
-        // resize is separate and must leave those offsets unchanged.
-        XCTAssertLessThan(discarded.offsetX, entry.settings.offsetX)
+        XCTAssertEqual(discarded.offsetX, entry.settings.offsetX)
+        // Left-eye left and right-eye right both widen separation; vertical
+        // movement is shared. Resizing preserves spacing and both offsets.
+        XCTAssertGreaterThan(discarded.eyeSeparation, entry.settings.eyeSeparation)
         XCTAssertGreaterThan(discarded.offsetY, entry.settings.offsetY)
-        XCTAssertEqual(discarded.offsetX, panned.offsetX); XCTAssertEqual(discarded.offsetY, panned.offsetY)
+        XCTAssertEqual(discarded.offsetX, rightPanned.offsetX); XCTAssertEqual(discarded.offsetY, rightPanned.offsetY)
+        XCTAssertEqual(discarded.eyeSeparation, rightPanned.eyeSeparation)
         Thread.sleep(forTimeInterval: 1)
         let preview = try observeHost(checkpoint: "editor-discard-preview")
         XCTAssertEqual(preview.settingsCount, entry.settingsCount)
@@ -373,6 +383,7 @@ final class ViewerSmokeTests: XCTestCase {
         let restored = try observeHost(checkpoint: "editor-local-restored")
         XCTAssertEqual(restored.settings.scale, localScale, accuracy: 0.000001)
         XCTAssertEqual(restored.settings.offsetX, saved.offsetX, accuracy: 0.000001)
+        XCTAssertEqual(restored.settings.eyeSeparation, saved.eyeSeparation, accuracy: 0.000001)
 
         openFitEditor(); panEditor()
         XCUIDevice.shared.press(.home); app.activate()

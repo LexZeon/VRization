@@ -12,16 +12,29 @@ public struct FitRect: Equatable {
 
 /// The same geometry can be used by a native UI or an embedded game editor.
 public enum HeadsetFit {
-    /// Mobile touch adapter: horizontal panning is opposite the finger;
-    /// vertical follows it. Core pan/resize retain ordinary normalized axes.
-    public static func mobilePanDelta(screenDelta: FitPoint, eyeSize: FitPoint) throws -> FitPoint {
+    /// Convert screen pixels (Y downward) to ordinary per-eye normalized axes.
+    public static func touchDelta(screenDelta: FitPoint, eyeSize: FitPoint) throws -> FitPoint {
         guard screenDelta.x.isFinite, screenDelta.y.isFinite,
               eyeSize.x.isFinite, eyeSize.y.isFinite, eyeSize.x > 0, eyeSize.y > 0 else {
             throw VRCoreError.invalid("Invalid touch geometry")
         }
-        let delta = FitPoint(x: -2 * screenDelta.x / eyeSize.x, y: -2 * screenDelta.y / eyeSize.y)
+        let delta = FitPoint(x: 2 * screenDelta.x / eyeSize.x, y: -2 * screenDelta.y / eyeSize.y)
         guard delta.x.isFinite, delta.y.isFinite else { throw VRCoreError.invalid("Invalid touch delta") }
         return delta
+    }
+    /// Horizontal movement mirrors the other eye by changing separation only.
+    /// Left eye dragged left / right eye dragged right widen the gap. Vertical
+    /// movement translates both eyes; the common horizontal offset stays fixed.
+    public static func mirroredPan(entry: VRSettings, delta: FitPoint, eyeSign: Double) throws -> VRSettings {
+        _ = try entry.validated()
+        guard eyeSign == -1 || eyeSign == 1, delta.x.isFinite, delta.y.isFinite else {
+            throw VRCoreError.invalid("Invalid mirrored drag")
+        }
+        let separation = entry.eyeSeparation + eyeSign * delta.x, y = entry.offsetY + delta.y
+        guard separation.isFinite, y.isFinite else { throw VRCoreError.invalid("Invalid mirrored drag delta") }
+        var result = entry
+        result.eyeSeparation = min(0.2, max(0, separation)); result.offsetY = min(0.3, max(-0.3, y))
+        return result
     }
     public static func fit(imageAspect: Double, eyeAspect: Double) throws -> FitPoint {
         guard imageAspect.isFinite, eyeAspect.isFinite, imageAspect > 0, eyeAspect > 0 else {

@@ -42,12 +42,12 @@
 "invertY" = "Invert vertical FPS movement";
 "reset" = "Reset all phone settings";
 "editorOpen" = "Visual headset fit editor";
-"editorHelp" = "Drag left/right to move both images in the opposite direction; vertical movement follows your finger. Drag any corner to resize both normally. Preview locally, then Save or Discard. Settings stay on this phone.";
+"editorHelp" = "Drag an eye horizontally to move it and mirror the other eye. Left eye left or right eye right widens the gap; reverse to narrow it. Vertical moves both; corners resize. Save commits; Discard restores. Settings stay on this phone.";
 "editorSave" = "Save";
 "editorDiscard" = "Discard";
-"editorPan" = "Drag both images: horizontal is reversed, vertical follows your finger";
+"editorPan" = "Drag an eye to mirror the other eye and adjust spacing; vertical moves both";
 "editorResize" = "Drag corner to resize both eyes around the center";
-"editorSummary" = "Horizontal drag reversed · corners resize normally\nScale %.0f%% · X %.3f · Y %.3f";
+"editorSummary" = "Drag an eye to adjust spacing · corners resize\nScale %.0f%% · Gap %.3f · Y %.3f";
 "licenses" = "About and licenses";
 "close" = "Close";
 "metalUnavailable" = "Metal rendering is unavailable on this device.";
