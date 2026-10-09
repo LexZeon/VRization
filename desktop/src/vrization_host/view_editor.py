@@ -5,7 +5,7 @@ import math
 import tkinter as tk
 from tkinter import ttk
 
-from PIL import Image, ImageDraw, ImageTk
+from PIL import Image, ImageTk
 
 from .view_edit import EditTransaction, eye_bounds
 
@@ -127,10 +127,10 @@ class HeadsetEditor:
                 patch = self.image.resize((target_width, target_height), Image.Resampling.BILINEAR)
             else:
                 patch = Image.new("RGB", (target_width, target_height), "#142136")
-                marks = ImageDraw.Draw(patch)
                 for fraction in (.25, .5, .75):
-                    marks.line((target_width * fraction, 0, target_width * fraction, target_height), fill="#29435c")
-                    marks.line((0, target_height * fraction, target_width, target_height * fraction), fill="#29435c")
+                    gx, gy = round(target_width * fraction), round(target_height * fraction)
+                    patch.paste("#29435c", (gx, 0, gx + 1, target_height))
+                    patch.paste("#29435c", (0, gy, target_width, gy + 1))
             picture.paste(patch, (round(left - x - eye * width / 2), round(top - y)))
             photo = ImageTk.PhotoImage(picture, master=self.window)
             self.photos.append(photo)
