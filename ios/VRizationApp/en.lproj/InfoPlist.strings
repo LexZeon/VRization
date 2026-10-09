@@ -1,0 +1,2 @@
+"NSLocalNetworkUsageDescription" = "Connect to your computer on the same trusted network to receive VR video and send head movement.";
+"NSMotionUsageDescription" = "Use device motion to turn the virtual screen and control FPS view while the app is open.";

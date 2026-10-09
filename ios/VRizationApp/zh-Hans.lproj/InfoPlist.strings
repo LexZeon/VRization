@@ -1,0 +1,2 @@
+"NSLocalNetworkUsageDescription" = "连接同一可信网络中的电脑，接收 VR 画面并发送头部姿态。";
+"NSMotionUsageDescription" = "应用在前台时，用设备姿态调整虚拟屏幕和 FPS 视角。";

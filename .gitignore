@@ -43,3 +43,15 @@ captures/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Apple build products, local signing and user preferences
+.build/
+.swiftpm/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+*.xcarchive
+*.xcresult
+*.ipa
+*.p12
+*.mobileprovision

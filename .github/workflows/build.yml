@@ -85,10 +85,45 @@ jobs:
             android/app/build/reports/tests/testDebugUnitTest/
           if-no-files-found: ignore
 
+  ios:
+    name: iOS client and reusable Swift core / 苹果客户端与核心库
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: '3.12.10'
+      - name: Install synthetic stream fixture / 安装合成串流测试环境
+        run: |
+          python3 -m pip install aiohttp==3.14.4 pillow==12.3.0
+          python3 -m pip install --no-deps -e ./desktop
+      - name: Test core, build both SDKs and exercise iPhone UI / 测试核心、双 SDK 构建和手机界面
+        run: python3 scripts/build_ios.py
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: VRization-iOS
+          path: |
+            artifacts/release/VRization-iOS-source.zip
+            artifacts/release/VRization-iOS-Simulator.zip
+          if-no-files-found: error
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: always()
+        with:
+          name: iOS-check-reports
+          path: |
+            artifacts/ios/UI.xcresult/
+            artifacts/ios/screenshots/
+            artifacts/ios/environment.json
+            artifacts/ios/host-report.json
+          if-no-files-found: ignore
+
   release:
     name: Publish tagged Alpha prerelease / 发布 Alpha 预览版
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [documentation, windows, android]
+    needs: [documentation, windows, android, ios]
     runs-on: ubuntu-latest
     permissions:
       contents: write

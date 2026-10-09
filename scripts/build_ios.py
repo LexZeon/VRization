@@ -1,0 +1,92 @@
+"""Build and exercise the iOS app on macOS; no Apple signing secrets required."""
+from __future__ import annotations
+
+import json
+import os
+from pathlib import Path
+import re
+import subprocess
+import sys
+import time
+from urllib.request import urlopen
+
+ROOT = Path(__file__).resolve().parents[1]
+OUT = ROOT / "artifacts/ios"
+
+
+def run(*args, **kwargs):
+    print("+ " + " ".join(map(str, args)), flush=True)
+    return subprocess.run(list(map(str, args)), cwd=ROOT, check=True, **kwargs)
+
+
+def main():
+    if sys.platform != "darwin":
+        raise SystemExit("This script requires macOS with Xcode. The Windows host has a separate build script.")
+    OUT.mkdir(parents=True, exist_ok=True)
+    # Hosted runners may default to an older Xcode with no matching runtime.
+    # Honor an explicit selection; otherwise use the newest installed stable Xcode.
+    if not os.environ.get("DEVELOPER_DIR"):
+        candidates = []
+        for app in Path("/Applications").glob("Xcode_*.app"):
+            match = re.fullmatch(r"Xcode_([0-9.]+)\.app", app.name)
+            if match:
+                candidates.append((tuple(map(int, match[1].split("."))), app))
+        if candidates:
+            os.environ["DEVELOPER_DIR"] = str(max(candidates)[1] / "Contents/Developer")
+    run("xcodebuild", "-version")
+    run("swift", "test", "--package-path", "ios")
+    common = ["xcodebuild", "-project", "ios/VRization.xcodeproj", "-scheme", "VRization",
+              "-configuration", "Debug", "CODE_SIGNING_ALLOWED=NO", "-quiet"]
+    run(*common, "-destination", "generic/platform=iOS Simulator", "-derivedDataPath", OUT / "simulator", "build")
+    run(*common, "-destination", "generic/platform=iOS", "-derivedDataPath", OUT / "device", "build")
+    result = run("xcrun", "simctl", "list", "devices", "available", "--json", capture_output=True, text=True)
+    devices = json.loads(result.stdout)["devices"]
+    phones = []
+    for runtime, rows in devices.items():
+        if ".iOS-" in runtime:
+            version = tuple(map(int, re.findall(r"\d+", runtime.split(".iOS-", 1)[1])))
+            for row in rows:
+                if row.get("isAvailable") and row["name"].startswith("iPhone"):
+                    phones.append((version, row["name"], row["udid"]))
+    if not phones:
+        raise SystemExit("No available iPhone simulator runtime. Install one in Xcode Settings > Components.")
+    runtime, name, device = max(phones)
+    (OUT / "environment.json").write_text(json.dumps({"simulator": name, "runtime": runtime,
+        "developerDirectory": os.environ.get("DEVELOPER_DIR")}, indent=2), encoding="utf-8")
+    print(f"Testing on {name}, iOS {'.'.join(map(str, runtime))}", flush=True)
+    fixture = subprocess.Popen([sys.executable, str(ROOT / "scripts/ios_test_host.py"),
+        "--report", str(OUT / "host-report.json")], cwd=ROOT)
+    try:
+        for _ in range(60):
+            if fixture.poll() is not None:
+                raise RuntimeError("Synthetic fixture stopped before test startup")
+            try:
+                with urlopen("http://127.0.0.1:18765/health", timeout=1):
+                    break
+            except OSError:
+                time.sleep(0.5)
+        else:
+            raise RuntimeError("Synthetic fixture did not become ready")
+        run(*common, "-destination", f"platform=iOS Simulator,id={device}",
+            "-derivedDataPath", OUT / "simulator", "-parallel-testing-enabled", "NO",
+            "-resultBundlePath", OUT / "UI.xcresult", "test")
+    finally:
+        fixture.terminate()
+        try:
+            fixture.wait(timeout=15)
+        except subprocess.TimeoutExpired:
+            fixture.kill()
+            fixture.wait()
+        if (OUT / "UI.xcresult").exists():
+            # Export genuine XCTest screenshots for visual review and tutorials.
+            run("xcrun", "xcresulttool", "export", "attachments", "--path", OUT / "UI.xcresult",
+                "--output-path", OUT / "screenshots")
+    report = json.loads((OUT / "host-report.json").read_text(encoding="utf-8"))
+    assert not report["mouseMoves"], "The fixture must never move the OS mouse"
+    assert any(event["event"] == "connection" and event.get("connected") for event in report["events"]), "UI tests never connected to the host"
+    assert any(event["event"] == "settings" for event in report["events"]), "UI tests never synchronized settings"
+    run("python3", "scripts/package_release.py", "--ios-only")
+
+
+if __name__ == "__main__":
+    main()
