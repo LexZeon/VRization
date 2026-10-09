@@ -140,5 +140,66 @@ class TransactionTests(unittest.TestCase):
         self.assertTrue(edit.active)
 
 
+class MirroredEyePanTests(unittest.TestCase):
+    def setUp(self):
+        self.entry = Settings(mode="fps", scale=0.7, offsetX=0.12,
+                              offsetY=-0.05, eyeSeparation=0.1,
+                              distortion=0.2, fov=95, invertY=True)
+
+    def test_all_four_selected_eye_directions_widen_or_narrow_the_gap(self):
+        for eye, dx, expected in ((0, -0.04, 0.14), (0, 0.04, 0.06),
+                                  (1, 0.04, 0.14), (1, -0.04, 0.06)):
+            with self.subTest(eye=eye, dx=dx):
+                result = dragged(self.entry, "eye_pan", dx, 0, 2, 1, eye=eye)
+                self.assertAlmostEqual(result.eyeSeparation, expected)
+                self.assertEqual(replace(result, eyeSeparation=self.entry.eyeSeparation),
+                                 self.entry)
+                left = eye_bounds(result, 0, 2, 1)
+                right = eye_bounds(result, 1, 2, 1)
+                left_center = (left[0] + left[2]) / 2
+                right_center = (right[0] + right[2]) / 2
+                self.assertAlmostEqual(right_center - left_center, 2 * expected)
+                self.assertAlmostEqual((left_center + right_center) / 2,
+                                       self.entry.offsetX)
+
+    def test_spacing_and_shared_vertical_offset_clamp_without_moving_offset_x(self):
+        for eye, dx, expected in ((0, -10, 0.2), (0, 10, 0),
+                                  (1, 10, 0.2), (1, -10, 0)):
+            for dy, expected_y in ((10, 0.3), (-10, -0.3)):
+                with self.subTest(eye=eye, dx=dx, dy=dy):
+                    result = dragged(self.entry, "eye_pan", dx, dy, 2, 1, eye=eye)
+                    self.assertEqual(result.eyeSeparation, expected)
+                    self.assertEqual(result.offsetY, expected_y)
+                    self.assertEqual(result.offsetX, self.entry.offsetX)
+
+    def test_vertical_motion_is_direct_and_does_not_change_spacing(self):
+        for eye in (0, 1):
+            result = dragged(self.entry, "eye_pan", 0, 0.1, 2, 1, eye=eye)
+            self.assertAlmostEqual(result.offsetY, 0.05)
+            self.assertEqual(result.eyeSeparation, self.entry.eyeSeparation)
+            self.assertEqual(result.offsetX, self.entry.offsetX)
+
+    def test_selected_eye_is_required_and_strict(self):
+        for invalid in (None, -1, 2, True, "0", 0.0):
+            with self.assertRaises(ValueError):
+                dragged(self.entry, "eye_pan", 0.1, 0, 2, 1, eye=invalid)
+
+    def test_preview_forwards_eye_and_saves_spacing_from_gesture_start(self):
+        edit = EditTransaction(self.entry)
+        edit.preview("eye_pan", -0.02, 0.02, 2, 1, eye=0)
+        edit.preview("eye_pan", -0.04, 0.04, 2, 1, eye=0)
+        committed = edit.commit()
+        self.assertAlmostEqual(committed.eyeSeparation, 0.14)
+        self.assertAlmostEqual(committed.offsetY, -0.01)
+        self.assertEqual(committed.offsetX, self.entry.offsetX)
+        self.assertEqual(edit.entry, self.entry)
+
+    def test_discard_restores_entry_spacing_and_all_other_fields(self):
+        edit = EditTransaction(self.entry)
+        edit.preview("eye_pan", 0.07, 0.1, 2, 1, eye=1)
+        self.assertIs(edit.discard(), self.entry)
+        self.assertIs(edit.draft, self.entry)
+
+
 if __name__ == "__main__":
     unittest.main()

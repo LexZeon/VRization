@@ -63,12 +63,15 @@ def eye_bounds(settings: Settings, eye: int, image_aspect: float,
 
 def dragged(settings: Settings, kind: str, dx: float, dy: float,
             image_aspect: float, eye_aspect: float,
-            corner_signs: tuple[int, int] = (1, 1)) -> Settings:
+            corner_signs: tuple[int, int] = (1, 1), *,
+            eye: int | None = None) -> Settings:
     """Compute a new snapshot from gesture-start settings and total deltas.
 
-    ``pan`` moves the shared offsets, so both eyes move together. ``resize``
-    projects the signed corner movement onto the aspect-preserving fit vector;
-    the center stays fixed. Corner signs describe left/right and bottom/top in
+    ``pan`` moves shared offsets and remains available to other integrations.
+    The app editor uses ``eye_pan``: horizontal movement changes mirrored eye
+    separation, preserving offsetX; vertical movement changes shared offsetY.
+    Eye 0 is left, eye 1 right. ``resize`` projects signed corner movement onto
+    the aspect-preserving fit vector with the center fixed. Corner signs use
     y-up coordinates. Unrelated mode and optical fields remain unchanged.
     """
     entry = _settings(settings)
@@ -79,8 +82,17 @@ def dragged(settings: Settings, kind: str, dx: float, dy: float,
             "offsetX": _clamp(entry.offsetX + delta_x, -0.3, 0.3),
             "offsetY": _clamp(entry.offsetY + delta_y, -0.3, 0.3),
         })
+    if kind == "eye_pan":
+        if type(eye) is not int or eye not in (0, 1):
+            raise ValueError("eye must be 0 (left) or 1 (right) for eye_pan")
+        sign = -1 if eye == 0 else 1
+        return entry.update({
+            "eyeSeparation": _clamp(entry.eyeSeparation + sign * delta_x,
+                                    0.0, 0.2),
+            "offsetY": _clamp(entry.offsetY + delta_y, -0.3, 0.3),
+        })
     if kind != "resize":
-        raise ValueError("kind must be 'pan' or 'resize'")
+        raise ValueError("kind must be 'pan', 'eye_pan' or 'resize'")
     if (not isinstance(corner_signs, (tuple, list)) or len(corner_signs) != 2
             or any(type(sign) is not int or sign not in (-1, 1)
                    for sign in corner_signs)):
@@ -124,11 +136,12 @@ class EditTransaction:
     def preview(self, kind: str, dx: float, dy: float,
                 image_aspect: float, eye_aspect: float,
                 corner_signs: tuple[int, int] = (1, 1), *,
-                gesture_start: Settings | None = None) -> Settings:
+                gesture_start: Settings | None = None,
+                eye: int | None = None) -> Settings:
         self._require_active()
         origin = self._entry if gesture_start is None else gesture_start
         self._draft = dragged(origin, kind, dx, dy, image_aspect, eye_aspect,
-                              corner_signs)
+                              corner_signs, eye=eye)
         return self._draft
 
     def commit(self) -> Settings:
