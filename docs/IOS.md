@@ -94,7 +94,7 @@ xcodebuild -project ios/VRization.xcodeproj -scheme VRization \
 
 ### v0.3 visual editor and saved preferences
 
-The first settings action opens the flat headset-fit editor. Drag either image or a corner; Save commits, Discard restores the entry snapshot, and phone poses pause while editing. Committed VR profiles survive restarts and are restored through normal settings after a validated host hello. Reset clears product / connection preferences, returns English / USB and disconnects without silent reconnection. Existing Simulator screenshots above are from v0.2; they do not picture or validate this new editor. See [editing and reset scope](EDITING.md) and [new-version validation](VALIDATION.md).
+The first settings action opens the flat headset-fit editor. Left-eye left / right-eye right widens linked eye spacing; the opposite directions narrow it without changing global offsetX. Vertical movement is shared and direct; corners resize around fixed centers. Save commits, Discard restores the entry snapshot, and phone poses pause while editing. Committed VR profiles survive restarts and are restored through normal settings after a validated host hello. Reset clears product / connection preferences, returns English / USB and disconnects without silent reconnection. Existing Simulator screenshots above are from v0.2; they do not picture or validate this new editor. See [editing and reset scope](EDITING.md) and [new-version validation](VALIDATION.md).
 
 ---
 
@@ -191,4 +191,4 @@ xcodebuild -project ios/VRization.xcodeproj -scheme VRization \
 
 ### v0.3 可视编辑器与保存偏好
 
-设置第一个操作打开平面盒子适配编辑器，拖画面或角点；保存提交，放弃恢复进入快照，编辑时暂停手机姿态。已提交 VR 配置在重启后保留，合法主机 hello 后通过普通设置恢复；重置清除产品 / 连接偏好，恢复英文 / USB 并断线，不偷偷重连。上面的模拟器截图来自 v0.2，不展示或验证新编辑器。见 [编辑与重置范围](EDITING.md)、[新版验证](VALIDATION.md)。
+设置第一个操作打开平面盒子适配编辑器，左眼向左 / 右眼向右拉开联动间距，反向收拢，整体 offsetX 不变；竖向正常共用，角点围绕固定中心缩放。保存提交，放弃恢复进入快照，编辑时暂停手机姿态。已提交 VR 配置在重启后保留，合法主机 hello 后通过普通设置恢复；重置清除产品 / 连接偏好，恢复英文 / USB 并断线，不偷偷重连。上面的模拟器截图来自 v0.2，不展示或验证新编辑器。见 [编辑与重置范围](EDITING.md)、[新版验证](VALIDATION.md)。

@@ -102,11 +102,11 @@ Microsoft Visual C++ v14 x64 runtime is installed by the system, not shipped ins
 
 ### v0.3.0-alpha — current work, separate acceptance
 
-The original Python headset-fit geometry / local transaction has **14 pure tests passing**: landscape / portrait fit, symmetric eye spacing, unclipped valid bounds, all four center-fixed corners, pan / scale clamps, gesture-start rather than accumulated deltas, invalid numeric snapshots and one-shot commit / discard. They perform no capture, GUI automation, USB operation or OS mouse injection.
+The original Python headset-fit geometry / local transaction has **20 pure tests passing**: landscape / portrait fit, symmetric eye spacing, unclipped valid bounds, all four center-fixed corners, pan / scale / separation clamps, all four selected-eye directions with global X preserved, gesture-start rather than accumulated deltas, invalid numeric snapshots and one-shot commit / discard. They perform no capture, GUI automation, USB operation or OS mouse injection.
 
-Before the final all-platform horizontal-pan change, the complete local Windows suite passed **132 tests plus 20 language-catalog subcases**, including the geometry cases above and nine headless editor / reset integration cases. They cover draft isolation, entry disarm, blocking desktop arming while editing, saving only fit fields into current settings, full reset / persistence, English / automatic USB defaults, and preservation of explicit display / region / ADB path. They do not exercise the new Windows GUI through real user interactions. That interim x64 EXE's static package audit matched 15 project modules, 44 notice files and all 38 recorded native DLL / PYD hashes, without bundled research libraries or Windows system D3D DLLs; final-direction builds require their own checks.
+Before the final linked-spacing correction, the complete local Windows suite passed **132 tests plus 20 language-catalog subcases**, including the original geometry cases and nine headless editor / reset integration cases. They cover draft isolation, entry disarm, blocking desktop arming while editing, saving only fit fields into current settings, full reset / persistence, English / automatic USB defaults, and preservation of explicit display / region / ADB path. They do not exercise the new Windows GUI through real user interactions. That interim x64 EXE's static package audit matched 15 project modules, 44 notice files and all 38 recorded native DLL / PYD hashes, without bundled research libraries or Windows system D3D DLLs; final-direction builds require their own checks.
 
-The local Android build, including its mobile pan-direction adapter, passed **61 JVM tests (46 app / 15 core)**, APK / AAR compilation and lint with **zero errors / eight warnings**. It targets min API 23 / target 35 with version 0.3.0, code 4, and uses the same local debug certificate as the preceding installed APK. These are automated / build checks, not physical-phone editor acceptance.
+The local Android build, before the linked-spacing correction, passed **61 JVM tests (46 app / 15 core)**, APK / AAR compilation and lint with **zero errors / eight warnings**. It targets min API 23 / target 35 with version 0.3.0, code 4, and uses the same local debug certificate as the preceding installed APK. These are automated / build checks, not physical-phone editor acceptance.
 
 Phone UI / device acceptance and the new iOS build checks are still being completed. This paragraph does **not** claim new phone UI, physical-device, Windows GUI or end-to-end acceptance. Record those checks here only after they run; retain the completed v0.2 evidence and [original release notes](releases/v0.2.0-alpha.md) as historical records.
 
@@ -215,10 +215,10 @@ Windows 程序使用系统安装的 Microsoft Visual C++ v14 x64 运行库，不
 
 ### v0.3.0-alpha — 当前工作与独立验收
 
-原创 Python 盒子适配几何 / 本地事务已有 **14 项纯检查通过**：横竖比例、对称双眼间距、合法边界不偷偷裁切、四个中心固定角点、平移 / 缩放限制、手势起点而非重复累加、非法数字快照及一次提交 / 放弃。检查不采屏、不做界面自动化、不操作 USB、不注入系统鼠标。
+原创 Python 盒子适配几何 / 本地事务已有 **20 项纯检查通过**：横竖比例、对称双眼间距、合法边界不偷偷裁切、四个中心固定角点、平移 / 缩放 / 间距限制、选中眼四种方向与整体 X 保留、手势起点而非重复累加、非法数字快照及一次提交 / 放弃。检查不采屏、不做界面自动化、不操作 USB、不注入系统鼠标。
 
-在最终三端横向拖动变化前，本地完整 Windows 套件 **132 项测试及 20 个语言词条子项通过**，包含上述几何检查及九项无真实界面的编辑 / 重置集成检查：草稿隔离、进入解除授权、电脑编辑期间禁止授权、只将适配字段合并到当前设置、全部重置 / 保存、英文 / USB 自动默认，以及保留明确显示器 / 选区 / ADB 路径。它们没有通过真实用户操作验收新的 Windows 界面。该中间版 x64 EXE 静态审计匹配 15 个自有模块、44 份许可通知及全部 38 个原生 DLL / PYD 哈希，没有附带研究库或 Windows 系统 D3D DLL；最终方向构建须另行检查。
+在最终联动间距修正前，本地完整 Windows 套件 **132 项测试及 20 个语言词条子项通过**，包含原有几何检查及九项无真实界面的编辑 / 重置集成检查：草稿隔离、进入解除授权、电脑编辑期间禁止授权、只将适配字段合并到当前设置、全部重置 / 保存、英文 / USB 自动默认，以及保留明确显示器 / 选区 / ADB 路径。它们没有通过真实用户操作验收新的 Windows 界面。该中间版 x64 EXE 静态审计匹配 15 个自有模块、44 份许可通知及全部 38 个原生 DLL / PYD 哈希，没有附带研究库或 Windows 系统 D3D DLL；最终方向构建须另行检查。
 
-本地 Android 构建（包含手机拖动方向适配）**61 项 JVM 检查通过（应用 46 / 核心 15）**，APK / AAR 编译及 lint 通过，**零错误 / 八条警告**。最低 API 23、target 35、版本 0.3.0 / code 4，沿用此前已安装 APK 的本地 debug 证书；这是自动化 / 构建检查，不是手机实机编辑器验收。
+联动间距修正前的本地 Android 构建**61 项 JVM 检查通过（应用 46 / 核心 15）**，APK / AAR 编译及 lint 通过，**零错误 / 八条警告**。最低 API 23、target 35、版本 0.3.0 / code 4，沿用此前已安装 APK 的本地 debug 证书；这是自动化 / 构建检查，不是手机实机编辑器验收。
 
 手机界面 / 设备验收及新 iOS 构建检查仍在完成。本段**不宣称**新手机界面、实机、Windows 界面或端到端验收通过；实际执行后再记录，保留 v0.2 已完成证据和 [原发布说明](releases/v0.2.0-alpha.md) 作为历史。

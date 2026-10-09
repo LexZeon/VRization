@@ -103,7 +103,7 @@ The host separates capture, JPEG transport and input; Android `vr-core` exposes 
 
 ### 🥽 Edit, save and reset
 
-The first settings action opens a flat headset-fit editor. Drag an image to move both eyes, or a corner to resize them around a fixed center. Interior horizontal pan is reversed on all three: pointer left moves the picture right; vertical pan and corners remain normal. **Save** commits and synchronizes when connected; **Discard** restores the local entry preview. Preview dragging sends no settings and saves no preferences, and phone pose output pauses during editing. Phones retain committed VR profiles across restarts and restore them after a validated host hello. If both sides changed offline, the saved phone profile wins on reconnect; the PC can Save again afterward.
+The first settings action opens a flat headset-fit editor. Drag an image horizontally to change linked, mirrored eye spacing: left-eye left / right-eye right widens it, and left-eye right / right-eye left narrows it. Global offsetX stays unchanged; vertical dragging moves both normally, and corners resize around fixed centers. **Save** commits and synchronizes when connected; **Discard** restores the local entry preview. Preview dragging sends no settings and saves no preferences, and phone pose output pauses during editing. Phones retain committed VR profiles across restarts and restore them after a validated host hello. If both sides changed offline, the saved phone profile wins on reconnect; the PC can Save again afterward.
 
 **Reset all settings** restores VR defaults, English and USB; Windows also restores 640 / 60 / Q45 and automatic USB choice while preserving the explicitly selected display / region and ADB tool path. Phone reset clears preferences and disconnects without automatic reconnection. Neither action authorizes mouse input. See [the complete editor and reset guide](docs/EDITING.md).
 
@@ -232,7 +232,7 @@ Alpha 版尚未提供音频、硬件视频编码、WebRTC、原生立体渲染�
 
 ### 🥽 编辑、保存与重置
 
-设置第一个操作打开平面盒子适配编辑器，拖画面同步移动两眼，拖角点围绕固定中心缩放。三端内部横向都反向：指针向左让画面向右，竖向与角点仍正常。**保存**提交并在已连接时同步，**放弃**恢复本地进入预览；预览拖动不发送设置、不保存偏好，编辑暂停手机姿态。手机已提交 VR 配置在重启后保留，合法主机 hello 后恢复；若两边离线都改过，重连时保存的手机配置优先，电脑可随后再保存。
+设置第一个操作打开平面盒子适配编辑器，横向拖动调整镜像联动眼间距：左眼向左 / 右眼向右拉开，左眼向右 / 右眼向左收拢；整体 offsetX 不变，竖向正常同步，角点围绕固定中心缩放。**保存**提交并在已连接时同步，**放弃**恢复本地进入预览；预览拖动不发送设置、不保存偏好，编辑暂停手机姿态。手机已提交 VR 配置在重启后保留，合法主机 hello 后恢复；若两边离线都改过，重连时保存的手机配置优先，电脑可随后再保存。
 
 **重置全部设置**恢复 VR 默认、英文和 USB；Windows 同时恢复 640 / 60 / Q45 与 USB 自动选择，但保留明确的显示器 / 选区及 ADB 工具路径。手机重置清除偏好并断线，不自动重连；两项操作都不授权鼠标，见 [完整编辑与重置教程](docs/EDITING.md)。
 

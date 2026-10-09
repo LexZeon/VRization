@@ -136,11 +136,11 @@ New codecs, native per-eye frames, timestamps or stronger authentication require
 
 ### Editor drafts and saved local profiles (v0.3)
 
-These are client / GUI policies, not new wire types. Preview pan / resize is local: no `settings`, `pose` or preference writes occur while editing. A flat / undistorted preview retains the saved mode and other optical values. Phone Save commits the complete draft and sends one normal settings update when connected. PC Save patches only scale / offsetX / offsetY against the latest host state, preserving concurrent changes to other fields. Discard restores the local entry preview and sends none. Editor exit never arms input. Phone backgrounding / disconnecting discards an open draft.
+These are client / GUI policies, not new wire types. Preview pan / resize is local: no `settings`, `pose` or preference writes occur while editing. A flat / undistorted preview retains the saved mode and other optical values. Phone Save commits the complete draft and sends one normal settings update when connected. PC Save patches only scale / offsetX / offsetY / eyeSeparation against the latest host state, preserving concurrent changes to other fields. Discard restores the local entry preview and sends none. Editor exit never arms input. Phone backgrounding / disconnecting discards an open draft.
 
 Phones persist all committed VR fields, including offline changes; pairing secrets are not stored. After each validated host hello, a saved profile is restored once via normal complete settings with a fresh clientSeq. Do not replay old socket work, bypass validation or reset revisions to accommodate it. Accepted subsequent complete snapshots update the local profile normally. This explicit user-requested persistence replaces the earlier host-initial-settings preference for v0.3 clients; old v1 clients retain their behavior.
 
-Connected Save from the PC or phone uses settings / acknowledgments / broadcasts and retains the accepted state on both sides. Offline changes stay local. If both sides have conflicting offline changes, the saved phone profile takes precedence on reconnect; the PC can Save again afterward. No timestamp / clock comparison, automatic merge or new conflict wire type is introduced. All editor UI adapters reverse only interior horizontal pan before the pure normalized math; the settings-coordinate convention and FPS mapping stay unchanged.
+Connected Save from the PC or phone uses settings / acknowledgments / broadcasts and retains the accepted state on both sides. Offline changes stay local. If both sides have conflicting offline changes, the saved phone profile takes precedence on reconnect; the PC can Save again afterward. No timestamp / clock comparison, automatic merge or new conflict wire type is introduced. Editor horizontal dragging updates the existing eyeSeparation field with selected-eye sign (left −1, right +1), mirrored around unchanged offsetX; vertical motion updates shared offsetY. Left-eye left / right-eye right widens, the opposite directions narrow. Corner scaling, settings coordinates and FPS mapping stay unchanged.
 
 Reset restores standard Settings defaults, English and USB; phone reset clears connection preferences and disconnects without auto-reconnect. Host reset also restores capture 640 / 60 / Q45 but preserves explicit monitor / region and ADB tool path. Connected updates use ordinary settings validation. No remote reset / arm message is introduced. See [editor geometry and reset scope](EDITING.md).
 
@@ -300,11 +300,11 @@ FPS 控制需要有效会话、`mode: fps`、近期姿态和电脑端主动授�
 
 ### 编辑草稿与本地保存配置（v0.3）
 
-这是客户端 / 界面策略，不新增协议类型。预览平移 / 缩放只在本地，编辑期间不发 `settings`、`pose`，不写偏好；无畸变平面预览保留原模式与其他光学值。手机保存提交完整草稿，已连接时发送一次普通设置更新；电脑只对最新主机状态更新 scale / offsetX / offsetY，保留其他字段并发变化。放弃恢复本地进入预览，不发送。退出编辑不授权鼠标，手机后台 / 断线会放弃草稿。
+这是客户端 / 界面策略，不新增协议类型。预览平移 / 缩放只在本地，编辑期间不发 `settings`、`pose`，不写偏好；无畸变平面预览保留原模式与其他光学值。手机保存提交完整草稿，已连接时发送一次普通设置更新；电脑只对最新主机状态更新 scale / offsetX / offsetY / eyeSeparation，保留其他字段并发变化。放弃恢复本地进入预览，不发送。退出编辑不授权鼠标，手机后台 / 断线会放弃草稿。
 
 手机保存全部已提交 VR 字段，包括离线更改，不保存配对秘密。每次合法主机 hello 后，通过带新 clientSeq 的普通完整 settings 一次恢复本地配置；不得重放旧 socket 任务、跳过校验或为此重置 revision。后续接受的完整快照正常更新本地配置。此用户明确要求的持久化策略，在 v0.3 客户端替代先前优先主机初始设置的策略；旧 v1 客户端保持原行为。
 
-电脑或手机已连接的保存经设置 / 确认 / 广播传播，两端保留接受状态；离线变化只在本地。若两边离线冲突，重连时已保存手机配置优先，电脑可随后再保存；不比较时间戳 / 时钟、不自动合并、不新增冲突协议类型。所有编辑器界面只在内部平移时把横向取反后交给纯归一化数学，设置坐标约定与 FPS 映射不变。
+电脑或手机已连接的保存经设置 / 确认 / 广播传播，两端保留接受状态；离线变化只在本地。若两边离线冲突，重连时已保存手机配置优先，电脑可随后再保存；不比较时间戳 / 时钟、不自动合并、不新增冲突协议类型。编辑器横向拖动根据选中眼符号（左 −1、右 +1）更新已有 eyeSeparation，围绕不变 offsetX 镜像联动；竖向更新共用 offsetY。左眼向左 / 右眼向右拉开，反向收拢；角点缩放、设置坐标与 FPS 映射不变。
 
 重置恢复标准 Settings 默认、英文与 USB；手机清除连接偏好并断线，不自动重连。主机还恢复采集 640 / 60 / Q45，但保留明确显示器 / 选区和 ADB 工具路径；已连接更新仍经过普通设置校验，不新增远程 reset / arm 消息。见 [几何与重置范围](EDITING.md)。
 
