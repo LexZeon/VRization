@@ -19,9 +19,23 @@ final class ViewerSmokeTests: XCTestCase {
         let scroll = app.scrollViews["settings.scroll"]
         for _ in 0..<8 {
             if element.isHittable { return }
+            scroll.swipeDown()
+        }
+        for _ in 0..<14 {
+            if element.isHittable { return }
             scroll.swipeUp()
         }
         XCTAssertTrue(element.isHittable)
+    }
+    private func adjustScaleAndWaitForStableEcho() {
+        let scale = app.sliders["setting.scale"]
+        reveal(scale)
+        scale.adjust(toNormalizedSliderPosition: 0.8)
+        waitLabel(app.staticTexts["setting.scale.label"], contains: "90%")
+        Thread.sleep(forTimeInterval: 2)
+        XCTAssertTrue(app.staticTexts["setting.scale.label"].label.contains("90%"))
+        scale.adjust(toNormalizedSliderPosition: 0.7)
+        waitLabel(app.staticTexts["setting.scale.label"], contains: "85%")
     }
     private func waitLabel(_ element: XCUIElement, contains text: String, timeout: TimeInterval = 20) {
         let match = NSPredicate(format: "label CONTAINS %@", text)
@@ -50,6 +64,7 @@ final class ViewerSmokeTests: XCTestCase {
         let frames = app.staticTexts["frame.status"]
         waitLabel(frames, contains: "1280")
         screenshot("03-real-WebSocket-JPEG")
+        adjustScaleAndWaitForStableEcho()
         let sensor = app.staticTexts["motion.status"]
         if sensor.exists {
             let modes = app.segmentedControls["view.mode"]
@@ -79,5 +94,36 @@ final class ViewerSmokeTests: XCTestCase {
         waitLabel(frames, contains: "1280")
         screenshot("07-background-reconnect")
         toggle.tap()
+    }
+
+    func testUSBDetectionAndFrames() throws {
+        // The CI fixture uses the production UsbManager/relay with a simulated mux
+        // discovery adapter. It connects to the simulator listener on loopback18766.
+        app.terminate()
+        app.launchArguments = ["--ui-testing", "--reset-preferences"]
+        app.launch()
+        XCTAssertTrue(app.segmentedControls["connection.transport"].buttons["USB"].isSelected)
+        XCTAssertFalse(app.secureTextFields["connection.code"].exists)
+        let toggle = app.buttons["connection.toggle"]
+        waitLabel(toggle, contains: "Disconnect", timeout: 40)
+        let frames = app.staticTexts["frame.status"]
+        waitLabel(frames, contains: "1280")
+        adjustScaleAndWaitForStableEcho()
+        screenshot("USB-01-auto-detected-settings")
+        app.buttons["settings.hide"].tap()
+        let surface = app.otherElements["vr.surface"]
+        XCTAssertTrue(surface.waitForExistence(timeout: 5))
+        Thread.sleep(forTimeInterval: 2)
+        screenshot("USB-02-real-Metal-stereo")
+        surface.press(forDuration: 1.2)
+        XCTAssertTrue(app.scrollViews["settings.scroll"].waitForExistence(timeout: 5))
+        XCUIDevice.shared.press(.home)
+        app.activate()
+        waitLabel(toggle, contains: "Connect")
+        reveal(toggle); toggle.tap()
+        waitLabel(toggle, contains: "Disconnect", timeout: 40)
+        waitLabel(frames, contains: "1280")
+        screenshot("USB-03-explicit-background-reconnect")
+        reveal(toggle); toggle.tap()
     }
 }

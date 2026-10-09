@@ -7,17 +7,18 @@
 
 **Put your PC screen inside a phone VR viewer.**
 
-![Alpha](https://img.shields.io/badge/version-0.1.1--alpha-orange)
+![Alpha](https://img.shields.io/badge/version-0.2.0--alpha-orange)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Desktop](https://img.shields.io/badge/desktop-Windows%2010%2F11-blue)
 ![Android](https://img.shields.io/badge/Android-6.0%2B-3DDC84)
+![iOS](https://img.shields.io/badge/iOS%2FiPadOS-15%2B-black)
 [![Build](https://github.com/LexZeon/VRization/actions/workflows/build.yml/badge.svg)](https://github.com/LexZeon/VRization/actions/workflows/build.yml)
 
-[简体中文](#简体中文) · [Quick start / 上手教程](docs/QUICKSTART.zh-CN.md) · [Build](docs/BUILD.md) · [Architecture](docs/ARCHITECTURE.md)
+[简体中文](#简体中文) · [Quick start](docs/QUICKSTART.zh-CN.md) · [🍎 iPhone + Windows](docs/IOS.md) · [Build](docs/BUILD.md) · [Architecture](docs/ARCHITECTURE.md)
 
-VRization streams a Windows desktop or rectangular region to an Android phone, renders the image side by side, and optionally maps phone rotation to PC mouse movement. Its reusable Android library (written in Java) and separated host components provide a starting point for embedding these features in other applications.
+VRization streams a Windows desktop or rectangular region to an Android phone, iPhone or iPad, renders the image side by side, and optionally maps phone rotation to PC mouse movement. Its reusable Android library, Swift core package and separated host components provide a starting point for embedding these features in other applications.
 
-**v0.1.1-alpha is a working baseline.** CPU JPEG over WebSocket is intended to establish the capture, viewing, settings and input paths. It does not promise production VR latency. Both eyes receive the same 2D source: ordinary games do not acquire stereoscopic depth.
+**v0.2.0-alpha is an experimental baseline.** CPU JPEG over WebSocket establishes the capture, viewing, settings and input paths. It does not promise production VR latency. Both eyes receive the same 2D source: ordinary games do not acquire stereoscopic depth.
 
 | Mode | Behavior |
 | --- | --- |
@@ -37,13 +38,15 @@ Phone screenshots show the final v0.1.1 English interface on a Google-free Andro
 
 ### 🚀 Try it
 
-1. Download the Windows archive and Android APK from [Releases](https://github.com/LexZeon/VRization/releases/tag/v0.1.1-alpha), or [build from source](docs/BUILD.md).
+1. Download the Windows archive and Android APK from [Releases](https://github.com/LexZeon/VRization/releases/tag/v0.2.0-alpha), or [build from source](docs/BUILD.md). For iPhone / iPad, use the [iOS installation guide](docs/IOS.md): source and a Mac Simulator build are provided; physical installation requires your Apple signing in Xcode.
 2. Connect both devices to the same trusted LAN. Prefer wired Ethernet for the PC and a strong Wi-Fi connection for the phone.
 3. Start the host, choose a display or region, and start streaming. Allow the Windows firewall prompt only for a trusted private network.
 4. Enter the host's displayed IP address, port and pairing code on the phone. Start in full-screen mode.
 5. Adjust the image to your viewer, recenter cinema mode, and explicitly arm PC mouse input before trying FPS mode.
 
 Windows 10 / 11 x64 is the desktop target. Android 6.0+ and compatible derivatives need no Google services; derivative-system compatibility depends on their APK, rendering and sensor support. Full-screen viewing does not require a gyroscope. Games may reject simulated mouse input, especially under raw-input or anti-cheat restrictions.
+
+The native iOS / iPadOS 15+ client uses URLSession, Core Motion and Metal with no third-party runtime dependencies. It uses the same Windows host and protocol, including the PC-only mouse authorization boundary. iOS source / Simulator downloads are not an installable signed iPhone IPA; see [the signing steps and compatibility limits](docs/IOS.md).
 
 The host requires Microsoft Visual C++ v14 x64 runtime. If launch reports a missing `VCRUNTIME140` DLL or error 126, use [Microsoft's official runtime guide](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist/) and [current x64 installer](https://aka.ms/vc14/vc_redist.x64.exe).
 
@@ -53,7 +56,7 @@ See [architecture](docs/ARCHITECTURE.md) and [protocol v1](docs/PROTOCOL.md) for
 
 Audio, hardware video encoding, WebRTC, dedicated USB transport, native stereo game rendering and 6DoF position tracking are not included. Real-world performance and device support require testing on your hardware.
 
-See the [validation record / 验证记录](docs/VALIDATION.md) for the first-release record and v0.1.1 checks (20 host tests, 6 Android core tests and 9 app regression tests). Physical gyro behavior, headset optics and actual FPS game input remain unverified.
+See the [validation record](docs/VALIDATION.md) for exact per-version checks, iOS builds and simulator observations. Physical gyro behavior, headset optics and actual FPS game input remain unverified.
 
 Transport uses **unencrypted `ws://`**. The pairing code is an access gate, not encryption. Use trusted LANs only; do not expose the port to the internet. See [security](SECURITY.md).
 
@@ -84,13 +87,13 @@ Adjust scale and offsets for your phone and lenses rather than assuming one shar
 </details>
 
 
-Both applications offer **English / 简体中文**, default to English, and save the choice locally. Use the PC header selector or the phone settings language selector. PC switching preserves the stream but disarms mouse input; phone switching rebuilds the screen, disconnects and requires reconnecting. See [compatibility targets and observed tests](docs/COMPATIBILITY.md).
+All applications offer **English / 简体中文**, default to English, and save the choice locally. Use the PC header selector or the phone language selector. PC switching preserves the stream but disarms mouse input; phone switching disconnects and requires reconnecting. See [compatibility targets and observed tests](docs/COMPATIBILITY.md).
 
 ### 🌐 Documentation languages
 
 Every project-owned public page presents complete **English first**, then complete **Chinese below**. Both sections must be maintained together. Automated documentation checks verify structure and file links, not translation quality. Original license texts remain unchanged.
 
-The host separates capture, JPEG transport and input; Android `vr-core` exposes pose and GLES rendering. A cross-platform client can implement [protocol v1](docs/PROTOCOL.md). See the [roadmap](docs/ROADMAP.md) for future adapters and codecs. The Android AAR depends on Android framework APIs and is not a platform-independent Java SDK.
+The host separates capture, JPEG transport and input; Android `vr-core` exposes pose and GLES rendering; Swift `VRizationCore` separates protocol, settings synchronization and rotation math from the iOS UI / Metal renderer. Clients share [protocol v1](docs/PROTOCOL.md). See the [roadmap](docs/ROADMAP.md) for future adapters and codecs. The Android AAR depends on Android framework APIs and is not a platform-independent Java SDK.
 
 ---
 
@@ -99,18 +102,19 @@ The host separates capture, JPEG transport and input; Android `vr-core` exposes 
 
 **把电脑画面装进手机 VR 盒子。**
 
-Windows 桌面串流 · Android / 兼容 Android 的系统 · 可复用的核心模块
+Windows 桌面串流 · Android / 兼容 Android 的系统 · iPhone / iPad · 可复用核心模块
 
-![Alpha](https://img.shields.io/badge/version-0.1.1--alpha-orange)
+![Alpha](https://img.shields.io/badge/version-0.2.0--alpha-orange)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Desktop](https://img.shields.io/badge/desktop-Windows%2010%2F11-blue)
 ![Android](https://img.shields.io/badge/Android-6.0%2B-3DDC84)
+![iOS](https://img.shields.io/badge/iOS%2FiPadOS-15%2B-black)
 [![Build](https://github.com/LexZeon/VRization/actions/workflows/build.yml/badge.svg)](https://github.com/LexZeon/VRization/actions/workflows/build.yml)
 
-[🚀 上手教程](docs/QUICKSTART.zh-CN.md) · [🛠️ 开发与构建](docs/BUILD.md) · [🧩 集成指南](docs/ARCHITECTURE.md) · [English](README.en.md)
+[🚀 上手教程](docs/QUICKSTART.zh-CN.md) · [🍎 iPhone 与 Windows](docs/IOS.md) · [🛠️ 开发与构建](docs/BUILD.md) · [🧩 集成指南](docs/ARCHITECTURE.md) · [English](README.en.md)
 
 
-VRization 是一个开源的电脑 → 手机串流实验项目。电脑端采集显示器或指定矩形区域，手机端将画面显示在 VR 盒子的左右眼区域。你可以让画面固定在眼前，也可以把它当成一个随头部转动观看的虚拟大屏幕，或者用手机的姿态控制电脑游戏视角。
+VRization 是一个开源的电脑 → 手机串流实验项目。Windows 端采集显示器或指定矩形区域，Android、iPhone / iPad 客户端将画面显示在 VR 盒子的左右眼区域。你可以让画面固定在眼前，也可以把它当成一个随头部转动观看的虚拟大屏幕，或者用手机的姿态控制电脑游戏视角。
 
 > **当前版本：可运行的 Alpha 基础版。** 使用 CPU 编码 JPEG + WebSocket，优先打通安装、串流、调节与模块复用；尚未达到专用 VR 串流产品的画质、延迟和稳定性。左右眼接收同一张二维桌面图像，**不会把普通游戏自动变成立体 3D**。
 
@@ -158,11 +162,13 @@ FPS 控制需要在**电脑端主动授权**。手机连接或切换模式不会
 
 ### 🚀 五步把电脑放进盒子
 
-1. 在 [Releases](https://github.com/LexZeon/VRization/releases/tag/v0.1.1-alpha) 下载 Windows 电脑端压缩包与 Android APK；首次体验建议使用同一个版本。
+1. 在 [Releases](https://github.com/LexZeon/VRization/releases/tag/v0.2.0-alpha) 下载 Windows 电脑端压缩包与 Android APK。iPhone / iPad 按 [iOS 安装教程](docs/IOS.md) 使用源码和 Mac 模拟器构建；真机安装需要在 Xcode 使用自己的 Apple 签名。
 2. 让电脑与手机连接同一可信局域网。电脑尽量接网线，手机靠近 5 GHz / 6 GHz 路由器。
 3. 打开电脑端，选显示器或矩形区域，再开始串流。如果 Windows 弹出防火墙提示，只允许可信的**专用网络**。
 4. 在手机端填写电脑端显示的 IP 地址、端口与配对码，连接后先试全屏模式。
 5. 调整缩放、偏移和眼间距，确认两眼舒适对齐，再放入 VR 盒子。大屏幕模式先重新居中；FPS 模式还需在电脑端授权鼠标控制。
+
+原生 iOS / iPadOS 15+ 客户端使用 URLSession、Core Motion 和 Metal，不引入第三方运行库；与 Android 共用 Windows 主机和协议，保留电脑主动授权鼠标边界。iOS 源码 / 模拟器下载并非已签名的 iPhone IPA，签名步骤和兼容性边界详见 [iOS 教程](docs/IOS.md)。
 
 Windows 端需要 Microsoft Visual C++ v14 x64 运行库。多数电脑已经安装；如果启动提示缺少 `VCRUNTIME140*.dll`、加载 Python DLL 失败或错误 126，再按 [微软官方说明](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist/) 安装 [当前受支持的 x64 运行库](https://aka.ms/vc14/vc_redist.x64.exe)。
 
@@ -178,7 +184,7 @@ Windows 桌面端                         Android 手机端
           Python 主机模块          Android vr-core library
 ```
 
-`vr-core` 是 Java 编写的 Android library，提供姿态与双眼渲染接口；桌面端把采集、网络和输入分开。集成到其他 Android 软件 / 游戏时，可以复用核心库；跨平台客户端可以按协议替换画面来源、传输或输入适配器。当前提供源码级模块和协议说明，尚无 Unity / Unreal 插件、OpenXR 驱动或公开稳定 SDK。
+`vr-core` 是 Java 编写的 Android library，提供姿态与双眼渲染接口；Swift `VRizationCore` 将协议、设置同步与旋转数学从 iOS 界面 / Metal 渲染分离；桌面端把采集、网络和输入分开。其他软件可复用对应核心模块，并按协议替换画面来源、传输或输入适配器。当前提供源码级模块和协议说明，尚无 Unity / Unreal 插件、OpenXR 驱动或公开稳定 SDK。
 
 参见 [架构与移植](docs/ARCHITECTURE.md)、[协议 v1](docs/PROTOCOL.md) 和 [后续路线](docs/ROADMAP.md)。
 
@@ -195,7 +201,7 @@ Alpha 版尚未提供音频、硬件视频编码、WebRTC、USB 专用通道、�
 感谢 aiohttp、MSS、Pillow、OkHttp、Okio、Kotlin 及相关工具的维护者。欢迎提交兼容性记录、问题、翻译与 PR，开始前可看 [贡献指南](CONTRIBUTING.md)。
 
 
-两端可选 **English / 简体中文**，默认英文，各自保存。电脑在顶部切换，手机在设置中切换；电脑切换保持串流但解除鼠标授权，手机切换会重建界面并断线，需要重连。支持目标与实际检查分开记录，见 [兼容性](docs/COMPATIBILITY.md)。
+所有客户端可选 **English / 简体中文**，默认英文，各自保存。电脑在顶部切换，手机使用语言选择；电脑切换保持串流但解除鼠标授权，手机切换断线，需要重连。支持目标与实际检查分开记录，见 [兼容性](docs/COMPATIBILITY.md)。
 
 ### 🌐 文档语言
 

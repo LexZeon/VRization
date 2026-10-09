@@ -41,5 +41,9 @@
 "metalUnavailable" = "此设备不支持 Metal 画面渲染。";
 "renderError" = "无法创建串流画面纹理。";
 "waitingFrame" = "等待电脑画面";
-"frameFormat" = "%d × %d · 已接收 %d 帧";
+"frameFormat" = "%d × %d · 接收 %.1f 帧/秒 · RTT %@ · %d 帧";
+"usbWaiting" = "等待 USB 电脑。请解锁手机，并在 iOS 提示时信任电脑。";
+"usbStop" = "停止等待";
+"usbFailed" = "USB 已断开或不可用。检查数据线、Apple Devices 驱动和信任提示，然后点击连接。";
+"usbNotice" = "默认 USB 连接。Windows 安装 Apple Devices，解锁 iPhone，接入数据线并点击信任。保持本应用前台，电脑会自动发现。后台返回后需点击连接。FPS 控制仍须电脑端明确启用。接收帧率和网络 RTT 不代表端到端延迟。";
 "help" = "全屏和 FPS 向两眼显示同一二维画面，大屏幕模式将其置于虚拟空间，并非游戏原生双眼立体。声音仍由电脑输出。进入后台时断开串流并停止控制。";

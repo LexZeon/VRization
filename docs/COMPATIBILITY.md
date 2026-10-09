@@ -13,14 +13,15 @@ Support targets and observed tests are separate. Passing an emulator test does n
 | --- | --- | --- |
 | Windows host | Windows 10 / 11 x64; Microsoft Visual C++ v14 x64 runtime | Local physical machine runs Windows 11 build 26200. Windows 10 has not been physically tested. |
 | Android client | Android 6.0 / API 23 or later, OpenGL ES 2.0, APK-compatible system | Java application with no bundled ABI-specific native library; ARM devices and OEM derivatives remain untested. |
+| iOS client | iOS / iPadOS 15+, landscape, Metal, local-network permission | Native Swift / UIKit client. Xcode on macOS builds and signs it; the Windows host serves both phone platforms. See [iOS guide](IOS.md) for exact installation / test limits. |
 | Google services | Not required | First-release API 23 emulator uses no Google services. |
 | Full screen | Network and graphics support | No rotation sensor required; verified on the sensor-less API 23 emulator. |
-| Cinema / FPS | Compatible Android rotation sensor | Real gyro axes, drift and headset tracking still need a physical phone. |
+| Cinema / FPS | Compatible Android rotation sensor or iOS Core Motion | Real gyro axes, drift and headset tracking still need a physical phone. |
 | FPS game input | Game accepts ordinary relative mouse input; PC authorization and F8 | Real FPS games and anti-cheat / raw-input combinations remain unverified. |
 
 ### Interface language
 
-Both applications offer **English / 简体中文**; English is the default and the choice is saved locally. The PC stores language in `language.json` independently of `preferences.json`. Changing the PC language keeps streaming active but disarms mouse control. Changing the Android language recreates its Activity, disconnects the stream and requires reconnecting. Language choice is independent on each device.
+All applications offer **English / 简体中文**; English is the default and the choice is saved locally. The PC stores language in `language.json` independently of `preferences.json`. Changing the PC language keeps streaming active but disarms mouse control. Changing the phone language disconnects the stream and requires reconnecting (Android recreates its Activity; iOS rebuilds its controls). Language choice is independent on each device.
 
 ### What has actually been checked
 
@@ -32,7 +33,7 @@ The final v0.1.1 APK also upgraded the Google-free Android 16 / API 36 AOSP emul
 
 ### Still unverified
 
-Physical Android / ARM phones, Android derivatives, actual viewer optics, real gyroscopes, real FPS games, Windows 10 hardware and measured end-to-end network latency. Please submit device results with version, settings and measurement method through [contributing](../CONTRIBUTING.md).
+Physical Android / ARM phones, Android derivatives, physical iPhones / iPads including the oldest target iOS 15, actual viewer optics, real gyroscopes, real FPS games, Windows 10 hardware and measured end-to-end network latency. Windows ARM64 / x86 native builds are not supplied. Please submit device results with version, settings and measurement method through [contributing](../CONTRIBUTING.md).
 
 ---
 
@@ -47,14 +48,15 @@ Physical Android / ARM phones, Android derivatives, actual viewer optics, real g
 | --- | --- | --- |
 | Windows 电脑端 | Windows 10 / 11 x64；Microsoft Visual C++ v14 x64 运行库 | 本机实际运行 Windows 11 build 26200；未在 Windows 10 实机测试。 |
 | Android 手机端 | Android 6.0 / API 23+、OpenGL ES 2.0、可安装 APK 的兼容系统 | Java 应用，不附带 ABI 专用原生库；ARM 真机与 OEM 衍生系统仍未验证。 |
+| iOS 手机端 | iOS / iPadOS 15+、横屏、Metal、本地网络权限 | 原生 Swift / UIKit 客户端，macOS 用 Xcode 构建和签名；Windows 主机同时服务两类手机。安装与实测边界见 [iOS 教程](IOS.md)。 |
 | Google 服务 | 不需要 | 首版 API 23 模拟器不含 Google 服务。 |
 | 全屏模式 | 网络与图形支持 | 无需旋转传感器，已在无传感器 API 23 模拟器检查。 |
-| 大屏幕 / FPS | 兼容的 Android 旋转传感器 | 真实轴向、漂移与头部追踪仍需手机实测。 |
+| 大屏幕 / FPS | 兼容 Android 旋转传感器或 iOS Core Motion | 真实轴向、漂移与头部追踪仍需手机实测。 |
 | FPS 游戏输入 | 游戏接受普通相对鼠标；电脑主动授权与 F8 | 真实 FPS、反作弊与原始输入组合尚未验证。 |
 
 ### 界面语言
 
-两端均可选 **English / 简体中文**，默认英文，分别在本地保存。电脑语言存于 `language.json`，独立于 `preferences.json`。电脑切换语言保持串流，但解除鼠标授权；Android 切换语言会重建 Activity、断开串流，需要重新连接。两端语言独立选择。
+所有客户端可选 **English / 简体中文**，默认英文，分别在本地保存。电脑语言存于 `language.json`，独立于 `preferences.json`。电脑切换语言保持串流但解除鼠标授权；手机切换语言断开串流，需要重新连接（Android 重建 Activity，iOS 重建控件）。各设备语言独立选择。
 
 ### 实际检查范围
 
@@ -66,4 +68,4 @@ Windows 11 采集真实 ASUS 竖屏，2160 × 3840 在最长边 1280 时输出 7
 
 ### 仍未验证
 
-Android / ARM 真机、Android 衍生系统、真实盒子镜片、真实陀螺仪、真实 FPS 游戏、Windows 10 硬件及端到端网络延迟测量。欢迎按 [贡献说明](../CONTRIBUTING.md) 提交版本、设置与测量方法完整的设备结果。
+Android / ARM 真机、Android 衍生系统、真实 iPhone / iPad（包括最低目标 iOS 15）、真实盒子镜片、真实陀螺仪、真实 FPS 游戏、Windows 10 硬件及端到端网络延迟测量。未提供 Windows ARM64 / x86 原生构建。欢迎按 [贡献说明](../CONTRIBUTING.md) 提交版本、设置与测量方法完整的设备结果。

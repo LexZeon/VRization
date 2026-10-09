@@ -6,6 +6,20 @@
     <string name="recenter">Recenter</string>
     <string name="tagline">Desktop display → phone VR headset</string>
     <string name="connection_help">Join the same trusted Wi-Fi, then enter the computer IP and six-digit pairing code.</string>
+    <string name="connection_method">Connection method</string>
+    <string name="usb_help">Use a data USB cable. Enable USB debugging on the phone and approve this computer, then start streaming in the PC app. The PC detects the authorized USB phone; no IP or pairing code entry is needed here.</string>
+    <string name="usb_ready">USB is selected. Tap Detect USB and connect to find the running PC app.</string>
+    <string name="usb_detecting">Detecting the PC through USB…</string>
+    <string name="usb_not_detected">USB host not detected. Check the data cable, enable USB debugging, approve this computer, and start PC streaming. Tap Detect USB and connect to retry.</string>
+    <string name="usb_not_authorized">USB access is not ready. Approve USB debugging on this phone, then check that the PC app detects this authorized USB device and start streaming.</string>
+    <string name="usb_host_stopped">The PC app is reachable but streaming is stopped. Start streaming on the PC and retry.</string>
+    <string name="usb_invalid_response">USB discovery failed. Update both apps to the same version, start PC streaming and retry.</string>
+    <string name="usb_notice">USB uses the authorized data-cable connection. FPS mouse control still requires permission on the computer.</string>
+    <string name="check_usb_connection">Check the USB data cable, debugging authorization and PC streaming</string>
+    <string name="connect_usb">Detect USB and connect</string>
+    <string name="cancel_connect">Cancel connection</string>
+    <string name="waiting_ping">Link round trip: waiting for connection · not video latency</string>
+    <string name="ping_stats">Link round trip: %1$d ms · not end-to-end video latency</string>
     <string name="waiting_frame">Waiting for desktop video</string>
     <string name="host_hint">Computer IP, e.g. 192.168.1.10</string>
     <string name="port_hint">Port</string>
@@ -29,7 +43,7 @@
     <string name="invert_y">Invert vertical FPS movement</string>
     <string name="reset_view">Reset display settings</string>
     <string name="licenses">About and licenses</string>
-    <string name="mode_help">Full and FPS use a fixed image for both eyes. Cinema places the 2D desktop in virtual space. This is not native stereoscopic game rendering. Audio stays on the computer.\nEntering the background disconnects video and stops control. Tap Connect after returning.</string>
+    <string name="mode_help">Full and FPS use a fixed image for both eyes. Cinema places the 2D desktop in virtual space. This is not native stereoscopic game rendering. Audio stays on the computer.\nEntering the background disconnects video and stops control. Use the connection button after returning.</string>
     <string name="invalid_port">Port must be an integer between 1 and 65535.</string>
     <string name="invalid_address">Enter a computer IP or hostname and a valid port, without an http:// prefix.</string>
     <string name="invalid_code">Enter the six-digit pairing code shown on the computer.</string>
@@ -38,7 +52,7 @@
     <string name="license_title">Open source licenses · VRization code: MIT</string>
     <string name="close">Close</string>
     <string name="license_error">License could not be loaded. Complete license texts are in the project repository.</string>
-    <string name="paused">The app entered the background. Video and control stopped. Tap Connect to resume.</string>
+    <string name="paused">The app entered the background. Video and control stopped. Use the connection button to resume.</string>
     <string name="app_name">VRization</string>
     <string name="slider_value">%1$s  %2$s</string>
     <string name="language">Language / 语言</string>
@@ -48,12 +62,12 @@
     <string name="connected">Connected. Hide settings, then place the phone in your VR headset.</string>
     <string name="host_error">Computer: %1$s</string>
     <string name="connection_error">Connection error</string>
-    <string name="connection_ended">Connection ended (%1$d). Tap Connect to reconnect.</string>
+    <string name="connection_ended">Connection ended (%1$d). Use the connection button to reconnect.</string>
     <string name="check_connection">Check Wi-Fi, computer IP, pairing code and firewall</string>
     <string name="bad_pairing">The pairing code is incorrect or has changed</string>
     <string name="headset_busy">Another headset is connected; disconnect it first</string>
     <string name="rate_limited">Too many attempts; wait briefly before trying again</string>
-    <string name="connection_failed">Connection failed: %1$s. Tap Connect to retry.</string>
+    <string name="connection_failed">Connection failed: %1$s. Use the connection button to retry.</string>
     <string name="disconnected">Disconnected.</string>
     <string-array name="watch_modes">
         <item>Full · fixed stereo image</item>
@@ -61,4 +75,5 @@
         <item>FPS · turn your head to control the game</item>
     </string-array>
     <string-array name="languages"><item>English</item><item>中文</item></string-array>
+    <string-array name="connection_methods"><item>USB cable · default</item><item>LAN / Wi-Fi · manual pairing</item></string-array>
 </resources>

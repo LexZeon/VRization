@@ -27,11 +27,13 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--report", type=Path, required=True)
     parser.add_argument("--port", type=int, default=18765)
+    parser.add_argument("--usb-fixture", action="store_true")
     args = parser.parse_args()
     events = []
     guard = threading.Lock()
     stop = threading.Event()
     sink = NoMouse()
+    usb = mux_fixture = None
 
     def on_event(event):
         # Only synthetic fixture state; never record pairing URLs / credentials.
@@ -47,13 +49,25 @@ def main():
     try:
         host.start()
         host.token = "123456"  # Public loopback fixture, after start() rotates the real code.
+        if args.usb_fixture:
+            from ios_usb_fixture import NoAndroid, SimulatedAppleMux
+            from vrization_host.usb import AppleMux, UsbManager
+            mux_fixture = SimulatedAppleMux()
+            mux_fixture.start()
+            usb = UsbManager(host, adb=NoAndroid(), mux=AppleMux(address=mux_fixture.address), on_event=on_event)
+            usb.start()
         print("Synthetic iOS fixture ready on loopback.", flush=True)
         stop.wait()
     finally:
+        if usb:
+            usb.stop()
+        if mux_fixture:
+            mux_fixture.stop()
         host.stop()
         with guard:
             report = {"events": events, "mouseMoves": sink.moves,
-                      "settings": host.get_settings_snapshot()[0].to_dict()}
+                      "settings": host.get_settings_snapshot()[0].to_dict(),
+                      "usbService": "simulated" if args.usb_fixture else "disabled"}
         args.report.parent.mkdir(parents=True, exist_ok=True)
         args.report.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
 

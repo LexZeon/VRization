@@ -17,6 +17,7 @@
         C0000000000000000000000B = {isa = PBXBuildFile; fileRef = D00000000000000000000002; };
         C0000000000000000000000C = {isa = PBXBuildFile; productRef = G00000000000000000000002; };
         C0000000000000000000000D = {isa = PBXBuildFile; fileRef = B0000000000000000000000B; };
+        C0000000000000000000000E = {isa = PBXBuildFile; fileRef = B0000000000000000000000E; };
 
         B00000000000000000000001 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
         B00000000000000000000002 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Localization.swift; sourceTree = "<group>"; };
@@ -31,6 +32,7 @@
         B0000000000000000000000B = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewerSmokeTests.swift; sourceTree = "<group>"; };
         B0000000000000000000000C = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = VRizationApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
         B0000000000000000000000D = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = VRizationAppUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+        B0000000000000000000000E = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = USBListener.swift; sourceTree = "<group>"; };
         E00000000000000000000001 = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
         E00000000000000000000002 = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "zh-Hans.lproj/Localizable.strings"; sourceTree = "<group>"; };
         E00000000000000000000003 = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
@@ -40,10 +42,10 @@
 
         A00000000000000000000002 = {isa = PBXGroup; children = (A00000000000000000000004,A00000000000000000000005,A00000000000000000000003,); sourceTree = "<group>"; };
         A00000000000000000000003 = {isa = PBXGroup; children = (B0000000000000000000000C,B0000000000000000000000D,); name = Products; sourceTree = "<group>"; };
-        A00000000000000000000004 = {isa = PBXGroup; children = (B00000000000000000000001,B00000000000000000000002,B00000000000000000000003,B00000000000000000000004,B00000000000000000000005,B00000000000000000000006,B00000000000000000000007,B00000000000000000000008,B00000000000000000000009,B0000000000000000000000A,D00000000000000000000001,D00000000000000000000002,); path = VRizationApp; sourceTree = "<group>"; };
+        A00000000000000000000004 = {isa = PBXGroup; children = (B00000000000000000000001,B00000000000000000000002,B00000000000000000000003,B00000000000000000000004,B00000000000000000000005,B00000000000000000000006,B00000000000000000000007,B00000000000000000000008,B00000000000000000000009,B0000000000000000000000A,B0000000000000000000000E,D00000000000000000000001,D00000000000000000000002,); path = VRizationApp; sourceTree = "<group>"; };
         A00000000000000000000005 = {isa = PBXGroup; children = (B0000000000000000000000B,); path = VRizationAppUITests; sourceTree = "<group>"; };
 
-        F00000000000000000000003 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (C00000000000000000000001,C00000000000000000000002,C00000000000000000000003,C00000000000000000000004,C00000000000000000000005,C00000000000000000000006,C00000000000000000000007,C00000000000000000000008,); runOnlyForDeploymentPostprocessing = 0; };
+        F00000000000000000000003 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (C00000000000000000000001,C00000000000000000000002,C00000000000000000000003,C00000000000000000000004,C00000000000000000000005,C00000000000000000000006,C00000000000000000000007,C00000000000000000000008,C0000000000000000000000E,); runOnlyForDeploymentPostprocessing = 0; };
         F00000000000000000000004 = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (C0000000000000000000000C,); runOnlyForDeploymentPostprocessing = 0; };
         F00000000000000000000005 = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (C00000000000000000000009,C0000000000000000000000A,C0000000000000000000000B,); runOnlyForDeploymentPostprocessing = 0; };
         F00000000000000000000006 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (C0000000000000000000000D,); runOnlyForDeploymentPostprocessing = 0; };

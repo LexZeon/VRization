@@ -22,6 +22,16 @@ final class ViewerController: UIViewController {
     private var statusKey = "waiting"
     private var frames = 0
     private var lastSent: TimeInterval = 0
+    private var startedInitialUSB = false
+    private var sampleFrames = 0
+    private var frameSampleAt: TimeInterval = 0
+    private var receiveFPS: Double = 0
+    private var rtt: Double?
+    private var frameWidth = 0, frameHeight = 0
+    private var selectedTransport: StreamClient.Transport {
+        let choice = argument("--transport") ?? UserDefaults.standard.string(forKey: "transport") ?? "usb"
+        return choice == "lan" ? .lan : .usb
+    }
 
     override var prefersStatusBarHidden: Bool { true }
     override var prefersHomeIndicatorAutoHidden: Bool { true }
@@ -69,11 +79,14 @@ final class ViewerController: UIViewController {
     }
 
     private func wireCallbacks() {
-        client.onSessionStarted = { [weak self] in self?.sync.newSession(); self?.frames = 0 }
+        client.onSessionStarted = { [weak self] in
+            self?.sync.newSession(); self?.frames = 0; self?.sampleFrames = 0
+            self?.frameSampleAt = ProcessInfo.processInfo.systemUptime; self?.receiveFPS = 0
+        }
         client.onState = { [weak self] _, key in
             guard let self = self else { return }
             self.statusKey = key; self.updateStatus(); self.updateTracking()
-            if self.client.state == .disconnected { self.renderer?.clear() }
+            if self.client.state == .disconnected { self.renderer?.clear(); self.frameStatus.text = L.text("waitingFrame") }
         }
         client.onSettings = { [weak self] value, revision, sequence in
             guard let self = self, self.sync.accept(snapshot: value, revision: revision, clientSeq: sequence) else { return }
@@ -91,9 +104,16 @@ final class ViewerController: UIViewController {
             do { try self.renderer?.submit(image) }
             catch { self.statusKey = "renderError"; self.updateStatus(); return }
             guard self.renderer != nil else { return }
-            self.frames += 1
-            self.frameStatus.text = String(format: L.text("frameFormat"), image.width, image.height, self.frames)
+            self.frames += 1; self.sampleFrames += 1
+            self.frameWidth = image.width; self.frameHeight = image.height
+            let now = ProcessInfo.processInfo.systemUptime
+            if self.frames == 1 { self.updateFrameStatus() }
+            if now - self.frameSampleAt >= 1 {
+                self.receiveFPS = Double(self.sampleFrames) / (now - self.frameSampleAt)
+                self.sampleFrames = 0; self.frameSampleAt = now; self.updateFrameStatus()
+            }
         }
+        client.onRTT = { [weak self] value in self?.rtt = value; if self?.client.state == .connected { self?.updateFrameStatus() } }
         motion.orientation = { [weak self] in self?.view.window?.windowScene?.interfaceOrientation ?? .landscapeRight }
         motion.onPose = { [weak self] pose in
             guard let self = self, self.active else { return }
@@ -139,6 +159,11 @@ final class ViewerController: UIViewController {
         languages.selectedSegmentIndex = L.language == "zh-Hans" ? 1 : 0
         languages.addTarget(self, action: #selector(languageChanged(_:)), for: .valueChanged)
         content.addArrangedSubview(languages)
+        let transport = UISegmentedControl(items: ["USB", "LAN"])
+        transport.accessibilityIdentifier = "connection.transport"
+        transport.selectedSegmentIndex = selectedTransport == .usb ? 0 : 1
+        transport.addTarget(self, action: #selector(transportChanged(_:)), for: .valueChanged)
+        content.addArrangedSubview(transport)
         status = label(L.text(statusKey), size: 14); status.accessibilityIdentifier = "connection.status"; content.addArrangedSubview(status)
         frameStatus = label(L.text("waitingFrame"), size: 12); frameStatus.accessibilityIdentifier = "frame.status"; content.addArrangedSubview(frameStatus)
         hostField = field("host", id: "connection.host", value: argument("--host") ?? UserDefaults.standard.string(forKey: "host") ?? "")
@@ -146,13 +171,15 @@ final class ViewerController: UIViewController {
         portField.keyboardType = .numberPad
         let address = UIStackView(arrangedSubviews: [hostField, portField]); address.spacing = 8
         portField.widthAnchor.constraint(equalToConstant: 85).isActive = true
+        address.isHidden = selectedTransport == .usb
         content.addArrangedSubview(address)
         codeField = field("code", id: "connection.code", value: argument("--code") ?? "")
         codeField.keyboardType = .numberPad; codeField.isSecureTextEntry = true
+        codeField.isHidden = selectedTransport == .usb
         content.addArrangedSubview(codeField)
         connectButton = button("connect", id: "connection.toggle", action: #selector(toggleConnection))
         content.addArrangedSubview(connectButton)
-        content.addArrangedSubview(label(L.text("networkNotice"), size: 12))
+        content.addArrangedSubview(label(L.text(selectedTransport == .usb ? "usbNotice" : "networkNotice"), size: 12))
         let sensor = label(L.text("noSensor"), size: 13); sensor.accessibilityIdentifier = "motion.status"
         sensor.isHidden = motion.available; sensor.textColor = .systemTeal; content.addArrangedSubview(sensor)
         modes = UISegmentedControl(items: [L.text("full"), L.text("cinema"), L.text("fps")])
@@ -219,7 +246,13 @@ final class ViewerController: UIViewController {
     }
     private func updateStatus() {
         status.text = L.text(statusKey)
-        connectButton.setTitle(L.text(client.state == .connected ? "disconnect" : client.state == .connecting ? "cancel" : "connect"), for: .normal)
+        let key = client.state == .connected ? "disconnect" : client.state == .connecting ? (selectedTransport == .usb ? "usbStop" : "cancel") : "connect"
+        connectButton.setTitle(L.text(key), for: .normal)
+    }
+    private func updateFrameStatus() {
+        guard frames > 0 else { return }
+        let ping = rtt.map { String(format: "%.0f ms", $0) } ?? "—"
+        frameStatus.text = String(format: L.text("frameFormat"), frameWidth, frameHeight, receiveFPS, ping, frames)
     }
     private func saveSettings() { if let data = try? JSONEncoder().encode(settings) { UserDefaults.standard.set(data, forKey: "displaySettings") } }
     private func changed(sendNow: Bool) {
@@ -242,14 +275,21 @@ final class ViewerController: UIViewController {
     @objc private func toggleConnection() {
         view.endEditing(true)
         if client.state != .disconnected { client.disconnect(); return }
+        if selectedTransport == .usb { _ = client.connectUSB(); return }
         let host = hostField.text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        let port = portField.text ?? "", code = codeField.text ?? ""
+        let port = (portField.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let code = (codeField.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         guard (try? ConnectionInput.url(host: host, port: port, token: code)) != nil, let number = Int(port) else {
             statusKey = "invalidAddress"; updateStatus(); return
         }
         UserDefaults.standard.set(host, forKey: "host"); UserDefaults.standard.set(port, forKey: "port")
         recenter()
         if !client.connect(host: host, port: number, code: code) { statusKey = "invalidAddress"; updateStatus() }
+    }
+    @objc private func transportChanged(_ picker: UISegmentedControl) {
+        client.disconnect(notify: false); motion.stop(); renderer?.clear()
+        UserDefaults.standard.set(picker.selectedSegmentIndex == 0 ? "usb" : "lan", forKey: "transport")
+        statusKey = "disconnected"; buildControls()
     }
     @objc private func modeChanged() {
         settings.mode = ["full", "cinema", "fps"][modes.selectedSegmentIndex]
@@ -272,7 +312,13 @@ final class ViewerController: UIViewController {
         if active && client.state == .connected && settings.mode != "full" && motion.available { motion.start() }
         else { motion.stop() }
     }
-    override func viewDidAppear(_ animated: Bool) { super.viewDidAppear(animated); UIApplication.shared.isIdleTimerDisabled = true }
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated); UIApplication.shared.isIdleTimerDisabled = true
+        if !startedInitialUSB {
+            startedInitialUSB = true
+            if selectedTransport == .usb { _ = client.connectUSB() }
+        }
+    }
     override func viewWillTransition(to size: CGSize, with coordinator: UIViewControllerTransitionCoordinator) {
         super.viewWillTransition(to: size, with: coordinator)
         coordinator.animate(alongsideTransition: nil) { [weak self] _ in self?.recenter() }

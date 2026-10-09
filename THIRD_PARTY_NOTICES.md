@@ -58,6 +58,14 @@ These provide connection scheduling, signals, structures, URL / Unicode handling
 
 Full texts / source index: [licenses/android/](licenses/android/README.md). JUnit belongs to unit testing and is not an application runtime dependency.
 
+### iOS runtime and USB references
+
+The original Swift client uses Apple's system Foundation / URLSession, UIKit, ImageIO, Core Graphics, Metal / MetalKit, Network and Core Motion frameworks. No third-party iOS runtime library or copied VR implementation is included. System frameworks and Apple SDK / signing services retain Apple's terms; the original app and Swift core remain MIT.
+
+USB Android support invokes a separately installed official Android Debug Bridge; it does not bundle or relicense the Android SDK. See [Android's reverse-port documentation](https://developer.android.com/develop/ui/views/layout/webapps/access-local-server) and [platform tools](https://developer.android.com/tools/releases/platform-tools).
+
+The original Python Apple-USB adapter uses the usbmux wire protocol as an interoperability reference from [libusbmuxd](https://github.com/libimobiledevice/libusbmuxd). Its maintained upstream client library is LGPL-2.1; no library binary, implementation source or `iproxy` executable is incorporated. Apple Devices / Apple Mobile Device Support must be installed separately under Apple's terms. Protocol reference is credited without claiming ownership of upstream contributions or relicensing upstream code.
+
 ### Build tools and documentation services
 
 | Tool | Use / terms |
@@ -67,6 +75,7 @@ Full texts / source index: [licenses/android/](licenses/android/README.md). JUni
 | Gradle Wrapper 8.9 | Build entry; [source](https://github.com/gradle/gradle/tree/v8.9.0), Apache-2.0; not an app runtime. |
 | Android Gradle Plugin 8.7.3 | [Android build tools](https://developer.android.com/build); components and SDK installation retain their applicable upstream terms. |
 | JDK 17 / Android SDK 35 | Compilation, checks and emulator under vendor tool terms; not bundled wholesale with the APK. |
+| Swift / Xcode | Original Swift compilation, Apple SDKs, Simulator and optional local signing. [Swift sources](https://github.com/swiftlang/swift), Apache-2.0 with Runtime Library Exception; Xcode / Apple SDK components retain [Apple's applicable terms](https://developer.apple.com/support/terms/). No compiler / Simulator is bundled in the application. |
 | Official GitHub Actions | Checkout, environment and artifacts; [actions](https://github.com/actions), upstream MIT, pinned by commit SHA. |
 | Shields.io | README badge service; [Shields](https://github.com/badges/shields); no server source copied. |
 
@@ -134,6 +143,14 @@ Independent JPEG Group、FreeType Project 和加州大学伯克利分校的归�
 
 完整 Android 文本与来源索引在 [licenses/android/](licenses/android/README.md)。测试使用的 JUnit 如有解析，仅属于单元测试环境，不打入应用运行时。
 
+### iOS 运行时与 USB 参考
+
+原创 Swift 客户端使用 Apple 系统 Foundation / URLSession、UIKit、ImageIO、Core Graphics、Metal / MetalKit、Network 与 Core Motion 框架，没有第三方 iOS 运行库或复制的 VR 实现。系统框架、Apple SDK 和签名服务保留 Apple 条款，原创应用与 Swift 核心仍为 MIT。
+
+Android USB 功能调用另行安装的官方 Android Debug Bridge，不打包或重新授权 Android SDK。参考 [Android 反向端口说明](https://developer.android.com/develop/ui/views/layout/webapps/access-local-server) 与 [platform-tools](https://developer.android.com/tools/releases/platform-tools)。
+
+原创 Python Apple USB 适配器以 [libusbmuxd](https://github.com/libimobiledevice/libusbmuxd) 的 usbmux 线协议为互操作参考。其上游客户端库使用 LGPL-2.1；本项目不引入该库二进制、实现源码或 `iproxy` 程序。Apple Devices / Apple Mobile Device Support 需按 Apple 条款另行安装。协议参考予以致谢，不冒称上游贡献归本项目，也不重新授权上游代码。
+
 ### 构建工具与文档服务
 
 | 工具 | 用途 | 来源 / 许可说明 |
@@ -143,6 +160,7 @@ Independent JPEG Group、FreeType Project 和加州大学伯克利分校的归�
 | Gradle Wrapper 8.9 | Android 构建入口 | [Gradle](https://github.com/gradle/gradle/tree/v8.9.0)，Apache-2.0；构建工具，不作为应用运行组件。 |
 | Android Gradle Plugin 8.7.3 | Android 构建 | [Android 构建工具](https://developer.android.com/build)，Android 开源工具组件按各自声明，SDK 安装同时受其发布条款约束。 |
 | JDK 17 / Android SDK 35 | 编译、检查与模拟器 | 使用各自供应商的开发工具条款；不将 JDK / 完整 SDK 随 APK 分发。 |
+| Swift / Xcode | Swift 编译、Apple SDK、模拟器与可选本地签名 | [Swift 源码](https://github.com/swiftlang/swift) 按 Apache-2.0 及 Runtime Library Exception；Xcode / Apple SDK 保留 [Apple 适用条款](https://developer.apple.com/support/terms/)。应用不附带编译器 / 模拟器。 |
 | GitHub Actions 官方 actions | 检出、环境与产物 | [actions](https://github.com/actions)，各 action 上游 MIT；工作流按提交 SHA 固定。 |
 | Shields.io | README 状态徽章 | [Shields](https://github.com/badges/shields)，在线徽章服务；未复制其服务器源码。 |
 

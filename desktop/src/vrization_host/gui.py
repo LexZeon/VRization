@@ -7,16 +7,48 @@ import os
 import queue
 import socket
 import tkinter as tk
-from tkinter import messagebox, ttk
+from tkinter import filedialog, messagebox, ttk
 
+from ._version import __version__
 from .capture import CaptureConfig, MssCaptureSource
 from .input import EmergencyHotkey
 from .i18n import load_language, save_language, translate
 from .protocol import Settings
+from .profiles import PROFILES, CUSTOM, apply_profile, capture_profile, initial_capture
 from .server import HostServer
-from .storage import load_preferences, save_preferences
+from .storage import (load_preferences, save_preferences, preference_path,
+                      load_usb_preferences, save_usb_preferences)
+from .usb import UsbManager
 
 BG, CARD, PANEL, TEXT, MUTED, ACCENT = "#0b1220", "#142136", "#1b2b43", "#e7f0fc", "#94a8c4", "#52e3bc"
+
+
+def configure_dpi_awareness(load_library=None) -> str:
+    """Call before Tk on Windows; older Windows 10 needs the earlier APIs.
+
+    A caller-supplied DLL loader allows testing without changing process DPI
+    or creating a window. Existing manifest/DPI settings are left intact when
+    Windows refuses a second change.
+    """
+    load_library = load_library or ctypes.WinDLL
+    attempts = (
+        ("user32", "SetProcessDpiAwarenessContext", [ctypes.c_void_p],
+         (ctypes.c_void_p(-4),), False, "per-monitor-v2"),
+        ("shcore", "SetProcessDpiAwareness", [ctypes.c_int],
+         (2,), True, "per-monitor"),
+        ("user32", "SetProcessDPIAware", [], (), False, "system"),
+    )
+    for library, name, argtypes, args, hresult, mode in attempts:
+        try:
+            function = getattr(load_library(library), name)
+            function.argtypes, function.restype = argtypes, ctypes.c_int
+            result = function(*args)
+            succeeded = result == 0 if hresult else bool(result)
+            if succeeded:
+                return mode
+        except (OSError, AttributeError):
+            continue
+    return "unchanged"
 
 
 def local_ip() -> str:
@@ -63,11 +95,18 @@ class HostWindow:
         self.language = load_language()
         self.events = queue.SimpleQueue()
         self.settings, self.config = load_preferences()
+        self.config = initial_capture(self.config, preference_path().exists())
+        self.usb_preferences = load_usb_preferences()
+        self.usb_status = ("USB waiting: install Android Platform Tools or Apple Devices; LAN is available", {})
+        self.usb_serials = ()
         self.settings_revision = 0
         if initial_monitor is not None:
             self.config = replace(self.config, monitor=initial_monitor, region=None)
         self.server = HostServer(settings=self.settings, capture_config=self.config,
                                  on_event=self.events.put)
+        self.usb = UsbManager(self.server, self.events.put, adb_path=self.usb_preferences["adb_path"],
+                              preferred_serial=self.usb_preferences["preferred_serial"])
+        self.server.usb_authorized = self.usb.authorized.is_set
         self.root.title(self.tr("VRization · 桌面 VR 串流"))
         self.root.configure(bg=BG)
         self.root.geometry(f"{min(1060, self.root.winfo_screenwidth() - 80)}x"
@@ -91,6 +130,7 @@ class HostWindow:
                                       lambda error: self.events.put({"event": "hotkey_error", "message": error}))
         self.hotkey_available = self.hotkey.start()
         self.root.after(100, self._pump)
+        self.usb.start(self.usb_preferences["enabled"])
 
     def tr(self, text, **values):
         return translate(text, self.language, **values)
@@ -187,10 +227,15 @@ class HostWindow:
         self.code_label.pack(anchor="w", pady=(4, 0))
         self.address_label = self._label(left, self.tr("电脑地址  {ip} : 8765", ip=self.ip), 11)
         self.address_label.pack(anchor="w")
-        hint = self._label(left, self.tr("手机与电脑连接同一个可信 Wi-Fi，输入地址和六位配对码。"),
+        hint = self._label(left, self.tr("USB is preferred. Open the phone app after starting. LAN: use the address and code above."),
                            9, MUTED, justify="left", anchor="w", wraplength=550)
         hint.pack(fill="x", pady=(5, 0))
-        left.bind("<Configure>", lambda event: hint.configure(wraplength=max(160, event.width)))
+        self.usb_label = self._label(left, self.tr(self.usb_status[0], **self.usb_status[1]), 9, MUTED,
+                                     justify="left", wraplength=550)
+        self.usb_label.pack(fill="x", pady=(4, 0))
+        left.bind("<Configure>", lambda event: (
+            hint.configure(wraplength=max(160, event.width)),
+            self.usb_label.configure(wraplength=max(160, event.width))))
         actions = tk.Frame(hero, bg=CARD)
         actions.pack(side="right", padx=(15, 0))
         left.pack_forget()
@@ -226,7 +271,7 @@ class HostWindow:
         bottom.pack(fill="x", pady=(12, 0))
         self.status = self._label(bottom, self.tr("●  尚未启动  /  READY"), 10, MUTED)
         self.status.pack(side="left")
-        self.stats = self._label(bottom, self.tr("JPEG · 局域网 · v0.1.1"), 9, MUTED)
+        self.stats = self._label(bottom, self.tr("JPEG · 局域网 · v{version}", version=__version__), 9, MUTED)
         self.stats.pack(side="right")
         self.log = tk.Text(footer, height=3, bg=BG, fg=MUTED, bd=0, highlightthickness=0,
                            font=("Microsoft YaHei UI", 9), state="disabled", wrap="word")
@@ -263,13 +308,22 @@ class HostWindow:
         self.monitor.current(min(self.config.monitor, len(names) - 1))
         self.monitor.grid(row=0, column=1, sticky="ew", pady=6)
         self.monitor.bind("<<ComboboxSelected>>", lambda event: self.apply_capture())
+        preset = ttk.Frame(tab)
+        preset.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(12, 0))
+        ttk.Label(preset, text=self.tr("Performance profile")).pack(side="left", padx=(0, 12))
+        self.profile_names = list(PROFILES) + [CUSTOM]
+        self.profile = ttk.Combobox(preset, values=[self.tr(name) for name in self.profile_names],
+                                    state="readonly", width=39)
+        self.profile.current(self.profile_names.index(capture_profile(self.config)))
+        self.profile.pack(side="left", fill="x", expand=True)
+        self.profile.bind("<<ComboboxSelected>>", self.change_profile)
         quality = ttk.Frame(tab)
-        quality.grid(row=1, column=0, columnspan=2, sticky="ew", pady=14)
+        quality.grid(row=2, column=0, columnspan=2, sticky="ew", pady=14)
         self.capture_vars = {}
         for label, key, values, current in [
                 (self.tr("最长输出边"), "width", (640, 960, 1280, 1600, 1920, 2560, 3840), self.config.width),
                 (self.tr("目标帧率"), "fps", (15, 24, 30, 45, 60), self.config.fps),
-                (self.tr("JPEG 质量"), "quality", (45, 60, 75, 85, 95), self.config.quality)]:
+                (self.tr("JPEG 质量"), "quality", (45, 60, 65, 75, 80, 85, 95), self.config.quality)]:
             group = ttk.Frame(quality)
             group.pack(side="left", fill="x", expand=True, padx=(0, 18))
             ttk.Label(group, text=label, style="Muted.TLabel").pack(anchor="w", pady=(0, 5))
@@ -279,7 +333,7 @@ class HostWindow:
             box.pack(fill="x")
             box.bind("<<ComboboxSelected>>", lambda event: self.apply_capture())
         region = ttk.LabelFrame(tab, text=self.tr(" 选区捕获 · 物理像素坐标 "), padding=12)
-        region.grid(row=2, column=0, columnspan=2, sticky="ew", pady=6)
+        region.grid(row=3, column=0, columnspan=2, sticky="ew", pady=6)
         self.use_region = tk.BooleanVar(value=self.config.region is not None)
         ttk.Checkbutton(region, text=self.tr("启用选区"), variable=self.use_region,
                         command=self.apply_capture).pack(anchor="w")
@@ -294,9 +348,49 @@ class HostWindow:
             ttk.Entry(row, textvariable=variable, width=7).pack(side="left", padx=(0, 10))
         ttk.Button(row, text=self.tr("应用"), command=self.apply_capture).pack(side="right")
         ttk.Button(region, text=self.tr("拖动框选屏幕区域"), command=self.select_region).pack(anchor="w", pady=(10, 0))
-        self._paragraph(tab, text=self.tr("建议先使用 1280 / 30 FPS / 75 质量。降低宽度和质量可减少网络延迟。\n"
-                           "若游戏呈现黑屏，请切换为无边框窗口模式。声音暂不串流。"),
-                  style="Muted.TLabel").grid(row=3, column=0, columnspan=2, sticky="w", pady=15)
+        self._paragraph(tab, text=self.tr("Low latency is the default for new users. FPS is a capture target; actual latency depends on the phone and connection. Try borderless mode for black games. Audio is not streamed."),
+                  style="Muted.TLabel").grid(row=4, column=0, columnspan=2, sticky="w", pady=15)
+        usb = ttk.LabelFrame(tab, text=self.tr("USB connection"), padding=12)
+        usb.grid(row=5, column=0, columnspan=2, sticky="ew", pady=6)
+        self.usb_enabled = tk.BooleanVar(value=self.usb_preferences["enabled"])
+        ttk.Checkbutton(usb, text=self.tr("Detect authorized USB phones automatically (recommended)"),
+                        variable=self.usb_enabled, command=self.change_usb).pack(anchor="w")
+        self.usb_device = ttk.Combobox(usb, state="readonly", values=[self.tr("Automatic (one Android device)")]+list(self.usb_serials))
+        self.usb_device.set(self.usb_preferences["preferred_serial"] or self.tr("Automatic (one Android device)"))
+        self.usb_device.pack(fill="x", pady=(8, 4))
+        self.usb_device.bind("<<ComboboxSelected>>", self.change_usb)
+        ttk.Button(usb, text=self.tr("Choose official SDK adb.exe…"), command=self.choose_adb).pack(anchor="w", pady=6)
+        self._paragraph(usb, self.tr("Android needs USB debugging and this computer's approval. iPhone needs Apple Devices and Trust This Computer. USB does not need a LAN firewall rule. Existing USB mappings are never replaced."),
+                        style="Muted.TLabel").pack(fill="x", pady=4)
+
+    def change_profile(self, event=None):
+        selected = self.profile_names[self.profile.current()]
+        config = apply_profile(self.config, selected)
+        for key in ("width", "fps", "quality"):
+            self.capture_vars[key].set(str(getattr(config, key)))
+        self.apply_capture()
+
+    def change_usb(self, event=None):
+        selected = self.usb_device.get()
+        self.usb_preferences["preferred_serial"] = selected if selected in self.usb_serials else ""
+        self.usb_preferences["enabled"] = self.usb_enabled.get()
+        self.usb.preferred_serial = self.usb_preferences["preferred_serial"]
+        self.usb.set_enabled(self.usb_preferences["enabled"])
+        self._save_usb()
+
+    def choose_adb(self):
+        path = filedialog.askopenfilename(parent=self.root, title=self.tr("Choose adb.exe from official Android Platform Tools"),
+                                          filetypes=[("Android Debug Bridge", "adb.exe")])
+        if path:
+            self.usb_preferences["adb_path"] = path
+            self.usb.adb_path = path
+            self._save_usb()
+
+    def _save_usb(self):
+        try:
+            save_usb_preferences(self.usb_preferences)
+        except OSError as exc:
+            self._log(self.tr("设置未保存: {error}", error=exc))
 
     def _slider(self, parent, key, label, low, high, row):
         ttk.Label(parent, text=label).grid(row=row, column=0, sticky="w", padx=(0, 14), pady=9)
@@ -379,6 +473,7 @@ class HostWindow:
                     raise ValueError(self.tr("选区超出桌面范围 / Region is outside the desktop"))
             self.config = config
             self.server.set_capture_config(config)
+            self.profile.current(self.profile_names.index(capture_profile(config)))
             self._save_later()
             return True
         except ValueError as exc:
@@ -456,6 +551,7 @@ class HostWindow:
             messagebox.showerror(self.tr("无法启动"), str(exc), parent=self.root)
 
     def stop(self):
+        self.usb.relay.stop()
         self.server.stop()
         self.code_label.configure(text="— — — — — —")
         self.start_button.configure(state="normal")
@@ -538,6 +634,12 @@ class HostWindow:
                 self._log(event["reason"])
             elif kind == "stats":
                 self.stats.configure(text=f"{event['width']} × {event['height']}  ·  {event['fps']:.0f} FPS  ·  {event['mbps']:.1f} Mbps")
+            elif kind == "usb":
+                self.usb_status = (event["message"], event["values"])
+                self.usb_label.configure(text=self.tr(event["message"], **event["values"]))
+            elif kind == "usb_devices":
+                self.usb_serials = event["serials"]
+                self.usb_device.configure(values=[self.tr("Automatic (one Android device)")] + list(self.usb_serials))
             elif kind in ("error", "hotkey_error"):
                 if kind == "hotkey_error":
                     self.hotkey_available = False
@@ -552,6 +654,7 @@ class HostWindow:
         self.root.after(100, self._pump)
 
     def close(self):
+        self.usb.stop()
         self.server.stop()
         self.hotkey.stop()
         self._save()
@@ -563,8 +666,7 @@ def main():
     parser.add_argument("--monitor", type=int, help="Initial MSS capture/display index (for example 2)")
     args = parser.parse_args()
     if os.name == "nt":
-        with __import__("contextlib").suppress(OSError, AttributeError):
-            ctypes.WinDLL("user32").SetProcessDpiAwarenessContext(ctypes.c_void_p(-4))
+        configure_dpi_awareness()
     root = tk.Tk()
     root.withdraw()
     HostWindow(root, initial_monitor=args.monitor)

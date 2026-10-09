@@ -41,5 +41,9 @@
 "metalUnavailable" = "Metal rendering is unavailable on this device.";
 "renderError" = "Could not create the video texture.";
 "waitingFrame" = "Waiting for desktop video";
-"frameFormat" = "%d × %d · Received %d frames";
+"frameFormat" = "%d × %d · Receiving %.1f fps · RTT %@ · %d frames";
+"usbWaiting" = "Waiting for USB computer. Unlock the phone and trust the computer when iOS asks.";
+"usbStop" = "Stop waiting";
+"usbFailed" = "USB disconnected or unavailable. Check the cable, Apple Devices driver and Trust prompt, then tap Connect.";
+"usbNotice" = "USB is the default. Install Apple Devices on Windows, unlock this iPhone, connect a data cable and tap Trust. Keep this app open; the computer finds it automatically. After returning from the background, tap Connect. FPS control still needs computer approval. Receiving fps and network RTT are not end-to-end latency.";
 "help" = "Full and FPS show the same 2D image to both eyes. Cinema places it in virtual space; this is not native stereoscopic game rendering. Audio stays on the computer. Entering the background disconnects video and stops control.";

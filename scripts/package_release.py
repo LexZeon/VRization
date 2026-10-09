@@ -75,7 +75,7 @@ def package_ios_source(out):
             if name.is_file() and not any(part in {".build", ".swiftpm", "xcuserdata", "DerivedData"}
                                           for part in name.relative_to(ROOT / "ios").parts):
                 add_tree(archive, name)
-        for name in ("scripts/build_ios.py", "scripts/ios_test_host.py", "scripts/package_release.py"):
+        for name in ("scripts/build_ios.py", "scripts/ios_test_host.py", "scripts/ios_usb_fixture.py", "scripts/package_release.py"):
             add_tree(archive, ROOT / name)
     check_document_links(path)
 

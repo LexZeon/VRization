@@ -41,3 +41,30 @@ def save_preferences(settings: Settings, config: CaptureConfig, path: Path | Non
     finally:
         if os.path.exists(temporary):
             os.unlink(temporary)
+
+
+def load_usb_preferences(path: Path | None = None) -> dict:
+    defaults = {"enabled": True, "adb_path": "", "preferred_serial": ""}
+    try:
+        value = json.loads((path or preference_path().with_name("usb.json")).read_text(encoding="utf-8"))
+        if type(value.get("enabled")) is bool:
+            defaults["enabled"] = value["enabled"]
+        for key in ("adb_path", "preferred_serial"):
+            if isinstance(value.get(key), str):
+                defaults[key] = value[key]
+    except (OSError, ValueError, AttributeError):
+        pass
+    return defaults
+
+
+def save_usb_preferences(value: dict, path: Path | None = None):
+    path = path or preference_path().with_name("usb.json")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, temporary = tempfile.mkstemp(prefix="usb-", suffix=".tmp", dir=path.parent)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as output:
+            json.dump({key: value[key] for key in ("enabled", "adb_path", "preferred_serial")}, output, indent=2)
+        os.replace(temporary, path)
+    finally:
+        if os.path.exists(temporary):
+            os.unlink(temporary)

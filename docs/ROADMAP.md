@@ -20,6 +20,10 @@ This separates existing baseline capabilities from possible future work. Dates a
 
 Selectable English / Simplified Chinese, bilingual public pages, regression checks for settings / reconnect behavior, complete offline documentation packaging and the core AAR's original MIT notice.
 
+### v0.2.0-alpha iOS and Windows integration
+
+Native iOS / iPadOS client with UIKit, Metal, Core Motion, all three modes, English / Chinese selection and a reusable Swift protocol / math core. The same Windows host remains compatible with Android and iOS. Cloud builds compile simulator and device SDKs, and exercise the simulator over a real synthetic stream. Physical installation still requires Apple signing; hardware and game testing remain future work.
+
 ### Next candidates
 
 1. Physical tests on Android derivatives and phone viewers; improved sensor mapping.
@@ -53,6 +57,10 @@ This is not an OpenXR runtime or SteamVR driver. It does not provide 6DoF tracki
 ### v0.1.1-alpha 维护改进
 
 可选英文 / 简体中文界面、双语公共页面、设置 / 重连回归检查、完整离线文档打包和核心 AAR 原创 MIT 声明。
+
+### v0.2.0-alpha iOS 与 Windows 集成
+
+原生 iOS / iPadOS 客户端使用 UIKit、Metal、Core Motion，包含三模式、中英文选择和可复用 Swift 协议 / 数学核心；同一个 Windows 主机兼容 Android 与 iOS。云端编译模拟器与真机 SDK，并对真实合成串流运行模拟器检查。真机安装仍需 Apple 签名，硬件与实际游戏测试尚待完成。
 
 ### 下一阶段候选
 

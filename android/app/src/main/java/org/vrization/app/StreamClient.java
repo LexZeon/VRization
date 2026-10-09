@@ -6,13 +6,22 @@ import android.graphics.BitmapFactory;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.ByteArrayOutputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import okhttp3.HttpUrl;
+import okhttp3.Call;
+import okhttp3.Callback;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
@@ -29,6 +38,7 @@ final class StreamClient {
         void onSessionStarted();
         void onStatus(String text, boolean connected);
         void onSettings(JSONObject json, Long revision, Long clientSeq);
+        void onRoundTrip(long milliseconds);
         /** Ownership of bitmap transfers to the listener. */
         void onFrame(Bitmap bitmap);
     }
@@ -40,11 +50,25 @@ final class StreamClient {
     private final OkHttpClient http = new OkHttpClient.Builder()
         .connectTimeout(8, TimeUnit.SECONDS).readTimeout(0, TimeUnit.SECONDS)
         .pingInterval(10, TimeUnit.SECONDS).build();
+    private final OkHttpClient discoveryHttp = http.newBuilder().connectTimeout(2, TimeUnit.SECONDS)
+        .readTimeout(2, TimeUnit.SECONDS).callTimeout(3, TimeUnit.SECONDS)
+        .followRedirects(false).followSslRedirects(false).retryOnConnectionFailure(false).build();
     private final ExecutorService decoder = Executors.newSingleThreadExecutor();
     private final Object decodeLock = new Object();
     private final AtomicLong poseSequence = new AtomicLong();
     private volatile WebSocket socket;
     private volatile boolean connected;
+    private volatile boolean connecting;
+    private Call discovery;
+    private final PingTracker ping = new PingTracker();
+    private final Runnable pingTick = new Runnable() {
+        @Override public void run() {
+            if (!connected || sessions.isClosed()) return;
+            long now = SystemClock.elapsedRealtime();
+            if (ping.shouldSend(now) && send(message("ping"))) ping.sent(now);
+            main.postDelayed(this, 2000);
+        }
+    };
     private byte[] pendingJpeg;
     private long pendingEpoch;
     private boolean decoding;
@@ -54,18 +78,71 @@ final class StreamClient {
 
     StreamClient(Context context, Listener listener) { this.context = context; this.listener = listener; }
     boolean isConnected() { return connected; }
+    boolean isConnecting() { return connecting; }
+    boolean isActive() { return connected || connecting; }
 
     void connect(String host, int port, String code) {
         disconnect(false);
         if (sessions.isClosed()) return;
         final long connectionEpoch = sessions.invalidate();
+        connecting = true;
+        openSocket(host, port, code, connectionEpoch, false);
+    }
+
+    void connectUsb() {
+        disconnect(false);
+        if (sessions.isClosed()) return;
+        final long connectionEpoch = sessions.invalidate();
+        connecting = true;
+        listener.onStatus(context.getString(R.string.usb_detecting), false);
+        discovery = discoveryHttp.newCall(new Request.Builder().url(UsbBootstrap.ENDPOINT).get().build());
+        discovery.enqueue(new Callback() {
+            @Override public void onFailure(Call call, IOException failure) {
+                ended(connectionEpoch, context.getString(R.string.usb_not_detected));
+            }
+            @Override public void onResponse(Call call, Response response) {
+                try (Response result = response) {
+                    if (!result.isSuccessful()) {
+                        ended(connectionEpoch, context.getString(result.code() == 403 ? R.string.usb_not_authorized
+                            : result.code() == 503 ? R.string.usb_host_stopped : R.string.usb_not_detected));
+                        return;
+                    }
+                    if (result.body() == null) throw new IOException("Empty discovery response");
+                    String text;
+                    try (InputStream input = result.body().byteStream(); ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+                        byte[] buffer = new byte[1024]; int size;
+                        while ((size = input.read(buffer)) != -1) {
+                            if (output.size() + size > 4096) throw new IOException("Oversized discovery response");
+                            output.write(buffer, 0, size);
+                        }
+                        text = new String(output.toByteArray(), StandardCharsets.UTF_8);
+                    }
+                    JSONObject json = new JSONObject(text);
+                    Map<String, Object> fields = new HashMap<>();
+                    Iterator<String> keys = json.keys();
+                    while (keys.hasNext()) { String key = keys.next(); fields.put(key, json.get(key)); }
+                    UsbBootstrap bootstrap = UsbBootstrap.parse(fields);
+                    sessions.dispatch(connectionEpoch, () -> {
+                        discovery = null;
+                        // Never save pairing material and never trust a remote host/port from discovery.
+                        openSocket(UsbBootstrap.HOST, UsbBootstrap.FORWARDED_PORT, bootstrap.token, connectionEpoch, true);
+                    });
+                } catch (IOException | JSONException | IllegalArgumentException ignored) {
+                    ended(connectionEpoch, context.getString(R.string.usb_invalid_response));
+                }
+            }
+        });
+    }
+
+    private void openSocket(String host, int port, String code, long connectionEpoch, boolean usb) {
         HttpUrl url = new HttpUrl.Builder().scheme("http").host(host).port(port)
             .addPathSegment("ws").addQueryParameter("token", code).build();
         listener.onStatus(context.getString(R.string.connecting), false);
         socket = http.newWebSocket(new Request.Builder().url(url).build(), new WebSocketListener() {
             @Override public void onOpen(WebSocket webSocket, Response response) {
                 sessions.dispatch(connectionEpoch, () -> {
-                    connected = true;
+                    connected = true; connecting = false;
+                    ping.reset(); main.removeCallbacks(pingTick); main.post(pingTick);
                     listener.onSessionStarted();
                     try {
                         JSONObject hello = message("hello").put("client", "android").put("device", Build.MODEL);
@@ -87,6 +164,11 @@ final class StreamClient {
                     } else if ("error".equals(type)) {
                         sessions.dispatch(connectionEpoch, () -> listener.onStatus(context.getString(
                             R.string.host_error, json.optString("message", context.getString(R.string.connection_error))), connected));
+                    } else if ("pong".equals(type)) {
+                        sessions.dispatch(connectionEpoch, () -> {
+                            Long milliseconds = ping.pong(SystemClock.elapsedRealtime());
+                            if (milliseconds != null) listener.onRoundTrip(milliseconds);
+                        });
                     }
                 } catch (JSONException ignored) { }
             }
@@ -99,7 +181,7 @@ final class StreamClient {
             }
             @Override public void onClosing(WebSocket webSocket, int code, String reason) { webSocket.close(code, reason); }
             @Override public void onFailure(WebSocket webSocket, Throwable failure, Response response) {
-                String detail = context.getString(R.string.check_connection);
+                String detail = context.getString(usb ? R.string.check_usb_connection : R.string.check_connection);
                 if (response != null) {
                     if (response.code() == 401 || response.code() == 403) detail = context.getString(R.string.bad_pairing);
                     else if (response.code() == 409) detail = context.getString(R.string.headset_busy);
@@ -112,7 +194,9 @@ final class StreamClient {
 
     private void ended(long connectionEpoch, String status) {
         sessions.dispatch(connectionEpoch, () -> {
-            connected = false;
+            sessions.invalidate(); connected = false; connecting = false;
+            discovery = null; socket = null;
+            main.removeCallbacks(pingTick); ping.reset();
             clearPending();
             listener.onStatus(status, false);
         });
@@ -212,7 +296,10 @@ final class StreamClient {
         return connected && current != null && current.queueSize() < 65536 && current.send(json.toString());
     }
     void disconnect(boolean report) {
-        sessions.invalidate(); connected = false;
+        sessions.invalidate(); connected = false; connecting = false;
+        main.removeCallbacks(pingTick); ping.reset();
+        Call request = discovery; discovery = null;
+        if (request != null) request.cancel();
         WebSocket current = socket; socket = null;
         if (current != null) { current.close(1000, "Client disconnect"); current.cancel(); }
         clearPending();

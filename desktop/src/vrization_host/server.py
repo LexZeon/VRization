@@ -3,6 +3,7 @@
 import asyncio
 from contextlib import suppress
 import hmac
+import ipaddress
 import json
 import secrets
 import threading
@@ -10,6 +11,7 @@ import time
 
 from aiohttp import web, WSMsgType
 
+from ._version import __version__
 from .capture import CaptureConfig, CaptureWorker, LatestFrameBuffer, MssCaptureSource
 from .input import PoseController, WindowsMouseSink
 from .protocol import ProtocolError, Settings, TokenLimiter, parse_message
@@ -18,7 +20,7 @@ from .protocol import ProtocolError, Settings, TokenLimiter, parse_message
 class HostServer:
     def __init__(self, capture_source=None, input_sink=None, settings: Settings | None = None,
                  capture_config: CaptureConfig | None = None, on_event=None,
-                 host: str = "0.0.0.0", port: int = 8765):
+                 host: str = "0.0.0.0", port: int = 8765, usb_authorized=None):
         self.capture_source = capture_source if capture_source is not None else MssCaptureSource()
         sink = input_sink if input_sink is not None else WindowsMouseSink()
         self.settings = settings or Settings()
@@ -26,6 +28,8 @@ class HostServer:
         self.capture_config = capture_config or CaptureConfig()
         self.on_event = on_event
         self.host, self.port = host, port
+        # Embedders must explicitly opt in. LAN clients can never obtain a code.
+        self.usb_authorized = usb_authorized
         self.token = f"{secrets.randbelow(1_000_000):06d}"
         self.lock = threading.RLock()
         self.controller = PoseController(sink, self._input_state,
@@ -105,6 +109,7 @@ class HostServer:
     def make_app(self) -> web.Application:
         app = web.Application(client_max_size=16 * 1024)
         app.router.add_get("/health", self._health)
+        app.router.add_get("/usb-bootstrap", self._usb_bootstrap)
         app.router.add_get("/ws", self._connect)
         app.on_startup.append(self._startup)
         app.on_shutdown.append(self._shutdown)
@@ -112,8 +117,27 @@ class HostServer:
         return app
 
     async def _health(self, request):
-        return web.json_response({"name": "VRization", "version": "0.1.1", "protocol": 1,
+        return web.json_response({"name": "VRization", "version": __version__, "protocol": 1,
                                   "connected": self._ws is not None})
+
+    async def _usb_bootstrap(self, request):
+        try:
+            loopback = ipaddress.ip_address(request.remote or "").is_loopback
+        except ValueError:
+            loopback = False
+        authorized = False
+        if loopback and self.usb_authorized is not None:
+            try:
+                authorized = bool(self.usb_authorized())
+            except Exception:
+                pass
+        headers = {"Cache-Control": "no-store"}
+        if not authorized:
+            return web.json_response({"error": "USB unauthorized"}, status=403, headers=headers)
+        if not self.running:
+            return web.json_response({"error": "Streaming not running"}, status=503, headers=headers)
+        return web.json_response({"v": 1, "name": "VRization", "version": __version__,
+                                  "port": self.port, "token": self.token}, headers=headers)
 
     async def _startup(self, app):
         self._loop = asyncio.get_running_loop()
@@ -164,7 +188,7 @@ class HostServer:
             self._emit("connection", connected=True, address=address)
             settings, revision = self.get_settings_snapshot()
             await ws.send_json({"v": 1, "type": "hello", "name": "VRization",
-                                "version": "0.1.1", "settings": settings.to_dict(), "revision": revision,
+                                "version": __version__, "settings": settings.to_dict(), "revision": revision,
                                 "stream": {"codec": "jpeg", "fps": self.capture_config.fps,
                                            "maxWidth": self.capture_config.width},
                                 "mouseArmed": False})

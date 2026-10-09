@@ -36,4 +36,22 @@ public final class SessionDispatcherTest {
         while (!owner.isEmpty()) owner.remove().run();
         assertEquals(0, calls[0]); assertTrue(sessions.isClosed());
     }
+    @Test public void usbDiscoveryCannotOpenSocketAfterSwitchingToLan() {
+        Queue<Runnable> owner = new ArrayDeque<>();
+        SessionDispatcher sessions = new SessionDispatcher(owner::add);
+        String[] destination = {"none"}; long usb = sessions.invalidate();
+        sessions.dispatch(usb, () -> destination[0] = "usb");
+        long lan = sessions.invalidate();
+        sessions.dispatch(lan, () -> destination[0] = "lan");
+        while (!owner.isEmpty()) owner.remove().run();
+        assertEquals("lan", destination[0]);
+    }
+    @Test public void backgroundOrLanguageSwitchDropsAlreadyQueuedUsbResponse() {
+        Queue<Runnable> owner = new ArrayDeque<>();
+        SessionDispatcher sessions = new SessionDispatcher(owner::add);
+        boolean[] opened = {false}; long usb = sessions.invalidate();
+        sessions.dispatch(usb, () -> opened[0] = true);
+        sessions.invalidate(); owner.remove().run();
+        assertFalse(opened[0]);
+    }
 }

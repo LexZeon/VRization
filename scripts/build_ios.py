@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+import platform
 import re
 import subprocess
 import sys
@@ -37,7 +38,9 @@ def main():
     run("swift", "test", "--package-path", "ios")
     common = ["xcodebuild", "-project", "ios/VRization.xcodeproj", "-scheme", "VRization",
               "-configuration", "Debug", "CODE_SIGNING_ALLOWED=NO", "-quiet"]
-    run(*common, "-destination", "generic/platform=iOS Simulator", "-derivedDataPath", OUT / "simulator", "build")
+    simulator_arch = platform.machine()
+    run(*common, f"ARCHS={simulator_arch}", "ONLY_ACTIVE_ARCH=YES", "-destination", "generic/platform=iOS Simulator",
+        "-derivedDataPath", OUT / "simulator", "build")
     run(*common, "-destination", "generic/platform=iOS", "-derivedDataPath", OUT / "device", "build")
     result = run("xcrun", "simctl", "list", "devices", "available", "--json", capture_output=True, text=True)
     devices = json.loads(result.stdout)["devices"]
@@ -47,15 +50,16 @@ def main():
             version = tuple(map(int, re.findall(r"\d+", runtime.split(".iOS-", 1)[1])))
             for row in rows:
                 if row.get("isAvailable") and row["name"].startswith("iPhone"):
-                    phones.append((version, row["name"], row["udid"]))
+                    generation = tuple(map(int, re.findall(r"\d+", row["name"]))) or (0,)
+                    phones.append((version, generation, row["name"], row["udid"]))
     if not phones:
         raise SystemExit("No available iPhone simulator runtime. Install one in Xcode Settings > Components.")
-    runtime, name, device = max(phones)
+    runtime, _, name, device = max(phones)
     (OUT / "environment.json").write_text(json.dumps({"simulator": name, "runtime": runtime,
-        "developerDirectory": os.environ.get("DEVELOPER_DIR")}, indent=2), encoding="utf-8")
+        "architecture": simulator_arch, "developerDirectory": os.environ.get("DEVELOPER_DIR")}, indent=2), encoding="utf-8")
     print(f"Testing on {name}, iOS {'.'.join(map(str, runtime))}", flush=True)
     fixture = subprocess.Popen([sys.executable, str(ROOT / "scripts/ios_test_host.py"),
-        "--report", str(OUT / "host-report.json")], cwd=ROOT)
+        "--report", str(OUT / "host-report.json"), "--usb-fixture"], cwd=ROOT)
     try:
         for _ in range(60):
             if fixture.poll() is not None:
@@ -67,7 +71,7 @@ def main():
                 time.sleep(0.5)
         else:
             raise RuntimeError("Synthetic fixture did not become ready")
-        run(*common, "-destination", f"platform=iOS Simulator,id={device}",
+        run(*common, f"ARCHS={simulator_arch}", "ONLY_ACTIVE_ARCH=YES", "-destination", f"platform=iOS Simulator,id={device},arch={simulator_arch}",
             "-derivedDataPath", OUT / "simulator", "-parallel-testing-enabled", "NO",
             "-resultBundlePath", OUT / "UI.xcresult", "test")
     finally:

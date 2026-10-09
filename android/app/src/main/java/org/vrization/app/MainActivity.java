@@ -17,6 +17,7 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
+import android.view.Display;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
@@ -56,6 +57,8 @@ public final class MainActivity extends Activity {
     private LinearLayout overlay;
     private Button panelButton, connectButton;
     private TextView status, frameStatus;
+    private TextView transportHelp, linkStatus, connectionNotice;
+    private LinearLayout lanInputs;
     private EditText hostInput, portInput, codeInput;
     private Spinner modeInput;
     private CheckBox invertInput;
@@ -69,6 +72,8 @@ public final class MainActivity extends Activity {
     private int receivedFrames;
     private long lastSettingsSent;
     private final SettingsSync settingsSync = new SettingsSync();
+    private ConnectionMode connectionMode = ConnectionMode.USB;
+    private InitialUsbDetection initialUsb;
 
     @Override protected void attachBaseContext(Context base) {
         String language = base.getSharedPreferences("vrization", MODE_PRIVATE).getString("language", "en");
@@ -87,6 +92,9 @@ public final class MainActivity extends Activity {
             getWindow().setAttributes(attributes);
         }
         preferences = getSharedPreferences("vrization", MODE_PRIVATE);
+        connectionMode = ConnectionMode.fromPreference(preferences.getString("transport", "usb"));
+        initialUsb = new InitialUsbDetection(state == null && !getIntent().getBooleanExtra("suppress_usb_auto", false));
+        requestFastDisplay();
         try { settings = SettingsJson.decode(new JSONObject(preferences.getString("settings", "{}")), settings); }
         catch (JSONException ignored) { }
         renderer = new VrRenderer();
@@ -94,11 +102,14 @@ public final class MainActivity extends Activity {
         if (!pose.isAvailable()) settings.mode = "full";
         renderer.setSettings(settings);
         client = new StreamClient(this, new StreamClient.Listener() {
-            @Override public void onSessionStarted() { settingsSync.newSession(); }
+            @Override public void onSessionStarted() {
+                settingsSync.newSession(); receivedFrames = 0; lastUiFrame = 0;
+                frameStatus.setText(R.string.waiting_frame); linkStatus.setText(R.string.waiting_ping);
+            }
             @Override public void onStatus(String text, boolean connected) {
                 runOnUiThread(() -> {
                     if (destroyed) return;
-                    status.setText(text); connectButton.setText(connected ? R.string.disconnect : R.string.connect);
+                    status.setText(text); updateConnectButton();
                 });
             }
             @Override public void onSettings(JSONObject json, Long revision, Long clientSeq) {
@@ -110,7 +121,7 @@ public final class MainActivity extends Activity {
                     settings = incoming;
                     boolean unavailable = !pose.isAvailable() && !"full".equals(settings.mode);
                     if (unavailable) settings.mode = "full";
-                    renderer.setSettings(settings); saveSettings(); refreshControls();
+                    renderer.setSettings(settings); surface.requestRender(); saveSettings(); refreshControls();
                     if (!oldMode.equals(settings.mode)) { recenter(); updateTracking(); }
                     if (unavailable) {
                         settingsChanged(true);
@@ -121,6 +132,7 @@ public final class MainActivity extends Activity {
             @Override public void onFrame(android.graphics.Bitmap bitmap) {
                 int frameWidth = bitmap.getWidth(), frameHeight = bitmap.getHeight();
                 renderer.submitFrame(bitmap);
+                surface.requestRender();
                 long now = android.os.SystemClock.elapsedRealtime();
                 if (lastUiFrame == 0) lastUiFrame = now;
                 receivedFrames++;
@@ -132,6 +144,9 @@ public final class MainActivity extends Activity {
                         if (!destroyed) frameStatus.setText(getString(R.string.frame_stats, frameWidth, frameHeight, fps));
                     });
                 }
+            }
+            @Override public void onRoundTrip(long milliseconds) {
+                if (!destroyed) linkStatus.setText(getString(R.string.ping_stats, milliseconds));
             }
         });
         createUi();
@@ -147,6 +162,7 @@ public final class MainActivity extends Activity {
         surface.setContentDescription(getString(R.string.surface_description));
         surface.setEGLContextClientVersion(2);
         surface.setRenderer(renderer);
+        surface.setRenderMode(GLSurfaceView.RENDERMODE_WHEN_DIRTY);
         surface.setPreserveEGLContextOnPause(false);
         GestureDetector gestures = new GestureDetector(this, new GestureDetector.SimpleOnGestureListener() {
             @Override public boolean onDown(MotionEvent event) { return true; }
@@ -201,6 +217,7 @@ public final class MainActivity extends Activity {
                 String selected = position == 1 ? "zh" : "en";
                 if (!selected.equals(preferences.getString("language", "en"))) {
                     preferences.edit().putString("language", selected).apply();
+                    initialUsb.stop(); getIntent().putExtra("suppress_usb_auto", true);
                     client.disconnect(false); recreate();
                 }
             }
@@ -208,19 +225,44 @@ public final class MainActivity extends Activity {
         });
         content.addView(languageInput, new LinearLayout.LayoutParams(-1, dp(44)));
         content.addView(text(getString(R.string.tagline), 14, MUTED, false));
-        status = text(getString(R.string.connection_help), 14, INK, false);
+        content.addView(text(getString(R.string.connection_method), 14, MUTED, false));
+        Spinner transportInput = new Spinner(this);
+        ArrayAdapter<String> transports = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item,
+            getResources().getStringArray(R.array.connection_methods));
+        transports.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        transportInput.setAdapter(transports); transportInput.setSelection(connectionMode == ConnectionMode.LAN ? 1 : 0);
+        transportInput.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                ConnectionMode selected = position == 1 ? ConnectionMode.LAN : ConnectionMode.USB;
+                if (selected != connectionMode) {
+                    initialUsb.stop(); client.disconnect(false); connectionMode = selected;
+                    preferences.edit().putString("transport", selected.preferenceValue).apply();
+                    status.setText(selected == ConnectionMode.USB ? R.string.usb_ready : R.string.connection_help);
+                    frameStatus.setText(R.string.waiting_frame); linkStatus.setText(R.string.waiting_ping);
+                    updateTransportUi();
+                }
+            }
+            @Override public void onNothingSelected(AdapterView<?> parent) { }
+        });
+        content.addView(transportInput, new LinearLayout.LayoutParams(-1, dp(44)));
+        transportHelp = text("", 13, MUTED, false); content.addView(transportHelp);
+        status = text(getString(connectionMode == ConnectionMode.USB ? R.string.usb_ready : R.string.connection_help), 14, INK, false);
         content.addView(status);
         frameStatus = text(getString(R.string.waiting_frame), 12, MUTED, false); content.addView(frameStatus);
+        linkStatus = text(getString(R.string.waiting_ping), 12, MUTED, false); content.addView(linkStatus);
         hostInput = input(getString(R.string.host_hint), preferences.getString("host", ""), InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
         portInput = input(getString(R.string.port_hint), preferences.getString("port", "8765"), InputType.TYPE_CLASS_NUMBER);
         codeInput = input(getString(R.string.code_hint), "", InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_VARIATION_PASSWORD);
         LinearLayout address = row();
         address.addView(hostInput, new LinearLayout.LayoutParams(0, dp(52), 3));
         address.addView(portInput, new LinearLayout.LayoutParams(0, dp(52), 1));
-        content.addView(address); content.addView(codeInput, new LinearLayout.LayoutParams(-1, dp(52)));
+        lanInputs = new LinearLayout(this); lanInputs.setOrientation(LinearLayout.VERTICAL);
+        lanInputs.addView(address); lanInputs.addView(codeInput, new LinearLayout.LayoutParams(-1, dp(52)));
+        content.addView(lanInputs);
         connectButton = button(getString(R.string.connect), this::connectOrDisconnect);
         content.addView(connectButton, new LinearLayout.LayoutParams(-1, dp(48)));
-        content.addView(text(getString(R.string.network_notice), 12, MUTED, false));
+        connectionNotice = text("", 12, MUTED, false); content.addView(connectionNotice);
+        updateTransportUi();
         if (!pose.isAvailable()) content.addView(text(getString(R.string.sensor_unavailable), 14, ACCENT, false));
         content.addView(text(getString(R.string.watch_mode), 16, INK, true));
         modeInput = new Spinner(this);
@@ -270,7 +312,9 @@ public final class MainActivity extends Activity {
     }
 
     private void connectOrDisconnect() {
-        if (client.isConnected()) { client.disconnect(true); return; }
+        initialUsb.stop();
+        if (client.isActive()) { client.disconnect(true); return; }
+        if (connectionMode == ConnectionMode.USB) { recenter(); client.connectUsb(); return; }
         String host = hostInput.getText().toString().trim();
         String code = codeInput.getText().toString().trim();
         int port;
@@ -283,12 +327,36 @@ public final class MainActivity extends Activity {
         preferences.edit().putString("host", host).putString("port", Integer.toString(port)).apply();
         recenter();
         try { client.connect(host, port, code); }
-        catch (IllegalArgumentException ignored) { status.setText(getString(R.string.invalid_host)); }
+        catch (IllegalArgumentException ignored) { client.disconnect(false); updateConnectButton(); status.setText(getString(R.string.invalid_host)); }
+    }
+
+    private void updateTransportUi() {
+        boolean usb = connectionMode == ConnectionMode.USB;
+        lanInputs.setVisibility(usb ? View.GONE : View.VISIBLE);
+        transportHelp.setText(usb ? R.string.usb_help : R.string.connection_help);
+        connectionNotice.setText(usb ? R.string.usb_notice : R.string.network_notice);
+        updateConnectButton();
+    }
+    private void updateConnectButton() {
+        connectButton.setText(client.isConnected() ? R.string.disconnect : client.isConnecting() ? R.string.cancel_connect
+            : connectionMode == ConnectionMode.USB ? R.string.connect_usb : R.string.connect);
+    }
+    private void requestFastDisplay() {
+        Display display = getWindowManager().getDefaultDisplay();
+        Display.Mode current = display.getMode(), best = current;
+        for (Display.Mode mode : display.getSupportedModes()) {
+            if (mode.getPhysicalWidth() == current.getPhysicalWidth() && mode.getPhysicalHeight() == current.getPhysicalHeight()
+                && mode.getRefreshRate() > best.getRefreshRate()) best = mode;
+        }
+        WindowManager.LayoutParams attributes = getWindow().getAttributes();
+        attributes.preferredDisplayModeId = best.getModeId();
+        attributes.preferredRefreshRate = best.getRefreshRate();
+        getWindow().setAttributes(attributes);
     }
 
     private void settingsChanged(boolean sendNow) {
         settingsSync.edited();
-        settings.normalize(); renderer.setSettings(settings); saveSettings();
+        settings.normalize(); renderer.setSettings(settings); surface.requestRender(); saveSettings();
         long now = android.os.SystemClock.elapsedRealtime();
         if (sendNow || now - lastSettingsSent >= 80) {
             lastSettingsSent = now;
@@ -306,6 +374,7 @@ public final class MainActivity extends Activity {
     }
     private void recenter() {
         pose.recenter(); renderer.setPose(0, 0, 0); client.recenter();
+        if (surface != null) surface.requestRender();
     }
     private void setPanelVisible(boolean visible) {
         panelVisible = visible; overlay.setVisibility(visible ? View.VISIBLE : View.GONE);
@@ -318,6 +387,7 @@ public final class MainActivity extends Activity {
         super.onConfigurationChanged(configuration);
         ViewGroup.LayoutParams params = overlay.getLayoutParams(); params.width = panelWidth(); overlay.setLayoutParams(params);
         pose.recenter(); renderer.setPose(0, 0, 0); client.recenter();
+        surface.requestRender();
     }
     private void showLicenses() {
         List<String> files = new ArrayList<>();
@@ -351,6 +421,7 @@ public final class MainActivity extends Activity {
     @Override protected void onResume() {
         super.onResume(); resumed = true; renderer.resumeFrames(); surface.onResume(); pose.recenter();
         updateTracking();
+        if (initialUsb.onForeground(connectionMode) && !client.isActive()) client.connectUsb();
     }
     private void updateTracking() {
         boolean needed = resumed && !"full".equals(settings.mode) && pose.isAvailable();
@@ -359,14 +430,14 @@ public final class MainActivity extends Activity {
         trackingActive = true;
         pose.start((yaw, pitch, roll, timestamp) -> {
             if (!resumed) return;
-            if ("cinema".equals(settings.mode)) renderer.setPose(yaw, pitch, roll);
+            if ("cinema".equals(settings.mode)) { renderer.setPose(yaw, pitch, roll); surface.requestRender(); }
             else if ("fps".equals(settings.mode)) client.sendPose(yaw, pitch);
         });
     }
     @Override protected void onPause() {
-        resumed = false; trackingActive = false; pose.stop(); client.disconnect(false); renderer.pauseFrames(); surface.onPause();
+        resumed = false; initialUsb.stop(); trackingActive = false; pose.stop(); client.disconnect(false); renderer.pauseFrames(); surface.onPause();
         status.setText(getString(R.string.paused));
-        connectButton.setText(getString(R.string.connect));
+        updateConnectButton();
         super.onPause();
     }
     @Override protected void onDestroy() {
