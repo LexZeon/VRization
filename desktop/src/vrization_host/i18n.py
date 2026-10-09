@@ -58,6 +58,22 @@ ENGLISH = {
 }
 
 CHINESE = {
+    'Headset editor': '画面编辑',
+    'Fit the picture by dragging': '拖动画面，适配你的手机盒子',
+    'Drag a corner to resize around the center, or drag inside to move. Both eyes change together. Save applies the preview; Discard keeps your previous fit.': '拖动顶点围绕中心等比例缩放，拖动画面内部移动。双眼同步变化。保存后应用预览，弃用保留之前的适配设置。',
+    'Open visual headset editor': '打开可视画面编辑器',
+    'Reset all settings to defaults': '一键重置所有设置',
+    'Reset restores the default picture, low latency, English and automatic USB. Your selected display/region and installed ADB path stay selected.': '恢复默认画面、低延迟预设、英文与自动 USB。保留已选显示器／选区和已安装 ADB 的路径。',
+    'Default settings restored.': '已恢复默认设置。',
+    'Visual headset editor': '可视画面编辑器',
+    'Drag corners to resize · Drag inside to move': '拖动顶点缩放 · 拖动内部移动',
+    'Both eyes move together. The preview uses a flat picture; your viewing mode and lens settings are retained.': '双眼同步调整。编辑预览使用平面画面，保留原观看模式与镜片设置。',
+    'Phone preview shape': '手机预览比例',
+    'Save': '保存', 'Discard': '弃用',
+    'Changes stay in this preview until you save.': '保存前仅在此预览中调整。',
+    'Left eye': '左眼', 'Right eye': '右眼',
+    'headset editor opened': '已打开画面编辑，控制停止',
+    'headset fit saved': '画面适配已保存', 'settings reset': '设置已重置',
     'USB is preferred. Open the phone app after starting. LAN: use the address and code above.': '优先使用 USB。电脑开始串流后打开手机软件。局域网连接可使用上方地址和配对码。',
     'Performance profile': '性能预设',
     'Low latency · 640 / 60 FPS / Q45': '低延迟 · 640 / 60 FPS / 质量 45',

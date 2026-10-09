@@ -62,6 +62,15 @@ class HostServer:
         with self.lock:
             return self.capture_config
 
+    def get_latest_frame(self):
+        """Return an immutable frame for local previews, without new capture work.
+
+        The network loop replaces the owned Frame reference atomically. A preview
+        retains that reference only; it never accesses native/GPU resources.
+        """
+        buffer = self._buffer
+        return buffer.frame if self.running and buffer is not None else None
+
     def set_capture_config(self, config: CaptureConfig):
         with self.lock:
             self.capture_config = config

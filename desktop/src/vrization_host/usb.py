@@ -275,7 +275,7 @@ class AppleMux:
         return self.connector(self.address, timeout=2)
 
     def exchange(self, sock, message: dict, tag: int = 1) -> dict:
-        payload = plistlib.dumps({"ClientVersionString": "VRization-0.2.0", "ProgName": "VRization",
+        payload = plistlib.dumps({"ClientVersionString": "VRization-0.3.0", "ProgName": "VRization",
                                  "kLibUSBMuxVersion": 3, **message}, fmt=plistlib.FMT_XML)
         sock.sendall(struct.pack("<IIII", 16 + len(payload), 1, 8, tag) + payload)
         deadline = time.monotonic() + 2

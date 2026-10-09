@@ -1,6 +1,6 @@
 """Nonsecret user preferences; pairing codes and arm state are never persisted."""
 
-from dataclasses import asdict
+from dataclasses import asdict, replace
 import json
 import os
 from pathlib import Path
@@ -12,6 +12,11 @@ from .protocol import Settings
 
 def preference_path() -> Path:
     return Path(os.environ.get("LOCALAPPDATA", Path.home())) / "VRization" / "preferences.json"
+
+
+def default_preferences(selection: CaptureConfig) -> tuple[Settings, CaptureConfig]:
+    """Reset fit and performance without capturing a different user's output."""
+    return Settings(), replace(CaptureConfig(), monitor=selection.monitor, region=selection.region)
 
 
 def load_preferences(path: Path | None = None) -> tuple[Settings, CaptureConfig]:

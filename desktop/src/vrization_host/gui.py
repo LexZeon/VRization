@@ -17,8 +17,9 @@ from .protocol import Settings
 from .profiles import PROFILES, CUSTOM, apply_profile, capture_profile, initial_capture
 from .server import HostServer
 from .storage import (load_preferences, save_preferences, preference_path,
-                      load_usb_preferences, save_usb_preferences)
+                      load_usb_preferences, save_usb_preferences, default_preferences)
 from .usb import UsbManager
+from .view_editor import HeadsetEditor
 
 BG, CARD, PANEL, TEXT, MUTED, ACCENT = "#0b1220", "#142136", "#1b2b43", "#e7f0fc", "#94a8c4", "#52e3bc"
 
@@ -118,6 +119,7 @@ class HostWindow:
         self.syncing = False
         self.save_job = None
         self.last_error = None
+        self.editor = None
         self._style()
         self._build()
         if initial_monitor is not None and 0 <= initial_monitor < len(self.monitors):
@@ -146,13 +148,18 @@ class HostWindow:
         except OSError as exc:
             self._log(self.tr("语言设置未保存: {error}", error=exc))
         selected_tab = self.notebook.index("current")
+        if self.editor is not None:
+            self.editor.discard()
+        self._rebuild(selected_tab)
+
+    def _rebuild(self, selected_tab=0):
         self.settings, self.settings_revision = self.server.get_settings_snapshot()
         self.config = self.server.get_capture_config()
         for widget in self.root.winfo_children():
             widget.destroy()
         self.root.title(self.tr("VRization · 桌面 VR 串流"))
         self._build()
-        self.notebook.select(selected_tab)
+        self.notebook.select(min(selected_tab, self.notebook.index("end") - 1))
         if self.server.running:
             self.code_label.configure(text=" ".join(self.server.token))
             self.start_button.configure(state="disabled")
@@ -257,10 +264,12 @@ class HostWindow:
                             command=lambda: self.change_setting("mode", self.mode.get())).pack(side="left", padx=8)
 
         self.notebook = ttk.Notebook(outer, height=330)
+        fit = self._scroll_tab(self.tr("Headset editor"))
         capture = self._scroll_tab(self.tr("串流设置  /  STREAM"))
         view = self._scroll_tab(self.tr("VR 画面  /  VIEW"))
         game = self._scroll_tab(self.tr("游戏控制  /  INPUT"))
         self._capture_tab(capture)
+        self._fit_tab(fit)
         self.setting_vars = {}
         self._view_tab(view)
         self._game_tab(game)
@@ -422,6 +431,56 @@ class HostWindow:
         ttk.Label(buttons, text=self.tr("设置会同步到已连接的手机，并自动保存。"),
                   style="Muted.TLabel").pack(side="right")
 
+    def _fit_tab(self, tab):
+        ttk.Label(tab, text=self.tr("Fit the picture by dragging"),
+                  font=("Microsoft YaHei UI", 18, "bold")).pack(anchor="w", pady=(0, 10))
+        self._paragraph(tab, self.tr("Drag a corner to resize around the center, or drag inside to move. Both eyes change together. Save applies the preview; Discard keeps your previous fit."),
+                        style="Muted.TLabel").pack(fill="x", pady=(0, 14))
+        ttk.Button(tab, text=self.tr("Open visual headset editor"), style="Primary.TButton",
+                   command=self.open_editor).pack(fill="x", pady=(0, 14))
+        ttk.Button(tab, text=self.tr("Reset all settings to defaults"),
+                   command=self.reset_all).pack(anchor="w", pady=(0, 8))
+        self._paragraph(tab, self.tr("Reset restores the default picture, low latency, English and automatic USB. Your selected display/region and installed ADB path stay selected."),
+                        style="Muted.TLabel").pack(fill="x")
+
+    def open_editor(self):
+        if self.editor is not None:
+            self.editor.window.lift()
+            return
+        self.server.disarm("headset editor opened")
+        settings, _ = self.server.get_settings_snapshot()
+        self.editor = HeadsetEditor(self, settings)
+
+    def commit_editor(self, draft):
+        # Only the editor's three fit fields change; preserve any other settings
+        # committed by the phone while the local preview was open.
+        self.server.disarm("headset fit saved")
+        self.server.update_settings({key: getattr(draft, key)
+                                     for key in ("scale", "offsetX", "offsetY")})
+        self.server.recenter()
+        self._save()
+
+    def reset_all(self):
+        if self.editor is not None:
+            self.editor.discard()
+        self.server.disarm("settings reset")
+        defaults, self.config = default_preferences(self.server.get_capture_config())
+        self.server.set_capture_config(self.config)
+        self.server.update_settings(defaults.to_dict())
+        self.server.recenter()
+        self.usb_preferences.update(enabled=True, preferred_serial="")
+        self.usb.preferred_serial = ""
+        self.usb.set_enabled(True)
+        self._save_usb()
+        self.language = "en"
+        try:
+            save_language("en")
+        except OSError as exc:
+            self._log(self.tr("语言设置未保存: {error}", error=exc))
+        self._save()
+        self._rebuild(0)
+        self._log(self.tr("Default settings restored."))
+
     def _game_tab(self, tab):
         tab.columnconfigure(1, weight=1)
         ttk.Label(tab, text=self.tr("手机转头 → 游戏视角"), font=("Microsoft YaHei UI", 17, "bold")).grid(
@@ -567,6 +626,10 @@ class HostWindow:
         self._log(self.tr("连接地址已复制，请只分享给自己的手机。"))
 
     def toggle_arm(self):
+        if self.editor is not None:
+            self.arm_var.set(False)
+            self.server.disarm("headset editor opened")
+            return
         if self.arm_var.get():
             if not self.hotkey_available:
                 self.arm_var.set(False)
@@ -654,6 +717,8 @@ class HostWindow:
         self.root.after(100, self._pump)
 
     def close(self):
+        if self.editor is not None:
+            self.editor.discard()
         self.usb.stop()
         self.server.stop()
         self.hotkey.stop()
