@@ -5,7 +5,7 @@
 <!-- vrization:english -->
 ## English
 
-v0.3.0-alpha separates the image source, transport, rendering and input sink. Reuse includes an embeddable Python host, an Android AAR and the Foundation-based Swift package `VRizationCore`. The Android and iOS apps default to USB, with LAN as an explicit alternative. Alpha APIs may change.
+v0.3.2-alpha separates the image source, transport, rendering and input sink. Reuse includes an embeddable Python host, an Android AAR and the Foundation-based Swift package `VRizationCore`. The Android and iOS apps default to USB, with LAN as an explicit alternative. Alpha APIs may change.
 
 ```mermaid
 flowchart LR
@@ -19,7 +19,8 @@ flowchart LR
     G --> E
     E -->|pose| D
     D --> H[Local authorization and pose deltas]
-    H --> I[InputSink]
+    H --> S[Optional host stabilization / default bypass]
+    S --> I[InputSink]
     I --> J[Windows mouse]
 ```
 
@@ -29,6 +30,7 @@ flowchart LR
 | --- | --- |
 | `desktop/src/vrization_host/` | Python capture, protocol, server, input adapter and GUI. |
 | `desktop/src/vrization_host/view_edit.py` | Pure per-eye fit geometry and local draft transactions. |
+| `desktop/src/vrization_host/pose_filter.py` | Original host-only speed-adaptive first-person smoothing; strength 0 bypasses it. |
 | `desktop/tests/` | Core checks without real games. |
 | `android/vr-core/` | Reusable Android settings, pose interfaces and GLES renderer. |
 | `android/app/` | Connection UI, WebSocket client, JPEG decoding and settings. |
@@ -46,7 +48,7 @@ The original Windows GPU backend in [windows_gpu.py](https://github.com/LexZeon/
 
 `WindowsGpuCapture.grab(rectangle, size, force_latest=False)` returns owned BGRX bytes or `None` when no new duplication frame is available. `force_latest=True` can re-render the owned GPU image after a same-output crop / size change, including a static desktop. Acquired duplication frames are released before returning; their borrowed textures are never kept as the cache. Creation, use and release stay on the same capture thread.
 
-The source validates the requested output against Windows physical layout, output name, HMONITOR, rotation and panel identity before and after GPU work. Output names identify Windows display outputs rather than panel serial numbers. A layout / identity mismatch, protected-content condition, access loss or other fatal resource error closes the session and stops new frames; it does not silently choose another output or rebuild a lost session. Stop, reselect the display / region, then Start again. Any capture error immediately disarms FPS mouse control; resuming requires explicit authorization again.
+The source validates the requested output against Windows physical layout, output name, HMONITOR, rotation and panel identity before and after GPU work. Output names identify Windows display outputs rather than panel serial numbers. A layout / identity mismatch, protected-content condition, access loss or other fatal resource error closes the session and stops new frames; it does not silently choose another output or rebuild a lost session. Stop, reselect the display / region, then Start again. Any capture error immediately disarms first-person mouse control; resuming requires explicit authorization again.
 
 A verified region spanning multiple outputs, or an explicitly unsupported initial GPU API / session, can use **the same validated rectangle** through GDI, then MSS. A layout / identity error does not permit fallback. The original GDI backend pre-scales into a bounded top-down DIB, flushes writes before reading, and returns an owned byte copy on the capture thread. MSS captures the same rectangle and scales in CPU memory when that path is needed. `MssCaptureSource(prefer_gpu=False, prefer_native=False)` selects MSS explicitly. The default adapter reuses an owned JPEG on a static desktop, retaining its original `captured_at`; refresh packets are not necessarily new captures. Hardware, load and fallback availability still determine the achieved rate. See [performance and measurement boundaries](PERFORMANCE.md) and [validation](VALIDATION.md).
 
@@ -147,12 +149,22 @@ App editors preview full-screen flat geometry with distortion disabled, while re
 
 Reset restores VR / English / USB and low capture defaults. The host preserves explicit capture monitor / rectangle and ADB path to avoid selecting unintended content or deleting tools; phone reset disconnects and suppresses the immediate rebuilt page's initial attempt. A fresh app launch resumes normal initial USB detection / listening. These user-preference changes do not change protocol v1, the bounded JPEG pipeline or explicit mouse authorization.
 
+### Host-only stabilization and compatible profiles
+
+`PoseStabilizer` in `pose_filter.py` is original pure filtering without a mouse API, timer or thread. `PoseController` retains authorization / sequence / raw-input validation, then applies optional angular smoothing before the existing sensitivity and mouse-output path. Zero bypasses it exactly; session, recenter and relevant input changes reset it, and silence cannot produce queued movement. The high-resolution elapsed-time clock is separate from wire pose values.
+
+Clients persist eleven fields and migrate exact legacy ten with stabilization zero. Schema 2 stays inside protocol v1; old hosts get ten-field network settings while local stabilization survives replies. Initial legacy USB hello plus capability does not create a profile before the full snapshot. Phones do not filter again. See [protocol](PROTOCOL.md), [tuning](STABILIZATION.md) and [provenance](../licenses/references/README.md).
+
+### Shared per-eye display bounds
+
+Android GLES and iOS Metal resolve the same fit rectangle and apply it as a physical per-eye output mask in full, cinema and first-person modes, including lens distortion. The mask confines display range without changing the virtual-screen projection or sensor math. It is distinct from proving that projected content reaches the middle seam. Editor geometry remains pure; raw committed profiles are not rewritten by rendering.
+
 ---
 
 <!-- vrization:chinese -->
 ## 简体中文
 
-v0.3.0-alpha 把画面来源、传输、渲染与输入接收拆为相邻组件。现在可复用 Python 主机、Android AAR 与基于 Foundation 的 Swift 包 `VRizationCore`。Android / iOS 应用默认 USB，局域网为显式可选项；公共接口仍处于 Alpha，可能调整。
+v0.3.2-alpha 把画面来源、传输、渲染与输入接收拆为相邻组件。现在可复用 Python 主机、Android AAR 与基于 Foundation 的 Swift 包 `VRizationCore`。Android / iOS 应用默认 USB，局域网为显式可选项；公共接口仍处于 Alpha，可能调整。
 
 ```mermaid
 flowchart LR
@@ -166,7 +178,8 @@ flowchart LR
     G --> E
     E -->|pose| D
     D --> H[授权门与姿态增量]
-    H --> I[InputSink]
+    H --> S[可选主机防抖 / 默认绕过]
+    S --> I[InputSink]
     I --> J[Windows 鼠标]
 ```
 
@@ -176,6 +189,7 @@ flowchart LR
 | --- | --- |
 | `desktop/src/vrization_host/` | Python 采集、协议、服务器、鼠标适配器与桌面界面。 |
 | `desktop/src/vrization_host/view_edit.py` | 纯单眼适配几何与本地草稿事务。 |
+| `desktop/src/vrization_host/pose_filter.py` | 原创主机速度自适应第一人称平滑，强度 0 绕过。 |
 | `desktop/tests/` | 不依赖真实游戏的核心检查。 |
 | `android/vr-core/` | 可复用 Android library：设置、旋转传感器接口与 OpenGL ES 双眼渲染。 |
 | `android/app/` | 连接界面、WebSocket 客户端、JPEG 解码和设置交互。 |
@@ -193,7 +207,7 @@ flowchart LR
 
 `WindowsGpuCapture.grab(rectangle, size, force_latest=False)` 返回独立 BGRX 字节，没有新的 duplication 帧时返回 `None`。`force_latest=True` 能在同一输出改变选区 / 尺寸后重新渲染自有 GPU 图像，静止桌面也适用。取得的 duplication 帧会在返回前释放，不把借用的纹理保留作缓存；创建、使用与释放均在同一采集线程。
 
-GPU 操作前后都会把目标同 Windows 物理布局、输出名称、HMONITOR、旋转和面板身份核对。输出名称表示 Windows 显示输出，不是面板序列号。布局 / 身份不匹配、受保护内容、访问丢失或其他致命资源错误会关闭会话并停止产生新帧，不悄悄换输出、不自动重建失效会话。需停止串流、重新选择显示器 / 区域，再启动。任何采集错误都会立即解除 FPS 鼠标授权，恢复控制必须重新明确授权。
+GPU 操作前后都会把目标同 Windows 物理布局、输出名称、HMONITOR、旋转和面板身份核对。输出名称表示 Windows 显示输出，不是面板序列号。布局 / 身份不匹配、受保护内容、访问丢失或其他致命资源错误会关闭会话并停止产生新帧，不悄悄换输出、不自动重建失效会话。需停止串流、重新选择显示器 / 区域，再启动。任何采集错误都会立即解除 第一人称鼠标授权，恢复控制必须重新明确授权。
 
 已确认跨越多个输出的合法区域，或初始化时明确不支持 GPU 的 API / 会话，可对**同一个已校验矩形**依次采用 GDI、MSS。布局 / 身份错误不允许回退。原创 GDI 后端先缩放到有尺寸上限的顶向下 DIB，读取前完成写入，在采集线程返回独立字节副本；需要 MSS 时，仍采集同一区域并在 CPU 内存缩放。`MssCaptureSource(prefer_gpu=False, prefer_native=False)` 显式选择 MSS。默认适配器在静止桌面复用自有 JPEG，保留原始 `captured_at`，刷新传输包不一定是新采集。实际速度仍取决于硬件、负载与可用后端，见 [性能与测量边界](PERFORMANCE.md) 和 [验证记录](VALIDATION.md)。
 
@@ -297,3 +311,13 @@ Swift 协议 / 数学已经可以复用；引擎适配器和稳定 SDK 仍是未
 应用编辑器预览无畸变全屏平面，草稿仍保留实际模式 / 光学值。手机编辑时暂停姿态，进入时用已有 hello 的 editing:true 一次通知主机，收到后解除授权；电脑进入则本地解除。手机一次提交完整草稿，电脑只把四个适配字段（scale、offsetX、offsetY、eyeSeparation）合并进最新状态以保留其他并发变化；放弃恢复本地进入预览，手机生命周期变化 / 断线结束未提交草稿。手机保存完整已提交 VR 配置：先合法主机 hello 建立会话，再通过普通 settings / clientSeq 一次恢复本地配置，之后继续 revision 同步；排除配对秘密。
 
 重置恢复 VR / 英文 / USB 与低延迟采集默认；主机保留明确的显示器 / 选区和 ADB 路径，避免切到非预期内容或删除工具。手机重置断线，抑制当前重建界面的初次尝试；之后全新启动恢复正常初次 USB 检测 / 监听。这些用户偏好变化不改变协议 v1、有限 JPEG 队列或电脑主动授权边界。
+
+### 主机单次防抖与兼容配置
+
+`pose_filter.py` 的 `PoseStabilizer` 为原创纯滤波，不含鼠标 API、定时或线程。`PoseController` 保留授权 / 序号 / 原始输入校验，再处理可选角度平滑，沿用灵敏度与鼠标输出。零精确绕过，会话、回正及相关输入变化重置状态，静默不会产生排队移动；高精度间隔时钟不新增线上姿态值。
+
+客户端保存十一字段，恰好十字段旧配置迁移防抖为零。在协议 v1 内协商 schema 2，旧主机网络用十字段，本地防抖不被回复清空；初始旧格式 USB hello 加能力时，先有完整快照才创建配置，手机不重复滤波。见 [协议](PROTOCOL.md)、[调节](STABILIZATION.md)、[来源](../licenses/references/README.md)。
+
+### 共用单眼显示边界
+
+Android GLES 与 iOS Metal 解析相同适配矩形，并在全屏、大屏幕、第一人称模式及镜片畸变后作物理单眼输出遮罩，限定显示范围，不改虚拟屏幕投影或传感器数学；这与证明投影内容填到中缝不同。编辑几何保持纯函数，渲染不改写原始已提交配置。

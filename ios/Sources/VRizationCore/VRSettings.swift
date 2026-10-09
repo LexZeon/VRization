@@ -19,12 +19,14 @@ public struct VRSettings: Codable, Equatable {
     public var distance = 3.0
     public var distortion = 0.0
     public var sensitivity = 1000.0
+    public var stabilization = 0.0
     public var invertY = false
 
     public init() {}
     public static let defaults = VRSettings()
     internal static let names: Set<String> = ["mode", "scale", "offsetX", "offsetY", "eyeSeparation",
-                                               "fov", "distance", "distortion", "sensitivity", "invertY"]
+                                               "fov", "distance", "distortion", "sensitivity", "invertY", "stabilization"]
+    internal static let legacyNames = names.subtracting(["stabilization"])
 
     public func validated() throws -> VRSettings {
         guard ["full", "cinema", "fps"].contains(mode) else { throw VRCoreError.invalid("Unknown viewing mode") }
@@ -32,7 +34,8 @@ public struct VRSettings: Codable, Equatable {
             ("scale", scale, 0.5...1), ("offsetX", offsetX, -0.3...0.3),
             ("offsetY", offsetY, -0.3...0.3), ("eyeSeparation", eyeSeparation, -1...0.2),
             ("fov", fov, 50...110), ("distance", distance, 1...8),
-            ("distortion", distortion, 0...0.5), ("sensitivity", sensitivity, 100...3000)
+            ("distortion", distortion, 0...0.5), ("sensitivity", sensitivity, 100...3000),
+            ("stabilization", stabilization, 0...1)
         ]
         for (name, value, bounds) in values {
             guard value.isFinite && bounds.contains(value) else { throw VRCoreError.invalid("Invalid setting: \(name)") }
@@ -60,6 +63,7 @@ public struct VRSettings: Codable, Equatable {
             case "distance": result.distance = try WireValue.number(value, name: key)
             case "distortion": result.distortion = try WireValue.number(value, name: key)
             case "sensitivity": result.sensitivity = try WireValue.number(value, name: key)
+            case "stabilization": result.stabilization = try WireValue.number(value, name: key)
             default: throw VRCoreError.invalid("Unknown setting")
             }
         }
@@ -71,7 +75,8 @@ public struct VRSettings: Codable, Equatable {
     }
 
     internal static func complete(_ value: Any?) throws -> VRSettings {
-        guard let object = value as? [String: Any], Set(object.keys) == names else {
+        guard let object = value as? [String: Any],
+              Set(object.keys) == names || Set(object.keys) == legacyNames else {
             throw VRCoreError.invalid("Expected complete settings")
         }
         return try VRSettings().applying(object)
@@ -85,7 +90,8 @@ public struct VRSettings: Codable, Equatable {
     }
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: Key.self)
-        guard Set(container.allKeys.map { $0.stringValue }) == Self.names else {
+        let keys = Set(container.allKeys.map { $0.stringValue })
+        guard keys == Self.names || keys == Self.legacyNames else {
             throw VRCoreError.invalid("Expected complete settings with known fields")
         }
         func key(_ name: String) -> Key { return Key(stringValue: name)! }
@@ -98,6 +104,8 @@ public struct VRSettings: Codable, Equatable {
         distance = try container.decode(Double.self, forKey: key("distance"))
         distortion = try container.decode(Double.self, forKey: key("distortion"))
         sensitivity = try container.decode(Double.self, forKey: key("sensitivity"))
+        if keys.contains("stabilization") { stabilization = try container.decode(Double.self, forKey: key("stabilization")) }
+        else { stabilization = 0 }
         invertY = try container.decode(Bool.self, forKey: key("invertY"))
         self = try validated()
     }
@@ -114,6 +122,7 @@ public struct VRSettings: Codable, Equatable {
         try container.encode(distance, forKey: key("distance"))
         try container.encode(distortion, forKey: key("distortion"))
         try container.encode(sensitivity, forKey: key("sensitivity"))
+        try container.encode(stabilization, forKey: key("stabilization"))
         try container.encode(invertY, forKey: key("invertY"))
     }
 }

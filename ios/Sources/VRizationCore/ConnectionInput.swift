@@ -8,7 +8,7 @@ import Glibc
 public enum ConnectionInput {
     /// Host is only an IP address or DNS name, never a URL, userinfo, port or path.
     /// Pairing codes stay strings so leading zeros survive unchanged.
-    public static func url(host: String, port: String, token: String) throws -> URL {
+    public static func url(host: String, port: String, token: String, settingsSchema: Int? = nil) throws -> URL {
         let host = host.trimmingCharacters(in: .whitespacesAndNewlines)
         let port = port.trimmingCharacters(in: .whitespacesAndNewlines)
         let token = token.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -52,6 +52,10 @@ public enum ConnectionInput {
         components.port = portNumber
         components.path = "/ws"
         components.queryItems = [URLQueryItem(name: "token", value: token)]
+        if let schema = settingsSchema {
+            guard schema == VRProtocol.settingsSchema else { throw VRCoreError.invalid("Unsupported settings schema") }
+            components.queryItems?.append(URLQueryItem(name: "settingsSchema", value: String(schema)))
+        }
         guard let url = components.url else { throw VRCoreError.invalid("Invalid connection address") }
         return url
     }

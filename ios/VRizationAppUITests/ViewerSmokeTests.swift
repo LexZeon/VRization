@@ -76,9 +76,9 @@ final class ViewerSmokeTests: XCTestCase {
         let data = try XCTUnwrap(text?.data(using: .utf8), "Native slider diagnostics are missing")
         return try JSONDecoder().decode(SliderGeometry.self, from: data)
     }
-    private func dragSlider(_ slider: XCUIElement, to position: Double) throws {
+    private func dragSlider(_ slider: XCUIElement, to position: Double, key: String = "scale", steps: Double = 50) throws {
         XCTAssertTrue(slider.isHittable)
-        let text = app.staticTexts["setting.scale.label"].value as? String
+        let text = app.staticTexts["setting.\(key).label"].value as? String
         let data = try XCTUnwrap(text?.data(using: .utf8), "Native slider diagnostics are missing")
         let native = try JSONDecoder().decode(SliderGeometry.self, from: data)
         XCTAssertEqual(native.frame.x, Double(slider.frame.minX), accuracy: 1)
@@ -86,7 +86,7 @@ final class ViewerSmokeTests: XCTestCase {
         XCTAssertGreaterThan(native.frame.width, 0)
         XCTAssertGreaterThan(native.frame.height, 0)
         XCTAssertEqual(native.minimumValue, 0)
-        XCTAssertEqual(native.maximumValue, 50)
+        XCTAssertEqual(native.maximumValue, steps)
         let x = native.minimum.midX + (native.maximum.midX - native.minimum.midX) * position
         let y = native.current.midY
         let start = slider.coordinate(withNormalizedOffset: CGVector(
@@ -165,7 +165,7 @@ final class ViewerSmokeTests: XCTestCase {
             reveal(modes)
             XCTAssertTrue(modes.buttons["Full"].isSelected)
             XCTAssertFalse(modes.buttons["Cinema"].isEnabled)
-            XCTAssertFalse(modes.buttons["FPS"].isEnabled)
+            XCTAssertFalse(modes.buttons["First person"].isEnabled)
             screenshot("04-no-sensor-full-fallback")
         }
         app.buttons["settings.hide"].tap()
@@ -203,6 +203,7 @@ final class ViewerSmokeTests: XCTestCase {
         let frames = app.staticTexts["frame.status"]
         waitLabel(frames, contains: "1280")
         try adjustScaleAndWaitForStableEcho()
+        try adjustStabilizationAndWaitForStableEcho(checkpoint: "stabilization-usb-saved")
         screenshot("USB-01-auto-detected-settings")
         app.buttons["settings.hide"].tap()
         let surface = app.otherElements["vr.surface"]
@@ -225,6 +226,7 @@ final class ViewerSmokeTests: XCTestCase {
         let mode: String
         let scale: Double, offsetX: Double, offsetY: Double, eyeSeparation: Double
         let fov: Double, distance: Double, distortion: Double, sensitivity: Double
+        let stabilization: Double
         let invertY: Bool
     }
     private struct HostObservation: Decodable {
@@ -255,18 +257,107 @@ final class ViewerSmokeTests: XCTestCase {
         return try JSONDecoder().decode(SavedSettings.self, from: data)
     }
     private func updateFixtureDesktopScale(_ scale: Double) throws {
+        try updateFixtureDesktop(["scale": scale])
+    }
+    private func updateFixtureDesktop(_ patch: [String: Double]) throws {
+        try updateFixtureDesktopObject(patch.mapValues { $0 as Any })
+    }
+    private func updateFixtureDesktopObject(_ patch: [String: Any]) throws {
         // This changes the synthetic PC's real HostServer settings, never the
         // app's values or preferences. The app must receive its normal broadcast.
         var request = URLRequest(url: URL(string: "http://127.0.0.1:18767/host-update")!)
         request.httpMethod = "POST"; request.timeoutInterval = 5
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try JSONSerialization.data(withJSONObject: ["scale": scale])
+        request.httpBody = try JSONSerialization.data(withJSONObject: patch)
         let completed = expectation(description: "Update original fixture desktop settings")
         var status: Int?, failure: Error?
         URLSession.shared.dataTask(with: request) { _, response, error in
             status = (response as? HTTPURLResponse)?.statusCode; failure = error; completed.fulfill()
         }.resume()
         wait(for: [completed], timeout: 8); XCTAssertNil(failure); XCTAssertEqual(status, 200)
+    }
+    func testFreshUSBNoSensorFallbackPreservesNegotiatedStabilization() throws {
+        app.terminate()
+        try updateFixtureDesktopObject(["mode": "fps", "stabilization": 0.72])
+        let before = try observeHost()
+        app.launchArguments = ["--ui-testing", "--reset-preferences"]
+        launchViewer()
+        // A native Simulator has no usable motion source: the real application
+        // must fall back after learning the host's full, negotiated settings.
+        XCTAssertTrue(app.staticTexts["motion.status"].exists)
+        let toggle = app.buttons["connection.toggle"]
+        waitLabel(toggle, contains: "Disconnect", timeout: 40)
+        waitLabel(app.staticTexts["frame.status"], contains: "1280")
+        let label = app.staticTexts["setting.stabilization.label"]
+        reveal(label); waitLabel(label, contains: "72%")
+        Thread.sleep(forTimeInterval: 2)
+        let after = try observeHost(checkpoint: "stabilization-fresh-usb-fallback")
+        XCTAssertEqual(after.settings.mode, "full")
+        XCTAssertEqual(after.settings.stabilization, 0.72, accuracy: 0.000001)
+        XCTAssertEqual(after.settingsCount, before.settingsCount + 1)
+        XCTAssertTrue(after.mouseMoves.isEmpty)
+        app.terminate(); app.launchArguments = ["--ui-testing"]; launchViewer()
+        reveal(label); XCTAssertTrue(label.label.contains("72%"))
+        waitLabel(toggle, contains: "Disconnect", timeout: 40)
+        XCTAssertEqual(try observeHost(checkpoint: "stabilization-fresh-usb-restarted").settings.stabilization, 0.72, accuracy: 0.000001)
+        screenshot("STABILIZATION-03-fresh-USB-fallback-preserved")
+        reveal(toggle); toggle.tap()
+    }
+    private func stabilizationGeometry() throws -> SliderGeometry {
+        let text = app.staticTexts["setting.stabilization.label"].value as? String
+        return try JSONDecoder().decode(SliderGeometry.self, from: XCTUnwrap(text?.data(using: .utf8)))
+    }
+    private func adjustStabilizationAndWaitForStableEcho(checkpoint: String) throws {
+        let slider = app.sliders["setting.stabilization"]
+        reveal(slider)
+        try dragSlider(slider, to: 0.6, key: "stabilization", steps: 100)
+        // Real public precision controls retain exact percentage endpoints
+        // without writing app state through a test-only setter.
+        for _ in 0...100 {
+            let current = Int(try stabilizationGeometry().nativeValue.rounded())
+            if current == 60 { break }
+            let button = app.buttons["setting.stabilization.\(current < 60 ? "increase" : "decrease")"]
+            XCTAssertTrue(button.isHittable); XCTAssertTrue(button.isEnabled); button.tap()
+        }
+        waitLabel(app.staticTexts["setting.stabilization.label"], contains: "60%")
+        XCTAssertEqual(Int(try stabilizationGeometry().nativeValue.rounded()), 60)
+        Thread.sleep(forTimeInterval: 2)
+        XCTAssertTrue(app.staticTexts["setting.stabilization.label"].label.contains("60%"))
+        let received = try observeHost(checkpoint: checkpoint)
+        XCTAssertEqual(received.settings.stabilization, 0.6, accuracy: 0.000001)
+        XCTAssertTrue(received.mouseMoves.isEmpty)
+    }
+    func testStabilizationSliderSyncPersistenceAndReset() throws {
+        let label = app.staticTexts["setting.stabilization.label"]
+        reveal(label); XCTAssertTrue(label.label.contains("0%"))
+        let toggle = app.buttons["connection.toggle"]
+        reveal(toggle); toggle.tap(); waitLabel(toggle, contains: "Disconnect")
+        waitLabel(app.staticTexts["frame.status"], contains: "1280")
+        try adjustStabilizationAndWaitForStableEcho(checkpoint: "stabilization-lan-saved")
+        screenshot("STABILIZATION-01-real-slider-60")
+        try updateFixtureDesktop(["stabilization": 0.65])
+        waitLabel(label, contains: "65%")
+        Thread.sleep(forTimeInterval: 1)
+        app.terminate(); app.launchArguments = baseArguments; launchViewer()
+        reveal(label); XCTAssertTrue(label.label.contains("65%"))
+        reveal(toggle); toggle.tap(); waitLabel(toggle, contains: "Disconnect")
+        Thread.sleep(forTimeInterval: 1)
+        XCTAssertEqual(try observeHost(checkpoint: "stabilization-restored").settings.stabilization, 0.65, accuracy: 0.000001)
+        reveal(toggle); toggle.tap(); waitLabel(toggle, contains: "Connect")
+        reveal(app.sliders["setting.stabilization"])
+        app.buttons["setting.stabilization.decrease"].tap(); waitLabel(label, contains: "64%")
+        app.terminate(); launchViewer()
+        reveal(label); XCTAssertTrue(label.label.contains("64%"))
+        reveal(toggle); toggle.tap(); waitLabel(toggle, contains: "Disconnect")
+        Thread.sleep(forTimeInterval: 1)
+        let restored = try observeHost(checkpoint: "stabilization-offline-restored")
+        XCTAssertEqual(restored.settings.stabilization, 0.64, accuracy: 0.000001); XCTAssertTrue(restored.mouseMoves.isEmpty)
+        let reset = app.buttons["view.reset"]; reveal(reset); reset.tap()
+        waitLabel(toggle, contains: "Connect")
+        reveal(label); XCTAssertTrue(label.label.contains("0%"))
+        XCTAssertTrue(app.segmentedControls["language.picker"].buttons["English"].isSelected)
+        XCTAssertTrue(app.segmentedControls["connection.transport"].buttons["USB"].isSelected)
+        screenshot("STABILIZATION-02-reset-zero")
     }
     private func panEditor(eye: Int = 0, horizontal: CGFloat = -28, vertical: CGFloat = -22) {
         let image = app.otherElements["editor.eye\(eye).interior"]
@@ -422,6 +513,7 @@ final class ViewerSmokeTests: XCTestCase {
         XCTAssertEqual(defaults.mode, "full"); XCTAssertEqual(defaults.distortion, 0); XCTAssertFalse(defaults.invertY)
         XCTAssertEqual(defaults.eyeSeparation, 0.03); XCTAssertEqual(defaults.fov, 80)
         XCTAssertEqual(defaults.distance, 3); XCTAssertEqual(defaults.sensitivity, 1000)
+        XCTAssertEqual(defaults.stabilization, 0)
         app.buttons["editor.discard"].tap()
         let route = app.segmentedControls["connection.transport"]; reveal(route); route.buttons["LAN"].tap()
         reveal(app.textFields["connection.host"])

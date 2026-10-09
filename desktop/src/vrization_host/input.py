@@ -9,6 +9,7 @@ import time
 from typing import Callable, Protocol, runtime_checkable
 
 from .protocol import Settings
+from .pose_filter import PoseStabilizer
 
 
 @runtime_checkable
@@ -74,7 +75,7 @@ class PoseController:
 
     def __init__(self, sink: InputSink, on_state: Callable[[bool, str], None] | None = None,
                  focus_provider: Callable[[], int | None] | None = None,
-                 clock: Callable[[], float] = time.monotonic):
+                 clock: Callable[[], float] = time.perf_counter):
         self.sink, self.on_state, self.focus_provider, self.clock = sink, on_state, focus_provider, clock
         self.lock = threading.RLock()
         self.settings = Settings()
@@ -86,6 +87,7 @@ class PoseController:
         self.target_window = None
         self.armed_at = 0.0
         self.remainder = (0.0, 0.0)
+        self.stabilizer = PoseStabilizer()
 
     def _disarm(self, reason: str):
         changed = self.armed
@@ -93,6 +95,7 @@ class PoseController:
         self.target_window = None
         self.baseline = None
         self.remainder = (0.0, 0.0)
+        self.stabilizer.reset()
         if changed and self.on_state:
             self.on_state(False, reason)
 
@@ -110,6 +113,13 @@ class PoseController:
         with self.lock:
             if self.settings.mode != settings.mode or settings.mode != "fps":
                 self._disarm("mode changed")
+            filter_changed = self.stabilizer.configure(settings.stabilization)
+            filtered_gain_changed = settings.stabilization > 0 and (
+                self.settings.sensitivity != settings.sensitivity or self.settings.invertY != settings.invertY)
+            if filter_changed or filtered_gain_changed:
+                self.baseline = None
+                self.remainder = (0.0, 0.0)
+                self.stabilizer.reset()
             self.settings = settings
 
     def arm(self) -> tuple[bool, str]:
@@ -125,6 +135,7 @@ class PoseController:
             self.target_window = None
             self.baseline = None
             self.remainder = (0.0, 0.0)
+            self.stabilizer.reset()
             if self.on_state:
                 self.on_state(True, "mouse armed; switch to your game within 5 seconds")
             return True, "已启用，5 秒内切换到游戏；F8 停止 / Armed; switch to game, F8 stops"
@@ -133,6 +144,7 @@ class PoseController:
         with self.lock:
             self.baseline = None
             self.remainder = (0.0, 0.0)
+            self.stabilizer.reset()
 
     def tick(self):
         with self.lock:
@@ -155,6 +167,8 @@ class PoseController:
             self.last_seq, self.last_pose_time = seq, now
             previous, self.baseline = self.baseline, (yaw, pitch)
             if not self.armed or self.settings.mode != "fps" or previous is None:
+                if self.settings.stabilization > 0:
+                    self.stabilizer.reset(now)
                 return
             if self.focus_provider:
                 foreground = self.focus_provider()
@@ -162,8 +176,12 @@ class PoseController:
                     if foreground is None:
                         if now - self.armed_at > 5:
                             self._disarm("no game window selected within 5 seconds")
+                        elif self.settings.stabilization > 0:
+                            self.stabilizer.reset(now)
                         return
                     self.target_window = foreground
+                    if self.settings.stabilization > 0:
+                        self.stabilizer.reset(now)
                     return  # Establish a fresh baseline after the focus transition.
                 if foreground != self.target_window:
                     self._disarm("foreground window changed")
@@ -172,12 +190,23 @@ class PoseController:
             dpitch = self.angle_delta(pitch, previous[1])
             if abs(dyaw) > self.MAX_ANGLE_STEP or abs(dpitch) > self.MAX_ANGLE_STEP:
                 self.remainder = (0.0, 0.0)  # Drop a sensor reset/spike; baseline already updated.
+                if self.settings.stabilization > 0:
+                    self.stabilizer.reset(now)
                 return
+            if self.settings.stabilization > 0:
+                dyaw, dpitch = self.stabilizer.step(dyaw, dpitch, now)
             dx = dyaw * self.settings.sensitivity + self.remainder[0]
             dy = dpitch * self.settings.sensitivity * (1 if self.settings.invertY else -1) + self.remainder[1]
             ix = max(-self.MAX_PIXEL_STEP, min(self.MAX_PIXEL_STEP, round(dx)))
             iy = max(-self.MAX_PIXEL_STEP, min(self.MAX_PIXEL_STEP, round(dy)))
             self.remainder = (dx - round(dx), dy - round(dy))
+            if self.settings.stabilization > 0:
+                # Integer movement clipped by the historical cap is discarded,
+                # never paid back by a filtered tail on later stationary poses.
+                clipped_yaw = abs(round(dx)) > self.MAX_PIXEL_STEP
+                clipped_pitch = abs(round(dy)) > self.MAX_PIXEL_STEP
+                if clipped_yaw or clipped_pitch:
+                    self.stabilizer.discard_lag(yaw=clipped_yaw, pitch=clipped_pitch)
             try:
                 self.sink.move(ix, iy)
             except Exception as exc:

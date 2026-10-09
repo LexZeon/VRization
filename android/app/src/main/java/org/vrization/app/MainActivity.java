@@ -58,7 +58,7 @@ public final class MainActivity extends Activity {
     private LinearLayout overlay;
     private Button panelButton, connectButton;
     private TextView status, frameStatus;
-    private TextView transportHelp, linkStatus, processingStatus, connectionNotice;
+    private TextView transportHelp, linkStatus, processingStatus, connectionNotice, stabilizationHelp;
     private LinearLayout lanInputs;
     private EditText hostInput, portInput, codeInput;
     private Spinner modeInput;
@@ -122,13 +122,15 @@ public final class MainActivity extends Activity {
                 runOnUiThread(() -> {
                     if (destroyed) return;
                     if (!connected && !client.isActive() && headsetEdit != null) finishHeadsetEdit(false, false);
-                    status.setText(text); updateConnectButton();
+                    status.setText(text); updateConnectButton(); updateStabilizationHelp();
                 });
             }
             @Override public void onSettings(JSONObject json, Long revision, Long clientSeq) {
                 runOnUiThread(() -> {
                     if (destroyed) return;
                     String oldMode = settings.mode;
+                    updateStabilizationHelp();
+                    if (profile.waitForExtendedSnapshot(client.supportsStabilization(), json.has("stabilization"))) return;
                     VrSettings incoming = SettingsJson.decode(json, settings);
                     if (!settingsSync.accept(incoming, revision, clientSeq)) return;
                     settings = incoming;
@@ -310,6 +312,10 @@ public final class MainActivity extends Activity {
         addSlider(content, getString(R.string.fov), 50f, 110f, 60, () -> settings.fov, value -> settings.fov = value, "%.0f°", 1f);
         addSlider(content, getString(R.string.distance), 1f, 8f, 140, () -> settings.distance, value -> settings.distance = value, "%.1f", 1f);
         addSlider(content, getString(R.string.sensitivity), 100f, 3000f, 290, () -> settings.sensitivity, value -> settings.sensitivity = value, getString(R.string.format_pixels), 1f);
+        addSlider(content, getString(R.string.stabilization), 0f, 1f, 100, () -> settings.stabilization,
+            value -> settings.stabilization = value, "%.0f%%", 100f);
+        stabilizationHelp = text(getString(R.string.stabilization_help), 12, MUTED, false);
+        content.addView(stabilizationHelp);
         invertInput = new CheckBox(this); invertInput.setText(getString(R.string.invert_y)); invertInput.setTextColor(INK);
         invertInput.setOnCheckedChangeListener((button, checked) -> {
             if (!refreshing) { settings.invertY = checked; settingsChanged(true); }
@@ -347,10 +353,15 @@ public final class MainActivity extends Activity {
         transportHelp.setText(usb ? R.string.usb_help : R.string.connection_help);
         connectionNotice.setText(usb ? R.string.usb_notice : R.string.network_notice);
         updateConnectButton();
+        updateStabilizationHelp();
     }
     private void updateConnectButton() {
         connectButton.setText(client.isConnected() ? R.string.disconnect : client.isConnecting() ? R.string.cancel_connect
             : connectionMode == ConnectionMode.USB ? R.string.connect_usb : R.string.connect);
+    }
+    private void updateStabilizationHelp() {
+        if (stabilizationHelp != null) stabilizationHelp.setText(client.isConnected() && !client.supportsStabilization()
+            ? R.string.stabilization_legacy : R.string.stabilization_help);
     }
     private void requestFastDisplay() {
         Display display = getWindowManager().getDefaultDisplay();
@@ -501,6 +512,7 @@ public final class MainActivity extends Activity {
         resumed = false; finishHeadsetEdit(false, false); initialUsb.stop(); trackingActive = false; pose.stop(); client.disconnect(false); renderer.pauseFrames(); surface.onPause();
         status.setText(getString(R.string.paused));
         updateConnectButton();
+        updateStabilizationHelp();
         super.onPause();
     }
     @Override protected void onDestroy() {

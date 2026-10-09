@@ -12,9 +12,14 @@ public final class HostSessionGateTest {
     }
     static Map<String, Object> hello() {
         Map<String, Object> hello = message("hello"), stream = new LinkedHashMap<>();
-        hello.put("name", "VRization"); hello.put("version", "0.3.0"); hello.put("settings", SettingsValues.encode(new VrSettings()));
+        hello.put("name", "VRization"); hello.put("version", "schema2-test"); hello.put("settings", SettingsValues.encode(new VrSettings()));
         stream.put("codec", "jpeg"); stream.put("fps", 60); stream.put("maxWidth", 640);
         hello.put("stream", stream); hello.put("mouseArmed", false); hello.put("revision", 3); return hello;
+    }
+    static Map<String, Object> legacyHello() {
+        Map<String, Object> hello = hello(); hello.put("version", "0.3.0");
+        Map<String, Object> fields = SettingsValues.encodeForHost(new VrSettings(), false);
+        assertEquals(10, fields.size()); hello.put("settings", fields); return hello;
     }
     @Test public void validHelloIsTheOnlyEstablishmentEventAndAllowsSettingsAndVideo() {
         HostSessionGate gate = new HostSessionGate(); assertFalse(gate.isEstablished());

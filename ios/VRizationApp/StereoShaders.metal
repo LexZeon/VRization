@@ -13,6 +13,11 @@ fragment float4 stereoFragment(Raster in [[stage_in]], constant Uniforms &u [[bu
     float offsetY=u.placement.x, eyeShift=u.placement.y, distortion=u.placement.z, fov=u.placement.w;
     float distance=u.scene.x, yaw=u.scene.y, pitch=u.scene.z, roll=u.scene.w;
     float2 p=(in.uv-0.5)*2;
+    // Keep the saved per-eye headset viewport fixed for all scene modes.
+    // Lens distortion and Cinema head motion only affect pixels inside it.
+    float2 fit=float2(min(1.0f,imageAspect/aspect),min(1.0f,aspect/imageAspect));
+    float2 mask=(p-float2(offsetX+eyeShift,offsetY))/(scale*fit);
+    if(abs(mask.x)>1 || abs(mask.y)>1) return float4(0,0,0,1);
     p*=1+distortion*dot(p,p);
     p=(p-float2(offsetX+eyeShift,offsetY))/scale;
     float2 q;
@@ -26,7 +31,6 @@ fragment float4 stereoFragment(Raster in [[stage_in]], constant Uniforms &u [[bu
         float2 hit=r.xy*(-distance/r.z)+float2(u.flags.y*0.032,0);
         q=hit/float2(2,2/imageAspect);
     } else {
-        float2 fit=float2(min(1.0f,imageAspect/aspect),min(1.0f,aspect/imageAspect));
         q=p/fit;
     }
     if(abs(q.x)>1 || abs(q.y)>1) return float4(0,0,0,1);

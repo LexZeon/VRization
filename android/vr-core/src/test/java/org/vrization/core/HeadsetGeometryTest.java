@@ -104,25 +104,29 @@ public final class HeadsetGeometryTest {
     }
     @Test public void saveChangesOnlyFitAndPreservesOriginalModeAndOptics() {
         VrSettings entry = new VrSettings(); entry.mode = "fps"; entry.distortion = .4f; entry.fov = 103; entry.invertY = true;
+        entry.stabilization = .74f;
         HeadsetEdit edit = new HeadsetEdit(entry);
         assertEquals("full", edit.preview().mode); assertEquals(0, edit.preview().distortion, 0);
         VrSettings geometry = HeadsetGeometry.pan(edit.draft(), .1f, .2f); geometry.scale = .7f;
-        geometry.eyeSeparation = .16f; geometry.mode = "cinema"; geometry.distortion = .1f; edit.update(geometry);
+        geometry.eyeSeparation = .16f; geometry.mode = "cinema"; geometry.distortion = .1f; geometry.stabilization = .1f; edit.update(geometry);
         VrSettings saved = edit.save();
         assertEquals(.7f, saved.scale, 0); assertEquals(.1f, saved.offsetX, 0); assertEquals(.2f, saved.offsetY, 0);
         assertEquals(.16f, saved.eyeSeparation, 0);
         assertEquals("fps", saved.mode); assertEquals(.4f, saved.distortion, 0); assertEquals(103, saved.fov, 0); assertTrue(saved.invertY);
+        assertEquals(.74f, saved.stabilization, 0);
         assertEquals(.85f, entry.scale, 0); assertEquals(0, entry.offsetX, 0);
         try { edit.save(); fail("Cannot save the transaction twice"); } catch (IllegalStateException expected) { }
     }
     @Test public void discardRestoresIndependentEntrySnapshotAndHasNoCommitValue() {
         VrSettings entry = new VrSettings(); entry.mode = "cinema"; entry.distortion = .25f;
-        HeadsetEdit edit = new HeadsetEdit(entry); entry.mode = "full";
+        entry.stabilization = .81f;
+        HeadsetEdit edit = new HeadsetEdit(entry); entry.mode = "full"; entry.stabilization = 0;
         edit.update(HeadsetGeometry.mirroredPan(edit.draft(), 1, 1, -1, -.1f, -.3f));
         VrSettings discarded = edit.discard();
         assertEquals("cinema", discarded.mode); assertEquals(0, discarded.offsetX, 0);
         assertEquals(0, discarded.offsetY, 0); assertEquals(.25f, discarded.distortion, 0);
         assertEquals(.03f, discarded.eyeSeparation, 0);
+        assertEquals(.81f, discarded.stabilization, 0);
         try { edit.save(); fail("Discarded editor cannot commit"); } catch (IllegalStateException expected) { }
     }
 }

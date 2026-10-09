@@ -14,6 +14,7 @@ final class StreamClient: NSObject, URLSessionWebSocketDelegate {
     var onSettings: ((VRSettings, Int64?, Int64?) -> Void)?
     var onFrame: ((CGImage) -> Void)?
     var onRTT: ((Double?) -> Void)?
+    var onCapabilitiesChanged: (() -> Void)?
     private var session: URLSession?
     private var socket: URLSessionWebSocketTask?
     private let sessions = SessionGeneration()
@@ -21,6 +22,8 @@ final class StreamClient: NSObject, URLSessionWebSocketDelegate {
     private let decoder = JPEGDecoder()
     private let usb = USBListener()
     private var protocolGate = HostSessionGate()
+    private var settingsBase = VRSettings()
+    var supportsStabilization: Bool { protocolGate.supportsStabilization }
     private var handshakeTimeout: Timer?
     private var heartbeat: Timer?
     private var sending = false
@@ -69,7 +72,8 @@ final class StreamClient: NSObject, URLSessionWebSocketDelegate {
         precondition(Thread.isMainThread)
         disconnect(notify: false)
         transport = .lan
-        guard let url = try? ConnectionInput.url(host: host, port: String(port), token: code) else { return false }
+        guard let url = try? ConnectionInput.url(host: host, port: String(port), token: code,
+                                                settingsSchema: VRProtocol.settingsSchema) else { return false }
         let config = URLSessionConfiguration.ephemeral
         config.timeoutIntervalForRequest = 15
         config.httpCookieStorage = nil
@@ -101,9 +105,14 @@ final class StreamClient: NSObject, URLSessionWebSocketDelegate {
     }
 
     func sendSettings(_ settings: VRSettings, sequence: Int64) -> Bool {
-        guard state == .connected, let data = try? VRProtocol.encodeSettings(settings, clientSeq: sequence) else { return false }
+        setSettingsBase(settings)
+        guard state == .connected, let data = try? VRProtocol.encodeSettings(settings, clientSeq: sequence,
+                                                                           supportsStabilization: supportsStabilization) else { return false }
         pendingSettings = data; drain()
         return true
+    }
+    func setSettingsBase(_ settings: VRSettings) {
+        if (try? settings.validated()) != nil { settingsBase = settings }
     }
     func sendPose(yaw: Double, pitch: Double) {
         guard state == .connected, !posesPaused, yaw.isFinite, pitch.isFinite, poseSequence < 9_007_199_254_740_991 else { return }
@@ -174,20 +183,40 @@ final class StreamClient: NSObject, URLSessionWebSocketDelegate {
 
     private func handle(_ data: Data) {
         do {
-            switch try protocolGate.receiveText(data) {
+            let hadSupport = supportsStabilization
+            let wasAwaitingSnapshot = protocolGate.awaitingSettingsSnapshot
+            let event = try protocolGate.receiveText(data, settingsBase: settingsBase)
+            if hadSupport != supportsStabilization { onCapabilitiesChanged?() }
+            switch event {
             case .established(let hello):
                 let epoch = generation
                 if transport == .usb { usb.acknowledgedHost() }
+                if protocolGate.awaitingSettingsSnapshot {
+                    requestSettingsSnapshot()
+                    return
+                }
                 beginConnected()
                 guard generation == epoch, state == .connected else { return }
                 onSettings?(hello.settings, hello.revision, nil)
-            case .message(let message): handleMessage(message)
+            case .message(let message):
+                if state == .connecting, wasAwaitingSnapshot {
+                    if case .error = message { disconnect(reason: "protocolError"); return }
+                    // No app callback can create a profile or trigger a sensor
+                    // fallback until the advertised schema's full values arrive.
+                    guard !protocolGate.awaitingSettingsSnapshot,
+                          case .settings(let update) = message else { return }
+                    let epoch = generation
+                    beginConnected(schemaAlreadyRequested: true)
+                    guard generation == epoch, state == .connected else { return }
+                    onSettings?(update.settings, update.revision, update.clientSeq)
+                } else { handleMessage(message) }
             }
         } catch { disconnect(reason: "protocolError") }
     }
     private func handleJPEG(_ data: Data) {
         do {
             try protocolGate.receiveJPEG(byteCount: data.count)
+            if state == .connecting, protocolGate.awaitingSettingsSnapshot { return }
             guard state == .connected else { disconnect(reason: "protocolError"); return }
             decoder.submit(data, generation: generation)
         } catch { disconnect(reason: "protocolError") }
@@ -202,14 +231,38 @@ final class StreamClient: NSObject, URLSessionWebSocketDelegate {
         }
     }
 
-    private func beginConnected() {
+    private func requestSettingsSnapshot() {
+        let epoch = generation
+        handshakeTimeout?.invalidate()
+        let timer = Timer(timeInterval: 10, repeats: false) { [weak self] _ in
+            guard let self = self, self.generation == epoch, self.state == .connecting else { return }
+            self.disconnect(reason: "handshakeTimeout")
+        }
+        handshakeTimeout = timer; RunLoop.main.add(timer, forMode: .common)
+        let data = VRProtocol.hello()
+        let complete: (Bool) -> Void = { [weak self] ok in
+            guard let self = self, self.generation == epoch, self.state == .connecting else { return }
+            if !ok { self.disconnect(reason: "failed") }
+        }
+        if transport == .usb { usb.send(data, completion: complete) }
+        else if let socket = socket {
+            socket.send(.string(String(decoding: data, as: UTF8.self))) { error in
+                DispatchQueue.main.async { complete(error == nil) }
+            }
+        } else { complete(false) }
+    }
+
+    private func beginConnected(schemaAlreadyRequested: Bool = false) {
         guard state == .connecting, protocolGate.isEstablished else { return }
         handshakeTimeout?.invalidate(); handshakeTimeout = nil
         let epoch = generation
         posesPaused = false
+        // Schema negotiation must precede any callback-triggered profile send.
+        // Its capability was already established by the validated host hello.
+        pendingHello = schemaAlreadyRequested ? nil : VRProtocol.hello()
         state = .connected; onSessionStarted?()
         guard generation == epoch, state == .connected else { return }
-        pendingHello = VRProtocol.hello(); drain(); onState?(state, "connected")
+        drain(); onState?(state, "connected")
         guard generation == epoch, state == .connected else { return }
         let timer = Timer(timeInterval: 2, repeats: true) { [weak self] _ in
             guard let self = self, self.generation == epoch, self.state == .connected else { return }

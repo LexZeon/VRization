@@ -13,7 +13,7 @@ public final class PhoneProfileTest {
         PhoneProfile profile = new PhoneProfile(null); assertFalse(profile.hasSavedProfile());
         VrSettings value = new VrSettings(); value.mode = "fps"; value.scale = .91f;
         value.offsetX = .23f; value.offsetY = -.24f; value.eyeSeparation = .15f; value.fov = 109;
-        value.distance = 7; value.distortion = .49f; value.sensitivity = 2999; value.invertY = true;
+        value.distance = 7; value.distortion = .49f; value.sensitivity = 2999; value.stabilization = .83f; value.invertY = true;
         profile.commit(value);
         PhoneProfile restarted = new PhoneProfile(SettingsValues.encode(profile.snapshot()));
         assertTrue(restarted.hasSavedProfile());
@@ -23,7 +23,7 @@ public final class PhoneProfileTest {
     }
     @Test public void resetRestoresFullVrDefaultsAndPhonePreferenceDefaults() {
         PhoneProfile profile = new PhoneProfile(null); VrSettings changed = new VrSettings();
-        changed.mode = "fps"; changed.scale = .5f; changed.invertY = true; profile.commit(changed);
+        changed.mode = "fps"; changed.scale = .5f; changed.invertY = true; changed.stabilization = .9f; profile.commit(changed);
         assertEquals(SettingsValues.encode(new VrSettings()), SettingsValues.encode(profile.reset()));
         assertTrue(profile.hasSavedProfile()); assertEquals("en", PhoneProfile.DEFAULT_LANGUAGE);
         assertEquals("usb", PhoneProfile.DEFAULT_TRANSPORT); assertEquals("", PhoneProfile.DEFAULT_HOST);
@@ -72,5 +72,62 @@ public final class PhoneProfileTest {
             fields.put("eyeSeparation", invalid);
             try { new PhoneProfile(fields); fail(); } catch (IllegalArgumentException expected) { }
         }
+    }
+    @Test public void completeLegacyProfileMigratesWithoutLosingAnyOtherCommittedField() {
+        VrSettings original = new VrSettings(); original.mode = "fps"; original.scale = .61f;
+        original.eyeSeparation = -.72f; original.offsetY = -.21f; original.invertY = true;
+        original.sensitivity = 2200; original.stabilization = .8f;
+        Map<String, Object> legacy = SettingsValues.encodeForHost(original, false);
+        assertEquals(10, legacy.size());
+        PhoneProfile migrated = new PhoneProfile(legacy);
+        assertTrue(migrated.hasSavedProfile()); assertEquals(0, migrated.snapshot().stabilization, 0);
+        assertEquals(legacy, SettingsValues.encodeForHost(migrated.snapshot(), false));
+        assertEquals(11, SettingsValues.encode(migrated.snapshot()).size());
+        VrSettings nonDefaultBase = original.copy();
+        assertEquals(0, SettingsValues.decode(legacy, nonDefaultBase, true).stabilization, 0);
+    }
+    @Test public void legacyMigrationDoesNotAcceptMissingRequiredFieldsOrExtraKeys() {
+        Map<String, Object> incomplete = SettingsValues.encodeForHost(new VrSettings(), false);
+        incomplete.remove("distance");
+        assertThrows(IllegalArgumentException.class, () -> new PhoneProfile(incomplete));
+        Map<String, Object> extra = SettingsValues.encodeForHost(new VrSettings(), false);
+        extra.put("futureField", 0);
+        assertThrows(IllegalArgumentException.class, () -> new PhoneProfile(extra));
+    }
+    @Test public void stabilizationWireValuesMustBeFiniteNumbersInsideClosedBounds() {
+        for (Object invalid : new Object[]{"0.5", Boolean.TRUE, Double.NaN, Double.POSITIVE_INFINITY,
+            Double.NEGATIVE_INFINITY, -.00001, 1.00001}) {
+            Map<String, Object> fields = SettingsValues.encode(new VrSettings()); fields.put("stabilization", invalid);
+            assertThrows(IllegalArgumentException.class, () -> new PhoneProfile(fields));
+        }
+        for (double valid : new double[]{0, .37, 1}) {
+            Map<String, Object> fields = SettingsValues.encode(new VrSettings()); fields.put("stabilization", valid);
+            assertEquals((float)valid, new PhoneProfile(fields).snapshot().stabilization, 0);
+        }
+    }
+    @Test public void legacyHostPartialUpdateCannotEraseTheLocallySavedStabilization() {
+        VrSettings saved = new VrSettings(); saved.stabilization = .76f;
+        Map<String, Object> legacy = SettingsValues.encodeForHost(saved, false); legacy.put("scale", .64);
+        VrSettings accepted = SettingsValues.decode(legacy, saved, false);
+        PhoneProfile profile = new PhoneProfile(null); profile.commit(accepted);
+        assertEquals(.76f, profile.snapshot().stabilization, 0); assertEquals(.64f, profile.snapshot().scale, 0);
+        assertEquals(.76f, saved.stabilization, 0);
+    }
+    @Test public void freshProfileWaitsForAdvertisedExtendedValueBeforeSensorFallbackCanSendDefaults() {
+        PhoneProfile fresh = new PhoneProfile(null);
+        assertTrue(fresh.waitForExtendedSnapshot(true, false));
+        assertFalse(fresh.waitForExtendedSnapshot(false, false));
+        assertFalse(fresh.hasSavedProfile());
+        VrSettings remote = new VrSettings(); remote.mode = "fps"; remote.stabilization = .72f;
+        assertFalse(fresh.waitForExtendedSnapshot(true, true));
+        VrSettings complete = SettingsValues.decode(SettingsValues.encode(remote), fresh.snapshot(), false);
+        // The no-sensor fallback changes mode, while preserving the now-known host filter value.
+        complete.mode = "full"; fresh.commit(complete);
+        assertEquals(.72f, fresh.snapshot().stabilization, 0); assertEquals("full", fresh.snapshot().mode);
+    }
+    @Test public void explicitSavedPhoneProfileStillWinsTheInitialLegacyCapabilitySnapshot() {
+        PhoneProfile saved = new PhoneProfile(null); VrSettings local = new VrSettings(); local.stabilization = .81f;
+        saved.commit(local); assertFalse(saved.waitForExtendedSnapshot(true, false));
+        assertEquals(.81f, saved.snapshot().stabilization, 0);
     }
 }

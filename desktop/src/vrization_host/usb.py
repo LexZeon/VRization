@@ -17,6 +17,7 @@ import re
 import socket
 import struct
 import subprocess
+import sys
 import threading
 import time
 from xml.parsers.expat import ExpatError
@@ -40,6 +41,29 @@ def safe_relay_error(error) -> str:
     return str(error)
 
 
+def portable_adb_candidates() -> list[Path]:
+    """Fixed SDK layouts rooted at the frozen app, never its working directory.
+
+    The SDK is installed separately by the user. It is not shipped in our ZIP,
+    repo or PyInstaller extraction directory. Archive layouts let a directly
+    opened EXE find the same local tools as the generated launcher.
+    """
+    if not getattr(sys, "frozen", False):
+        return []
+    program = Path(sys.executable).resolve().parent
+    roots = [program]
+    if program.name.casefold() == "windows":
+        container = program.parent
+        roots.append(container)
+        if container.name.casefold() == "latest" or re.fullmatch(
+                r"previous-latest-\d{8}-\d{6}-[a-f0-9]{6}", container.name):
+            roots.append(container.parent)
+        elif container.parent.name.casefold() == "versions" and re.fullmatch(
+                r"v\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?", container.name):
+            roots.append(container.parent.parent)
+    return [root / "tools" / "android-sdk" / "platform-tools" / "adb.exe" for root in roots]
+
+
 def find_adb(explicit: str = "") -> Path | None:
     """Use a chosen or known SDK tool, never an arbitrary PATH/CWD executable."""
     candidates = [Path(explicit)] if explicit else []
@@ -50,6 +74,7 @@ def find_adb(explicit: str = "") -> Path | None:
     candidates.extend((local_app_data / "Android" / "Sdk" / "platform-tools" / "adb.exe",
                        local_app_data / "VRization" / "tools" / "android-sdk" /
                        "platform-tools" / "adb.exe"))
+    candidates.extend(portable_adb_candidates())
     for path in candidates:
         if path.name.lower() in ("adb", "adb.exe") and path.is_file():
             return path.resolve()
@@ -200,6 +225,10 @@ class AdbReverse:
                     usb = self.command("-s", device.serial, "get-devpath").strip().startswith("usb:")
                 if not usb:
                     usb = self.usb_presence(device.serial)
+            elif not usb and device.state == "offline":
+                # An offline transport cannot answer get-devpath. Present USB
+                # PnP evidence is enough to explain its state, never authorize it.
+                usb = self.usb_presence(device.serial)
             if usb or device.state == "unauthorized":
                 result.append(AndroidDevice(device.serial, device.state, usb))
         return result
@@ -538,6 +567,8 @@ class UsbManager:
             self.status("Choose an Android USB device; multiple devices are connected")
         elif any(d.state == "unauthorized" for d in devices):
             self.status("Unlock Android and allow USB debugging for this computer")
+        elif any(d.state == "offline" and d.usb for d in devices):
+            self.status("Android USB offline; reconnect cable, unlock the phone and allow USB debugging")
         elif apple:
             if len(apple) != 1:
                 self.status("Connect only one iPhone for automatic USB pairing")

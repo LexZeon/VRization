@@ -152,8 +152,15 @@ def publish_latest(root, folder):
             (staging / target).mkdir()
             shutil.copy2(staged_downloads / asset, staging / target / asset)
     (staging / ".vrization-archive.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")
-    (staging / "Start-Windows.bat").write_bytes(b'@echo off\r\nstart "" "%~dp0Windows\\VRization-Host.exe"\r\n')
-    (staging / "Start-on-second-monitor.bat").write_bytes(b'@echo off\r\nstart "" "%~dp0Windows\\VRization-Host.exe" --monitor 2\r\n')
+    # Separately installed official tools live outside all public release assets.
+    # setlocal scopes these SDK variables to this launcher and its child app.
+    launcher = ('@echo off\r\nsetlocal\r\n'
+                'if exist "%~dp0..\\tools\\android-sdk\\platform-tools\\adb.exe" (\r\n'
+                '  set "ANDROID_HOME=%~dp0..\\tools\\android-sdk"\r\n'
+                '  set "ANDROID_SDK_ROOT=%~dp0..\\tools\\android-sdk"\r\n'
+                ')\r\nstart "" "%~dp0Windows\\VRization-Host.exe"')
+    (staging / "Start-Windows.bat").write_bytes((launcher + '\r\nendlocal\r\n').encode("ascii"))
+    (staging / "Start-on-second-monitor.bat").write_bytes((launcher + ' --monitor 2\r\nendlocal\r\n').encode("ascii"))
     # Never delete or overwrite an unowned user directory. All directory moves
     # resolve to siblings inside this explicit archive root before execution.
     if staging.resolve().parent != root or latest.resolve().parent != root:

@@ -29,11 +29,11 @@ The first release and final v0.1.1 APK were installed and streamed on a Google-f
 
 A physical ASUS portrait display was captured from Windows 11; 2160 × 3840 became 720 × 1280 at longest-edge limit 1280. The desktop language controls were tested on the actual ASUS display: English default, Chinese selection, persistence after reopen, switching during streaming, and scrolling at 1060 × 680.
 
-The final v0.1.1 APK also upgraded the Google-free Android 16 / API 36 AOSP emulator from v0.1.0, started with English UI, retained Chinese after force-stop / reopen, and switched back to English. It received the original 1280 × 720 card over a real WebSocket and rendered both eyes. Host-selected cinema / FPS modes remained selected; sensor-service Game Rotation Vector registration and full-screen unregistration were observed. Hidden controls / Back recovery, disconnecting on background, and explicit reconnection after language changes, background or server close `1001` passed. No AndroidRuntime / OpenGLRenderer / libEGL errors were observed. These are emulator observations, not physical-gyro, real-game or latency tests. See [validation](VALIDATION.md).
+The final v0.1.1 APK also upgraded the Google-free Android 16 / API 36 AOSP emulator from v0.1.0, started with English UI, retained Chinese after force-stop / reopen, and switched back to English. It received the original 1280 × 720 card over a real WebSocket and rendered both eyes. Host-selected cinema / First-person modes remained selected; sensor-service Game Rotation Vector registration and full-screen unregistration were observed. Hidden controls / Back recovery, disconnecting on background, and explicit reconnection after language changes, background or server close `1001` passed. No AndroidRuntime / OpenGLRenderer / libEGL errors were observed. These are emulator observations, not physical-gyro, real-game or latency tests. See [validation](VALIDATION.md).
 
 ### v0.2.0 physical Android USB check
 
-A HUAWEI Pura 70 Ultra reporting Android 12 / API 31 compatibility upgraded in place from the previous local APK to v0.2.0 (code 3). English and USB were the defaults. Authorized USB host discovery, automatic connection on a fresh launch, reception of the original 960 × 540 calibration stream and both-eye rendering passed. The phone transmitted rotation poses in FPS mode; the test used a fake input sink, with no operating-system mouse output. Chinese persisted after force-stop / reopen, and switching language disconnected the stream as designed. This does not establish its marketing OS version, every Huawei model, gyro axes or headset comfort. See [the complete validation record](VALIDATION.md).
+A HUAWEI Pura 70 Ultra reporting Android 12 / API 31 compatibility upgraded in place from the previous local APK to v0.2.0 (code 3). English and USB were the defaults. Authorized USB host discovery, automatic connection on a fresh launch, reception of the original 960 × 540 calibration stream and both-eye rendering passed. The phone transmitted rotation poses in First-person mode; the test used a fake input sink, with no operating-system mouse output. Chinese persisted after force-stop / reopen, and switching language disconnected the stream as designed. This does not establish its marketing OS version, every Huawei model, gyro axes or headset comfort. See [the complete validation record](VALIDATION.md).
 
 USB support requires official Platform Tools / Android debugging authorization, or Apple's Windows device software / Trust for iOS. Neither driver stack is bundled. The iOS relay is tested with simulated USB devices; there is no real-iPhone USB result. See [USB prerequisites](USB.md).
 
@@ -46,6 +46,10 @@ Other Android phones / derivatives, physical iPhones / iPads including the oldes
 ### v0.3 editor / preferences scope
 
 Targets are unchanged. The new flat editor, shared geometry with dynamic seam limits, Save / Discard, explicit reset and committed phone profile restoration are documented in [editing](EDITING.md). The message envelope remains v1, but negative eye separation requires v0.3 on both sides; v0.2 only accepts 0…0.2. Existing nonnegative profiles remain valid. v0.3 phones restore saved profiles only after a valid hello. Historical results remain evidence for their named versions. The final v0.3 APK passed physical Huawei editor / mirrored-direction / small-image contact, Save / Discard, PC ↔ phone persistence, restart, language and reset checks, plus 14 real UI checks on an API 23 emulator. PC consumer / commit handlers were exercised headlessly, not by actual new Windows GUI interactions. Final CI passed 65 Swift core tests / three native Simulator UI cases, both SDK builds and LAN / simulated-USB signed-seam checks; physical iPhone USB and headset optics remain unverified. See [exact validation](VALIDATION.md).
+
+### v0.3.2 compatibility scope
+
+The new First-person stabilization setting defaults to 0, preserving previous behavior. Full ten-field profiles migrate to eleven fields with stabilization 0; current clients negotiate settings schema 2 inside protocol v1 and omit the new network field for legacy hosts while retaining its local value. A newer host is needed for stabilization to take effect. Windows / Android / iOS targets above are unchanged. New final binaries, Mac CI and physical stabilization-slider / synchronization acceptance are pending; earlier checks below remain evidence for their named version. The ordinary archived Windows launcher has separately been confirmed to show the stream on the Huawei after configuring a portable official SDK outside packaged-app storage; that check used the prior host / phone builds, not final v0.3.2 binaries. A subsequent ADB debugging-channel drop remains under investigation; USB-interface presence alone and one successful session do not establish durable connectivity. See [current release status](RELEASE_NOTES.md) and [stabilization](STABILIZATION.md).
 
 ---
 
@@ -80,7 +84,7 @@ Windows 11 采集真实 ASUS 竖屏，2160 × 3840 在最长边 1280 时输出 7
 
 ### v0.2.0 Android 真机 USB 检查
 
-报告 Android 12 / API 31 兼容层的 HUAWEI Pura 70 Ultra 从此前本地 APK 覆盖升级到 v0.2.0（code 3）。默认英文和 USB，授权后的 USB 服务发现、新启动自动连接、960 × 540 原创校准串流接收与双眼渲染通过。FPS 模式手机可发送旋转姿态；测试使用假输入接收器，没有操作系统鼠标输出。中文在强制停止 / 重开后保留，切换语言按设计断开串流。这不推断其营销系统版本，也不代表全部华为型号、陀螺仪轴向或盒子舒适度。详见 [完整验证记录](VALIDATION.md)。
+报告 Android 12 / API 31 兼容层的 HUAWEI Pura 70 Ultra 从此前本地 APK 覆盖升级到 v0.2.0（code 3）。默认英文和 USB，授权后的 USB 服务发现、新启动自动连接、960 × 540 原创校准串流接收与双眼渲染通过。第一人称模式手机可发送旋转姿态；测试使用假输入接收器，没有操作系统鼠标输出。中文在强制停止 / 重开后保留，切换语言按设计断开串流。这不推断其营销系统版本，也不代表全部华为型号、陀螺仪轴向或盒子舒适度。详见 [完整验证记录](VALIDATION.md)。
 
 USB 需要官方 Platform Tools / Android 调试授权，或 iOS 的 Apple Windows 设备软件 / 信任，均不在包内附带。iOS 中继通过模拟 USB 设备测试，尚无 iPhone 真机 USB 结果。详见 [USB 前提](USB.md)。
 
@@ -94,3 +98,7 @@ USB 需要官方 Platform Tools / Android 调试授权，或 iOS 的 Apple Windo
 ### v0.3 编辑器 / 偏好范围
 
 支持目标不变。新增平面编辑器、带动态接缝限位的共用几何、保存 / 放弃、主动重置与手机已提交配置恢复见 [编辑文档](EDITING.md)。消息封装仍为 v1，但负间距需两端均为 v0.3，v0.2 只接受 0…0.2；已有非负配置仍有效。v0.3 手机只在合法 hello 后恢复保存配置。历史结果只证明注明版本。最终 v0.3 APK 已通过华为真机编辑 / 镜像方向 / 小画面接缝、保存 / 放弃、电脑 ↔ 手机持久化、重启、语言和重置检查，以及 API 23 模拟器 14 项真实界面检查。电脑接收 / 提交处理器为无界面调用，不是新 Windows 界面真实交互。最终 iOS CI 通过 65 项 Swift 核心 / 三项原生模拟器界面、两种 SDK 构建及局域网 / 模拟 USB 有符号接缝检查，真实 iPhone USB 和盒子镜片仍未验证；见 [精确验证范围](VALIDATION.md)。
+
+### v0.3.2 兼容范围
+
+新增 第一人称防抖默认 0，保留此前行为。十字段完整配置迁移为十一字段时添加防抖零值；当前客户端在协议 v1 内协商配置 schema 2，面对旧主机只从网络去掉新字段，本地值保留。防抖生效需新版电脑端，上表 Windows / Android / iOS 目标不变。新最终二进制、Mac 自动检查和真机防抖滑块 / 同步验收仍待完成，较早结果只证明所标版本。普通归档 Windows 启动器在打包应用存储之外配置便携官方 SDK 后，用户已确认华为可见串流；该检查使用较早电脑 / 手机构建，不是最终 v0.3.2；后续 ADB 调试链路掉线仍在排查，USB 接口存在和一次成功不能证明持久连接。见 [当前发布状态](RELEASE_NOTES.md) 与 [防抖说明](STABILIZATION.md)。

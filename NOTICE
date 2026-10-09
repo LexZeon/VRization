@@ -28,6 +28,12 @@ Pillow native component licenses, patent notices and the recorded build
 inventory accompany the distribution. See licenses/native/ and
 licenses/python/pillow-12.3.0/ for the exact component declarations.
 
+The original first-person stabilization filter acknowledges the One Euro Filter
+algorithm by Géry Casiez, Nicolas Roussel and Daniel Vogel, and the
+Python 0.2.1 reference by Nicolas Roussel / Géry Casiez (Inria). No upstream
+filter source or package is bundled. The unchanged BSD-3-Clause reference
+license is retained in licenses/references/. See THIRD_PARTY_NOTICES.md.
+
 No implementation source has been copied from another VR streaming app.
 This file is an attribution index and does not replace third-party licenses.
 
@@ -46,5 +52,7 @@ Copyright (c) 2026 VRization contributors
 本软件部分基于 Independent JPEG Group 的工作。部分代码版权属于 FreeType Project（1996–2026），保留所有权利。本软件包含加州大学伯克利分校开发的代码。上方英文段落保留所要求的归属原文，解释不代替该原文。
 
 Pillow 原生组件的许可、专利声明和首发本机构建清单随包附带，具体见 licenses/native/ 与 licenses/python/pillow-12.3.0/。清单不是所有 CI 重建产物的统一 SBOM。
+
+原创第一人称防抖鸣谢 Géry Casiez、Nicolas Roussel、Daniel Vogel 的 One Euro Filter 算法，以及 Nicolas Roussel / Géry Casiez（Inria）的 Python 0.2.1 参考。未引入上游滤波源码或软件包，BSD-3-Clause 参考许可原文保存在 licenses/references/，详见 THIRD_PARTY_NOTICES.md。
 
 项目没有复制其他 VR 串流应用的实现源码。本文件仅作为归属索引，不能替代第三方许可证。

@@ -58,7 +58,7 @@ def main():
     class ObservationHandler(BaseHTTPRequestHandler):
         # Observation endpoints cannot mutate app state. The separate host-update
         # endpoint exercises the same HostServer update path used by the PC UI;
-        # it only changes display settings of our original calibration fixture.
+        # it only changes approved settings of our original calibration fixture.
         def log_message(self, *_):
             pass
 
@@ -83,7 +83,8 @@ def main():
                     if not 0 < length <= 1024:
                         raise ValueError
                     patch = json.loads(self.rfile.read(length))
-                    if not isinstance(patch, dict) or set(patch) != {"scale"}:
+                    if not isinstance(patch, dict) or set(patch) not in (
+                            {"scale"}, {"stabilization"}, {"mode", "stabilization"}):
                         raise ValueError
                     host.update_settings(patch)
                 except (ValueError, KeyError, TypeError):

@@ -57,7 +57,7 @@ Native iOS Simulator receiving the original calibration stream through the **LAN
 
 - **Full screen:** fixed side-by-side images, no motion sensor needed.
 - **Cinema:** a virtual screen; Core Motion changes the viewing direction. Recenter after placing the phone in the viewer.
-- **FPS:** fixed side-by-side images and rotation messages to Windows. The phone cannot arm mouse input. Authorize it explicitly on Windows and use **F8** to stop.
+- **First person:** fixed side-by-side images and rotation messages to Windows. The phone cannot arm mouse input. Authorize it explicitly on Windows and use **F8** to stop.
 - Adjust scale, horizontal / vertical offset, eye separation, field of view, distance, distortion, sensitivity and invert Y. Drag a slider for larger changes; use its **− / +** buttons for exact one-step adjustments (scale changes by 1%). These are viewing parameters, not a measurement of physical interpupillary distance.
 - Hide the controls for viewing; use the app's recovery gesture to restore them. Double-tap to recenter. Returning to the background, changing language or disconnecting ends the connection and motion updates; reconnect explicitly when ready.
 - A device without usable motion support falls back to fixed viewing. The simulator cannot validate physical gyro axes, drift or headset comfort.
@@ -102,6 +102,10 @@ The unmodified originals below are from that final **native iOS Simulator** run.
 ![v0.3 native iOS Simulator editor at 50% seam contact](images/ios-v03-editor-seam.png)
 
 ![v0.3 native iOS Simulator saved Metal view after enlargement at contact](images/ios-v03-viewer-seam.png)
+
+### v0.3.2 stabilization and settings compatibility
+
+The native client adds a 0–100% First-person stabilization slider, default 0%, with normal profile persistence, PC broadcasts and reset. It sends the setting only to a host advertising support and preserves its local value with older hosts. URLSession uses `settingsSchema=2`; USB requests schema 2 through client hello. A capable host's initial legacy hello is followed by a complete eleven-field snapshot before profile adoption / sensor fallback. The phone performs no duplicate filter. New Mac compilation / UI acceptance remains pending until recorded for this version. See [stabilization](STABILIZATION.md) and [protocol](PROTOCOL.md).
 
 ---
 
@@ -160,7 +164,7 @@ Windows 安装 Apple 官方 [Apple Devices](https://support.apple.com/guide/devi
 
 - **全屏**：固定左右眼图像，不需要运动传感器。
 - **大屏幕**：把图像放在虚拟屏幕上，用 Core Motion 改变观看方向；放入盒子后回正。
-- **FPS**：固定双眼图像，向 Windows 发送旋转姿态。手机不能主动授权鼠标，须在电脑明确授权，按 **F8** 停止。
+- **First person**：固定双眼图像，向 Windows 发送旋转姿态。手机不能主动授权鼠标，须在电脑明确授权，按 **F8** 停止。
 - 可调缩放、水平 / 垂直偏移、眼间距、视场角、距离、畸变、灵敏度和 Y 反转。拖动滑条可大幅调整，使用旁边的 **− / +** 按钮可精确微调一格（缩放每次 1%）。这些是观看参数，不是对实际瞳距的测量。
 - 观看时隐藏操作区，用应用的恢复手势重新显示；双击回正。进入后台、切换语言或断线会终止连接与运动更新，需要时手动重连。
 - 没有可用运动支持时回退固定观看。模拟器不能验证真实陀螺仪轴向、漂移和盒子舒适度。
@@ -206,3 +210,7 @@ xcodebuild -project ios/VRization.xcodeproj -scheme VRization \
 ![v0.3 原生 iOS 模拟器编辑器，50% 中缝相接](images/ios-v03-editor-seam.png)
 
 ![v0.3 原生 iOS 模拟器保存后的 Metal 画面，接触后放大](images/ios-v03-viewer-seam.png)
+
+### v0.3.2 防抖与配置兼容
+
+原生客户端新增 0–100% 第一人称防抖滑块，默认 0%，正常保存配置、接受电脑广播并支持重置。仅向声明支持的主机发送字段，连接旧主机时保留本地值。URLSession 使用 `settingsSchema=2`，USB 经客户端 hello 请求 schema 2；支持防抖的主机最初若发旧格式 hello，先取得完整十一字段快照，再接纳配置 / 缺传感器回退。手机不重复滤波。在本版有记录前，新 Mac 编译 / 界面验收仍待完成，见 [防抖](STABILIZATION.md) 与 [协议](PROTOCOL.md)。

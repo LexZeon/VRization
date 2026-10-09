@@ -27,7 +27,14 @@ public final class VrRenderer implements GLSurfaceView.Renderer {
         "precision mediump float; varying vec2 vUv; uniform sampler2D uTexture;" +
         "uniform float uAspect,uImageAspect,uScale,uOffsetX,uOffsetY,uEyeShift,uEyeSign,uDistortion,uFov,uDistance,uYaw,uPitch,uRoll,uCinema;" +
         "void main(){" +
-        "vec2 p=(vUv-0.5)*2.0; p*=1.0+uDistortion*dot(p,p);" +
+        "vec2 p=(vUv-0.5)*2.0;" +
+        // The saved headset rectangle is a physical viewport in every mode.
+        // Clip before lens/perspective transforms so looking around Cinema
+        // cannot move video outside the area fitted to the phone VR box.
+        "vec2 fit=vec2(min(1.0,uImageAspect/uAspect),min(1.0,uAspect/uImageAspect));" +
+        "vec2 mask=(p-vec2(uOffsetX+uEyeShift,uOffsetY))/(uScale*fit);" +
+        "if(abs(mask.x)>1.0||abs(mask.y)>1.0){gl_FragColor=vec4(0.0,0.0,0.0,1.0);return;}" +
+        "p*=1.0+uDistortion*dot(p,p);" +
         "p=(p-vec2(uOffsetX+uEyeShift,uOffsetY))/uScale; vec2 q;" +
         "if(uCinema>0.5){" +
         "float f=tan(radians(uFov)*0.5); vec3 r=normalize(vec3(p.x*uAspect*f,p.y*f,-1.0));" +
@@ -36,7 +43,7 @@ public final class VrRenderer implements GLSurfaceView.Renderer {
         "float cy=cos(uYaw),sy=sin(uYaw); r=vec3(cy*r.x-sy*r.z,r.y,sy*r.x+cy*r.z);" +
         "if(r.z>=-0.001){gl_FragColor=vec4(0.0,0.0,0.0,1.0);return;}" +
         "vec2 hit=r.xy*(-uDistance/r.z)+vec2(uEyeSign*0.032,0.0); q=hit/vec2(2.0,2.0/uImageAspect);" +
-        "}else{vec2 fit=vec2(min(1.0,uImageAspect/uAspect),min(1.0,uAspect/uImageAspect));q=p/fit;}" +
+        "}else{q=p/fit;}" +
         "if(abs(q.x)>1.0||abs(q.y)>1.0){gl_FragColor=vec4(0.0,0.0,0.0,1.0);return;}" +
         "gl_FragColor=texture2D(uTexture,vec2(q.x*0.5+0.5,0.5-q.y*0.5));}";
     private final FloatBuffer vertices = ByteBuffer.allocateDirect(8 * 4).order(ByteOrder.nativeOrder()).asFloatBuffer();

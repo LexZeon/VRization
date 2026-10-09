@@ -11,7 +11,7 @@ This separates existing baseline capabilities from possible future work. Dates a
 
 - Windows display / rectangular capture and JPEG WebSocket streaming.
 - Android APK and reusable Android `vr-core` library.
-- Fixed full screen, rotation-tracked cinema and pose-to-mouse FPS modes.
+- Fixed full screen, rotation-tracked cinema and pose-to-mouse First-person modes.
 - Phone layout and viewing controls.
 - PC input arming, F8 stop, disconnect and mode-change boundaries.
 - Tutorials, actual UI screenshots, dependency attribution and automated builds.
@@ -24,7 +24,7 @@ Selectable English / Simplified Chinese, bilingual public pages, regression chec
 
 Native iOS / iPadOS client with UIKit, Metal, Core Motion, all three modes, English / Chinese selection and a reusable Foundation-based Swift protocol / math package. The same Windows 10 / 11 x64 host remains compatible with Android and iOS through protocol v1; actual local desktop checks use Windows 11.
 
-USB is now the default preference: Android discovers an authorized physical device through official ADB reverse, while iOS uses a native loopback listener and an original Windows relay through Apple's USB service. LAN remains explicitly selectable. The PC still starts streaming and arms FPS input manually. Foreground detection is one initial attempt; backgrounding, phone language changes and disconnects require explicit reconnection. USB discovery protects existing reverse mappings and reads Apple pairing records without creating trust or exposing keys.
+USB is now the default preference: Android discovers an authorized physical device through official ADB reverse, while iOS uses a native loopback listener and an original Windows relay through Apple's USB service. LAN remains explicitly selectable. The PC still starts streaming and arms first-person input manually. Foreground detection is one initial attempt; backgrounding, phone language changes and disconnects require explicit reconnection. USB discovery protects existing reverse mappings and reads Apple pairing records without creating trust or exposing keys.
 
 New GUI users get the 640 / 60 FPS / Q45 low-latency preset; stable, quality and custom presets are available, and saved capture choices remain effective. Latest-frame work, on-demand Android rendering and received-FPS / ping-RTT diagnostics help inspection; these are not an end-to-end latency benchmark or guaranteed game frame rate.
 
@@ -72,7 +72,7 @@ The next release follows the separately published / archived v0.2 GPU / latency 
 
 原生 iOS / iPadOS 客户端使用 UIKit、Metal、Core Motion，包含三模式、中英选择及可复用的 Foundation Swift 协议 / 数学包。同一 Windows 10 / 11 x64 主机通过协议 v1 兼容 Android / iOS；本地实际桌面检查使用 Windows 11。
 
-USB 已是默认偏好：Android 经官方 ADB reverse 发现已授权真实设备，iOS 使用原生回环监听及经 Apple USB 服务的原创 Windows 中继；局域网仍可显式选择。电脑仍手动开始串流与授权 FPS。首次前台只尝试一次，进入后台、手机切语言、断线后需显式重连。发现过程保护已有 reverse 映射，只读 Apple 配对记录，不创建信任或暴露密钥。
+USB 已是默认偏好：Android 经官方 ADB reverse 发现已授权真实设备，iOS 使用原生回环监听及经 Apple USB 服务的原创 Windows 中继；局域网仍可显式选择。电脑仍手动开始串流与授权第一人称。首次前台只尝试一次，进入后台、手机切语言、断线后需显式重连。发现过程保护已有 reverse 映射，只读 Apple 配对记录，不创建信任或暴露密钥。
 
 新界面用户默认低延迟 640 / 60 FPS / 质量 45，另有稳定、画质和自定义预设；已有捕获配置继续生效。最新帧处理、Android 按需渲染及接收帧率 / ping RTT 便于诊断，不代表端到端延迟基准或保证游戏帧率。
 

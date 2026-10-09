@@ -14,6 +14,10 @@ final class PhoneProfile {
     }
     VrSettings snapshot() { return settings.copy(); }
     boolean hasSavedProfile() { return saved; }
+    /** A schema-upgrading host owns the initial extended value until it sends that value. */
+    boolean waitForExtendedSnapshot(boolean hostSupportsStabilization, boolean containsStabilization) {
+        return !saved && hostSupportsStabilization && !containsStabilization;
+    }
     void commit(VrSettings value) {
         settings = SettingsValues.decode(SettingsValues.encode(value), new VrSettings(), true); saved = true;
     }

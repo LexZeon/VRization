@@ -1,12 +1,15 @@
 package org.vrization.app;
 
 import java.util.Map;
+import java.util.List;
 import org.vrization.core.VrSettings;
 
 /** A transport opening is not an established protocol session. Fail closed until reconnect. */
 final class HostSessionGate {
     private boolean established, failed;
+    private boolean stabilization;
     boolean isEstablished() { return established && !failed; }
+    boolean supportsStabilization() { return isEstablished() && stabilization; }
     void fail() { failed = true; }
     @SuppressWarnings("unchecked")
     private static Map<String, Object> object(Object value) {
@@ -34,14 +37,27 @@ final class HostSessionGate {
                 if (!"hello".equals(type) || !(message.get("name") instanceof String)
                     || ((String) message.get("name")).isEmpty() || !(message.get("version") instanceof String)
                     || ((String) message.get("version")).isEmpty()) throw new IllegalArgumentException("Expected host hello");
-                SettingsValues.decode(object(message.get("settings")), new VrSettings(), true);
+                Map<String, Object> settings = object(message.get("settings"));
+                SettingsValues.decode(settings, new VrSettings(), true);
                 Map<String, Object> stream = object(message.get("stream"));
                 if (!"jpeg".equals(stream.get("codec"))) throw new IllegalArgumentException("Unsupported codec");
                 integer(stream.get("fps"), 5, 60); integer(stream.get("maxWidth"), 320, 3840);
                 if (!(message.get("mouseArmed") instanceof Boolean)) throw new IllegalArgumentException("Invalid input state");
+                Object capabilities = message.get("capabilities");
+                if (message.containsKey("capabilities")) {
+                    if (!(capabilities instanceof List)) throw new IllegalArgumentException("Expected capabilities array");
+                    for (Object capability : (List<?>) capabilities)
+                        if (!(capability instanceof String)) throw new IllegalArgumentException("Expected capability string");
+                }
+                stabilization = settings.containsKey("stabilization")
+                    || (capabilities instanceof List && ((List<?>) capabilities).contains("stabilization"));
                 established = true; return true;
             }
-            if ("settings".equals(type)) SettingsValues.decode(object(message.get("settings")), new VrSettings(), false);
+            if ("settings".equals(type)) {
+                Map<String, Object> settings = object(message.get("settings"));
+                SettingsValues.decode(settings, new VrSettings(), false);
+                if (settings.containsKey("stabilization")) stabilization = true;
+            }
             else if ("error".equals(type)) {
                 if (!(message.get("message") instanceof String)) throw new IllegalArgumentException("Invalid host error");
             } else if (!"pong".equals(type)) throw new IllegalArgumentException("Unexpected host message");

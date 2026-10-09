@@ -7,18 +7,18 @@
 
 **Put your PC screen inside a phone VR viewer.**
 
-![Alpha](https://img.shields.io/badge/version-0.3.1--alpha-orange)
+![Alpha](https://img.shields.io/badge/version-0.3.2--alpha-orange)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Desktop](https://img.shields.io/badge/desktop-Windows%2010%2F11-blue)
 ![Android](https://img.shields.io/badge/Android-6.0%2B-3DDC84)
 ![iOS](https://img.shields.io/badge/iOS%2FiPadOS-15%2B-black)
 [![Build](https://github.com/LexZeon/VRization/actions/workflows/build.yml/badge.svg)](https://github.com/LexZeon/VRization/actions/workflows/build.yml)
 
-[简体中文](#简体中文) · [Quick start](docs/QUICKSTART.md) · [🔌 USB setup](docs/USB.md) · [🥽 Edit and save](docs/EDITING.md) · [⚡ Performance](docs/PERFORMANCE.md) · [📦 Downloads](docs/DOWNLOADS.md) · [🍎 iPhone + Windows](docs/IOS.md) · [Build](docs/BUILD.md) · [Architecture](docs/ARCHITECTURE.md)
+[简体中文](#简体中文) · [Quick start](docs/QUICKSTART.md) · [🔌 USB setup](docs/USB.md) · [🥽 Edit and save](docs/EDITING.md) · [🎯 Stabilization](docs/STABILIZATION.md) · [⚡ Performance](docs/PERFORMANCE.md) · [📦 Downloads](docs/DOWNLOADS.md) · [🍎 iPhone + Windows](docs/IOS.md) · [Build](docs/BUILD.md) · [Architecture](docs/ARCHITECTURE.md)
 
 VRization streams a Windows desktop or rectangular region to an Android phone, iPhone or iPad, renders the image side by side, and optionally maps phone rotation to PC mouse movement. Its reusable Android library, Swift core package and separated host components provide a starting point for embedding these features in other applications.
 
-**v0.3.1-alpha — Windows USB connection patch.** The Windows host is 0.3.1; the Android APK / library and iOS app remain 0.3.0, using unchanged protocol v1. **Existing v0.3.0 phone installations need no reinstall or upgrade.** This patch improves background ADB startup, managed-SDK discovery and access to USB controls / status. The user confirmed a connected Huawei showed the stream with good results; no new FPS or latency measurement is claimed. See [patch details and asset versions](docs/RELEASE_NOTES.md).
+**v0.3.2-alpha — adjustable First-person stabilization and portable USB tools.** All three apps use version 0.3.2. The new stabilization slider defaults to **0%**, preserving the previous input behavior; filtering runs only on the PC. Committed values synchronize and persist, with compatible ten-field / eleven-field settings negotiation inside protocol v1. Windows also improves USB tool lookup outside packaged-app storage and offers a manual official-tools import flow. New build / hardware acceptance is being completed; see [release status and limits](docs/RELEASE_NOTES.md).
 
 Visual headset fitting and saved phone profiles from v0.3 remain available. An original Windows DXGI / D3D11 backend crops, rotates and scales on the GPU before smaller pixel readback; the CPU encodes JPEG for the existing WebSocket protocol. GDI / MSS remain compatibility paths. Both eyes receive the same 2D source: ordinary games do not acquire stereoscopic depth. See [performance and measurement limits](docs/PERFORMANCE.md).
 
@@ -26,9 +26,9 @@ Visual headset fitting and saved phone profiles from v0.3 remain available. An o
 | --- | --- |
 | 🖥️ Full screen | A fixed image in each eye; no sensor control. |
 | 🎬 Cinema | A virtual screen viewed through phone rotation. |
-| 🎯 FPS | Side-by-side viewing plus rotation-to-mouse input, explicitly armed on the PC. Press **F8** to stop input. |
+| 🎯 First person | Side-by-side viewing plus rotation-to-mouse input, explicitly armed on the PC. Press **F8** to stop input. |
 
-Adjust image scale and offsets for large phones, eye separation, field of view, screen distance, distortion, recentering, mouse sensitivity and vertical inversion. **USB is the default on both phone platforms and the Windows host**, with authorized-device detection. Profiles use longest edge / target FPS / JPEG quality: low latency **640 / 60 / Q45**, stable **640 / 30 / Q50**, quality **960 / 30 / Q60**, or custom. Targets are not guaranteed achieved frame rates.
+Adjust image scale and offsets for large phones, eye separation, field of view, screen distance, distortion, recentering, mouse sensitivity, First-person stabilization and vertical inversion. See [how to tune stabilization](docs/STABILIZATION.md); stronger smoothing can add following lag. **USB is the default on both phone platforms and the Windows host**, with authorized-device detection. Profiles use longest edge / target FPS / JPEG quality: low latency **640 / 60 / Q45**, stable **640 / 30 / Q50**, quality **960 / 30 / Q60**, or custom. Targets are not guaranteed achieved frame rates.
 
 The first production ASUS full-output → Huawei USB check showed phone decoded-FPS readings of **59.9 and 57.7**, with mean host sent FPS **59.66**. Repeated static frames and physical presentation are separate; these results do not establish 60 unique displayed images per second or end-to-end latency. See [the measured configuration and limits](docs/PERFORMANCE.md).
 
@@ -46,11 +46,11 @@ The USB screenshots below show **v0.2.0 on a physical HUAWEI Pura 70 Ultra** rec
 
 ### 🚀 Try it
 
-1. Download the Windows archive and Android APK from [Releases](https://github.com/LexZeon/VRization/releases), or [build from source](docs/BUILD.md). For this Windows-only patch, keep an existing v0.3.0 phone app installed. For iPhone / iPad, use the [iOS installation guide](docs/IOS.md): source and a Mac Simulator build are provided; physical installation requires your Apple signing in Xcode.
+1. Download the Windows archive and Android APK from [Releases](https://github.com/LexZeon/VRization/releases), or [build from source](docs/BUILD.md). Update the host and phone to v0.3.2 for the stabilization control; preserve a matching-signer Android installation's data. For iPhone / iPad, use the [iOS installation guide](docs/IOS.md): source and a Mac Simulator build are provided; physical installation requires your Apple signing in Xcode.
 2. Connect a data USB cable. Android needs official Platform Tools, USB debugging and computer authorization. iPhone needs Apple Devices / its Windows driver, Trust approval and your signed foreground app. See [USB setup](docs/USB.md).
 3. Start the host, choose a display or region, and start streaming. Use **USB connection…** to find the automatic-detection checkbox and official ADB selector; read USB status below the PC address. USB detection configures the authorized connection; multiple Android phones require selection.
 4. Open the phone app in its default USB mode. Its first foreground session tries automatically; after backgrounding or changing language, tap Connect. LAN remains an optional mode with manual IP, port and pairing code.
-5. Adjust the image to your viewer, recenter cinema mode, and explicitly arm PC mouse input before trying FPS mode.
+5. Adjust the image to your viewer, recenter cinema mode, and explicitly arm PC mouse input before trying First-person mode.
 
 Windows 10 / 11 x64 is the desktop target. Android 6.0+ and compatible derivatives need no Google services; derivative-system compatibility depends on their APK, rendering and sensor support. Full-screen viewing does not require a gyroscope. Games may reject simulated mouse input, especially under raw-input or anti-cheat restrictions.
 
@@ -64,20 +64,20 @@ See [architecture](docs/ARCHITECTURE.md) and [protocol v1](docs/PROTOCOL.md) for
 
 Audio, hardware video encoding, WebRTC, native stereo game rendering and 6DoF position tracking are not included. Real-world performance and device support require testing on your hardware.
 
-See the [validation record](docs/VALIDATION.md) for exact per-version checks, iOS builds and simulator observations. Physical gyro behavior, headset optics and actual FPS game input remain unverified.
+See the [validation record](docs/VALIDATION.md) for exact per-version checks, iOS builds and simulator observations. Physical gyro behavior, headset optics and actual first-person game input remain unverified.
 
 LAN transport uses **unencrypted `ws://`**. The pairing code is an access gate, not encryption. Use trusted LANs only; do not expose the port to the internet. USB requires an authorized Android debugging channel or an Apple pairing record; connecting never arms PC mouse input. See [security](SECURITY.md).
 
 ### 🤝 License and credit
 
-Original code is [MIT](LICENSE), including commercial use subject to its notice requirements. Dependencies retain their licenses. See [third-party notices](THIRD_PARTY_NOTICES.md), [NOTICE](NOTICE) and [contributing](CONTRIBUTING.md). No implementation source was copied from another VR application. Capture / optimization ideas are credited even when rewritten; DXcam, NumPy and comtypes were research tools, and Sunshine / Moonlight architecture references are not bundled code.
+Original code is [MIT](LICENSE), including commercial use subject to its notice requirements. Dependencies retain their licenses. See [third-party notices](THIRD_PARTY_NOTICES.md), [NOTICE](NOTICE) and [contributing](CONTRIBUTING.md). No implementation source was copied from another VR application. Capture / optimization ideas are credited even when rewritten; DXcam, NumPy and comtypes were research tools, Sunshine / Moonlight architecture references are not bundled code, and the original host stabilization credits the One Euro Filter algorithm without bundling its implementation.
 
 ### ✨ Fit different phones and viewers
 
 - Scale and horizontal / vertical offsets fit a large phone's effective image inside the lenses.
 - Eye separation, field of view, virtual distance and distortion adapt the presentation to your viewer.
 - Recenter sets the current head orientation as forward.
-- Mouse sensitivity and invert Y adjust FPS controls.
+- Mouse sensitivity, stabilization and invert Y adjust first-person controls; stabilization starts at 0%.
 - Display / rectangle, **longest output edge**, FPS and JPEG quality control capture cost while preserving aspect ratio.
 - Full-screen mode needs no sensor; compatible Android derivatives depend on their APK, graphics, network and sensor support.
 
@@ -113,7 +113,7 @@ The v0.3 physical Android editor below shows an original card over USB on a HUAW
 
 ![v0.3 physical Android headset editor with small images joined](docs/images/android-v03-small-joined.png)
 
-The [v0.3.0-alpha notes](docs/releases/v0.3.0-alpha.md) preserve editor / profile acceptance, and v0.2.0-alpha retains its earlier measurements. Existing screenshots / performance measurements keep their stated version; the v0.3.1 connection result is recorded separately. See [release history](docs/releases/README.md) and [current patch notes](docs/RELEASE_NOTES.md).
+The [v0.3.0-alpha notes](docs/releases/v0.3.0-alpha.md) preserve editor / profile acceptance, and v0.2.0-alpha retains its earlier measurements. Existing screenshots / performance measurements keep their stated version; the [v0.3.1 connection result](docs/releases/v0.3.1-alpha.md) is historical and does not establish the new stabilization checks. See [release history](docs/releases/README.md) and [current release notes](docs/RELEASE_NOTES.md).
 
 ---
 
@@ -124,19 +124,19 @@ The [v0.3.0-alpha notes](docs/releases/v0.3.0-alpha.md) preserve editor / profil
 
 Windows 桌面串流 · Android / 兼容 Android 的系统 · iPhone / iPad · 可复用核心模块
 
-![Alpha](https://img.shields.io/badge/version-0.3.1--alpha-orange)
+![Alpha](https://img.shields.io/badge/version-0.3.2--alpha-orange)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Desktop](https://img.shields.io/badge/desktop-Windows%2010%2F11-blue)
 ![Android](https://img.shields.io/badge/Android-6.0%2B-3DDC84)
 ![iOS](https://img.shields.io/badge/iOS%2FiPadOS-15%2B-black)
 [![Build](https://github.com/LexZeon/VRization/actions/workflows/build.yml/badge.svg)](https://github.com/LexZeon/VRization/actions/workflows/build.yml)
 
-[🚀 上手教程](docs/QUICKSTART.md) · [🔌 USB 连接](docs/USB.md) · [🥽 编辑与保存](docs/EDITING.md) · [⚡ 性能与测量](docs/PERFORMANCE.md) · [📦 下载与本地备份](docs/DOWNLOADS.md) · [🍎 iPhone 与 Windows](docs/IOS.md) · [🛠️ 开发与构建](docs/BUILD.md) · [🧩 集成指南](docs/ARCHITECTURE.md) · [English](README.en.md)
+[🚀 上手教程](docs/QUICKSTART.md) · [🔌 USB 连接](docs/USB.md) · [🥽 编辑与保存](docs/EDITING.md) · [🎯 防抖设置](docs/STABILIZATION.md) · [⚡ 性能与测量](docs/PERFORMANCE.md) · [📦 下载与本地备份](docs/DOWNLOADS.md) · [🍎 iPhone 与 Windows](docs/IOS.md) · [🛠️ 开发与构建](docs/BUILD.md) · [🧩 集成指南](docs/ARCHITECTURE.md) · [English](README.en.md)
 
 
 VRization 是一个开源的电脑 → 手机串流实验项目。Windows 端采集显示器或指定矩形区域，Android、iPhone / iPad 客户端将画面显示在 VR 盒子的左右眼区域。你可以让画面固定在眼前，也可以把它当成一个随头部转动观看的虚拟大屏幕，或者用手机的姿态控制电脑游戏视角。
 
-> **v0.3.1-alpha — Windows USB 连接补丁。** 电脑端为 0.3.1，Android APK / 库与 iOS 应用仍为 0.3.0，使用不变的协议 v1。**手机已安装 v0.3.0 时，无需重装或升级。** 本补丁改进后台 ADB 启动、已管理 SDK 发现及 USB 控件 / 状态入口。用户已确认华为连接后可见串流、效果不错，没有新增 FPS 或延迟测量；见 [补丁详情与产物版本](docs/RELEASE_NOTES.md)。
+> **v0.3.2-alpha — 可调 第一人称防抖与便携 USB 工具。** 三端应用均为 0.3.2。新增防抖滑块默认 **0%**，保留此前输入行为，滤波只在电脑执行；已提交值同步保存，在协议 v1 内兼容十字段 / 十一字段配置协商。Windows 改进打包应用存储之外的 USB 工具查找，并提供手动导入官方工具的流程。新构建 / 真机验收仍在完成，见 [发布状态与限制](docs/RELEASE_NOTES.md)。
 
 v0.3 的可视盒子适配与手机配置保存继续保留。原创 Windows DXGI / D3D11 后端在 GPU 裁切、旋转和缩放，再回读较小像素；CPU 编码 JPEG，经已有 WebSocket 协议传输，保留 GDI / MSS 兼容路径。左右眼接收同一张二维桌面图像，**不会把普通游戏自动变成立体 3D**。实测范围见 [性能与测量](docs/PERFORMANCE.md)。
 
@@ -146,16 +146,16 @@ v0.3 的可视盒子适配与手机配置保存继续保留。原创 Windows DXG
 | --- | --- | --- | --- |
 | 🖥️ 全屏模式 | 同一画面分别填入左右眼区域 | 不参与画面或鼠标控制 | 稳定观看桌面、视频和普通游戏 |
 | 🎬 大屏幕模式 | 电脑或选区画面放在虚拟平面上 | 转头改变观看方向 | 像在眼前放了一块大屏幕 |
-| 🎯 FPS 游戏模式 | 左右眼显示游戏画面 | 转头映射成电脑鼠标移动 | 在支持普通鼠标输入的游戏里试验头部瞄准 |
+| 🎯 第一人称模式 | 左右眼显示游戏画面 | 转头映射成电脑鼠标移动 | 在支持普通鼠标输入的游戏里试验头部瞄准 |
 
-FPS 控制需要在**电脑端主动授权**。手机连接或切换模式不会自动接管鼠标；按电脑键盘 **F8** 可以立即停止控制。不同游戏、独占全屏、原始输入和反作弊机制可能不接受这种输入，建议先用桌面或离线游戏验证。
+第一人称控制需要在**电脑端主动授权**。手机连接或切换模式不会自动接管鼠标；按电脑键盘 **F8** 可以立即停止控制。不同游戏、独占全屏、原始输入和反作弊机制可能不接受这种输入，建议先用桌面或离线游戏验证。
 
 ### ✨ 为不同手机与盒子留出调节空间
 
 - **画面缩放与水平 / 垂直偏移**：大手机也能把有效画面收进镜片可见区域。
 - **左右眼间距、视场角、虚拟屏幕距离、畸变调节**：根据盒子镜片与佩戴方式微调。
 - **重新居中**：把当前头部方向设为正前方。
-- **鼠标灵敏度与 Y 轴反转**：调整 FPS 头部控制手感。
+- **鼠标灵敏度、防抖强度与 Y 轴反转**：调整第一人称手感，防抖默认 0%；见 [防抖教程](docs/STABILIZATION.md)。
 - **显示器 / 矩形选区、输出最长边、帧率和 JPEG 质量**：保持画面比例，同时限制横屏与竖屏的解码负担。
 - **USB / 可信局域网、无需 Google 服务**：Android 6.0+，可在提供 Android APK 兼容层的系统上尝试安装。兼容性仍取决于设备的图形、网络与传感器实现；全屏模式不要求陀螺仪。
 
@@ -165,7 +165,7 @@ FPS 控制需要在**电脑端主动授权**。手机连接或切换模式不会
 
 ### 📸 看看界面
 
-电脑端负责选画面、开串流和授权 FPS；手机端负责连接、观看和调整镜片中的布局。
+电脑端负责选画面、开串流和授权第一人称；手机端负责连接、观看和调整镜片中的布局。
 
 | 电脑控制台 | 手机客户端 |
 | --- | --- |
@@ -192,11 +192,11 @@ USB 截图来自 **HUAWEI Pura 70 Ultra 真机运行 v0.2.0**，经真实数据�
 
 ### 🚀 五步把电脑放进盒子
 
-1. 在 [Releases](https://github.com/LexZeon/VRization/releases) 下载 Windows 电脑端压缩包与 Android APK。本次只更新电脑端，已有 v0.3.0 手机软件可直接保留。iPhone / iPad 按 [iOS 安装教程](docs/IOS.md) 使用源码和 Mac 模拟器构建；真机安装需要在 Xcode 使用自己的 Apple 签名。
+1. 在 [Releases](https://github.com/LexZeon/VRization/releases) 下载 Windows 电脑端压缩包与 Android APK。使用防抖时将电脑和手机都更新至 v0.3.2，签名一致的 Android 覆盖升级可保留数据。iPhone / iPad 按 [iOS 安装教程](docs/IOS.md) 使用源码和 Mac 模拟器构建；真机安装需要在 Xcode 使用自己的 Apple 签名。
 2. 用数据 USB 线连接。Android 需要官方 Platform Tools、USB 调试和电脑授权；iPhone 需要 Windows 的 Apple Devices / 驱动、信任这台电脑，以及自己签名并在前台运行的应用。详见 [USB 教程](docs/USB.md)。
 3. 打开电脑端，选择显示器或矩形区域，再开始串流。点“**USB 连接…**”找到自动检测开关与官方 ADB 选择，USB 状态在电脑地址下方。USB 检测会配置授权后的连接；多台 Android 手机需要选择一台。
 4. 手机应用默认 USB，首次前台会自动尝试连接；进入后台或切换语言后，显式点击连接。局域网作为可选方式，需要填写 IP、端口与配对码。
-5. 调整缩放、偏移和眼间距，确认两眼舒适对齐，再放入 VR 盒子。大屏幕模式先重新居中；FPS 模式还需在电脑端授权鼠标控制。
+5. 调整缩放、偏移和眼间距，确认两眼舒适对齐，再放入 VR 盒子。大屏幕模式先重新居中；第一人称模式还需在电脑端授权鼠标控制。
 
 原生 iOS / iPadOS 15+ 客户端使用 URLSession、Core Motion 和 Metal，不引入第三方运行库；与 Android 共用 Windows 主机和协议，保留电脑主动授权鼠标边界。iOS 源码 / 模拟器下载并非已签名的 iPhone IPA，签名步骤和兼容性边界详见 [iOS 教程](docs/IOS.md)。
 
@@ -220,7 +220,7 @@ Windows 桌面端                         Android 手机端
 
 ### 🧪 当前边界
 
-Alpha 版尚未提供音频、硬件视频编码、WebRTC、原生立体渲染或 6DoF 位置追踪。没有承诺帧率或端到端延迟数字；实际体验取决于电脑、手机和网络。传感器不足的设备可以使用全屏模式，大屏幕 / FPS 需要兼容的旋转传感器。已完成的检查与尚需实测的项目见 [验证记录](docs/VALIDATION.md)。
+Alpha 版尚未提供音频、硬件视频编码、WebRTC、原生立体渲染或 6DoF 位置追踪。没有承诺帧率或端到端延迟数字；实际体验取决于电脑、手机和网络。传感器不足的设备可以使用全屏模式，大屏幕 / 第一人称模式需要兼容的旋转传感器。已完成的检查与尚需实测的项目见 [验证记录](docs/VALIDATION.md)。
 
 局域网串流使用明文 `ws://`，配对码只是基础访问门槛，**不是加密**。只在可信局域网使用，不要把服务端口映射到公网。USB 需要已授权的 Android 调试通道或 Apple 配对记录，连接不会自动授权电脑鼠标控制。详见 [安全说明](SECURITY.md)。
 
@@ -232,6 +232,8 @@ Alpha 版尚未提供音频、硬件视频编码、WebRTC、原生立体渲染�
 
 
 所有客户端可选 **English / 简体中文**，默认英文，各自保存。电脑在顶部切换，手机使用语言选择；电脑切换保持串流但解除鼠标授权，手机切换断线，需要重连。支持目标与实际检查分开记录，见 [兼容性](docs/COMPATIBILITY.md)。
+
+原创第一人称防抖参考 One Euro Filter 算法，并保留精确版本、作者与 BSD-3-Clause 许可原文；没有引入其上游实现或运行包。即使重写优化思路，也继续在 [第三方声明](THIRD_PARTY_NOTICES.md) 鸣谢记录。
 
 ### 🌐 文档语言
 
@@ -248,4 +250,4 @@ Alpha 版尚未提供音频、硬件视频编码、WebRTC、原生立体渲染�
 
 ![v0.3 Android 真机盒子编辑器，小画面内边相接](docs/images/android-v03-small-joined.png)
 
-[v0.3.0-alpha 原说明](docs/releases/v0.3.0-alpha.md) 保留编辑器 / 配置验收，v0.2.0-alpha 保留较早测量。现有截图 / 性能测量继续注明对应版本，v0.3.1 连接结果另行记录，见 [发布历史](docs/releases/README.md) 与 [当前补丁说明](docs/RELEASE_NOTES.md)。
+[v0.3.0-alpha 原说明](docs/releases/v0.3.0-alpha.md) 保留编辑器 / 配置验收，v0.2.0-alpha 保留较早测量。现有截图 / 性能测量继续注明对应版本，v0.3.1 连接结果另行保留，新防抖验收单独记录，见 [发布历史](docs/releases/README.md) 与 [当前发布说明](docs/RELEASE_NOTES.md)。

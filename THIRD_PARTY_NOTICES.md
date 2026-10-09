@@ -92,6 +92,14 @@ Apple Devices / Apple Mobile Device support must be installed separately under A
 
 Test / build tooling is separate from runtime features. A tool's license does not automatically become the output's license; inspect components actually distributed.
 
+### First-person stabilization algorithm and platform references
+
+The original MIT host filter acknowledges **Géry Casiez, Nicolas Roussel and Daniel Vogel**, [One Euro Filter, CHI 2012](https://doi.org/10.1145/2207676.2208639), and [the authors' official explanation](https://gery.casiez.net/1euro/). The implementation reference is **OneEuroFilter Python 0.2.1**, commit `d78925584245597f2aa9c4c01a802eb0f0b77fb9`, Nicolas Roussel / Géry Casiez, source copyright 2019 Inria. The pinned [BSD-3-Clause license](https://github.com/casiez/OneEuroFilter/blob/d78925584245597f2aa9c4c01a802eb0f0b77fb9/python/LICENSE) states copyright 2023 Inria. Its unchanged full text and retrieval hash are retained in [licenses/references](licenses/references/README.md). **No upstream filter source or runtime package is bundled.** VRization independently adapts speed-dependent smoothing to angular deltas, bounded lag and explicit input / session resets; its strength mapping is its own. See [stabilization and its limits](https://github.com/LexZeon/VRization/blob/main/docs/STABILIZATION.md).
+
+The host's high-resolution elapsed-time choice references Python 3.12's [`perf_counter` documentation](https://docs.python.org/3.12/library/time.html#time.perf_counter). Portable SDK lookup accounts for packaged / ordinary Windows process differences described in Microsoft's [MSIX desktop behavior documentation](https://learn.microsoft.com/en-us/windows/msix/desktop/desktop-to-uwp-behind-the-scenes). These are API / behavior references, with no copied documentation or sample implementation. Official [Platform Tools](https://developer.android.com/tools/releases/platform-tools) remain a separately obtained tool under Google's own terms, not a dependency relicensed by VRization.
+
+The optional offline importer accepts Google's official **Windows Platform Tools 37.0.1** [versioned ZIP](https://dl.google.com/android/repository/platform-tools_r37.0.1-win.zip), SHA-256 `45f4d63113e895ebde0c90f194099a4676b6ac653bd28d54314a9e022bbc1a99` (8,044,989 bytes). Users download it separately and accept the applicable [SDK terms](https://developer.android.com/studio/terms); component notices remain in the complete `NOTICE.txt` of that separate installation. The original importer preserves the package and existing installs without downloading, automatically accepting terms or bundling SDK files. [The source index](licenses/references/upstream-sources.json) records the exact archive.
+
 ### Provenance rules
 
 Record name, author, exact version / commit or document, original URL, purpose, modifications, license path and distribution conditions for each new dependency, snippet, asset **or optimization idea**. Credit remains required when an implementation is rewritten. Distinguish shipped dependencies, copied / adapted code, and research-only references; rewriting is not a substitute for checking applicable upstream terms. Mark changes to third-party files without removing copyright headers. Recollect licenses after updates and compare actual installed / Gradle-resolved dependencies with the declaration.
@@ -213,6 +221,14 @@ Apple Devices / Apple Mobile Device 支持需按 Apple 条款另行安装；用�
 | Shields.io | README 状态徽章 | [Shields](https://github.com/badges/shields)，在线徽章服务；未复制其服务器源码。 |
 
 开发测试工具仅用于构建 / 检查，不按运行时功能引入。工具许可不意味着其生成产物自动拥有相同许可；实际分发组件仍需单独核查。
+
+### 第一人称防抖算法与平台参考
+
+原创 MIT 主机滤波鸣谢 **Géry Casiez、Nicolas Roussel、Daniel Vogel** 的 [One Euro Filter，CHI 2012](https://doi.org/10.1145/2207676.2208639) 及 [作者官方说明](https://gery.casiez.net/1euro/)。实现参考为 **OneEuroFilter Python 0.2.1**，commit `d78925584245597f2aa9c4c01a802eb0f0b77fb9`，作者 Nicolas Roussel / Géry Casiez，源文件版权 2019 Inria；固定版本的 [BSD-3-Clause 许可](https://github.com/casiez/OneEuroFilter/blob/d78925584245597f2aa9c4c01a802eb0f0b77fb9/python/LICENSE) 标注版权 2023 Inria。完整许可原文与下载哈希保存在 [licenses/references](licenses/references/README.md)。**没有引入上游滤波实现源码或运行软件包。** VRization 独立将速度自适应平滑用于角度增量、限制迟滞及明确输入 / 会话重置，强度映射自行选择。见 [防抖与限制](https://github.com/LexZeon/VRization/blob/main/docs/STABILIZATION.md)。
+
+主机高精度间隔计时参考 Python 3.12 的 [`perf_counter` 文档](https://docs.python.org/3.12/library/time.html#time.perf_counter)；便携 SDK 查找考虑微软 [MSIX 桌面行为文档](https://learn.microsoft.com/en-us/windows/msix/desktop/desktop-to-uwp-behind-the-scenes) 所述打包与普通 Windows 进程的差异。这些仅为 API / 行为参考，未复制文档或示例实现。官方 [Platform Tools](https://developer.android.com/tools/releases/platform-tools) 继续由用户按 Google 自身条款另行获取，不是由 VRization 重新许可的依赖。
+
+可选离线导入器接受 Google 官方 **Windows Platform Tools 37.0.1** [固定版本 ZIP](https://dl.google.com/android/repository/platform-tools_r37.0.1-win.zip)，SHA-256 `45f4d63113e895ebde0c90f194099a4676b6ac653bd28d54314a9e022bbc1a99`（8,044,989 字节）。用户另行下载并确认适用 [SDK 条款](https://developer.android.com/studio/terms)，各组件声明保留在该独立安装的完整 `NOTICE.txt` 中。原创导入器保留安装包及已有安装，不自动下载、接受条款或附带 SDK 文件；[来源索引](licenses/references/upstream-sources.json) 记录精确包。
 
 ### 来源记录规则
 

@@ -103,6 +103,29 @@ class ArchiveTests(unittest.TestCase):
                 if not tamper:
                     self.assertEqual((root / "latest/user-file.txt").read_text(), "retain me")
 
+    def test_launchers_conditionally_scope_separately_installed_sdk_without_bundling_it(self):
+        with tempfile.TemporaryDirectory(prefix="vrization-archive-test-") as directory:
+            root = Path(directory).resolve()
+            sdk = root / "tools/android-sdk/platform-tools/adb.exe"
+            sdk.parent.mkdir(parents=True)
+            sdk.write_text("fixture tool; never executed")
+            folder = prepare(root)
+            archive.publish_latest(root, folder)
+            for filename, monitor in (("Start-Windows.bat", ""), ("Start-on-second-monitor.bat", " --monitor 2")):
+                with self.subTest(filename=filename):
+                    launcher = (root / "latest" / filename).read_text(encoding="ascii")
+                    self.assertIn('if exist "%~dp0..\\tools\\android-sdk\\platform-tools\\adb.exe" (', launcher)
+                    self.assertIn('set "ANDROID_HOME=%~dp0..\\tools\\android-sdk"', launcher)
+                    self.assertIn('set "ANDROID_SDK_ROOT=%~dp0..\\tools\\android-sdk"', launcher)
+                    self.assertLess(launcher.index("setlocal"), launcher.index("ANDROID_HOME"))
+                    self.assertLess(launcher.index("ANDROID_SDK_ROOT"), launcher.index('start ""'))
+                    self.assertIn('start "" "%~dp0Windows\\VRization-Host.exe"' + monitor + '\nendlocal\n', launcher)
+                    self.assertNotIn("setx ", launcher.lower())
+                    self.assertNotIn(" /i ", launcher.lower())
+            self.assertEqual(sdk.read_text(), "fixture tool; never executed")
+            self.assertFalse((root / "latest/tools").exists())
+            self.assertFalse((folder / "tools").exists())
+
 
 if __name__ == "__main__":
     unittest.main()

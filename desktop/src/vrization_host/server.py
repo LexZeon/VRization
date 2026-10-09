@@ -41,6 +41,7 @@ class HostServer:
         self._started = threading.Event()
         self._start_error = None
         self._ws = None
+        self._settings_schema2 = False
         self._worker = None
         self._watchdog = None
         self._buffer = None
@@ -92,6 +93,12 @@ class HostServer:
             asyncio.run_coroutine_threadsafe(self._broadcast_settings(owner, client_seq), self._loop)
         return result
 
+    def _wire_settings(self, settings: Settings) -> dict:
+        values = settings.to_dict()
+        if not self._settings_schema2:
+            values.pop("stabilization", None)
+        return values
+
     async def _broadcast_settings(self, owner, client_seq: int | None = None):
         # Read the latest snapshot only after acquiring the send lock. Older
         # scheduled broadcasts can never overwrite a newer state on the phone.
@@ -100,7 +107,7 @@ class HostServer:
             if ws is not owner or ws.closed:
                 return  # A queued acknowledgement belongs to its original session.
             settings, revision = self.get_settings_snapshot()
-            message = {"v": 1, "type": "settings", "settings": settings.to_dict(), "revision": revision}
+            message = {"v": 1, "type": "settings", "settings": self._wire_settings(settings), "revision": revision}
             if client_seq is not None:
                 message["clientSeq"] = client_seq
             with suppress(ConnectionError, RuntimeError, asyncio.TimeoutError):
@@ -201,6 +208,7 @@ class HostServer:
         ws = web.WebSocketResponse(heartbeat=10, max_msg_size=16 * 1024,
                                    compress=False, writer_limit=64 * 1024)
         self._ws = ws  # Claim before the first await so a duplicate cannot steal ownership.
+        self._settings_schema2 = request.query.get("settingsSchema") == "2"
         sender = None
         try:
             await ws.prepare(request)
@@ -208,7 +216,8 @@ class HostServer:
             self._emit("connection", connected=True, address=address)
             settings, revision = self.get_settings_snapshot()
             await ws.send_json({"v": 1, "type": "hello", "name": "VRization",
-                                "version": __version__, "settings": settings.to_dict(), "revision": revision,
+                                "version": __version__, "settings": self._wire_settings(settings), "revision": revision,
+                                "capabilities": ["stabilization"],
                                 "stream": {"codec": "jpeg", "fps": self.capture_config.fps,
                                            "maxWidth": self.capture_config.width},
                                 "mouseArmed": False})
@@ -235,9 +244,15 @@ class HostServer:
                             self.controller.recenter()
                         elif kind == "ping":
                             await ws.send_json({"v": 1, "type": "pong"})
-                        elif kind == "hello" and msg.get("editing") is True:
-                            # A control pause only: false/exit can never authorize input.
-                            self.controller.disarm("headset editor opened")
+                        elif kind == "hello":
+                            if msg.get("editing") is True:
+                                # A control pause only: false/exit can never authorize input.
+                                self.controller.disarm("headset editor opened")
+                            if type(msg.get("settingsSchema")) is int and msg["settingsSchema"] == 2 and not self._settings_schema2:
+                                # USB relays start with the legacy settings shape. A
+                                # validated client can opt in without another hello.
+                                self._settings_schema2 = True
+                                await self._broadcast_settings(ws)
                     except (ProtocolError, TypeError, ValueError) as exc:
                         errors += 1
                         await ws.send_json({"v": 1, "type": "error", "message": str(exc)[:200]})
@@ -256,6 +271,7 @@ class HostServer:
                     await sender
             if self._ws is ws:
                 self._ws = None
+                self._settings_schema2 = False
                 self._worker.active.clear()
                 self.controller.set_connected(False)
                 self._emit("connection", connected=False, address=address)

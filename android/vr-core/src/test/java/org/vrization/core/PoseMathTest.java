@@ -30,6 +30,24 @@ public final class PoseMathTest {
         assertEquals(1f, settings.distance, 0f); assertEquals(0f, settings.distortion, 0f);
         assertEquals(3000f, settings.sensitivity, 0f);
     }
+    @Test public void stabilizationDefaultsOffAndCopiesWithoutSharingMutableSettings() {
+        VrSettings defaults = new VrSettings(); assertEquals(0, defaults.stabilization, 0);
+        defaults.stabilization = .64f; VrSettings copy = defaults.copy();
+        defaults.stabilization = .12f; assertEquals(.64f, copy.stabilization, 0);
+        assertEquals(.12f, defaults.stabilization, 0);
+    }
+    @Test public void stabilizationNormalizationPreservesValidValuesAndClampsInvalidInput() {
+        for (float value : new float[]{0, .4f, 1}) {
+            VrSettings settings = new VrSettings(); settings.stabilization = value; settings.normalize();
+            assertEquals(value, settings.stabilization, 0);
+        }
+        for (float value : new float[]{-1, Float.NaN, Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY}) {
+            VrSettings settings = new VrSettings(); settings.stabilization = value; settings.normalize();
+            assertEquals(0, settings.stabilization, 0);
+        }
+        VrSettings settings = new VrSettings(); settings.stabilization = 10; settings.normalize();
+        assertEquals(1, settings.stabilization, 0);
+    }
 
     @Test public void rotationCenterNeutralAndIndependentAxesMatchViewerSigns() {
         float[] identity = rotation(0, 0, 0);

@@ -18,6 +18,7 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
     private var scroll: UIScrollView!
     private var content: UIStackView!
     private var status = UILabel(), frameStatus = UILabel()
+    private var stabilizationNotice = UILabel()
     private var hostField = UITextField(), portField = UITextField(), codeField = UITextField()
     private var connectButton = UIButton(type: .system)
     private var modes = UISegmentedControl()
@@ -51,6 +52,7 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
         if let route = argument("--transport"), ["usb", "lan"].contains(route) { preferences.transport = route }
         settings = preferences.settings
         if !motion.available { settings.mode = "full" }
+        client.setSettingsBase(settings)
         metalView = MTKView(frame: .zero, device: MTLCreateSystemDefaultDevice())
         metalView.translatesAutoresizingMaskIntoConstraints = false
         metalView.accessibilityIdentifier = "vr.surface"
@@ -91,6 +93,7 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
         client.onState = { [weak self] _, key in
             guard let self = self else { return }
             self.statusKey = key; self.updateStatus(); self.updateTracking()
+            self.updateStabilizationNotice()
             if self.client.state == .disconnected {
                 self.closeEditor(save: false, resumeMotion: false)
                 self.renderer?.clear(); self.frameStatus.text = L.text("waitingFrame")
@@ -131,6 +134,7 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
             }
         }
         client.onRTT = { [weak self] value in self?.rtt = value; if self?.client.state == .connected { self?.updateFrameStatus() } }
+        client.onCapabilitiesChanged = { [weak self] in self?.updateStabilizationNotice() }
         motion.orientation = { [weak self] in self?.view.window?.windowScene?.interfaceOrientation ?? .landscapeRight }
         motion.onPose = { [weak self] pose in
             guard let self = self, self.active, self.editor == nil else { return }
@@ -216,6 +220,10 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
         addSlider("fov", path: \.fov, min: 50, max: 110, steps: 60)
         addSlider("distance", path: \.distance, min: 1, max: 8, steps: 140)
         addSlider("sensitivity", path: \.sensitivity, min: 100, max: 3000, steps: 290)
+        addSlider("stabilization", path: \.stabilization, min: 0, max: 1, steps: 100)
+        stabilizationNotice = label(L.text("stabilizationHelp"), size: 12)
+        stabilizationNotice.accessibilityIdentifier = "setting.stabilization.notice"
+        content.addArrangedSubview(stabilizationNotice)
         invert = UISwitch(); invert.accessibilityIdentifier = "view.invertY"
         invert.addTarget(self, action: #selector(invertChanged), for: .valueChanged)
         let invertRow = UIStackView(arrangedSubviews: [label(L.text("invertY"), size: 14), invert]); invertRow.spacing = 8
@@ -267,6 +275,11 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
         modes.setEnabled(motion.available, forSegmentAt: 1); modes.setEnabled(motion.available, forSegmentAt: 2)
         for slider in sliders { slider.refresh(settings) }
         invert.isOn = settings.invertY
+        updateStabilizationNotice()
+    }
+    private func updateStabilizationNotice() {
+        let unsupported = client.state == .connected && !client.supportsStabilization
+        stabilizationNotice.text = L.text(unsupported ? "stabilizationUnsupported" : "stabilizationHelp")
     }
     private func updateStatus() {
         status.text = L.text(statusKey)
@@ -279,6 +292,7 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
         frameStatus.text = String(format: L.text("frameFormat"), frameWidth, frameHeight, receiveFPS, ping, frames)
     }
     private func saveSettings() {
+        client.setSettingsBase(settings)
         preferences.hasCommittedProfile = true
         preferences.settings = settings
         try? preferenceStore.save(preferences)
@@ -340,6 +354,7 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
         client.disconnect(notify: false); motion.stop(); renderer?.clear()
         sync = LocalProfileSync(); launchOverridesActive = false; startedInitialUSB = true
         try? preferenceStore.reset(); preferences = preferenceStore.load(); settings = preferences.settings
+        client.setSettingsBase(settings)
         codeField.text = ""; statusKey = "disconnected"
         motion.recenter(); renderer?.setPose(Pose()); renderer?.setSettings(settings)
         overlay.isHidden = false; buildControls()
@@ -479,7 +494,7 @@ private final class SettingSlider: NSObject {
     }
     private func show(_ value: Double) {
         let precision = ["offsetX", "offsetY", "eyeSeparation", "distortion"].contains(key) ? "%.3f" : "%.2f"
-        let formatted = key == "scale" ? String(format: "%.0f%%", value * 100) : String(format: precision, value)
+        let formatted = ["scale", "stabilization"].contains(key) ? String(format: "%.0f%%", value * 100) : String(format: precision, value)
         // Keep UIKit's slider accessibility value tied to its native thumb
         // position. The adjacent accessible label announces the actual value.
         label.text = L.text(key) + "  " + formatted

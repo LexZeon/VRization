@@ -30,4 +30,11 @@ final class ConnectionInputTests: XCTestCase {
             XCTAssertThrowsError(try ConnectionInput.url(host: "pc.local", port: "8765", token: token))
         }
     }
+    func testSchemaTwoAddsOnlyNegotiationQueryWithoutChangingToken() throws {
+        let url = try ConnectionInput.url(host: "::1", port: "8765", token: "001234", settingsSchema: 2)
+        let components = try XCTUnwrap(URLComponents(url: url, resolvingAgainstBaseURL: false))
+        XCTAssertEqual(components.path, "/ws")
+        XCTAssertEqual(components.queryItems, [URLQueryItem(name: "token", value: "001234"), URLQueryItem(name: "settingsSchema", value: "2")])
+        XCTAssertThrowsError(try ConnectionInput.url(host: "pc.local", port: "8765", token: "123456", settingsSchema: 3))
+    }
 }

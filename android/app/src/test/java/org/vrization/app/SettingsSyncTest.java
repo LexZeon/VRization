@@ -65,4 +65,21 @@ public final class SettingsSyncTest {
         sync.edited(); long saved = sync.nextSequence(); sync.sent(saved, scale(.95f));
         assertFalse(sync.accept(scale(.6f), 4L, null)); assertTrue(sync.accept(scale(.95f), 5L, saved));
     }
+    @Test public void legacyEchoMustMatchStabilizationBeforeClearingPendingSnapshot() {
+        SettingsSync sync = new SettingsSync(); VrSettings sent = scale(.8f); sent.stabilization = .7f;
+        sync.edited(); sync.sent(sync.nextSequence(), sent);
+        VrSettings wrong = sent.copy(); wrong.stabilization = .2f;
+        assertFalse(sync.accept(wrong, null, null));
+        assertTrue(sync.accept(sent.copy(), null, null));
+        assertTrue(sync.accept(wrong, null, null));
+    }
+    @Test public void strippedLegacyAcknowledgementRetainsLocalValueAndNormalSequenceGate() {
+        SettingsSync sync = new SettingsSync(); VrSettings saved = new VrSettings(); saved.stabilization = .81f;
+        sync.edited(); long sequence = sync.nextSequence(); sync.sent(sequence, saved);
+        VrSettings ack = SettingsValues.decode(SettingsValues.encodeForHost(saved, false), saved, false);
+        assertTrue(sync.accept(ack, 5L, sequence)); assertEquals(.81f, ack.stabilization, 0);
+        VrSettings changed = saved.copy(); changed.stabilization = .23f;
+        sync.edited(); long latest = sync.nextSequence(); sync.sent(latest, changed);
+        assertFalse(sync.accept(ack, 5L, sequence)); assertTrue(sync.accept(changed, 6L, latest));
+    }
 }

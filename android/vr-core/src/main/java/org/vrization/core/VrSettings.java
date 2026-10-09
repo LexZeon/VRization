@@ -11,6 +11,8 @@ public final class VrSettings {
     public float distance = 3f;
     public float distortion = 0f;
     public float sensitivity = 1000f;
+    /** FPS filtering runs on the host. Zero preserves the original motion behavior. */
+    public float stabilization = 0f;
     public boolean invertY = false;
 
     public VrSettings copy() {
@@ -18,7 +20,7 @@ public final class VrSettings {
         result.mode = mode; result.scale = scale; result.offsetX = offsetX;
         result.offsetY = offsetY; result.eyeSeparation = eyeSeparation;
         result.fov = fov; result.distance = distance; result.distortion = distortion;
-        result.sensitivity = sensitivity; result.invertY = invertY;
+        result.sensitivity = sensitivity; result.stabilization = stabilization; result.invertY = invertY;
         return result;
     }
 
@@ -28,6 +30,7 @@ public final class VrSettings {
         offsetY = clamp(offsetY, -.3f, .3f); eyeSeparation = clamp(eyeSeparation, -1f, .2f);
         fov = clamp(fov, 50f, 110f); distance = clamp(distance, 1f, 8f);
         distortion = clamp(distortion, 0f, .5f); sensitivity = clamp(sensitivity, 100f, 3000f);
+        stabilization = clamp(stabilization, 0f, 1f);
     }
 
     private static float clamp(float value, float low, float high) {

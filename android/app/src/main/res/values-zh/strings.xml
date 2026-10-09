@@ -10,11 +10,12 @@
     <string name="usb_help">使用能传数据的 USB 线。手机开启 USB 调试并允许这台电脑，再在电脑端开始串流。电脑会检测已授权的 USB 手机，这里无需输入 IP 或配对码。</string>
     <string name="usb_ready">已选择 USB。点击“检测 USB 并连接”查找正在运行的电脑端。</string>
     <string name="usb_detecting">正在通过 USB 检测电脑…</string>
+    <string name="usb_waiting">正在等待 USB 电脑端，最多 30 秒。请允许 USB 调试，并在电脑开始串流。点击取消可停止此次尝试。</string>
     <string name="usb_not_detected">未检测到 USB 电脑端。请检查数据线、开启 USB 调试、允许此电脑，并开始电脑端串流。点击“检测 USB 并连接”重试。</string>
     <string name="usb_not_authorized">USB 尚未授权就绪。请在手机允许 USB 调试，确认电脑端检测到这台已授权的 USB 手机，再开始串流。</string>
     <string name="usb_host_stopped">已找到电脑端，但串流尚未开始。请在电脑点击开始串流，再重试。</string>
     <string name="usb_invalid_response">USB 检测响应无效。请将两端更新为同一版本，开始电脑端串流后重试。</string>
-    <string name="usb_notice">USB 使用已授权的数据线连接。FPS 鼠标控制仍需要在电脑端主动授权。</string>
+    <string name="usb_notice">USB 使用已授权的数据线连接。第一人称鼠标控制仍需要在电脑端主动授权。</string>
     <string name="check_usb_connection">请检查 USB 数据线、调试授权及电脑端串流</string>
     <string name="connect_usb">检测 USB 并连接</string>
     <string name="cancel_connect">取消连接</string>
@@ -28,8 +29,8 @@
     <string name="code_hint">六位配对码</string>
     <string name="connect">连接电脑</string>
     <string name="disconnect">断开连接</string>
-    <string name="network_notice">局域网画面与控制未加密，请只在可信网络使用。电脑端默认关闭鼠标控制，FPS 模式需在电脑上开启。</string>
-    <string name="sensor_unavailable">未检测到旋转传感器：全屏模式仍可使用；大屏幕及 FPS 模式已禁用。</string>
+    <string name="network_notice">局域网画面与控制未加密，请只在可信网络使用。电脑端默认关闭鼠标控制，第一人称模式需在电脑上开启。</string>
+    <string name="sensor_unavailable">未检测到旋转传感器：全屏模式仍可使用；大屏幕及第一人称模式已禁用。</string>
     <string name="watch_mode">观看模式</string>
     <string name="headset_fit">盒子适配</string>
     <string name="scale">画面缩放</string>
@@ -40,9 +41,12 @@
     <string name="cinema_game">大屏幕与游戏</string>
     <string name="fov">视野角度（大屏幕）</string>
     <string name="distance">屏幕距离（大屏幕）</string>
-    <string name="sensitivity">鼠标灵敏度（FPS）</string>
+    <string name="sensitivity">鼠标灵敏度（第一人称）</string>
+    <string name="stabilization">陀螺仪防抖（第一人称）</string>
+    <string name="stabilization_help">0% 保持原来的移动效果。数值越高越能减轻抖动，也可能增加平滑延迟。由电脑端处理。</string>
+    <string name="stabilization_legacy">此电脑端尚不支持防抖。数值已保存在手机；更新电脑端后才能生效。</string>
     <string name="format_pixels" formatted="false">%.0f 像素/弧度</string>
-    <string name="invert_y">FPS 垂直方向反转</string>
+    <string name="invert_y">第一人称垂直方向反转</string>
     <string name="reset_view">恢复显示设置</string>
     <string name="edit_headset">可视化适配 VR 盒子</string>
     <string name="editor_gestures">任一眼内部向外拖则分开，向内拖可让两眼边缘相接；上下同步，角点等比例缩放。接近接缝时位置和间距自动对齐。平面预览，头部控制已暂停。</string>
@@ -53,7 +57,7 @@
     <string name="reset_all_done">已重置全部手机设置：默认 VR 参数、英文和 USB。重新连接后向电脑提交默认参数。</string>
     <string name="invalid_host_protocol">电脑未发送有效的 VRization 握手。请更新两端软件并重新连接。</string>
     <string name="licenses">关于与开源许可</string>
-    <string name="mode_help">全屏和 FPS 使用固定双眼画面；大屏幕把二维桌面放在虚拟空间。画面本身并非游戏原生双眼立体。耳机声音请暂用电脑输出。\n应用进入后台时自动断开串流并停止控制；回到前台后点击连接。</string>
+    <string name="mode_help">全屏和第一人称使用固定双眼画面；大屏幕把二维桌面放在虚拟空间。画面本身并非游戏原生双眼立体。耳机声音请暂用电脑输出。\n应用进入后台时自动断开串流并停止控制；回到前台后点击连接。</string>
     <string name="invalid_port">端口应为 1 到 65535 的整数。</string>
     <string name="invalid_address">请输入电脑 IP 或主机名，以及正确端口；不需要 http:// 前缀。</string>
     <string name="invalid_code">请输入电脑端显示的六位数字配对码。</string>
@@ -82,7 +86,7 @@
     <string-array name="watch_modes">
         <item>全屏模式 · 固定双眼画面</item>
         <item>大屏幕模式 · 转头观看虚拟屏幕</item>
-        <item>FPS 游戏模式 · 转头控制电脑视角</item>
+        <item>第一人称模式 · 转头控制电脑视角</item>
     </string-array>
     <string-array name="languages"><item>English</item><item>中文</item></string-array>
     <string-array name="connection_methods"><item>USB 数据线 · 默认</item><item>局域网 / Wi-Fi · 手动配对</item></string-array>

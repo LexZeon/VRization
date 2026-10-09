@@ -7,15 +7,15 @@
 
 Download published assets and `SHA256SUMS.txt` from [GitHub Releases](https://github.com/LexZeon/VRization/releases). Use the application versions listed for that release: a host-only patch can intentionally retain older phone assets. Published alpha builds have the limitations recorded in [release notes](RELEASE_NOTES.md) and [compatibility records](COMPATIBILITY.md).
 
-### v0.3.1-alpha: update Windows, keep the phone app
+### v0.3.2-alpha: update the host and phone
 
-This release combines **Windows host 0.3.1** with the verified **Android APK / AAR and iOS app 0.3.0** over unchanged protocol v1. The Android APK, AAR and arm64 iOS Simulator ZIP are reused unchanged, with the same SHA-256 values as v0.3.0-alpha. **An existing v0.3.0 Android installation does not need reinstalling, upgrading or clearing its saved profiles.** Close the old host, extract the full new Windows ZIP and run the new EXE.
+Windows, Android / AAR and iOS applications now use version **0.3.2** for the first-person stabilization control. Update both ends to apply it, retain a matching-signer Android installation's saved data, and verify each asset against this release's manifest. Existing ten-field profiles migrate to eleven fields with stabilization zero. iOS remains source / Mac Simulator output, not a signed iPhone installer. Final build / acceptance status is in [current notes](RELEASE_NOTES.md).
 
-The iOS source ZIP is regenerated to include updated desktop sources / documentation; its iOS application remains **0.3.0 / build 4**, as does the unchanged Simulator app. It still requires your Apple signing for a physical phone. Match each downloaded asset to this release's `SHA256SUMS.txt`, rather than expecting all application version labels or all ZIP hashes to change. The patch's connection checks and inherited limits are in [current notes](RELEASE_NOTES.md); [v0.3.0 notes](releases/v0.3.0-alpha.md) preserve the earlier acceptance.
+The earlier [v0.3.1-alpha patch](releases/v0.3.1-alpha.md) combined Windows 0.3.1 with unchanged mobile 0.3.0 assets. That historical mixed-version policy does not mean the new phone slider is available without updating.
 
 | Download | What to do with it |
 | --- | --- |
-| `VRization-Windows-x64.zip` | Extract the **whole ZIP**, then run `VRization-Host.exe` inside it. Keep the documentation and license folders with the app. No Python installation is needed for this packaged host. |
+| `VRization-Windows-x64.zip` | Extract the **whole ZIP**, then run **Start-Windows.bat** or `VRization-Host.exe` inside it. Keep the documentation and license folders with the app. No Python installation is needed for this packaged host. |
 | `VRization-Android-debug.apk` | Install on Android. This is the project's debug-signed alpha APK; normal Android installation approval still applies. A matching signing certificate is required to upgrade an existing installation without uninstalling it. |
 | `VRization-vr-core-alpha.aar` | Android library for developers integrating rendering / pose functionality; not a phone installer. |
 | `VRization-iOS-source.zip` | Source and Xcode project. Build on a Mac and use your own Apple signing for a physical iPhone / iPad. See [iOS instructions](IOS.md). |
@@ -23,6 +23,12 @@ The iOS source ZIP is regenerated to include updated desktop sources / documenta
 | `VRization-Licenses.zip` | License texts and provenance indexes; not an application. |
 
 iOS source and Simulator downloads are **not signed, directly installable iPhone packages**. Android USB requires separately installed official Platform Tools; iOS USB requires separately installed Apple Devices / Apple Mobile Device support on Windows. See [the USB guide](USB.md).
+
+### Separate official USB tools
+
+Running the packaged app needs no Python, Java or SDK development environment. Android USB still requires Google's official Platform Tools and the phone's authorization; Windows / OEM drivers and Apple Devices for iOS remain separate prerequisites. Use **USB connection… → Download official Android USB tools…**, accept Google's terms on its site and download the Windows package, then **Import downloaded USB tools ZIP…**. The importer accepts the verified Windows **37.0.1** ZIP, preserves its complete NOTICE and existing installations, and lets you choose the destination. An existing official `adb.exe` can be selected manually instead; other downloaded package versions are not silently imported.
+
+For a standalone extracted Windows folder, the default separate installation is `tools/android-sdk/platform-tools/` beside its EXE. In a managed archive it belongs at the archive root's `tools/android-sdk/`, outside `latest` and version folders, so refreshes keep it. The package / archive launchers set SDK variables only for the launched child when that directory exists; no global environment change or bundled SDK is involved. See [USB prerequisites and troubleshooting](USB.md).
 
 ### Create a verified local archive
 
@@ -41,6 +47,7 @@ The example folder contains:
 ```text
 Documents/VRization-Releases/
   OPEN-ME.html
+  tools/android-sdk/         separately installed official tools, when present
   latest/
     Start-Windows.bat
     Start-on-second-monitor.bat
@@ -69,15 +76,15 @@ v0.2.0-alpha preceded the v0.3 editor / reset / profile release; v0.3.1-alpha is
 
 从 [GitHub Releases](https://github.com/LexZeon/VRization/releases) 下载已发布产物及 `SHA256SUMS.txt`，使用该次发布明确列出的应用版本；仅修复电脑端的补丁可以有意保留较早手机产物。Alpha 版限制见 [发布说明](RELEASE_NOTES.md) 与 [兼容性记录](COMPATIBILITY.md)。
 
-### v0.3.1-alpha：更新电脑端，保留手机软件
+### v0.3.2-alpha：更新电脑与手机
 
-本次发布用 **0.3.1 电脑端**搭配已验证的 **0.3.0 Android APK / AAR 与 iOS 应用**，共用不变的协议 v1。Android APK、AAR 和 arm64 iOS 模拟器 ZIP 原样复用，SHA-256 与 v0.3.0-alpha 相同。**已有 v0.3.0 Android 安装无需重装、升级或清除保存配置。** 关闭旧电脑端，完整解压新的 Windows ZIP，再运行新 EXE。
+Windows、Android / AAR 与 iOS 应用均为 **0.3.2**，提供第一人称防抖控制。生效时更新两端，签名一致的 Android 覆盖升级保留已存数据，逐个按本版清单核对产物。旧十字段配置迁移为十一字段，防抖添加零；iOS 仍提供源码 / Mac 模拟器产物，不是签名 iPhone 安装包。最终构建 / 验收状态见 [当前说明](RELEASE_NOTES.md)。
 
-iOS 源码 ZIP 重新生成，包含更新的桌面源码 / 文档；其中 iOS 应用仍是 **0.3.0 / build 4**，模拟器应用也不变。真实手机仍需自己的 Apple 签名。按本次 `SHA256SUMS.txt` 核对每个产物，不要要求所有应用版本号或全部 ZIP 校验值都变化。补丁连接检查与继承限制见 [当前说明](RELEASE_NOTES.md)，[v0.3.0 原说明](releases/v0.3.0-alpha.md) 保留较早验收。
+此前 [v0.3.1-alpha 补丁](releases/v0.3.1-alpha.md) 用 Windows 0.3.1 搭配未变的 0.3.0 手机产物。该历史混合版本策略不表示不升级手机就能使用新滑块。
 
 | 下载文件 | 用法 |
 | --- | --- |
-| `VRization-Windows-x64.zip` | **完整解压 ZIP**，运行其中的 `VRization-Host.exe`，保留文档和许可证文件夹。此打包电脑端无需另装 Python。 |
+| `VRization-Windows-x64.zip` | **完整解压 ZIP**，运行其中的 **Start-Windows.bat** 或 `VRization-Host.exe`，保留文档和许可证文件夹。此打包电脑端无需另装 Python。 |
 | `VRization-Android-debug.apk` | 安装到 Android。它是项目 debug 签名的 alpha APK，仍需正常 Android 安装授权。若要保留数据升级已有安装，签名证书必须一致。 |
 | `VRization-vr-core-alpha.aar` | 供开发者集成渲染 / 姿态功能的 Android 库，不是手机安装包。 |
 | `VRization-iOS-source.zip` | 源码与 Xcode 工程。在 Mac 构建，使用自己的 Apple 签名安装到真实 iPhone / iPad。见 [iOS 教程](IOS.md)。 |
@@ -85,6 +92,12 @@ iOS 源码 ZIP 重新生成，包含更新的桌面源码 / 文档；其中 iOS 
 | `VRization-Licenses.zip` | 许可证原文与来源索引，不是应用程序。 |
 
 iOS 源码与模拟器产物**不是已签名、可直接安装到 iPhone 的安装包**。Android USB 需要另行安装官方 Platform Tools；iOS USB 需要 Windows 另行安装 Apple Devices / Apple Mobile Device 支持。见 [USB 指南](USB.md)。
+
+### 另行获取官方 USB 工具
+
+运行打包软件无需 Python、Java 或 SDK 开发环境；Android USB 仍需 Google 官方 Platform Tools 和手机授权，Windows / 厂商驱动及 iOS 的 Apple Devices 是独立前提。打开“**USB 连接… → 下载官方安卓 USB 工具…**”，在 Google 网站阅读并接受条款、下载 Windows 包，再“**导入已下载的 USB 工具 ZIP…**”。导入器只接受已校验的 Windows **37.0.1** ZIP，保留完整 NOTICE 和已有安装，可选择目录；也可手动选择已安装官方 `adb.exe`，不会悄悄导入其他版本。
+
+独立解压的 Windows 文件夹默认把另装工具放到 EXE 旁的 `tools/android-sdk/platform-tools/`。已管理归档则放在归档根目录的 `tools/android-sdk/`，位于 `latest` 和版本目录之外，刷新时保留。发布包 / 归档启动器只在该目录存在时为子应用设置 SDK 变量，不改全局环境、不随包附带 SDK。见 [USB 前提与排查](USB.md)。
 
 ### 建立已校验的本地归档
 
@@ -103,6 +116,7 @@ py -3.12 scripts/archive_releases.py --destination "$env:USERPROFILE\Documents\V
 ```text
 Documents/VRization-Releases/
   OPEN-ME.html
+  tools/android-sdk/         另行安装的官方工具，仅安装后存在
   latest/
     Start-Windows.bat
     Start-on-second-monitor.bat

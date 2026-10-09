@@ -44,7 +44,13 @@ def package_windows(out):
     path = out / "VRization-Windows-x64.zip"
     with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as archive:
         add_tree(archive, ROOT / "desktop/dist/VRization-Host.exe", "VRization-Host.exe")
-        archive.writestr("Start-on-second-monitor.bat", '@echo off\r\nstart "" "%~dp0VRization-Host.exe" --monitor 2\r\n')
+        launcher = ('@echo off\r\nsetlocal\r\n'
+                    'if exist "%~dp0tools\\android-sdk\\platform-tools\\adb.exe" (\r\n'
+                    '  set "ANDROID_HOME=%~dp0tools\\android-sdk"\r\n'
+                    '  set "ANDROID_SDK_ROOT=%~dp0tools\\android-sdk"\r\n'
+                    ')\r\nstart "" "%~dp0VRization-Host.exe"{arguments}\r\nendlocal\r\n')
+        archive.writestr("Start-Windows.bat", launcher.format(arguments=""))
+        archive.writestr("Start-on-second-monitor.bat", launcher.format(arguments=" --monitor 2"))
         for page in sorted(ROOT.glob("*.md")):
             add_tree(archive, page)
         for name in ("LICENSE", "NOTICE", "docs", "licenses", "examples", "desktop/requirements-lock.txt"):

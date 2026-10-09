@@ -5,7 +5,7 @@
 <!-- vrization:english -->
 ## English
 
-v0.3.0-alpha places visual headset fitting first in the settings on Windows, Android and iOS. It adjusts the image inside the two eye areas without adding a fourth viewing mode. The editor uses a flat, undistorted preview; your actual full-screen / cinema / FPS mode and other optical settings remain in the draft unchanged.
+v0.3.0-alpha places visual headset fitting first in the settings on Windows, Android and iOS. It adjusts the image inside the two eye areas without adding a fourth viewing mode. The editor uses a flat, undistorted preview; your actual full-screen / cinema / First-person mode and other optical settings remain in the draft unchanged.
 
 | Application | Entry and actions |
 | --- | --- |
@@ -19,11 +19,11 @@ v0.3.0-alpha places visual headset fitting first in the settings on Windows, And
 2. Drag inside either image to adjust **linked, mirrored eye spacing** on all three applications. Left-eye left or right-eye right widens the spacing; left-eye right or right-eye left narrows it. A smaller image can continue inward until the inner edges meet at the middle seam. Shared horizontal offset is retained while space allows, then constrained toward zero as the seam closes. Vertical dragging moves both normally. Corners preserve aspect ratio and normally keep centers fixed; enlargement at contact moves centers outward as needed to prevent overlap. Scale is limited to 50–100%, signed separation to −1…0.2 with an aspect-dependent inward stop, and vertical offset to −0.3…+0.3.
 3. **Save** on a phone commits the complete draft through normal settings synchronization when connected. On Windows it updates only scale / offsetX / offsetY / eyeSeparation once against the current host snapshot, preserving other settings changed during editing, then saves that complete committed state. **Discard** restores the local entry preview and sends no update. Dragging the preview never writes host settings or saved preferences.
 
-The preview temporarily suppresses motion-driven viewing and outgoing phone poses. A connected phone stops new poses and drops application-pending pose work (already submitted transport bytes cannot be recalled) and sends one normal hello with `editing: true` on entry; the current host disarms input immediately on receipt. Desktop entry also disarms it. Video, ping and normal exit recentering may continue; no draft settings or preferences are written. Older hosts still stop on the pose timeout. Saving or leaving the editor never grants new authorization. Use the normal PC authorization flow again before FPS control.
+The preview temporarily suppresses motion-driven viewing and outgoing phone poses. A connected phone stops new poses and drops application-pending pose work (already submitted transport bytes cannot be recalled) and sends one normal hello with `editing: true` on entry; the current host disarms input immediately on receipt. Desktop entry also disarms it. Video, ping and normal exit recentering may continue; no draft settings or preferences are written. Older hosts still stop on the pose timeout. Saving or leaving the editor never grants new authorization. Use the normal PC authorization flow again before first-person control.
 
 Phone backgrounding, disconnecting or changing language discards an open draft; iOS also cancels it when the viewport changes during rotation. Saved values remain separate from a temporary drag. The editor is a visual fit aid, not a measurement of physical lens alignment, interpupillary distance or headset comfort. A valid offset / eye separation can place an image partly outside an eye viewport; the viewport clips it.
 
-Seam contact is guaranteed by the flat preview geometry and undistorted full / FPS display. Cinema perspective, head motion and lens distortion change projected edges, so this is not a guarantee of a seamless image in those views. The PC's selected phone aspect is an approximation; the phone resolves against its real viewport and current image aspect. Update both host and phone to v0.3 before saving negative separation: v0.2 clients / hosts accept only nonnegative values. Existing nonnegative profiles and the 0.03 default remain valid.
+Seam contact is guaranteed by the flat preview geometry and undistorted full / first-person display. Cinema perspective, head motion and lens distortion change projected edges, so this is not a guarantee of a seamless image in those views. The PC's selected phone aspect is an approximation; the phone resolves against its real viewport and current image aspect. Update both host and phone to v0.3 before saving negative separation: v0.2 clients / hosts accept only nonnegative values. Existing nonnegative profiles and the 0.03 default remain valid.
 
 ### Physical Android examples
 
@@ -67,7 +67,7 @@ Reset is explicit and separate from Discard. It removes a pending edit and retur
 | --- | --- |
 | Mode / scale / offsets | Full screen / 0.85 / 0, 0 |
 | Eye separation / field of view / distance | 0.03 / 80° / 3 |
-| Distortion / sensitivity / invert Y | 0 / 1000 / false |
+| Distortion / sensitivity / stabilization / invert Y | 0 / 1000 / 0 / false |
 | Language / preferred connection | English / USB |
 | Windows capture preset | Low latency: long edge 640, target 60 FPS, JPEG Q45 |
 | Phone LAN fields | Empty address, port 8765, empty pairing field |
@@ -108,12 +108,20 @@ All three UI adapters convert pointer movement directly: `dx = 2 × pointerDelta
 
 Python exposes `fit_size`, `resolved_fit`, `eye_bounds` (resolved left, bottom, right, top; eye 0 left / 1 right), `dragged` (`eye_pan` / `resize`, with reusable ordinary `pan` also available) and an optional `EditTransaction` with local preview / commit / discard. Ordinary `pan` retains generic wire offset clamps for integrations; the editor uses the seam-aware path. Callers own rendering, persistence and broadcasts. Automated geometry checks do not establish real headset optics or completed UI / device acceptance; consult [validation](VALIDATION.md).
 
+### Stabilization is part of the committed profile
+
+From v0.3.2, First-person stabilization (default 0%) is an eleventh VR setting. The fit editor preserves it while editing scale / spacing / offsets. Normal Save, broadcasts and phone-profile restoration retain it; Reset returns it to 0%. Legacy ten-field saved profiles migrate with zero without changing their other values. Filtering runs only on the host, not in the flat preview. See [stabilization](STABILIZATION.md).
+
+### Display range in all modes (v0.3.2)
+
+The resolved per-eye display rectangle also bounds cinema / lens-distorted rendering, so changing the mode does not allow pixels outside the chosen fit area. This is a physical viewport mask, not a promise that perspective content fills it when looking away. Exact image-edge contact remains a property of the flat, undistorted view. The visible mode is now **First person**, while stored / wire mode stays `fps`.
+
 ---
 
 <!-- vrization:chinese -->
 ## 简体中文
 
-v0.3.0-alpha 将可视盒子适配放在 Windows、Android 与 iOS 设置首位，在两眼区域内直接调整画面，不增加第四种观看模式。编辑器采用平面、无畸变预览；实际全屏 / 大屏幕 / FPS 模式与其他光学设置原样保留在草稿中。
+v0.3.0-alpha 将可视盒子适配放在 Windows、Android 与 iOS 设置首位，在两眼区域内直接调整画面，不增加第四种观看模式。编辑器采用平面、无畸变预览；实际全屏 / 大屏幕 / 第一人称模式与其他光学设置原样保留在草稿中。
 
 | 应用 | 入口与操作 |
 | --- | --- |
@@ -127,11 +135,11 @@ v0.3.0-alpha 将可视盒子适配放在 Windows、Android 与 iOS 设置首位�
 2. 三端拖画面内部都调整**左右眼镜像联动间距**：左眼向左或右眼向右拉开，左眼向右或右眼向左收拢。缩小后仍可继续向内拖，直到两眼内边在中缝相接。空间允许时保留整体水平偏移，接近中缝时会限位并逐渐归零；竖向仍同步正常移动。角点保持图像比例，通常中心固定；在接触状态放大时，必要时向外调整中心以避免重叠。缩放范围为 50–100%，有符号间距为 −1…0.2、向内终点按画面比例计算，竖向偏移为 −0.3…+0.3。
 3. 手机**保存**提交完整草稿，已连接时通过正常设置同步发送；Windows 保存时只向当前主机快照一次更新 scale / offsetX / offsetY / eyeSeparation，保留编辑期间其他设置改动，再保存完整已提交状态。**放弃**恢复本地进入预览，不发送更新。预览拖动不会写主机设置或保存偏好。
 
-预览暂时停用姿态控制画面，并暂停手机发送姿态。已连接手机停止新姿态、丢弃应用层待发姿态（已提交传输层字节无法撤回），进入时用普通 hello 一次发送 `editing: true`，当前主机收到后立即解除输入授权；电脑进入也解除授权。视频、ping 和正常退出回正可以继续，但不写草稿设置或偏好。旧主机仍由姿态超时停止输入。保存或退出不会重新授予权限；继续 FPS 控制前，重新走电脑正常授权流程。
+预览暂时停用姿态控制画面，并暂停手机发送姿态。已连接手机停止新姿态、丢弃应用层待发姿态（已提交传输层字节无法撤回），进入时用普通 hello 一次发送 `editing: true`，当前主机收到后立即解除输入授权；电脑进入也解除授权。视频、ping 和正常退出回正可以继续，但不写草稿设置或偏好。旧主机仍由姿态超时停止输入。保存或退出不会重新授予权限；继续 第一人称控制前，重新走电脑正常授权流程。
 
 手机进入后台、断线或切语言会放弃尚未保存的草稿；iOS 在旋转导致显示区域改变时也取消编辑。已保存值与临时拖动分开。编辑器帮助肉眼适配，不测量实际镜片对齐、瞳距或舒适度。合法偏移 / 眼间距也可能使部分画面越出单眼区域，超出部分会被裁切。
 
-中缝相接由平面预览及无畸变全屏 / FPS 的几何保证。大屏幕透视、头部运动和镜片畸变会改变投影边缘，不保证这些视图也无缝。电脑选择的手机比例只是近似，手机按实际视口和当前图像比例解析。保存负间距前请把电脑与手机都更新到 v0.3：v0.2 只接受非负值。已有非负配置和默认 0.03 仍有效。
+中缝相接由平面预览及无畸变全屏 / 第一人称 的几何保证。大屏幕透视、头部运动和镜片畸变会改变投影边缘，不保证这些视图也无缝。电脑选择的手机比例只是近似，手机按实际视口和当前图像比例解析。保存负间距前请把电脑与手机都更新到 v0.3：v0.2 只接受非负值。已有非负配置和默认 0.03 仍有效。
 
 ### Android 真机示例
 
@@ -175,7 +183,7 @@ v0.3.0-alpha 将可视盒子适配放在 Windows、Android 与 iOS 设置首位�
 | --- | --- |
 | 模式 / 缩放 / 偏移 | 全屏 / 0.85 / 0, 0 |
 | 眼间距 / 视场角 / 距离 | 0.03 / 80° / 3 |
-| 畸变 / 灵敏度 / Y 反转 | 0 / 1000 / false |
+| 畸变 / 灵敏度 / 防抖 / Y 反转 | 0 / 1000 / 0 / false |
 | 语言 / 优先连接 | English / USB |
 | Windows 采集预设 | 低延迟：最长边 640、目标 60 FPS、JPEG Q45 |
 | 手机局域网字段 | 空地址、端口 8765、空配对码 |
@@ -212,6 +220,14 @@ resize scale = clamp(start.scale +
 
 左眼取 `−`，右眼取 `+`；角点符号为左 / 右 −1 / +1、下 / 上 −1 / +1。指针位移根据**手势开始快照**计算，不重复累加事件，并在本次手势冻结图像 / 视口比例。屏幕 y 向下，转换时取相反符号。接触时 `gap = 0`、共用 X 归零；`fit.x = 0.5`、`scale = 0.5` 的向内下限为 −0.75。渲染解析不会自行改写已保存的原始配置，图像 / 视口比例改变时解析结果可能变化。
 
-三端界面都直接转换指针位移：`dx = 2 × 指针水平位移 / 单眼宽度`，`dy = −2 × 指针竖向位移 / 高度`；由选中眼符号产生水平镜像联动，不统一反转 x。接缝约束未触发时 X 与中心保持不变；普通设置仍可调整 X，但平面渲染受剩余间隙限制。角点方向仍正常，FPS 陀螺仪 / 鼠标映射不变；协议 v1 沿用已有字段，但扩大为有符号范围。
+三端界面都直接转换指针位移：`dx = 2 × 指针水平位移 / 单眼宽度`，`dy = −2 × 指针竖向位移 / 高度`；由选中眼符号产生水平镜像联动，不统一反转 x。接缝约束未触发时 X 与中心保持不变；普通设置仍可调整 X，但平面渲染受剩余间隙限制。角点方向仍正常，第一人称陀螺仪 / 鼠标映射不变；协议 v1 沿用已有字段，但扩大为有符号范围。
 
 Python 提供 `fit_size`、`resolved_fit`、`eye_bounds`（解析后的左、下、右、上；eye 0 左 / 1 右）、`dragged`（`eye_pan` / `resize`，另保留普通 `pan` 供复用）及可选 `EditTransaction`，负责本地预览 / 提交 / 放弃。普通 `pan` 保留通用协议偏移限位供集成使用，编辑器采用接缝路径。调用方负责渲染、存储与广播。几何自动检查不代表真实盒子镜片或界面 / 设备验收已完成，实测范围见 [验证记录](VALIDATION.md)。
+
+### 防抖也属于已提交配置
+
+从 v0.3.2 起，第一人称防抖（默认 0%）是第十一个 VR 字段。适配编辑器修改缩放 / 间距 / 偏移时保留它；正常保存、广播与手机配置恢复都保留，重置归零。旧十字段保存配置迁移时添加零，不改其他值。滤波只在主机执行，不在平面预览执行，见 [防抖设置](STABILIZATION.md)。
+
+### 所有模式的显示范围（v0.3.2）
+
+解析后的单眼显示矩形也限制大屏幕 / 镜片畸变渲染，换模式不会让像素跑到所选适配范围之外。这是物理视口遮罩，不保证转头离开虚拟屏幕时透视内容仍填满它；精确图像边缘相接仍是平面无畸变视图的性质。界面模式现称“**第一人称**”，保存 / 协议标识仍为 `fps`。

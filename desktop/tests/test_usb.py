@@ -82,6 +82,68 @@ class MemorySocket:
 
 
 class AdbDiscoveryTests(unittest.TestCase):
+    def test_frozen_archive_sdk_found_from_executable_not_working_directory(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            sdk = base / "tools/android-sdk/platform-tools/adb.exe"
+            sdk.parent.mkdir(parents=True)
+            sdk.touch()  # A path fixture only, never executed.
+            for layout in ("latest/Windows", "versions/v0.3.1-alpha/Windows",
+                           "previous-latest-20261009-123456-abc123/Windows"):
+                executable = base / layout / "VRization-Host.exe"
+                executable.parent.mkdir(parents=True)
+                executable.touch()
+                with self.subTest(layout=layout), \
+                     patch.dict(os.environ, {"LOCALAPPDATA": str(base / "empty-appdata")}, clear=True), \
+                     patch("vrization_host.usb.sys.frozen", True, create=True), \
+                     patch("vrization_host.usb.sys.executable", str(executable)):
+                    self.assertEqual(find_adb(), sdk.resolve())
+
+    def test_adjacent_portable_sdk_is_frozen_only_and_preserves_existing_priority(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            executable = base / "app/VRization-Host.exe"
+            paths = [base / "chosen/adb.exe", base / "home/platform-tools/adb.exe",
+                     base / "sdk/platform-tools/adb.exe", base / "Android/Sdk/platform-tools/adb.exe",
+                     base / "VRization/tools/android-sdk/platform-tools/adb.exe",
+                     executable.parent / "tools/android-sdk/platform-tools/adb.exe"]
+            for path in paths:
+                path.parent.mkdir(parents=True)
+                path.touch()
+            environment = {"LOCALAPPDATA": directory, "ANDROID_HOME": str(base / "home"),
+                           "ANDROID_SDK_ROOT": str(base / "sdk")}
+            with patch.dict(os.environ, environment, clear=True), \
+                 patch("vrization_host.usb.sys.frozen", True, create=True), \
+                 patch("vrization_host.usb.sys.executable", str(executable)):
+                self.assertEqual(find_adb(str(paths[0])), paths[0].resolve())
+                self.assertEqual(find_adb(), paths[1].resolve())
+                with patch.dict(os.environ, {"ANDROID_HOME": ""}):
+                    self.assertEqual(find_adb(), paths[2].resolve())
+                    with patch.dict(os.environ, {"ANDROID_SDK_ROOT": ""}):
+                        self.assertEqual(find_adb(), paths[3].resolve())
+                        paths[3].unlink()
+                        self.assertEqual(find_adb(), paths[4].resolve())
+                        paths[4].unlink()
+                        self.assertEqual(find_adb(), paths[5].resolve())
+                        with patch("vrization_host.usb.sys.frozen", False):
+                            self.assertIsNone(find_adb())
+
+    def test_frozen_discovery_does_not_search_unrelated_cwd_path_or_ancestors(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            unrelated = base / "tools/android-sdk/platform-tools/adb.exe"
+            unrelated.parent.mkdir(parents=True)
+            unrelated.touch()
+            for layout in ("random/Windows", "versions/not-a-release/Windows", "random/app"):
+                executable = base / layout / "VRization-Host.exe"
+                with self.subTest(layout=layout), \
+                     patch.dict(os.environ, {"LOCALAPPDATA": str(base / "empty-appdata"),
+                                             "PATH": str(unrelated.parent)}, clear=True), \
+                     patch("vrization_host.usb.sys.frozen", True, create=True), \
+                     patch("vrization_host.usb.sys.executable", str(executable)), \
+                     patch("vrization_host.usb.Path.cwd", side_effect=AssertionError("no CWD discovery")):
+                    self.assertIsNone(find_adb())
+
     def test_fresh_preferences_find_managed_sdk_and_authorize_only_physical_usb(self):
         with tempfile.TemporaryDirectory() as directory:
             base = Path(directory)
@@ -363,6 +425,84 @@ class UsbOwnershipTests(unittest.TestCase):
             return SimpleNamespace(returncode=0, stdout=output, stderr="")
         adb = AdbReverse(Path("adb.exe"), runner, usb_presence=lambda serial: serial == "USB123")
         self.assertEqual(adb.devices(), [AndroidDevice("USB123", "device", True)])
+
+    def test_windows_offline_adb_requires_usb_proof_without_querying_transport(self):
+        commands, pnp_reads = [], []
+        def reader():
+            pnp_reads.append(True)
+            return [r"USB\VID_12D1&PID_107E\PHONE123", r"ROOT\UNMATCHED"]
+        def runner(command, **kwargs):
+            args = command[1:]
+            commands.append(args)
+            self.assertEqual(args, ["devices", "-l"])
+            self.assertEqual(kwargs["stdin"], subprocess.DEVNULL)
+            return SimpleNamespace(returncode=0, stderr="", stdout=(
+                "List of devices attached\n"
+                "PHONE123 offline transport_id:1\n"
+                "USBMARKED offline usb:1-2 transport_id:2\n"
+                "UNMATCHED offline transport_id:3\n"
+                "emulator-5556 offline\n"
+                "192.0.2.1:5555 offline\n"
+                "adb-network._adb-tls-connect._tcp offline\n"))
+        presence = WindowsUsbPresence(reader, windows=True, clock=lambda: 0)
+        adb = AdbReverse(Path("adb.exe"), runner, usb_presence=presence)
+        self.assertEqual(adb.devices(), [AndroidDevice("PHONE123", "offline", True),
+                                         AndroidDevice("USBMARKED", "offline", True)])
+        self.assertEqual(commands, [["devices", "-l"]])
+        self.assertEqual(pnp_reads, [True])
+        self.assertIsNone(adb.owned)
+
+    def test_manager_reports_physical_offline_without_bootstrap_or_mapping(self):
+        commands, events = [], []
+        def runner(command, **kwargs):
+            args = command[1:]
+            commands.append(args)
+            self.assertEqual(args, ["devices", "-l"])
+            return SimpleNamespace(returncode=0, stdout="PHONE123 offline transport_id:1\n", stderr="")
+        presence = WindowsUsbPresence(lambda: [r"USB\VID_12D1&PID_107E\PHONE123"],
+                                      windows=True, clock=lambda: 0)
+        adb = AdbReverse(Path("adb.exe"), runner, usb_presence=presence)
+        manager = UsbManager(SimpleNamespace(port=8765), events.append, adb=adb,
+                             mux=SimpleNamespace(devices=lambda: []))
+        manager.set_enabled(True)
+        manager.authorized.set()  # An old ready indication must not remain live.
+        manager.scan()
+        manager.scan()
+        self.assertFalse(manager.authorized.is_set())
+        self.assertEqual(manager._last_devices, ())
+        self.assertEqual(events, [
+            {"event": "usb_devices", "serials": ()},
+            {"event": "usb", "message": "Android USB offline; reconnect cable, unlock the phone and allow USB debugging",
+             "values": {}}])
+        self.assertEqual(commands, [["devices", "-l"], ["devices", "-l"]])
+        self.assertIsNone(adb.owned)
+        self.assertFalse(manager.relay.active)
+
+    def test_manager_distinguishes_missing_and_unavailable_tools_without_mutating_adb(self):
+        missing = "USB waiting: install Android Platform Tools or Apple Devices; LAN is available"
+        unavailable = "Android USB unavailable; check the official Platform Tools path"
+        for error in (None, OSError("fixture command unavailable"),
+                      subprocess.TimeoutExpired("fixture adb", 3)):
+            with self.subTest(error=type(error).__name__):
+                commands, events = [], []
+                def runner(command, **kwargs):
+                    args = command[1:]
+                    commands.append(args)
+                    self.assertEqual(args, ["devices", "-l"])
+                    raise error
+                adb = AdbReverse(Path("adb.exe"), runner) if error is not None else None
+                manager = UsbManager(SimpleNamespace(port=8765), events.append, adb=adb,
+                                     mux=SimpleNamespace(devices=lambda: []))
+                manager.set_enabled(True)
+                manager.authorized.set()
+                with patch("vrization_host.usb.find_adb", return_value=None):
+                    manager.scan()
+                self.assertFalse(manager.authorized.is_set())
+                self.assertEqual(events[-1]["message"], unavailable if error else missing)
+                self.assertEqual(commands, [["devices", "-l"]] if error else [])
+                if adb:
+                    self.assertIsNone(adb.owned)
+                self.assertFalse(manager.relay.active)
 
     def test_native_setupapi_uses_present_usb_and_always_destroys_handle(self):
         class Function:

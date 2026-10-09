@@ -7,7 +7,7 @@
 
 USB is the default connection preference in the Windows host, Android app and iOS app. A data cable and the platform's authorization are required. Native USB transport does not require a hotspot, USB tethering or a shared Wi-Fi network. Use one phone at a time; the host accepts one viewer.
 
-The host detects authorized USB devices automatically when its USB option is enabled. **You must click Start streaming on the PC.** A new phone app launch makes one foreground USB connection attempt; Android discovers the running host, while iOS opens its local listener and waits for the PC. If it fails, use the phone's connection button to retry. Returning from the background or changing the phone's language disconnects and requires a manual connection; neither action silently reconnects. USB never enables FPS mouse control: explicitly allow control on the PC, switch to the game within five seconds, and press **F8** to stop it.
+The host detects authorized USB devices automatically when its USB option is enabled. **You must click Start streaming on the PC.** A new phone app launch starts one foreground USB connection attempt; Android v0.3.2 retries bootstrap discovery within a bounded 30-second window including its handshake, while iOS opens its local listener and waits for the PC. If it fails, use the phone's connection button to retry. Returning from the background or changing the phone's language disconnects and requires a manual connection; neither action silently reconnects. USB never enables first-person mouse control: explicitly allow control on the PC, switch to the game within five seconds, and press **F8** to stop it.
 
 ### Find the PC's USB controls and status
 
@@ -18,12 +18,16 @@ Read the USB status in the top connection card, below the PC address and connect
 ### Android: first setup
 
 1. Install the release's Android APK on the phone. Android 6.0 / API 23 or newer is the application's minimum; actual derivative / device results are listed in [compatibility records](COMPATIBILITY.md).
-2. Download and extract Google's official [Android SDK Platform Tools for Windows](https://developer.android.com/tools/releases/platform-tools). VRization does **not** bundle `adb.exe`, the Android SDK or a USB driver. Keep the extracted Platform Tools folder intact. Open the PC's **USB connection…** shortcut, then use **Choose official SDK adb.exe…** and select its `adb.exe` if automatic SDK discovery does not find it.
+2. Open **USB connection… → Download official Android USB tools…**, read / accept Google's terms and download the official [Windows Platform Tools](https://developer.android.com/tools/releases/platform-tools). Use **Import downloaded USB tools ZIP…** to choose the downloaded verified **37.0.1** ZIP and a separate installation folder. Import verifies the package, keeps its complete NOTICE and preserves existing installations; it does not download or accept terms for you. Alternatively, extract official tools yourself and use **Choose official SDK adb.exe…**. Keep the whole tools folder. VRization bundles no `adb.exe`, SDK or USB driver; the packaged app itself needs no Python / development environment.
 3. Enable the phone's Developer options and **USB debugging**, connect a data cable, unlock the phone and approve USB debugging for this computer. OEM menu names and driver requirements vary; use the manufacturer's USB driver if Windows does not recognize its debugging interface. Google's [ADB setup guide](https://developer.android.com/tools/adb#Enabling) explains device authorization.
 4. Keep **Detect authorized USB phones automatically (recommended)** enabled on the PC. With one authorized Android USB device it is selected automatically. With several, choose the intended serial number in the USB device list. Emulators and wireless ADB are excluded from this USB discovery.
 5. Select the screen / region, then click **Start streaming** on the PC. Open VRization on the phone with **USB cable · default** selected. If its first attempt has already ended, tap **Detect USB and connect**. You do not enter an IP address or six-digit code in USB mode.
 
 For later sessions, connect and unlock the phone, start PC streaming, and open the phone app or use its USB connection button. If another program already owns phone port `18765`, VRization reports the conflict and leaves that mapping untouched; close the owning program or choose LAN. It removes only the reverse mapping that it created and still owns.
+
+### Portable tools and different Windows launch environments
+
+If USB works only when launched from a development / packaged app, check the PC's displayed official tool path. An SDK inside a packaged application's virtualized AppData can be invisible to an ordinary double-clicked process. Use the importer or manually select an official installation in an ordinary folder. The default is `tools/android-sdk` beside a standalone EXE, or at the managed archive root outside `latest`; launchers conditionally set SDK variables only for their child. Keep that separately installed folder when updating. This changes tool discovery, not device trust; the phone must still authorize USB debugging. See [download / archive layout](DOWNLOADS.md).
 
 ### iPhone / iPad: first setup and present limits
 
@@ -70,7 +74,7 @@ USB discovery / authorization is unchanged. A saved phone VR profile is applied 
 
 Windows 电脑端、Android 端和 iOS 端都默认优先 USB。需要支持数据传输的线缆以及相应平台授权。原生 USB 传输不要求开启热点、USB 网络共享或连接同一 Wi-Fi。每次使用一部手机，电脑端同时接受一个观看端。
 
-电脑启用 USB 选项后会自动检测已授权的 USB 设备。**电脑必须由你点击“开始串流”。** 手机软件新启动时只在前台自动尝试一次 USB 连接：Android 寻找正在运行的电脑服务，iOS 打开本地监听并等待电脑连接。失败后用手机连接按钮重试。手机进入后台或切换语言会断开，回来后需要手动连接，不会悄悄重连。USB 不会自动开启 FPS 鼠标控制：仍须在电脑主动允许控制、五秒内切换到游戏，并可随时按 **F8** 停止。
+电脑启用 USB 选项后会自动检测已授权的 USB 设备。**电脑必须由你点击“开始串流”。** 手机软件新启动时在前台发起一次 USB 连接：Android v0.3.2 在含握手的最长 30 秒窗口内重试 bootstrap 发现，iOS 打开本地监听并等待电脑连接。失败后用手机连接按钮重试。手机进入后台或切换语言会断开，回来后需要手动连接，不会悄悄重连。USB 不会自动开启 第一人称鼠标控制：仍须在电脑主动允许控制、五秒内切换到游戏，并可随时按 **F8** 停止。
 
 ### 找到电脑端 USB 控件与状态
 
@@ -81,12 +85,16 @@ USB 状态位于顶部连接卡片、电脑地址和连接提示下方，状态�
 ### Android：首次设置
 
 1. 在手机安装发布版 Android APK。软件最低支持 Android 6.0 / API 23；实际衍生系统和设备验证见 [兼容性记录](COMPATIBILITY.md)。
-2. 下载并解压 Google 官方 [Windows Android SDK Platform Tools](https://developer.android.com/tools/releases/platform-tools)。VRization **不附带** `adb.exe`、Android SDK 或 USB 驱动。请保留解压后的完整 Platform Tools 文件夹。若电脑没有自动找到 SDK，打开“**USB 连接…**”快捷入口，点“**选择官方 SDK 中的 adb.exe…**”，选中其中的 `adb.exe`。
+2. 点“**USB 连接… → 下载官方安卓 USB 工具…**”，在 Google 阅读 / 接受条款，下载官方 [Windows Platform Tools](https://developer.android.com/tools/releases/platform-tools)。点“**导入已下载的 USB 工具 ZIP…**”，选择已校验的 **37.0.1** ZIP 和另行安装目录；导入核对包、保留完整 NOTICE 与已有安装，不替你下载或接受条款。也可自行解压官方工具，再“**选择官方 SDK 中的 adb.exe…**”，保留整个工具文件夹。VRization 不附带 `adb.exe`、SDK 或驱动，打包应用本身无需 Python / 开发环境。
 3. 在手机启用开发者选项和 **USB 调试**，接入数据线，解锁手机并允许此电脑进行 USB 调试。不同厂商的菜单和驱动要求不同；若 Windows 未识别调试接口，使用该厂商的 USB 驱动。Google 的 [ADB 设置指南](https://developer.android.com/tools/adb#Enabling) 说明了设备授权。
 4. 电脑保持勾选“**自动检测已授权的 USB 手机（推荐）**”。只有一台已授权 Android USB 设备时自动选择；多台时在 USB 设备列表选择目标序列号。此 USB 检测排除模拟器和无线 ADB。
 5. 选择屏幕 / 选区，在电脑点“**开始串流**”。手机打开 VRization，保持选择“**USB 数据线 · 默认**”。若首次尝试已经结束，点“**检测 USB 并连接**”。USB 模式无需手填 IP 或六位配对码。
 
 以后使用时接线、解锁、开始电脑串流，再打开手机软件或点 USB 连接按钮。如果其他软件已占用手机端口 `18765`，VRization 会报告冲突并保留已有映射；请关闭占用软件或选择局域网。VRization 只移除由自己建立且仍属于自己的反向映射。
+
+### 便携工具与不同 Windows 启动环境
+
+若只有从开发 / 打包应用内启动才能连接 USB，先看电脑显示的官方工具路径。打包应用虚拟化 AppData 内的 SDK 可能不被普通双击进程看到；用导入器或手动选择普通文件夹中的官方安装。独立 EXE 默认用旁边 `tools/android-sdk`，已管理归档放根目录、在 `latest` 之外；启动器只为子应用有条件设置 SDK 变量。更新时保留另装工具目录。这改的是工具发现，不是设备信任，手机仍需授权 USB 调试，见 [下载 / 归档结构](DOWNLOADS.md)。
 
 ### iPhone / iPad：首次设置与当前限制
 

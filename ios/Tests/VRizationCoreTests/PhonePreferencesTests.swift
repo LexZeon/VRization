@@ -20,7 +20,8 @@ final class PhonePreferencesTests: XCTestCase {
             var profile = PhonePreferences(); profile.language = "zh-Hans"; profile.transport = "lan"; profile.host = "pc.local"; profile.port = "19000"
             profile.hasCommittedProfile = true
             profile.settings = try VRSettings().applying(["mode": "fps", "scale": 0.62, "offsetX": 0.15, "offsetY": -0.11,
-                "eyeSeparation": -0.6, "fov": 100.0, "distance": 7.0, "distortion": 0.2, "sensitivity": 1700.0, "invertY": true])
+                "eyeSeparation": -0.6, "fov": 100.0, "distance": 7.0, "distortion": 0.2, "sensitivity": 1700.0, "invertY": true,
+                "stabilization": 0.68])
             try store.save(profile)
             XCTAssertEqual(PhonePreferencesStore(defaults: defaults).load(), profile)
             let wire = String(data: defaults.data(forKey: PhonePreferencesStore.key)!, encoding: .utf8)!
@@ -30,7 +31,9 @@ final class PhonePreferencesTests: XCTestCase {
     func testUpgradeMigratesV02ProfileThenRemovesSplitKeysAndSecrets() throws {
         try withStore { store, defaults in
             let old = try VRSettings().applying(["scale": 0.7, "mode": "cinema"])
-            defaults.set(try JSONEncoder().encode(old), forKey: "displaySettings")
+            var legacy = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(old)) as? [String: Any])
+            legacy.removeValue(forKey: "stabilization")
+            defaults.set(try JSONSerialization.data(withJSONObject: legacy), forKey: "displaySettings")
             defaults.set("zh-Hans", forKey: "language"); defaults.set("lan", forKey: "transport"); defaults.set("old.local", forKey: "host")
             defaults.set("654321", forKey: "pairingCode")
             let migrated = store.load(); XCTAssertEqual(migrated.settings, old); XCTAssertEqual(migrated.language, "zh-Hans")
@@ -50,12 +53,13 @@ final class PhonePreferencesTests: XCTestCase {
     }
     func testResetClearsAllOwnedPreferencesIncludingLegacySecrets() throws {
         try withStore { store, defaults in
-            var profile = PhonePreferences(); profile.language = "zh-Hans"; profile.transport = "lan"; profile.host = "pc.local"; profile.settings.scale = 0.5
+            var profile = PhonePreferences(); profile.language = "zh-Hans"; profile.transport = "lan"; profile.host = "pc.local"; profile.settings.scale = 0.5; profile.settings.stabilization = 0.8
             try store.save(profile)
             for key in ["code", "token", "pairingCode"] { defaults.set("secret", forKey: key) }
             try store.reset()
             var reset = PhonePreferences.defaults; reset.hasCommittedProfile = true
             XCTAssertEqual(store.load(), reset)
+            XCTAssertEqual(store.load().settings.stabilization, 0)
             for key in ["code", "token", "pairingCode", "language", "transport", "host", "port"] { XCTAssertNil(defaults.object(forKey: key)) }
         }
     }
@@ -64,6 +68,23 @@ final class PhonePreferencesTests: XCTestCase {
             var profile = PhonePreferences(); profile.language = "zh-Hans"; profile.host = "pc.local"
             try store.save(profile)
             XCTAssertFalse(store.load().hasCommittedProfile)
+        }
+    }
+    func testLegacyWrappedProfileMigratesWithoutLosingCommittedPreferences() throws {
+        try withStore { store, defaults in
+            var previous = PhonePreferences()
+            previous.language = "zh-Hans"; previous.transport = "lan"; previous.host = "old.local"; previous.port = "19001"
+            previous.hasCommittedProfile = true
+            previous.settings = try VRSettings().applying(["scale": 0.6, "eyeSeparation": -0.4, "sensitivity": 1620])
+            var object = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(previous)) as? [String: Any])
+            var settings = try XCTUnwrap(object["settings"] as? [String: Any]); settings.removeValue(forKey: "stabilization")
+            object["settings"] = settings
+            defaults.set(try JSONSerialization.data(withJSONObject: object), forKey: PhonePreferencesStore.key)
+            let migrated = store.load()
+            XCTAssertEqual(migrated, previous); XCTAssertEqual(migrated.settings.stabilization, 0)
+            try store.save(migrated)
+            let stored = try XCTUnwrap(JSONSerialization.jsonObject(with: XCTUnwrap(defaults.data(forKey: PhonePreferencesStore.key))) as? [String: Any])
+            XCTAssertEqual((stored["settings"] as? [String: Any])?.count, 11)
         }
     }
 }

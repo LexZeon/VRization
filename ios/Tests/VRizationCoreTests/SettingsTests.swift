@@ -7,6 +7,7 @@ final class SettingsTests: XCTestCase {
         XCTAssertEqual(defaults.scale, 0.85)
         XCTAssertEqual(defaults.eyeSeparation, 0.03)
         XCTAssertEqual(defaults.sensitivity, 1000)
+        XCTAssertEqual(defaults.stabilization, 0)
         XCTAssertEqual(try VRSettings.decode(JSONEncoder().encode(defaults)), defaults)
     }
     func testPartialUpdatePreservesOtherValuesAndAcceptsExactBounds() throws {
@@ -42,5 +43,33 @@ final class SettingsTests: XCTestCase {
         var settings = VRSettings(); settings.sensitivity = 3001
         XCTAssertThrowsError(try JSONEncoder().encode(settings))
         XCTAssertThrowsError(try VRProtocol.encodeSettings(settings))
+    }
+    func testStabilizationBoundsAndStrictTypes() throws {
+        for value in [0.0, 0.37, 1.0] {
+            let settings = try VRSettings().applying(["stabilization": value])
+            XCTAssertEqual(settings.stabilization, value)
+            XCTAssertEqual(try VRSettings.decode(JSONEncoder().encode(settings)), settings)
+        }
+        let invalid: [Any] = [-0.001, 1.001, Double.nan, Double.infinity, true, "0.5", NSNull()]
+        for value in invalid {
+            XCTAssertThrowsError(try VRSettings().applying(["stabilization": value]))
+        }
+        var invalid = VRSettings(); invalid.stabilization = 2
+        XCTAssertThrowsError(try JSONEncoder().encode(invalid))
+    }
+    func testExactLegacyTenFieldProfileMigratesAndKeepsOtherValues() throws {
+        let previous = try VRSettings().applying(["mode": "fps", "scale": 0.61, "eyeSeparation": -0.4,
+                                                   "offsetY": 0.12, "sensitivity": 1720, "invertY": true])
+        var object = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(previous)) as? [String: Any])
+        object.removeValue(forKey: "stabilization")
+        XCTAssertEqual(object.count, 10)
+        let migrated = try VRSettings.decode(JSONSerialization.data(withJSONObject: object))
+        XCTAssertEqual(migrated, previous); XCTAssertEqual(migrated.stabilization, 0)
+        let upgraded = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(migrated)) as? [String: Any])
+        XCTAssertEqual(upgraded.count, 11); XCTAssertEqual(upgraded["stabilization"] as? Double, 0)
+        object.removeValue(forKey: "fov")
+        XCTAssertThrowsError(try VRSettings.decode(JSONSerialization.data(withJSONObject: object)))
+        object["stabilization"] = 0
+        XCTAssertThrowsError(try VRSettings.decode(JSONSerialization.data(withJSONObject: object)))
     }
 }

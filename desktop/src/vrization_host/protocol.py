@@ -22,6 +22,7 @@ class Settings:
     distortion: float = 0.0
     sensitivity: float = 1000.0
     invertY: bool = False
+    stabilization: float = 0.0
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -31,7 +32,8 @@ class Settings:
             raise ProtocolError("settings must be a nonempty object")
         bounds = {"scale": (0.5, 1.0), "offsetX": (-0.3, 0.3), "offsetY": (-0.3, 0.3),
                   "eyeSeparation": (-1.0, 0.2), "fov": (50.0, 110.0), "distance": (1.0, 8.0),
-                  "distortion": (0.0, 0.5), "sensitivity": (100.0, 3000.0)}
+                  "distortion": (0.0, 0.5), "sensitivity": (100.0, 3000.0),
+                  "stabilization": (0.0, 1.0)}
         clean = {}
         for key, value in patch.items():
             if key == "mode":

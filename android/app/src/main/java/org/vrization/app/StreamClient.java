@@ -60,8 +60,12 @@ final class StreamClient {
     private volatile WebSocket socket;
     private volatile boolean connected;
     private volatile boolean connecting;
+    private volatile boolean stabilizationSupported;
     private Call discovery;
     private Runnable helloDeadline;
+    private Runnable usbRetry, usbDeadline;
+    private String usbFailureStatus;
+    private final UsbConnectionAttempt usbAttempt = new UsbConnectionAttempt();
     private final PingTracker ping = new PingTracker();
     private final PhoneFrameStats frameStats = new PhoneFrameStats();
     private final PoseSendGate poseGate = new PoseSendGate();
@@ -82,6 +86,7 @@ final class StreamClient {
     boolean isConnected() { return connected; }
     boolean isConnecting() { return connecting; }
     boolean isActive() { return connected || connecting; }
+    boolean supportsStabilization() { return stabilizationSupported; }
 
     void connect(String host, int port, String code) {
         disconnect(false);
@@ -96,25 +101,35 @@ final class StreamClient {
         if (sessions.isClosed()) return;
         final long connectionEpoch = sessions.invalidate();
         connecting = true;
+        usbAttempt.start(connectionEpoch, SystemClock.elapsedRealtime());
+        usbFailureStatus = context.getString(R.string.usb_not_detected);
+        usbDeadline = () -> expireUsbAttempt(connectionEpoch);
+        main.postDelayed(usbDeadline, UsbConnectionAttempt.WINDOW_MILLIS);
         listener.onStatus(context.getString(R.string.usb_detecting), false);
+        discoverUsb(connectionEpoch);
+    }
+
+    private void discoverUsb(long connectionEpoch) {
+        if (!sessions.isCurrent(connectionEpoch)
+            || !usbAttempt.beginDiscovery(connectionEpoch, SystemClock.elapsedRealtime())) return;
         discovery = discoveryHttp.newCall(new Request.Builder().url(UsbBootstrap.ENDPOINT).get().build());
         discovery.enqueue(new Callback() {
             @Override public void onFailure(Call call, IOException failure) {
-                ended(connectionEpoch, context.getString(R.string.usb_not_detected));
+                retryUsb(connectionEpoch, context.getString(R.string.usb_not_detected));
             }
             @Override public void onResponse(Call call, Response response) {
                 try (Response result = response) {
                     if (!result.isSuccessful()) {
-                        ended(connectionEpoch, context.getString(result.code() == 403 ? R.string.usb_not_authorized
+                        retryUsb(connectionEpoch, context.getString(result.code() == 403 ? R.string.usb_not_authorized
                             : result.code() == 503 ? R.string.usb_host_stopped : R.string.usb_not_detected));
                         return;
                     }
-                    if (result.body() == null) throw new IOException("Empty discovery response");
+                    if (result.body() == null) throw new IllegalArgumentException("Empty discovery response");
                     String text;
                     try (InputStream input = result.body().byteStream(); ByteArrayOutputStream output = new ByteArrayOutputStream()) {
                         byte[] buffer = new byte[1024]; int size;
                         while ((size = input.read(buffer)) != -1) {
-                            if (output.size() + size > 4096) throw new IOException("Oversized discovery response");
+                            if (output.size() + size > 4096) throw new IllegalArgumentException("Oversized discovery response");
                             output.write(buffer, 0, size);
                         }
                         text = new String(output.toByteArray(), StandardCharsets.UTF_8);
@@ -126,19 +141,62 @@ final class StreamClient {
                     UsbBootstrap bootstrap = UsbBootstrap.parse(fields);
                     sessions.dispatch(connectionEpoch, () -> {
                         discovery = null;
+                        if (!usbAttempt.beginSocket(connectionEpoch, SystemClock.elapsedRealtime())) {
+                            if (usbAttempt.isActive(connectionEpoch) && usbAttempt.remaining(connectionEpoch, SystemClock.elapsedRealtime()) == 0)
+                                expireUsbAttempt(connectionEpoch);
+                            return;
+                        }
+                        if (usbRetry != null) main.removeCallbacks(usbRetry); usbRetry = null;
+                        usbFailureStatus = context.getString(R.string.connection_failed, context.getString(R.string.check_usb_connection));
                         // Never save pairing material and never trust a remote host/port from discovery.
                         openSocket(UsbBootstrap.HOST, UsbBootstrap.FORWARDED_PORT, bootstrap.token, connectionEpoch, true);
                     });
-                } catch (IOException | JSONException | IllegalArgumentException ignored) {
+                } catch (IOException ignored) {
+                    retryUsb(connectionEpoch, context.getString(R.string.usb_not_detected));
+                } catch (JSONException | IllegalArgumentException ignored) {
                     ended(connectionEpoch, context.getString(R.string.usb_invalid_response));
                 }
             }
         });
     }
 
+    private void retryUsb(long connectionEpoch, String failureStatus) {
+        sessions.dispatch(connectionEpoch, () -> {
+            discovery = null;
+            long now = SystemClock.elapsedRealtime();
+            long delay = usbAttempt.discoveryFailed(connectionEpoch, now);
+            if (delay < 0) {
+                if (usbAttempt.isActive(connectionEpoch) && usbAttempt.remaining(connectionEpoch, now) == 0)
+                    expireUsbAttempt(connectionEpoch);
+                return;
+            }
+            usbFailureStatus = failureStatus;
+            listener.onStatus(context.getString(R.string.usb_waiting), false);
+            if (usbRetry != null) main.removeCallbacks(usbRetry);
+            usbRetry = () -> {
+                usbRetry = null;
+                if (!sessions.isCurrent(connectionEpoch)) return;
+                if (usbAttempt.remaining(connectionEpoch, SystemClock.elapsedRealtime()) == 0) expireUsbAttempt(connectionEpoch);
+                else discoverUsb(connectionEpoch);
+            };
+            main.postDelayed(usbRetry, delay);
+        });
+    }
+    private void expireUsbAttempt(long connectionEpoch) {
+        if (!sessions.isCurrent(connectionEpoch) || !usbAttempt.isActive(connectionEpoch)) return;
+        String status = usbFailureStatus;
+        disconnect(false);
+        listener.onStatus(status, false);
+    }
+    private void stopUsbAttempt() {
+        usbAttempt.cancel();
+        if (usbRetry != null) main.removeCallbacks(usbRetry); usbRetry = null;
+        if (usbDeadline != null) main.removeCallbacks(usbDeadline); usbDeadline = null;
+    }
+
     private void openSocket(String host, int port, String code, long connectionEpoch, boolean usb) {
         HttpUrl url = new HttpUrl.Builder().scheme("http").host(host).port(port)
-            .addPathSegment("ws").addQueryParameter("token", code).build();
+            .addPathSegment("ws").addQueryParameter("token", code).addQueryParameter("settingsSchema", "2").build();
         listener.onStatus(context.getString(R.string.connecting), false);
         final HostSessionGate handshake = new HostSessionGate();
         socket = http.newWebSocket(new Request.Builder().url(url).build(), new WebSocketListener() {
@@ -151,7 +209,8 @@ final class StreamClient {
                     };
                     main.postDelayed(helloDeadline, 10000);
                     try {
-                        JSONObject hello = message("hello").put("client", "android").put("device", Build.MODEL);
+                        JSONObject hello = message("hello").put("client", "android").put("device", Build.MODEL)
+                            .put("settingsSchema", 2);
                         webSocket.send(hello.toString());
                     } catch (JSONException ignored) { }
                 });
@@ -162,11 +221,19 @@ final class StreamClient {
                     if (text.length() > 65536) throw new IllegalArgumentException("Oversized host message");
                     JSONObject json = new JSONObject(text);
                     boolean established = handshake.receive(SettingsJson.fields(json));
+                    final boolean supportsStabilization = handshake.supportsStabilization();
                     String type = json.optString("type");
                     if (established) {
                         sessions.dispatch(connectionEpoch, () -> {
+                            if (usbAttempt.isActive(connectionEpoch)
+                                && !usbAttempt.established(connectionEpoch, SystemClock.elapsedRealtime())) {
+                                expireUsbAttempt(connectionEpoch); return;
+                            }
+                            stopUsbAttempt();
                             if (helloDeadline != null) main.removeCallbacks(helloDeadline);
                             helloDeadline = null; connected = true; connecting = false;
+                            // Establish capability before the saved profile is sent by this callback.
+                            stabilizationSupported = supportsStabilization;
                             frameStats.newSession(connectionEpoch);
                             ping.reset(); main.removeCallbacks(pingTick); main.post(pingTick);
                             listener.onSessionStarted();
@@ -175,8 +242,10 @@ final class StreamClient {
                         });
                     } else if ("settings".equals(type)) {
                         JSONObject incoming = json.getJSONObject("settings");
-                        sessions.dispatch(connectionEpoch, () -> listener.onSettings(incoming,
-                            optionalSequence(json, "revision"), optionalSequence(json, "clientSeq")));
+                        sessions.dispatch(connectionEpoch, () -> {
+                            stabilizationSupported |= supportsStabilization;
+                            listener.onSettings(incoming, optionalSequence(json, "revision"), optionalSequence(json, "clientSeq"));
+                        });
                     } else if ("error".equals(type)) {
                         sessions.dispatch(connectionEpoch, () -> listener.onStatus(context.getString(
                             R.string.host_error, json.optString("message", context.getString(R.string.connection_error))), connected));
@@ -219,6 +288,8 @@ final class StreamClient {
     private void ended(long connectionEpoch, String status) {
         sessions.dispatch(connectionEpoch, () -> {
             sessions.invalidate(); connected = false; connecting = false;
+            stabilizationSupported = false;
+            stopUsbAttempt();
             if (helloDeadline != null) main.removeCallbacks(helloDeadline); helloDeadline = null;
             discovery = null; socket = null;
             main.removeCallbacks(pingTick); ping.reset();
@@ -300,7 +371,8 @@ final class StreamClient {
         frameStats.clear();
     }
     boolean sendSettings(VrSettings settings, long sequence) {
-        try { return send(message("settings").put("settings", SettingsJson.encode(settings)).put("clientSeq", sequence)); }
+        try { return send(message("settings").put("settings", SettingsJson.encodeForHost(settings, stabilizationSupported))
+            .put("clientSeq", sequence)); }
         catch (JSONException ignored) { return false; }
     }
     void sendPose(float yaw, float pitch) {
@@ -334,6 +406,8 @@ final class StreamClient {
     }
     void disconnect(boolean report) {
         sessions.invalidate(); connected = false; connecting = false;
+        stabilizationSupported = false;
+        stopUsbAttempt();
         if (helloDeadline != null) main.removeCallbacks(helloDeadline); helloDeadline = null;
         main.removeCallbacks(pingTick); ping.reset();
         Call request = discovery; discovery = null;

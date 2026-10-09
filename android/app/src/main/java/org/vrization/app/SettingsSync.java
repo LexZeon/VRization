@@ -37,6 +37,6 @@ final class SettingsSync {
         return b != null && a.mode.equals(b.mode) && a.scale == b.scale && a.offsetX == b.offsetX
             && a.offsetY == b.offsetY && a.eyeSeparation == b.eyeSeparation && a.fov == b.fov
             && a.distance == b.distance && a.distortion == b.distortion
-            && a.sensitivity == b.sensitivity && a.invertY == b.invertY;
+            && a.sensitivity == b.sensitivity && a.stabilization == b.stabilization && a.invertY == b.invertY;
     }
 }

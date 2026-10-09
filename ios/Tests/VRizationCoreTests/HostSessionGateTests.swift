@@ -94,4 +94,89 @@ final class HostSessionGateTests: XCTestCase {
         gate.reset()
         guard case .established = try gate.receiveText(hello()) else { return XCTFail("New session must establish once") }
     }
+    private func legacyHello(capabilities: Any? = nil) throws -> Data {
+        var object = try helloObject()
+        var settings = try XCTUnwrap(object["settings"] as? [String: Any])
+        settings.removeValue(forKey: "stabilization"); object["settings"] = settings
+        if let capabilities = capabilities { object["capabilities"] = capabilities }
+        return try JSONSerialization.data(withJSONObject: object)
+    }
+    func testLegacyUSBHelloCapabilityIsAvailableBeforeProfileRestore() throws {
+        var gate = HostSessionGate()
+        guard case .established(let host) = try gate.receiveText(legacyHello(capabilities: ["stabilization"])) else { return XCTFail("Expected hello") }
+        XCTAssertTrue(host.supportsStabilization); XCTAssertTrue(gate.supportsStabilization)
+        XCTAssertTrue(gate.awaitingSettingsSnapshot)
+        let full = try JSONSerialization.data(withJSONObject: ["v": 1, "type": "settings", "revision": 0,
+            "settings": JSONSerialization.jsonObject(with: JSONEncoder().encode(VRSettings()))])
+        guard case .message(.settings(let snapshot)) = try gate.receiveText(full) else { return XCTFail("Expected full snapshot") }
+        XCTAssertFalse(gate.awaitingSettingsSnapshot)
+        var profileSync = LocalProfileSync(); profileSync.newSession(hasSavedProfile: true)
+        let local = try VRSettings().applying(["stabilization": 0.62])
+        XCTAssertEqual(profileSync.receive(snapshot: snapshot.settings, revision: snapshot.revision, clientSeq: nil), .restoreLocal)
+        let wire = try VRProtocol.encodeSettings(local, supportsStabilization: gate.supportsStabilization)
+        let body = try XCTUnwrap((JSONSerialization.jsonObject(with: wire) as? [String: Any])?["settings"] as? [String: Any])
+        XCTAssertEqual(body["stabilization"] as? Double, 0.62)
+    }
+    func testNewSessionCannotInheritPreviousCapability() throws {
+        var gate = HostSessionGate()
+        _ = try gate.receiveText(hello()); XCTAssertTrue(gate.supportsStabilization)
+        gate.reset(); XCTAssertFalse(gate.supportsStabilization)
+        _ = try gate.receiveText(legacyHello()); XCTAssertFalse(gate.supportsStabilization)
+        let local = try VRSettings().applying(["stabilization": 0.62])
+        let data = try JSONSerialization.data(withJSONObject: ["v": 1, "type": "settings", "settings": ["scale": 0.9]])
+        guard case .message(.settings(let update)) = try gate.receiveText(data, settingsBase: local) else { return XCTFail("Expected update") }
+        XCTAssertEqual(update.settings.stabilization, 0.62); XCTAssertFalse(gate.supportsStabilization)
+        let upgraded = try JSONSerialization.data(withJSONObject: ["v": 1, "type": "settings", "settings": ["stabilization": 0.4]])
+        guard case .message(.settings(let new)) = try gate.receiveText(upgraded, settingsBase: local) else { return XCTFail("Expected upgrade") }
+        XCTAssertEqual(new.settings.stabilization, 0.4); XCTAssertTrue(gate.supportsStabilization)
+    }
+    func testMalformedCapabilitiesCannotEstablishOrEnableSupport() throws {
+        let invalidValues: [Any] = ["stabilization", ["stabilization", 1] as [Any], true, NSNull()]
+        for invalid in invalidValues {
+            var gate = HostSessionGate()
+            XCTAssertThrowsError(try gate.receiveText(legacyHello(capabilities: invalid)))
+            XCTAssertFalse(gate.isEstablished); XCTAssertFalse(gate.supportsStabilization)
+        }
+        var gate = HostSessionGate()
+        let premature = try JSONSerialization.data(withJSONObject: ["v": 1, "type": "settings", "settings": ["stabilization": 0.4]])
+        XCTAssertThrowsError(try gate.receiveText(premature)); XCTAssertFalse(gate.supportsStabilization)
+    }
+
+    func testFreshUSBProfileWaitsForFullSchemaBeforeNoSensorFallback() throws {
+        var object = try helloObject()
+        var legacy = try XCTUnwrap(object["settings"] as? [String: Any])
+        legacy["mode"] = "fps"; legacy.removeValue(forKey: "stabilization")
+        object["settings"] = legacy; object["capabilities"] = ["stabilization"]
+        var gate = HostSessionGate()
+        _ = try gate.receiveText(JSONSerialization.data(withJSONObject: object))
+        XCTAssertTrue(gate.awaitingSettingsSnapshot)
+        // The owner sends schema metadata, not settings, while callbacks wait.
+        let request = try XCTUnwrap(JSONSerialization.jsonObject(with: VRProtocol.hello()) as? [String: Any])
+        XCTAssertEqual(request["settingsSchema"] as? Int, 2); XCTAssertNil(request["settings"])
+        let host = try VRSettings().applying(["mode": "fps", "stabilization": 0.72])
+        let full = try JSONSerialization.data(withJSONObject: ["v": 1, "type": "settings", "revision": 4,
+            "settings": JSONSerialization.jsonObject(with: JSONEncoder().encode(host))])
+        guard case .message(.settings(let update)) = try gate.receiveText(full) else { return XCTFail("Expected snapshot") }
+        XCTAssertFalse(gate.awaitingSettingsSnapshot)
+        var profiles = LocalProfileSync(); profiles.newSession(hasSavedProfile: false)
+        XCTAssertEqual(profiles.receive(snapshot: update.settings, revision: update.revision, clientSeq: nil), .applyHost)
+        // This is the Viewer's sole sensor fallback change after adoption.
+        let fallback = try update.settings.applying(["mode": "full"])
+        let wire = try VRProtocol.encodeSettings(fallback, supportsStabilization: gate.supportsStabilization)
+        let body = try XCTUnwrap((JSONSerialization.jsonObject(with: wire) as? [String: Any])?["settings"] as? [String: Any])
+        XCTAssertEqual(body["mode"] as? String, "full"); XCTAssertEqual(body["stabilization"] as? Double, 0.72)
+    }
+
+    func testPartialOrAcknowledgedSettingsCannotEndInitialSchemaNegotiation() throws {
+        var gate = HostSessionGate()
+        _ = try gate.receiveText(legacyHello(capabilities: ["stabilization"]))
+        XCTAssertNoThrow(try gate.receiveJPEG(byteCount: 100))
+        let partial = try JSONSerialization.data(withJSONObject: ["v": 1, "type": "settings", "settings": ["stabilization": 0.72]])
+        _ = try gate.receiveText(partial); XCTAssertTrue(gate.awaitingSettingsSnapshot)
+        _ = try gate.receiveText(Data("{\"v\":1,\"type\":\"pong\"}".utf8)); XCTAssertTrue(gate.awaitingSettingsSnapshot)
+        _ = try gate.receiveText(settings()); XCTAssertTrue(gate.awaitingSettingsSnapshot)
+        gate.reset(); XCTAssertFalse(gate.awaitingSettingsSnapshot)
+        _ = try gate.receiveText(legacyHello()); XCTAssertFalse(gate.awaitingSettingsSnapshot)
+        gate.reset(); _ = try gate.receiveText(hello()); XCTAssertFalse(gate.awaitingSettingsSnapshot)
+    }
 }

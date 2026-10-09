@@ -1,0 +1,43 @@
+{
+  "retrieved": "2026-10-09",
+  "references": [
+    {
+      "project": "OneEuroFilter",
+      "reference_version": "Python 0.2.1",
+      "commit": "d78925584245597f2aa9c4c01a802eb0f0b77fb9",
+      "implementation_authors": [
+        "Nicolas Roussel",
+        "Géry Casiez"
+      ],
+      "paper_authors": [
+        "Géry Casiez",
+        "Nicolas Roussel",
+        "Daniel Vogel"
+      ],
+      "source_copyright": "2019 Inria",
+      "license_copyright": "2023 Inria",
+      "license": "BSD-3-Clause",
+      "license_url": "https://raw.githubusercontent.com/casiez/OneEuroFilter/d78925584245597f2aa9c4c01a802eb0f0b77fb9/python/LICENSE",
+      "license_file": "OneEuroFilter-python-BSD-3-Clause.txt",
+      "license_bytes": 1453,
+      "license_sha256": "e70c03d7b59321e4daa3581a95ea55fb150331ff353b8b9e04f3ec6b84a9bce4",
+      "authors_page": "https://gery.casiez.net/1euro/",
+      "paper_doi": "10.1145/2207676.2208639",
+      "role": "Algorithm and implementation reference only; no upstream source or runtime package bundled. Original VRization MIT implementation adapts angular increments, bounded lag and session resets."
+    }
+  ],
+  "separately_installed_tools": [
+    {
+      "project": "Android SDK Platform Tools for Windows",
+      "publisher": "Google / Android Open Source Project and component copyright holders",
+      "version": "37.0.1",
+      "download_url": "https://dl.google.com/android/repository/platform-tools_r37.0.1-win.zip",
+      "download_bytes": 8044989,
+      "download_sha256": "45f4d63113e895ebde0c90f194099a4676b6ac653bd28d54314a9e022bbc1a99",
+      "download_page": "https://developer.android.com/tools/releases/platform-tools",
+      "terms_url": "https://developer.android.com/studio/terms",
+      "notice": "Complete upstream NOTICE.txt retained in separately imported platform-tools folder.",
+      "role": "User-downloaded tool, never bundled in VRization release assets; original importer validates and preserves the full package without automatic download, license acceptance or modification."
+    }
+  ]
+}

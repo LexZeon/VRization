@@ -34,7 +34,7 @@ flowchart LR
 
 The original implementation uses Python `ctypes` with Windows system APIs. It does not ship DXcam, NumPy or comtypes. The project credits those research tools and the Microsoft / Win32CaptureSample references in [third-party notices](../THIRD_PARTY_NOTICES.md), including ideas rewritten into original code.
 
-The backend binds one verified output rather than assuming the primary display. GPU resources and frame releases belong to one capture thread; returned bytes own their memory. A same-output size / crop change can reuse the owned GPU image on a static desktop. Explicitly unsupported initial GPU capture or a verified multi-output region can use the same selected rectangle through GDI / MSS. Layout / identity changes or access loss stop the capture session and revoke FPS input authorization. More details are in [architecture](ARCHITECTURE.md).
+The backend binds one verified output rather than assuming the primary display. GPU resources and frame releases belong to one capture thread; returned bytes own their memory. A same-output size / crop change can reuse the owned GPU image on a static desktop. Explicitly unsupported initial GPU capture or a verified multi-output region can use the same selected rectangle through GDI / MSS. Layout / identity changes or access loss stop the capture session and revoke first-person input authorization. More details are in [architecture](ARCHITECTURE.md).
 
 ### First production phone check
 
@@ -104,6 +104,10 @@ For a useful report, record the release, backend, Windows / GPU, selected displa
 
 The v0.3 headset editor previews a local flat / undistorted draft and pauses phone pose output; Save commits viewing settings, not a new codec or transport. Reset selects the existing 640 / 60 / Q45 default. Earlier production / prototype sessions are v0.2 evidence and must not be relabeled; the AW follow-up above is explicitly a separate v0.3 measurement. Editor geometry tests establish consistency, not frame rate, headset comfort or end-to-end latency. See [editing](EDITING.md) and [versioned validation](VALIDATION.md).
 
+### Stabilization is not a latency measurement
+
+The v0.3.2 host's original adaptive filter uses high-resolution elapsed time for pose intervals, with exact bypass at strength zero. Positive strength trades small-motion jitter against following lag; a percentage is not a measured millisecond delay. Synthetic angle traces exercise the filter and safety resets, not a real phone, game or end-to-end path. Do not reinterpret the historical video / USB / phone-processing measurements above as stabilization latency. See [parameters, credit and tuning](STABILIZATION.md).
+
 ---
 
 <!-- vrization:chinese -->
@@ -138,7 +142,7 @@ flowchart LR
 
 原创实现通过 Python `ctypes` 调用 Windows 系统 API，不分发 DXcam、NumPy 或 comtypes。项目在 [第三方声明](../THIRD_PARTY_NOTICES.md) 鸣谢这些研究工具及 Microsoft / Win32CaptureSample 参考，包含重写为原创代码的思路。
 
-后端绑定一个已核对的输出，不默认选择主屏。GPU 资源与帧释放属于同一采集线程，返回字节拥有独立内存；静止桌面也能使用自有 GPU 图像更新同一输出的尺寸 / 选区。初始化时明确不支持 GPU，或已确认的跨输出区域，可对原选区采用 GDI / MSS。布局 / 身份改变或访问丢失会停止采集会话并解除 FPS 输入授权，详见 [架构](ARCHITECTURE.md)。
+后端绑定一个已核对的输出，不默认选择主屏。GPU 资源与帧释放属于同一采集线程，返回字节拥有独立内存；静止桌面也能使用自有 GPU 图像更新同一输出的尺寸 / 选区。初始化时明确不支持 GPU，或已确认的跨输出区域，可对原选区采用 GDI / MSS。布局 / 身份改变或访问丢失会停止采集会话并解除 第一人称输入授权，详见 [架构](ARCHITECTURE.md)。
 
 ### 首轮正式手机验证
 
@@ -208,3 +212,7 @@ flowchart LR
 ### 编辑器与测量版本
 
 v0.3 盒子编辑器预览本地无畸变平面草稿并暂停手机姿态；保存提交观看设置，不新增编码或传输。重置选择已有 640 / 60 / Q45 默认。较早正式 / 原型会话属于 v0.2 证据，不改称新版测量；上方 AW 复查明确是独立 v0.3 测量；几何检查证明规则一致，不证明帧率、舒适度或端到端延迟。见 [编辑教程](EDITING.md) 与 [分版本验证](VALIDATION.md)。
+
+### 防抖不等于延迟测量
+
+原创新版主机滤波使用高精度间隔计时，零强度精确绕过。正强度在小动作抖动与跟随迟滞间取舍，百分比不是实测毫秒延迟。合成角度轨迹用于检查滤波及安全重置，不是真手机、游戏或完整端到端路径。不能把上面的历史视频 / USB / 手机处理测量改称防抖延迟，见 [参数、鸣谢与调节](STABILIZATION.md)。

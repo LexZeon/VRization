@@ -5,7 +5,7 @@
 <!-- vrization:english -->
 ## English
 
-v0.3.0-alpha sends one Windows desktop / rectangular region to both eyes of an Android or iOS phone viewer. **USB is the default**; trusted LAN is optional. The image is the same 2D source in both eyes, with no audio or native game stereo. English is the default software language; choose Simplified Chinese independently on each device.
+v0.3.2-alpha sends one Windows desktop / rectangular region to both eyes of an Android or iOS phone viewer. **USB is the default**; trusted LAN is optional. The image is the same 2D source in both eyes, with no audio or native game stereo. English is the default software language; choose Simplified Chinese independently on each device.
 
 ### 1. Get the applications
 
@@ -31,9 +31,9 @@ Start with **Full screen**, confirm both eye images are complete, then adjust sc
 | --- | --- |
 | Full screen | Fixed side-by-side images; no gyro needed. |
 | Cinema | Rotation-tracked virtual screen. Recenter after placing the phone. |
-| FPS game | Fixed side-by-side view, sending phone rotation to the host. PC authorization is required for mouse control. |
+| First person | Fixed side-by-side view, sending phone rotation to the host. PC authorization is required for mouse control. |
 
-For FPS, select the mode with a working rotation sensor, enable **Allow phone head tracking to control the game mouse** on the PC, then switch to the game within five seconds. **F8 stops control.** Disconnects, stale pose and focus changes also stop it; re-arm manually. Games using raw input or protection may ignore system mouse input. Actual game / headset comfort is not established by the automated checks.
+For First-person mode, select the mode with a working rotation sensor, enable **Allow phone head tracking to control the game mouse** on the PC, then switch to the game within five seconds. **F8 stops control.** Disconnects, stale pose and focus changes also stop it; re-arm manually. Games using raw input or protection may ignore system mouse input. Actual game / headset comfort is not established by the automated checks.
 
 ### 4. Choose a performance profile
 
@@ -49,12 +49,18 @@ After backgrounding, changing phone language or disconnecting, use the connectio
 
 Open the editor from the first settings action: Windows **Headset editor → Open visual headset editor**, Android **Fit headset visually**, or iOS **Visual headset fit editor**. On all three, left-eye left / right-eye right widens the linked spacing, and left-eye right / right-eye left narrows it. Smaller images can move inward until their inner edges meet; shared X remains while space allows, then recenters. Vertical motion stays normal, and proportional corner resizing obeys the same seam limit. Update both ends to v0.3 for signed separation; only flat, undistorted display has this contact guarantee. Then choose **Save** or **Discard**; the draft preview sends no settings, and phone entry pauses new poses and sends disarm-only metadata. A connected Save synchronizes through the validated host and retains the committed settings on both sides. Offline Save stays local until a valid connection. **Reset all settings** returns product defaults; Windows preserves the intended capture display / region and ADB tool path, while phone reset disconnects without immediately reconnecting. A fresh phone-app launch resumes normal initial USB discovery / listening. Follow [the complete editor guide](EDITING.md) for restoration priority, geometry, reset scope and safety boundaries.
 
+### 🎯 Tune First-person stabilization
+
+Use the PC or phone **First-person stabilization** slider. Its default 0% keeps the previous input behavior; increase it gradually to smooth small unwanted movements and lower it if turns feel delayed. Mouse sensitivity is separate. The Windows host filters once; the phone keeps sending ordinary poses. Connected values synchronize and committed phone values persist offline. Older hosts cannot apply this setting, so use v0.3.2 on both ends. Read [the stabilization guide](STABILIZATION.md).
+
+The complete Windows ZIP includes a launcher and needs no Python or development tools to run the app. Android USB still needs separately obtained official Platform Tools: use the PC USB controls to open Google's download page and import the downloaded tools ZIP, or select an installed official `adb.exe`. Drivers and Google's acceptance steps remain separate. See [USB setup](USB.md).
+
 ---
 
 <!-- vrization:chinese -->
 ## 简体中文
 
-v0.3.0-alpha 把 Windows 桌面 / 矩形区域发给 Android 或 iOS 手机盒子的两眼。**默认 USB**，可信局域网为可选项。两眼是相同二维源画面，没有声音或原生游戏立体深度。软件默认英文，每台设备可独立选择简体中文。
+v0.3.2-alpha 把 Windows 桌面 / 矩形区域发给 Android 或 iOS 手机盒子的两眼。**默认 USB**，可信局域网为可选项。两眼是相同二维源画面，没有声音或原生游戏立体深度。软件默认英文，每台设备可独立选择简体中文。
 
 ### 1. 安装应用
 
@@ -80,9 +86,9 @@ Windows 选择目标显示器 / 选区，保持自动检测 USB，点击**开始
 | --- | --- |
 | 全屏 | 固定双眼图像，不需要陀螺仪。 |
 | 大屏幕 | 随旋转观察虚拟屏幕，装入盒子后回正。 |
-| FPS 游戏 | 固定双眼图像，向主机发送手机旋转；控制鼠标需电脑主动授权。 |
+| 第一人称 | 固定双眼图像，向主机发送手机旋转；控制鼠标需电脑主动授权。 |
 
-FPS 使用可用旋转传感器，在手机选择模式，在电脑勾选“**允许手机陀螺仪控制当前游戏鼠标**”，五秒内切换到游戏。**F8 停止控制**；断线、姿态超时和焦点变化也会停止，需手动重新授权。原始输入或游戏保护可能忽略系统鼠标。自动检查不证明真实游戏 / 盒子舒适度已经通过。
+第一人称模式使用可用旋转传感器，在手机选择模式，在电脑勾选“**允许手机陀螺仪控制当前游戏鼠标**”，五秒内切换到游戏。**F8 停止控制**；断线、姿态超时和焦点变化也会停止，需手动重新授权。原始输入或游戏保护可能忽略系统鼠标。自动检查不证明真实游戏 / 盒子舒适度已经通过。
 
 ### 4. 性能预设
 
@@ -98,3 +104,9 @@ FPS 使用可用旋转传感器，在手机选择模式，在电脑勾选“**�
 ### 5. 编辑并保存盒子适配
 
 从设置首位打开编辑器：Windows **画面编辑 → 打开可视画面编辑器**、Android **可视化适配 VR 盒子**、iOS **可视化盒子画面编辑器**。三端左眼向左 / 右眼向右都拉开联动间距，左眼向右 / 右眼向左收拢；缩小后仍可向内拖到内边相接，空间允许时保留共用 X，接近中缝时居中；竖向正常，等比角点缩放也遵守接缝限位。负间距需两端都更新至 v0.3，相接保证仅用于无畸变平面画面。之后选**保存**或放弃 / 弃用；草稿预览不发设置，手机进入时暂停新姿态并发送仅解除授权的元数据。已连接的保存通过合法主机同步，两端保留已提交配置；离线保存先留在本地，等合法连接。**重置全部设置**恢复产品默认；Windows 保留采集显示器 / 选区与 ADB 工具路径，手机重置后当前界面断线且不自动重连，全新启动恢复正常初次 USB 发现 / 监听。恢复优先规则、几何、重置范围与输入边界见 [完整编辑教程](EDITING.md)。
+
+### 🎯 调整 第一人称防抖
+
+使用电脑或手机的“**第一人称防抖强度**”滑块。默认 0% 保留此前输入；细小非自主移动明显时逐步提高，转头跟随迟缓时降低。鼠标灵敏度单独调整。Windows 主机只滤波一次，手机仍发送普通姿态。连接时值同步，手机已提交值也离线保存。旧电脑端无法应用此设置，请把两端都更新至 v0.3.2，见 [防抖教程](STABILIZATION.md)。
+
+完整 Windows ZIP 包含启动器，运行应用无需 Python 或开发环境；Android USB 仍需另行获取官方 Platform Tools。在电脑 USB 控件打开 Google 下载页，按其步骤下载后导入工具 ZIP，或选择已安装的官方 `adb.exe`。驱动与 Google 的条款确认仍是独立步骤，见 [USB 设置](USB.md)。

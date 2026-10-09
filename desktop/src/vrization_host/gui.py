@@ -4,10 +4,13 @@ import ctypes
 import argparse
 from dataclasses import replace
 import os
+from pathlib import Path
 import queue
 import socket
+import threading
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
+import webbrowser
 
 from ._version import __version__
 from .capture import CaptureConfig, MssCaptureSource
@@ -19,6 +22,8 @@ from .server import HostServer
 from .storage import (load_preferences, save_preferences, preference_path,
                       load_usb_preferences, save_usb_preferences, default_preferences)
 from .usb import UsbManager
+from .usb_tools import (OFFICIAL_DOWNLOAD_PAGE, UsbToolsError, default_tools_directory,
+                        import_platform_tools)
 from .view_editor import HeadsetEditor
 
 BG, CARD, PANEL, TEXT, MUTED, ACCENT = "#0b1220", "#142136", "#1b2b43", "#e7f0fc", "#94a8c4", "#52e3bc"
@@ -100,6 +105,8 @@ class HostWindow:
         self.usb_preferences = load_usb_preferences()
         self.usb_status = ("USB waiting: install Android Platform Tools or Apple Devices; LAN is available", {})
         self.usb_serials = ()
+        self.usb_import_active = False
+        self.usb_import_dialog = None
         self.settings_revision = 0
         if initial_monitor is not None:
             self.config = replace(self.config, monitor=initial_monitor, region=None)
@@ -261,7 +268,7 @@ class HostWindow:
         modes.pack(fill="x", pady=(0, 12))
         ttk.Label(modes, text=self.tr("02   选择模式"), style="Muted.TLabel").pack(side="left", padx=(0, 15))
         self.mode = tk.StringVar(value=self.settings.mode)
-        for text, value in [(self.tr("全屏  Full"), "full"), (self.tr("大屏幕  Cinema"), "cinema"), (self.tr("FPS 游戏"), "fps")]:
+        for text, value in [(self.tr("全屏  Full"), "full"), (self.tr("大屏幕  Cinema"), "cinema"), (self.tr("First-person"), "fps")]:
             ttk.Radiobutton(modes, text=text, variable=self.mode, value=value,
                             command=lambda: self.change_setting("mode", self.mode.get())).pack(side="left", padx=8)
 
@@ -288,7 +295,7 @@ class HostWindow:
                            font=("Microsoft YaHei UI", 9), state="disabled", wrap="word")
         self.log.pack(fill="x", pady=(6, 0))
         self.notebook.pack(fill="both", expand=True)
-        self._log(self.tr("就绪。全屏不跟随转头；大屏幕在虚拟空间中显示；FPS 可在桌面授权后控制鼠标。"))
+        self._log(self.tr("Ready. Full screen stays fixed; Cinema places a screen in VR; First-person controls the mouse after you enable it here."))
 
     def _scroll_tab(self, title):
         wrapper = ttk.Frame(self.notebook)
@@ -371,7 +378,19 @@ class HostWindow:
         self.usb_device.set(self.usb_preferences["preferred_serial"] or self.tr("Automatic (one Android device)"))
         self.usb_device.pack(fill="x", pady=(8, 4))
         self.usb_device.bind("<<ComboboxSelected>>", self.change_usb)
+        ttk.Button(usb, text=self.tr("Download official Android USB tools…"),
+                   command=self.download_usb_tools).pack(anchor="w", pady=(6, 0))
+        self.usb_import_button = ttk.Button(usb, text=self.tr("Import downloaded USB tools ZIP…"),
+                                           command=self.import_usb_tools,
+                                           state="disabled" if self.usb_import_active else "normal")
+        self.usb_import_button.pack(anchor="w", pady=6)
+        self._paragraph(usb, self.tr("For Android, download Windows Platform Tools 37.0.1 from Google, read and accept Google's terms, then import the ZIP. VRization does not download or bundle these tools. Existing installations are kept."),
+                        style="Muted.TLabel").pack(fill="x", pady=4)
         ttk.Button(usb, text=self.tr("Choose official SDK adb.exe…"), command=self.choose_adb).pack(anchor="w", pady=6)
+        self.usb_path_label = self._paragraph(usb, self.tr("Android USB tool: {path}",
+                                                        path=self.usb_preferences["adb_path"] or self.tr("Automatic detection")),
+                                             style="Muted.TLabel")
+        self.usb_path_label.pack(fill="x", pady=4)
         self._paragraph(usb, self.tr("Android needs USB debugging and this computer's approval. iPhone needs Apple Devices and Trust This Computer. USB does not need a LAN firewall rule. Existing USB mappings are never replaced."),
                         style="Muted.TLabel").pack(fill="x", pady=4)
 
@@ -400,9 +419,100 @@ class HostWindow:
         path = filedialog.askopenfilename(parent=self.root, title=self.tr("Choose adb.exe from official Android Platform Tools"),
                                           filetypes=[("Android Debug Bridge", "adb.exe")])
         if path:
-            self.usb_preferences["adb_path"] = path
-            self.usb.adb_path = path
-            self._save_usb()
+            self._select_adb_path(path)
+
+    def _select_adb_path(self, path):
+        self.usb_preferences["adb_path"] = str(path)
+        self.usb.adb_path = str(path)
+        self.usb_path_label.configure(text=self.tr("Android USB tool: {path}", path=path))
+        self._save_usb()
+
+    def download_usb_tools(self):
+        try:
+            webbrowser.open(OFFICIAL_DOWNLOAD_PAGE)
+        except OSError:
+            self._log(self.tr("Could not open the download page. Visit developer.android.com/tools/releases/platform-tools."))
+
+    def import_usb_tools(self):
+        if self.usb_import_active:
+            return
+        if self.usb_import_dialog is not None and self.usb_import_dialog.winfo_exists():
+            self.usb_import_dialog.lift()
+            return
+        package = filedialog.askopenfilename(parent=self.root, title=self.tr("Select Google's downloaded Windows Platform Tools 37.0.1 ZIP"),
+                                              filetypes=[("ZIP", "*.zip")])
+        if not package:
+            return
+        dialog = self.usb_import_dialog = tk.Toplevel(self.root)
+        dialog.title(self.tr("Import downloaded USB tools ZIP…"))
+        dialog.configure(bg=CARD)
+        dialog.transient(self.root)
+        body = ttk.Frame(dialog, padding=20)
+        body.pack(fill="both", expand=True)
+        self._paragraph(body, self.tr("Choose an installation folder. A platform-tools subfolder will be added; existing files will not be replaced.")).pack(fill="x")
+        folder = tk.StringVar(value=str(default_tools_directory()))
+        entry = ttk.Entry(body, textvariable=folder, width=65)
+        entry.pack(fill="x", pady=(12, 8))
+
+        def browse():
+            initial = Path(folder.get()).expanduser()
+            while not initial.is_dir() and initial != initial.parent:
+                initial = initial.parent
+            selected = filedialog.askdirectory(parent=dialog, initialdir=str(initial),
+                                               title=self.tr("Choose USB tools installation folder"), mustexist=False)
+            if selected:
+                folder.set(selected)
+
+        actions = ttk.Frame(body)
+        actions.pack(fill="x")
+        ttk.Button(actions, text=self.tr("Choose folder…"), command=browse).pack(side="left")
+        ttk.Button(actions, text=self.tr("Cancel"), command=dialog.destroy).pack(side="right")
+
+        def start_import():
+            destination = folder.get().strip()
+            dialog.destroy()
+            self.usb_import_dialog = None
+            self._start_usb_import(package, destination)
+
+        ttk.Button(actions, text=self.tr("Import USB tools"), command=start_import,
+                   style="Primary.TButton").pack(side="right", padx=8)
+
+    def _start_usb_import(self, package, destination):
+        if self.usb_import_active:
+            return
+        self.usb_import_active = True
+        self.usb_import_button.configure(state="disabled")
+        self._log(self.tr("Checking and importing USB tools…"))
+
+        def import_worker():
+            try:
+                adb = import_platform_tools(package, destination)
+                event = {"event": "usb_tools_import", "path": str(adb)}
+            except UsbToolsError as exc:
+                event = {"event": "usb_tools_import", "error": exc.code}
+            except Exception:
+                event = {"event": "usb_tools_import", "error": "write_failed"}
+            self.events.put(event)
+
+        threading.Thread(target=import_worker, name="vrization-usb-tools-import", daemon=True).start()
+
+    def _finish_usb_import(self, event):
+        self.usb_import_active = False
+        self.usb_import_button.configure(state="normal")
+        if "path" in event:
+            self._select_adb_path(event["path"])
+            self._log(self.tr("USB tools imported. Unlock the phone, allow USB debugging, then start streaming."))
+            return
+        messages = {
+            "wrong_hash": "This ZIP is not the verified Windows Platform Tools 37.0.1 package. Download it from Google's official page.",
+            "wrong_version": "This package has a different version. Use official Windows Platform Tools 37.0.1.",
+            "invalid_archive": "The ZIP is incomplete or unsafe. Download the official Windows package again.",
+            "unsafe_destination": "Choose a full folder path without shortcuts, links or junctions.",
+            "destination_conflict": "This folder contains a different Platform Tools installation. It was kept unchanged; choose a new folder.",
+            "busy": "An import is already using this folder. Wait for it to finish or choose another folder.",
+            "write_failed": "Could not import USB tools. Check folder permissions and free space, then try another folder.",
+        }
+        self._log(self.tr(messages.get(event.get("error"), messages["write_failed"])))
 
     def _save_usb(self):
         try:
@@ -410,21 +520,22 @@ class HostWindow:
         except OSError as exc:
             self._log(self.tr("设置未保存: {error}", error=exc))
 
-    def _slider(self, parent, key, label, low, high, row):
+    def _slider(self, parent, key, label, low, high, row, format_value=None):
+        format_value = format_value or (lambda value: f"{value:.2f}")
         ttk.Label(parent, text=label).grid(row=row, column=0, sticky="w", padx=(0, 14), pady=9)
         variable = tk.DoubleVar(value=getattr(self.settings, key))
         self.setting_vars[key] = variable
-        value_label = ttk.Label(parent, text=f"{variable.get():.2f}", width=6, style="Muted.TLabel")
+        value_label = ttk.Label(parent, text=format_value(variable.get()), width=6, style="Muted.TLabel")
         value_label.grid(row=row, column=2, sticky="e", padx=(12, 0))
 
         def change(value):
-            value_label.configure(text=f"{float(value):.2f}")
+            value_label.configure(text=format_value(float(value)))
             if not self.syncing:
                 self.change_setting(key, round(float(value), 4))
 
         scale = ttk.Scale(parent, from_=low, to=high, variable=variable, command=change)
         scale.grid(row=row, column=1, sticky="ew", pady=9)
-        variable.trace_add("write", lambda *_: value_label.configure(text=f"{variable.get():.2f}"))
+        variable.trace_add("write", lambda *_: value_label.configure(text=format_value(variable.get())))
 
     def _view_tab(self, tab):
         tab.columnconfigure(1, weight=1)
@@ -494,25 +605,29 @@ class HostWindow:
         tab.columnconfigure(1, weight=1)
         ttk.Label(tab, text=self.tr("手机转头 → 游戏视角"), font=("Microsoft YaHei UI", 17, "bold")).grid(
             row=0, column=0, columnspan=3, sticky="w", pady=(0, 10))
-        self._paragraph(tab, text=self.tr("1  在手机选择 FPS 模式，保持手机传感器运行。\n"
-                           "2  在下方勾选允许控制，然后在 5 秒内切换到游戏窗口。\n"
-                           "3  按 F8 随时停止。切换窗口、断线或传感器超时也会自动停止。"),
+        self._paragraph(tab, text=self.tr("1  Select First-person mode on your phone and keep its sensors running.\n"
+                                         "2  Enable control below, then switch to your game within 5 seconds.\n"
+                                         "3  F8 stops control. Focus changes, disconnects and sensor timeouts also stop it."),
                   style="Muted.TLabel").grid(row=1, column=0, columnspan=3, sticky="w", pady=10)
         self._slider(tab, "sensitivity", self.tr("转头灵敏度 · 像素 / 弧度"), 100, 3000, 2)
+        self._slider(tab, "stabilization", self.tr("First-person stabilization strength"), 0, 1, 3,
+                     format_value=lambda value: f"{value * 100:.0f}%")
+        self._paragraph(tab, text=self.tr("0% keeps the current response. Increase it to reduce small shakes. Stronger stabilization can slow fine aiming. It applies only to First-person mouse control."),
+                        style="Muted.TLabel").grid(row=4, column=0, columnspan=3, sticky="w", pady=7)
         self.invert = tk.BooleanVar(value=self.settings.invertY)
         ttk.Checkbutton(tab, text=self.tr("反转垂直方向"), variable=self.invert,
                         command=lambda: self.change_setting("invertY", self.invert.get())).grid(
-            row=3, column=0, columnspan=3, sticky="w", pady=7)
+            row=5, column=0, columnspan=3, sticky="w", pady=7)
         self.arm_var = tk.BooleanVar(value=False)
         self.arm_check = ttk.Checkbutton(tab, text=self.tr("允许手机陀螺仪控制当前游戏鼠标"), variable=self.arm_var,
                                         command=self.toggle_arm)
-        self.arm_check.grid(row=4, column=0, columnspan=3, sticky="w", pady=15)
+        self.arm_check.grid(row=6, column=0, columnspan=3, sticky="w", pady=15)
         self.arm_status = ttk.Label(tab, text=self.tr("控制已停止 / DISARMED"), foreground=ACCENT)
-        self.arm_status.grid(row=5, column=0, columnspan=3, sticky="w", pady=(0, 12))
-        ttk.Button(tab, text=self.tr("重新居中 / RECENTER"), command=self.server.recenter).grid(row=6, column=0, sticky="w")
+        self.arm_status.grid(row=7, column=0, columnspan=3, sticky="w", pady=(0, 12))
+        ttk.Button(tab, text=self.tr("重新居中 / RECENTER"), command=self.server.recenter).grid(row=8, column=0, sticky="w")
         self._paragraph(tab, text=self.tr("仅在可信局域网使用。部分使用原始输入、管理员权限或反作弊保护的游戏\n"
                            "可能忽略系统鼠标输入。此软件不绕过游戏保护。"),
-                  style="Muted.TLabel").grid(row=7, column=0, columnspan=3, sticky="w", pady=18)
+                  style="Muted.TLabel").grid(row=9, column=0, columnspan=3, sticky="w", pady=18)
 
     def change_setting(self, key, value):
         try:
@@ -713,6 +828,8 @@ class HostWindow:
             elif kind == "usb_devices":
                 self.usb_serials = event["serials"]
                 self.usb_device.configure(values=[self.tr("Automatic (one Android device)")] + list(self.usb_serials))
+            elif kind == "usb_tools_import":
+                self._finish_usb_import(event)
             elif kind in ("error", "hotkey_error"):
                 if kind == "hotkey_error":
                     self.hotkey_available = False

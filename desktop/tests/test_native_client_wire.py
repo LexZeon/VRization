@@ -187,8 +187,8 @@ class NativeClientWireTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(self.source.closed)
         self.assertEqual(self.sink.moves, [])
 
-    async def connect(self):
-        url = self.server.make_url("/ws?token=" + self.host.token)
+    async def connect(self, *, settings_schema2=False):
+        url = self.server.make_url("/ws?token=" + self.host.token + ("&settingsSchema=2" if settings_schema2 else ""))
         peer = await StandardWebSocketPeer.connect(url)
         self.peers.append(peer)
         return peer
@@ -204,7 +204,10 @@ class NativeClientWireTests(unittest.IsolatedAsyncioTestCase):
         peer = await self.connect()
         hello = await peer.next_json("hello")
         self.assertEqual((hello["v"], hello["version"], hello["revision"]), (1, __version__, 0))
-        self.assertEqual(hello["settings"], Settings().to_dict())
+        legacy = Settings().to_dict()
+        legacy.pop("stabilization", None)
+        self.assertEqual(hello["settings"], legacy)
+        self.assertEqual(hello["capabilities"], ["stabilization"])
         self.assertEqual(hello["stream"]["codec"], "jpeg")
         self.assertFalse(hello["mouseArmed"])
         jpeg = await peer.next_binary()
@@ -219,6 +222,48 @@ class NativeClientWireTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((health["version"], health["protocol"], health["connected"]), (__version__, 1, True))
         project = tomllib.loads((Path(__file__).parents[1] / "pyproject.toml").read_text(encoding="utf-8"))
         self.assertEqual(project["project"]["version"], __version__)
+
+    async def test_schema2_settings_roundtrip_and_legacy_reconnect(self):
+        peer = await self.connect(settings_schema2=True)
+        hello = await peer.next_json("hello")
+        self.assertEqual(hello["settings"]["stabilization"], 0)
+        await peer.send_json({"v": 1, "type": "settings", "clientSeq": 7,
+                              "settings": {"stabilization": .75}})
+        ack = await peer.next_json("settings")
+        self.assertEqual((ack["clientSeq"], ack["settings"]["stabilization"]), (7, .75))
+        await peer.close()
+        await self.wait_disconnected()
+        legacy = await self.connect()
+        old_hello = await legacy.next_json("hello")
+        self.assertNotIn("stabilization", old_hello["settings"])
+        self.assertEqual(self.host.get_settings_snapshot()[0].stabilization, .75)
+        self.host.update_settings({"stabilization": .5})
+        self.assertNotIn("stabilization", (await legacy.next_json("settings"))["settings"])
+        self.assertFalse(self.host.controller.armed)
+
+    async def test_usb_style_hello_upgrades_settings_without_new_session(self):
+        self.host.update_settings({"stabilization": .6})
+        peer = await self.connect()
+        hello = await peer.next_json("hello")
+        self.assertNotIn("stabilization", hello["settings"])
+        await peer.send_json({"v": 1, "type": "hello", "settingsSchema": 2, "editing": True})
+        settings = await peer.next_json("settings")
+        self.assertEqual((settings["revision"], settings["settings"]["stabilization"]), (1, .6))
+        self.assertTrue(self.host.controller.connected)
+        self.assertFalse(self.host.controller.armed)
+        await peer.send_json({"v": 1, "type": "settings", "clientSeq": 8,
+                              "settings": {"offsetY": .12}})
+        ack = await peer.next_json("settings")
+        self.assertEqual((ack["clientSeq"], ack["settings"]["stabilization"]), (8, .6))
+
+    async def test_non_integer_capability_does_not_change_legacy_wire_shape(self):
+        peer = await self.connect()
+        await peer.next_json("hello")
+        await peer.send_json({"v": 1, "type": "hello", "settingsSchema": "2", "editing": True})
+        await peer.send_json({"v": 1, "type": "settings", "clientSeq": 1,
+                              "settings": {"offsetX": .12}})
+        self.assertNotIn("stabilization", (await peer.next_json("settings"))["settings"])
+        self.assertFalse(self.host.controller.armed)
 
     async def test_fragmented_utf8_settings_ping_and_revision_acknowledgement(self):
         peer = await self.connect()

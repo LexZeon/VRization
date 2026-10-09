@@ -5,7 +5,7 @@
 <!-- vrization:english -->
 ## English
 
-v0.3.0-alpha defaults to authorized USB connections, with a trusted-LAN alternative. The host sends its selected display / region to one connected viewer, and FPS mode can move the PC mouse only after local authorization. USB pairing does not start PC streaming or grant mouse control.
+v0.3.0-alpha defaults to authorized USB connections, with a trusted-LAN alternative. The host sends its selected display / region to one connected viewer, and First-person mode can move the PC mouse only after local authorization. USB pairing does not start PC streaming or grant mouse control.
 
 ### Connection boundaries
 
@@ -23,7 +23,7 @@ Do not publish authenticated WebSocket URLs, pairing codes, device serials, Appl
 
 ### Input control
 
-The phone cannot arm mouse input. FPS mode, a valid connection, live pose and explicit PC authorization are required together. After arming, switch to the game within five seconds. **F8** stops control. Mode changes, disconnects, host stop and desktop language changes require fresh authorization; stale pose or a foreground-window change also disarms. Phone backgrounding / language changes end the session and require explicit reconnection. Test directions, sensitivity and the stop key on a desktop / offline application first. Games may reject system mouse input; VRization does not bypass game protection.
+The phone cannot arm mouse input. First-person mode, a valid connection, live pose and explicit PC authorization are required together. After arming, switch to the game within five seconds. **F8** stops control. Mode changes, disconnects, host stop and desktop language changes require fresh authorization; stale pose or a foreground-window change also disarms. Phone backgrounding / language changes end the session and require explicit reconnection. Test directions, sensitivity and the stop key on a desktop / offline application first. Games may reject system mouse input; VRization does not bypass game protection.
 
 The Windows target is 10 / 11 x64. Recorded local tests use Windows 11. Huawei Android hardware evidence and the iOS fake-usbmux / Simulator evidence are separate; no physical iPhone, real FPS game or viewer-optics security / compatibility pass is implied.
 
@@ -42,7 +42,7 @@ Editor dragging sends no settings and writes no preferences. Phone poses pause; 
 <!-- vrization:chinese -->
 ## 简体中文
 
-v0.3.0-alpha 默认已授权 USB 连接，也可选择可信局域网。服务器把电脑选定显示器 / 区域发给一个观看端；FPS 鼠标功能须电脑主动授权。USB 配对不自动开始电脑串流，也不授予鼠标控制。
+v0.3.0-alpha 默认已授权 USB 连接，也可选择可信局域网。服务器把电脑选定显示器 / 区域发给一个观看端；第一人称鼠标功能须电脑主动授权。USB 配对不自动开始电脑串流，也不授予鼠标控制。
 
 ### 连接边界
 
@@ -60,7 +60,7 @@ v0.3.0-alpha 默认已授权 USB 连接，也可选择可信局域网。服务�
 
 ### 输入控制
 
-手机不能自行授权电脑鼠标。必须同时满足 FPS 模式、有效连接、实时姿态和电脑主动授权；授权后五秒内切到游戏，按 **F8** 停止。切换模式、断线、停止主机、电脑切换语言后均需重新授权；姿态超时或前台窗口改变也会解除。手机进入后台 / 切换语言会结束会话，需显式重连。先用桌面或离线应用检查方向、灵敏度与停止键，再进入游戏。游戏可能拒绝系统鼠标输入，VRization 不绕过游戏保护。
+手机不能自行授权电脑鼠标。必须同时满足 第一人称模式、有效连接、实时姿态和电脑主动授权；授权后五秒内切到游戏，按 **F8** 停止。切换模式、断线、停止主机、电脑切换语言后均需重新授权；姿态超时或前台窗口改变也会解除。手机进入后台 / 切换语言会结束会话，需显式重连。先用桌面或离线应用检查方向、灵敏度与停止键，再进入游戏。游戏可能拒绝系统鼠标输入，VRization 不绕过游戏保护。
 
 Windows 目标为 10 / 11 x64，本地已记录测试来自 Windows 11。华为 Android 硬件证据与 iOS 假 usbmux / 模拟器证据分开记录，不表示真实 iPhone、真实 FPS 游戏或盒子镜片的安全 / 兼容性已经通过。
 

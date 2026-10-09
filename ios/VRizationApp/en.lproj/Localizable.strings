@@ -21,12 +21,12 @@
 "hide" = "Hide settings";
 "recenter" = "Recenter";
 "gestures" = "Long press for settings. Double tap to recenter.";
-"networkNotice" = "Video and controls are unencrypted. Use a trusted LAN. FPS mouse control must be enabled on the computer.";
-"noSensor" = "No device-motion sensor. Full mode remains available; Cinema and FPS are disabled.";
+"networkNotice" = "Video and controls are unencrypted. Use a trusted LAN. first-person mouse control must be enabled on the computer.";
+"noSensor" = "No device-motion sensor. Full mode remains available; Cinema and first-person are disabled.";
 "sensorFallback" = "Device motion unavailable. Switched to Full mode.";
 "full" = "Full";
 "cinema" = "Cinema";
-"fps" = "FPS";
+"fps" = "First person";
 "headsetFit" = "Headset fit";
 "precisionHelp" = "Drag for larger changes; use − / + for precise one-step adjustments.";
 "decreaseStep" = "Decrease %@ by one step";
@@ -38,8 +38,11 @@
 "distortion" = "Lens distortion";
 "fov" = "Field of view (Cinema)";
 "distance" = "Screen distance (Cinema)";
-"sensitivity" = "Mouse sensitivity (FPS, pixels/rad)";
-"invertY" = "Invert vertical FPS movement";
+"sensitivity" = "Mouse sensitivity (first-person, pixels/rad)";
+"stabilization" = "First-person stabilization strength";
+"stabilizationHelp" = "Applied on the PC in First-person mode only. 0% keeps the current behavior; stronger smoothing can slow the response.";
+"stabilizationUnsupported" = "This PC does not support stabilization. Your setting is saved locally; update the PC app to apply it.";
+"invertY" = "Invert vertical first-person movement";
 "reset" = "Reset all phone settings";
 "editorOpen" = "Visual headset fit editor";
 "editorHelp" = "Drag an eye horizontally; the other mirrors it. Left eye left or right eye right widens the gap; reverse until small images meet. At the seam they align automatically. Vertical moves both; corners resize. Save commits; Discard restores.";
@@ -57,5 +60,5 @@
 "usbWaiting" = "Waiting for USB computer. Unlock the phone and trust the computer when iOS asks.";
 "usbStop" = "Stop waiting";
 "usbFailed" = "USB disconnected or unavailable. Check the cable, Apple Devices driver and Trust prompt, then tap Connect.";
-"usbNotice" = "USB is the default. Install Apple Devices on Windows, unlock this iPhone, connect a data cable and tap Trust. Keep this app open; the computer finds it automatically. After returning from the background, tap Connect. FPS control still needs computer approval. Receiving fps and network RTT are not end-to-end latency.";
-"help" = "Full and FPS show the same 2D image to both eyes. Cinema places it in virtual space; this is not native stereoscopic game rendering. Audio stays on the computer. Entering the background disconnects video and stops control.";
+"usbNotice" = "USB is the default. Install Apple Devices on Windows, unlock this iPhone, connect a data cable and tap Trust. Keep this app open; the computer finds it automatically. After returning from the background, tap Connect. first-person control still needs computer approval. Receiving fps and network RTT are not end-to-end latency.";
+"help" = "Full and first-person show the same 2D image to both eyes. Cinema places it in virtual space; this is not native stereoscopic game rendering. Audio stays on the computer. Entering the background disconnects video and stops control.";
