@@ -8,27 +8,49 @@ final class ViewerSmokeTests: XCTestCase {
 
     override func setUpWithError() throws {
         continueAfterFailure = false
-        // Keep hardware orientation, UIKit scene geometry and synthesized gestures
-        // consistent. Fresh CI simulators otherwise start physically in portrait.
-        XCUIDevice.shared.orientation = .landscapeLeft
         app.launchArguments = baseArguments + ["--reset-preferences"]
-        app.launch()
+        launchViewer()
     }
     override func tearDownWithError() throws { app.terminate() }
+    private func launchViewer() {
+        app.launch()
+        // Rotate the active app, rather than portrait-only SpringBoard before
+        // launch. XCTest must observe the same orientation as the viewer scene.
+        XCUIDevice.shared.orientation = .landscapeRight
+        XCTAssertTrue(app.buttons["settings.hide"].waitForExistence(timeout: 10))
+    }
     private func screenshot(_ name: String) {
-        let attachment = XCTAttachment(screenshot: app.screenshot())
+        // The physical screen avoids app-region crop/rotation ambiguity.
+        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         attachment.name = name; attachment.lifetime = .keepAlways; add(attachment)
+    }
+    private func geometry(_ name: String, target: XCUIElement) {
+        let scroll = app.scrollViews["settings.scroll"]
+        let nativeGeometry = app.otherElements["vr.surface"].value as? String ?? "unavailable"
+        let text = "device=\(XCUIDevice.shared.orientation.rawValue); app=\(app.frame); scroll=\(scroll.frame); target=\(target.frame); targetHittable=\(target.isHittable); UIKit=\(nativeGeometry)"
+        let attachment = XCTAttachment(string: text)
+        attachment.name = name; attachment.lifetime = .keepAlways; add(attachment)
+    }
+    private func dragScroll(_ scroll: XCUIElement, up: Bool) {
+        // The 12-point content padding is a real scrollable gutter. Starting
+        // here avoids dragging a field, segmented control or slider instead.
+        let start = scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.98, dy: up ? 0.85 : 0.15))
+        let end = scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.98, dy: up ? 0.15 : 0.85))
+        start.press(forDuration: 0.05, thenDragTo: end)
     }
     private func reveal(_ element: XCUIElement) {
         let scroll = app.scrollViews["settings.scroll"]
+        geometry("before-reveal", target: element)
         for _ in 0..<8 {
             if element.isHittable { return }
-            scroll.swipeDown()
+            dragScroll(scroll, up: false)
         }
         for _ in 0..<14 {
             if element.isHittable { return }
-            scroll.swipeUp()
+            dragScroll(scroll, up: true)
         }
+        geometry("failed-reveal", target: element)
+        screenshot("failed-reveal-screen")
         XCTAssertTrue(element.isHittable)
     }
     private func adjustScaleAndWaitForStableEcho() {
@@ -55,12 +77,12 @@ final class ViewerSmokeTests: XCTestCase {
         XCTAssertEqual(app.buttons["settings.hide"].label, "隐藏设置")
         app.terminate()
         app.launchArguments = baseArguments
-        app.launch()
+        launchViewer()
         XCTAssertTrue(app.segmentedControls["language.picker"].buttons["中文"].isSelected)
         XCTAssertEqual(app.buttons["settings.hide"].label, "隐藏设置")
         screenshot("02-Chinese-persisted")
         app.segmentedControls["language.picker"].buttons["English"].tap()
-        app.terminate(); app.launch()
+        app.terminate(); launchViewer()
         XCTAssertTrue(app.segmentedControls["language.picker"].buttons["English"].isSelected)
         let toggle = app.buttons["connection.toggle"]
         reveal(toggle); toggle.tap()
@@ -105,7 +127,7 @@ final class ViewerSmokeTests: XCTestCase {
         // discovery adapter. It connects to the simulator listener on loopback18766.
         app.terminate()
         app.launchArguments = ["--ui-testing", "--reset-preferences"]
-        app.launch()
+        launchViewer()
         XCTAssertTrue(app.segmentedControls["connection.transport"].buttons["USB"].isSelected)
         XCTAssertFalse(app.secureTextFields["connection.code"].exists)
         let toggle = app.buttons["connection.toggle"]

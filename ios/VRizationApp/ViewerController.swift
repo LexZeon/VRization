@@ -2,7 +2,7 @@ import UIKit
 import MetalKit
 import VRizationCore
 
-final class ViewerController: UIViewController {
+final class ViewerController: UIViewController, UIScrollViewDelegate {
     private let client = StreamClient()
     private let motion = MotionSource()
     private var settings = VRSettings()
@@ -132,7 +132,7 @@ final class ViewerController: UIViewController {
             button("recenter", id: "view.recenter", action: #selector(recenter))])
         toolbar.axis = .horizontal; toolbar.spacing = 8; toolbar.distribution = .fillEqually
         toolbar.translatesAutoresizingMaskIntoConstraints = false; overlay.addSubview(toolbar)
-        scroll = UIScrollView(); scroll.accessibilityIdentifier = "settings.scroll"
+        scroll = UIScrollView(); scroll.accessibilityIdentifier = "settings.scroll"; scroll.delegate = self
         scroll.backgroundColor = UIColor(red: 0.05, green: 0.09, blue: 0.15, alpha: 0.96)
         scroll.keyboardDismissMode = .onDrag
         scroll.translatesAutoresizingMaskIntoConstraints = false; overlay.addSubview(scroll)
@@ -316,6 +316,22 @@ final class ViewerController: UIViewController {
             startedInitialUSB = true
             if selectedTransport == .usb { _ = client.connectUSB() }
         }
+    }
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews(); updateTestingGeometry()
+    }
+    func scrollViewDidScroll(_ scrollView: UIScrollView) { updateTestingGeometry() }
+    private func updateTestingGeometry() {
+        guard ProcessInfo.processInfo.arguments.contains("--ui-testing"), let scroll = scroll, let window = view.window else { return }
+        // Record actual UIKit geometry, independent of XCTest's screen rotation
+        // and accessibility conversion. No address or pairing data is included.
+        metalView.accessibilityValue = [
+            "sceneOrientation=\(window.windowScene?.interfaceOrientation.rawValue ?? 0)",
+            "deviceOrientation=\(UIDevice.current.orientation.rawValue)",
+            "windowBounds=\(window.bounds)", "windowFrame=\(window.frame)", "viewBounds=\(view.bounds)",
+            "scrollFrame=\(scroll.convert(scroll.bounds, to: view))", "contentSize=\(scroll.contentSize)",
+            "contentOffset=\(scroll.contentOffset)", "drawableSize=\(metalView.drawableSize)"
+        ].joined(separator: "; ")
     }
     override func viewWillTransition(to size: CGSize, with coordinator: UIViewControllerTransitionCoordinator) {
         super.viewWillTransition(to: size, with: coordinator)
