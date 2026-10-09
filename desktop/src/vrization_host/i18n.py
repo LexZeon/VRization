@@ -60,6 +60,8 @@ ENGLISH = {
 
 CHINESE = {
     'First-person': '第一人称',
+    '先选择 FPS 模式 / Select FPS mode first': '请先选择第一人称模式。',
+    'Select First-person mode first.': '请先选择第一人称模式。',
     'Ready. Full screen stays fixed; Cinema places a screen in VR; First-person controls the mouse after you enable it here.': '就绪。全屏不跟随转头；大屏幕在虚拟空间中显示；第一人称可在电脑端授权后控制鼠标。',
     '1  Select First-person mode on your phone and keep its sensors running.\n2  Enable control below, then switch to your game within 5 seconds.\n3  F8 stops control. Focus changes, disconnects and sensor timeouts also stop it.': '1  在手机选择第一人称模式，保持手机传感器运行。\n2  在下方勾选允许控制，然后在 5 秒内切换到游戏窗口。\n3  按 F8 随时停止。切换窗口、断线或传感器超时也会自动停止。',
     'Headset editor': '画面编辑',
