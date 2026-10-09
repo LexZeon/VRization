@@ -44,6 +44,14 @@
     <string name="format_pixels" formatted="false">%.0f pixels/rad</string>
     <string name="invert_y">Invert vertical FPS movement</string>
     <string name="reset_view">Reset display settings</string>
+    <string name="edit_headset">Fit headset visually</string>
+    <string name="editor_gestures">Drag corner handles to resize around the center; drag inside to move. Both eyes update together. Flat preview; head controls paused.</string>
+    <string name="editor_values">Scale %1$.0f%% · Horizontal %2$.2f · Vertical %3$.2f</string>
+    <string name="editor_save">Save</string>
+    <string name="editor_discard">Discard</string>
+    <string name="reset_all">Reset all phone settings</string>
+    <string name="reset_all_done">All phone settings reset: VR defaults, English and USB. Reconnect to send the defaults to the PC.</string>
+    <string name="invalid_host_protocol">The PC did not send a valid VRization handshake. Update both apps and connect again.</string>
     <string name="licenses">About and licenses</string>
     <string name="mode_help">Full and FPS use a fixed image for both eyes. Cinema places the 2D desktop in virtual space. This is not native stereoscopic game rendering. Audio stays on the computer.\nEntering the background disconnects video and stops control. Use the connection button after returning.</string>
     <string name="invalid_port">Port must be an integer between 1 and 65535.</string>

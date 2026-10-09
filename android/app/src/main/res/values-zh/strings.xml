@@ -44,6 +44,14 @@
     <string name="format_pixels" formatted="false">%.0f 像素/弧度</string>
     <string name="invert_y">FPS 垂直方向反转</string>
     <string name="reset_view">恢复显示设置</string>
+    <string name="edit_headset">可视化适配 VR 盒子</string>
+    <string name="editor_gestures">拖动四角围绕中心等比例缩放，拖动画面内部移动；两眼同步。当前为平面预览，头部控制已暂停。</string>
+    <string name="editor_values">缩放 %1$.0f%% · 水平 %2$.2f · 垂直 %3$.2f</string>
+    <string name="editor_save">保存</string>
+    <string name="editor_discard">放弃</string>
+    <string name="reset_all">重置全部手机设置</string>
+    <string name="reset_all_done">已重置全部手机设置：默认 VR 参数、英文和 USB。重新连接后向电脑提交默认参数。</string>
+    <string name="invalid_host_protocol">电脑未发送有效的 VRization 握手。请更新两端软件并重新连接。</string>
     <string name="licenses">关于与开源许可</string>
     <string name="mode_help">全屏和 FPS 使用固定双眼画面；大屏幕把二维桌面放在虚拟空间。画面本身并非游戏原生双眼立体。耳机声音请暂用电脑输出。\n应用进入后台时自动断开串流并停止控制；回到前台后点击连接。</string>
     <string name="invalid_port">端口应为 1 到 65535 的整数。</string>

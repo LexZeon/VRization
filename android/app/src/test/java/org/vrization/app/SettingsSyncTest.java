@@ -47,4 +47,22 @@ public final class SettingsSyncTest {
         assertTrue(sync.accept(scale(.9f), null, null));
         assertTrue(sync.accept(scale(.7f), null, null));
     }
+    @Test public void savedPhoneProfileWinsInitialHostSnapshotUntilItsOwnAcknowledgement() {
+        SettingsSync sync = new SettingsSync(); sync.newSession(); sync.edited();
+        long sequence = sync.nextSequence(); sync.sent(sequence, scale(.91f));
+        assertFalse(sync.accept(scale(.5f), 9L, null));
+        assertTrue(sync.accept(scale(.91f), 10L, sequence));
+        assertFalse(sync.accept(scale(.5f), 9L, null));
+    }
+    @Test public void oldConnectionAcknowledgementCannotOverwriteRestoredPhoneProfile() {
+        SettingsSync sync = new SettingsSync(); long old = sync.nextSequence(); sync.sent(old, scale(.6f));
+        sync.newSession(); sync.edited(); long current = sync.nextSequence(); sync.sent(current, scale(.9f));
+        assertFalse(sync.accept(scale(.6f), 1L, old)); assertTrue(sync.accept(scale(.9f), 2L, current));
+    }
+    @Test public void editorDefersHostChangesUntilDiscardOrSavedSnapshotIsAcknowledged() {
+        SettingsSync sync = new SettingsSync(); sync.beginGesture();
+        assertFalse(sync.accept(scale(.6f), 4L, null)); sync.endGesture();
+        sync.edited(); long saved = sync.nextSequence(); sync.sent(saved, scale(.95f));
+        assertFalse(sync.accept(scale(.6f), 4L, null)); assertTrue(sync.accept(scale(.95f), 5L, saved));
+    }
 }

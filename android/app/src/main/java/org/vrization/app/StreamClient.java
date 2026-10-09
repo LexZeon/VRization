@@ -44,7 +44,6 @@ final class StreamClient {
         void onDecodedStats(int width, int height, double fps);
         void onProcessingStats(double milliseconds);
     }
-    private static final int MAX_FRAME_BYTES = 8 * 1024 * 1024;
     private final Listener listener;
     private final Context context;
     private final Handler main = new Handler(Looper.getMainLooper());
@@ -62,8 +61,10 @@ final class StreamClient {
     private volatile boolean connected;
     private volatile boolean connecting;
     private Call discovery;
+    private Runnable helloDeadline;
     private final PingTracker ping = new PingTracker();
     private final PhoneFrameStats frameStats = new PhoneFrameStats();
+    private final PoseSendGate poseGate = new PoseSendGate();
     private final Runnable pingTick = new Runnable() {
         @Override public void run() {
             if (!connected || sessions.isClosed()) return;
@@ -139,27 +140,40 @@ final class StreamClient {
         HttpUrl url = new HttpUrl.Builder().scheme("http").host(host).port(port)
             .addPathSegment("ws").addQueryParameter("token", code).build();
         listener.onStatus(context.getString(R.string.connecting), false);
+        final HostSessionGate handshake = new HostSessionGate();
         socket = http.newWebSocket(new Request.Builder().url(url).build(), new WebSocketListener() {
             @Override public void onOpen(WebSocket webSocket, Response response) {
                 sessions.dispatch(connectionEpoch, () -> {
-                    connected = true; connecting = false;
-                    frameStats.newSession(connectionEpoch);
-                    ping.reset(); main.removeCallbacks(pingTick); main.post(pingTick);
-                    listener.onSessionStarted();
+                    helloDeadline = () -> {
+                        if (sessions.isCurrent(connectionEpoch) && !connected) {
+                            webSocket.cancel(); ended(connectionEpoch, context.getString(R.string.invalid_host_protocol));
+                        }
+                    };
+                    main.postDelayed(helloDeadline, 10000);
                     try {
                         JSONObject hello = message("hello").put("client", "android").put("device", Build.MODEL);
                         webSocket.send(hello.toString());
                     } catch (JSONException ignored) { }
-                    listener.onStatus(context.getString(R.string.connected), true);
                 });
             }
             @Override public void onMessage(WebSocket webSocket, String text) {
-                if (!sessions.isCurrent(connectionEpoch) || text.length() > 65536) return;
+                if (!sessions.isCurrent(connectionEpoch)) return;
                 try {
+                    if (text.length() > 65536) throw new IllegalArgumentException("Oversized host message");
                     JSONObject json = new JSONObject(text);
+                    boolean established = handshake.receive(SettingsJson.fields(json));
                     String type = json.optString("type");
-                    if (json.optInt("v", 1) != 1) return;
-                    if (("hello".equals(type) || "settings".equals(type)) && json.optJSONObject("settings") != null) {
+                    if (established) {
+                        sessions.dispatch(connectionEpoch, () -> {
+                            if (helloDeadline != null) main.removeCallbacks(helloDeadline);
+                            helloDeadline = null; connected = true; connecting = false;
+                            frameStats.newSession(connectionEpoch);
+                            ping.reset(); main.removeCallbacks(pingTick); main.post(pingTick);
+                            listener.onSessionStarted();
+                            listener.onSettings(json.optJSONObject("settings"), optionalSequence(json, "revision"), null);
+                            listener.onStatus(context.getString(R.string.connected), true);
+                        });
+                    } else if ("settings".equals(type)) {
                         JSONObject incoming = json.getJSONObject("settings");
                         sessions.dispatch(connectionEpoch, () -> listener.onSettings(incoming,
                             optionalSequence(json, "revision"), optionalSequence(json, "clientSeq")));
@@ -172,10 +186,17 @@ final class StreamClient {
                             if (milliseconds != null) listener.onRoundTrip(milliseconds);
                         });
                     }
-                } catch (JSONException ignored) { }
+                } catch (JSONException | IllegalArgumentException ignored) {
+                    handshake.fail(); webSocket.cancel();
+                    ended(connectionEpoch, context.getString(R.string.invalid_host_protocol));
+                }
             }
             @Override public void onMessage(WebSocket webSocket, ByteString bytes) {
-                if (!sessions.isCurrent(connectionEpoch) || bytes.size() > MAX_FRAME_BYTES || bytes.size() < 4) return;
+                if (!sessions.isCurrent(connectionEpoch)) return;
+                try { handshake.receiveJpeg(bytes.size()); }
+                catch (IllegalArgumentException ignored) {
+                    webSocket.cancel(); ended(connectionEpoch, context.getString(R.string.invalid_host_protocol)); return;
+                }
                 long receivedAt = SystemClock.elapsedRealtimeNanos();
                 queueJpeg(bytes.toByteArray(), connectionEpoch, receivedAt);
             }
@@ -198,6 +219,7 @@ final class StreamClient {
     private void ended(long connectionEpoch, String status) {
         sessions.dispatch(connectionEpoch, () -> {
             sessions.invalidate(); connected = false; connecting = false;
+            if (helloDeadline != null) main.removeCallbacks(helloDeadline); helloDeadline = null;
             discovery = null; socket = null;
             main.removeCallbacks(pingTick); ping.reset();
             clearPending();
@@ -282,9 +304,22 @@ final class StreamClient {
         catch (JSONException ignored) { return false; }
     }
     void sendPose(float yaw, float pitch) {
+        WebSocket current = socket;
+        if (current == null || !poseGate.maySend(connected, current.queueSize())) return;
         if (Float.isNaN(yaw) || Float.isInfinite(yaw) || Float.isNaN(pitch) || Float.isInfinite(pitch)) return;
         try { send(message("pose").put("seq", poseSequence.incrementAndGet()).put("yaw", yaw).put("pitch", pitch)); }
         catch (JSONException ignored) { }
+    }
+    void setPoseEnabled(boolean enabled) { poseGate.setEnabled(enabled); }
+    boolean pauseForEditor() {
+        poseGate.setEnabled(false);
+        if (!connected) return true;
+        try {
+            if (send(message("hello").put("editing", true))) return true;
+        } catch (JSONException ignored) { }
+        // If the disarm-only signal cannot be queued, disconnect instead of
+        // retaining control authorization across a stalled editor transition.
+        disconnect(true); return false;
     }
     void recenter() { send(message("recenter")); }
     private static JSONObject message(String type) {
@@ -299,6 +334,7 @@ final class StreamClient {
     }
     void disconnect(boolean report) {
         sessions.invalidate(); connected = false; connecting = false;
+        if (helloDeadline != null) main.removeCallbacks(helloDeadline); helloDeadline = null;
         main.removeCallbacks(pingTick); ping.reset();
         Call request = discovery; discovery = null;
         if (request != null) request.cancel();

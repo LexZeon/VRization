@@ -41,6 +41,7 @@ import org.json.JSONObject;
 import org.vrization.core.AndroidPoseSource;
 import org.vrization.core.VrRenderer;
 import org.vrization.core.VrSettings;
+import org.vrization.core.HeadsetEdit;
 
 /** Native Android viewer. No Google services, account, camera or storage permission required. */
 public final class MainActivity extends Activity {
@@ -72,6 +73,13 @@ public final class MainActivity extends Activity {
     private final SettingsSync settingsSync = new SettingsSync();
     private ConnectionMode connectionMode = ConnectionMode.USB;
     private InitialUsbDetection initialUsb;
+    private PhoneProfile profile;
+    private FrameLayout screenRoot;
+    private HeadsetEdit headsetEdit;
+    private HeadsetEditorView editorView;
+    private LinearLayout editorControls;
+    private TextView editorValues;
+    private volatile float imageAspect = 16f / 9f;
 
     @Override protected void attachBaseContext(Context base) {
         String language = base.getSharedPreferences("vrization", MODE_PRIVATE).getString("language", "en");
@@ -93,21 +101,27 @@ public final class MainActivity extends Activity {
         connectionMode = ConnectionMode.fromPreference(preferences.getString("transport", "usb"));
         initialUsb = new InitialUsbDetection(state == null && !getIntent().getBooleanExtra("suppress_usb_auto", false));
         requestFastDisplay();
-        try { settings = SettingsJson.decode(new JSONObject(preferences.getString("settings", "{}")), settings); }
-        catch (JSONException ignored) { }
+        try {
+            profile = new PhoneProfile(preferences.contains("settings")
+                ? SettingsJson.fields(new JSONObject(preferences.getString("settings", "{}"))) : null);
+        } catch (JSONException | IllegalArgumentException ignored) { profile = new PhoneProfile(null); }
+        settings = profile.snapshot();
         renderer = new VrRenderer();
         pose = new AndroidPoseSource(this, getWindowManager().getDefaultDisplay());
         if (!pose.isAvailable()) settings.mode = "full";
         renderer.setSettings(settings);
         client = new StreamClient(this, new StreamClient.Listener() {
             @Override public void onSessionStarted() {
+                finishHeadsetEdit(false, false);
                 settingsSync.newSession();
+                if (profile.hasSavedProfile()) settingsChanged(true);
                 frameStatus.setText(R.string.waiting_frame); linkStatus.setText(R.string.waiting_ping);
                 processingStatus.setText(R.string.waiting_processing);
             }
             @Override public void onStatus(String text, boolean connected) {
                 runOnUiThread(() -> {
                     if (destroyed) return;
+                    if (!connected && headsetEdit != null) finishHeadsetEdit(false, false);
                     status.setText(text); updateConnectButton();
                 });
             }
@@ -129,6 +143,7 @@ public final class MainActivity extends Activity {
                 });
             }
             @Override public void onFrame(android.graphics.Bitmap bitmap, long session, long receivedAtNanos) {
+                imageAspect = (float) bitmap.getWidth() / bitmap.getHeight();
                 renderer.submitFrame(bitmap, session, receivedAtNanos);
                 surface.requestRender();
             }
@@ -148,7 +163,7 @@ public final class MainActivity extends Activity {
     }
 
     private void createUi() {
-        FrameLayout root = new FrameLayout(this);
+        FrameLayout root = new FrameLayout(this); screenRoot = root;
         root.setBackgroundColor(Color.BLACK);
         surface = new GLSurfaceView(this) {
             @Override public boolean performClick() { super.performClick(); return true; }
@@ -198,6 +213,9 @@ public final class MainActivity extends Activity {
         content.setOrientation(LinearLayout.VERTICAL); content.setPadding(dp(16), dp(8), dp(16), dp(16));
         panel.addView(content);
         overlay.addView(panel, new LinearLayout.LayoutParams(-1, 0, 1));
+        Button editHeadset = button(getString(R.string.edit_headset), this::startHeadsetEdit);
+        editHeadset.setTextColor(ACCENT); editHeadset.setTypeface(null, Typeface.BOLD);
+        content.addView(editHeadset, new LinearLayout.LayoutParams(-1, dp(52)));
         content.addView(text(getString(R.string.app_name), 25, ACCENT, true));
         content.addView(text(getString(R.string.language), 14, MUTED, false));
         Spinner languageInput = new Spinner(this);
@@ -297,10 +315,7 @@ public final class MainActivity extends Activity {
             if (!refreshing) { settings.invertY = checked; settingsChanged(true); }
         });
         content.addView(invertInput);
-        content.addView(button(getString(R.string.reset_view), () -> {
-            String currentMode = settings.mode; settings = new VrSettings(); settings.mode = currentMode;
-            refreshControls(); settingsChanged(true); recenter();
-        }));
+        content.addView(button(getString(R.string.reset_all), this::resetAllPreferences));
         content.addView(button(getString(R.string.licenses), this::showLicenses));
         content.addView(text(getString(R.string.mode_help), 12, MUTED, false));
         refreshControls();
@@ -360,7 +375,59 @@ public final class MainActivity extends Activity {
             if (client.sendSettings(settings, sequence)) settingsSync.sent(sequence, settings);
         }
     }
-    private void saveSettings() { preferences.edit().putString("settings", SettingsJson.encode(settings).toString()).apply(); }
+    private void saveSettings() {
+        profile.commit(settings);
+        preferences.edit().putString("settings", SettingsJson.encode(profile.snapshot()).toString()).apply();
+    }
+    private void startHeadsetEdit() {
+        if (headsetEdit != null) return;
+        if (!client.pauseForEditor()) { client.setPoseEnabled(true); return; }
+        headsetEdit = new HeadsetEdit(settings); settingsSync.beginGesture(); updateTracking();
+        overlay.setVisibility(View.GONE);
+        editorView = new HeadsetEditorView(this, headsetEdit, () -> imageAspect, this::previewHeadsetEdit);
+        screenRoot.addView(editorView, new FrameLayout.LayoutParams(-1, -1));
+        editorControls = new LinearLayout(this); editorControls.setOrientation(LinearLayout.VERTICAL);
+        editorControls.setBackgroundColor(Color.argb(238, 16, 26, 41)); editorControls.setPadding(dp(12), dp(4), dp(12), dp(4));
+        editorControls.addView(text(getString(R.string.editor_gestures), 12, INK, false));
+        editorValues = text("", 12, ACCENT, false); editorControls.addView(editorValues);
+        LinearLayout actions = row();
+        actions.addView(button(getString(R.string.editor_save), () -> finishHeadsetEdit(true, true)), new LinearLayout.LayoutParams(0, dp(44), 1));
+        actions.addView(button(getString(R.string.editor_discard), () -> finishHeadsetEdit(false, true)), new LinearLayout.LayoutParams(0, dp(44), 1));
+        editorControls.addView(actions);
+        screenRoot.addView(editorControls, new FrameLayout.LayoutParams(Math.min(dp(650), screenRoot.getWidth()), -2, Gravity.TOP | Gravity.CENTER_HORIZONTAL));
+        editorControls.addOnLayoutChangeListener((view, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
+            if (editorView != null) editorView.reserveTop(view.getHeight() + dp(4));
+        });
+        previewHeadsetEdit();
+    }
+    private void previewHeadsetEdit() {
+        if (headsetEdit == null) return;
+        VrSettings draft = headsetEdit.draft(); renderer.setSettings(headsetEdit.preview()); surface.requestRender();
+        editorValues.setText(getString(R.string.editor_values, draft.scale * 100, draft.offsetX, draft.offsetY));
+    }
+    private void finishHeadsetEdit(boolean save, boolean recenterTracking) {
+        if (headsetEdit == null) return;
+        settings = save ? headsetEdit.save() : headsetEdit.discard(); headsetEdit = null;
+        settingsSync.endGesture();
+        screenRoot.removeView(editorView); screenRoot.removeView(editorControls);
+        editorView = null; editorControls = null; editorValues = null;
+        overlay.setVisibility(panelVisible ? View.VISIBLE : View.GONE);
+        renderer.setSettings(settings); surface.requestRender(); refreshControls();
+        if (save) settingsChanged(true);
+        pose.recenter(); renderer.setPose(0, 0, 0);
+        if (recenterTracking) client.recenter();
+        client.setPoseEnabled(true);
+        updateTracking();
+    }
+    private void resetAllPreferences() {
+        finishHeadsetEdit(false, false); initialUsb.stop(); client.disconnect(false);
+        settings = profile.reset();
+        preferences.edit().clear().putString("settings", SettingsJson.encode(settings).toString())
+            .putString("language", PhoneProfile.DEFAULT_LANGUAGE).putString("transport", PhoneProfile.DEFAULT_TRANSPORT)
+            .putString("host", PhoneProfile.DEFAULT_HOST).putString("port", PhoneProfile.DEFAULT_PORT).apply();
+        codeInput.setText(""); getIntent().putExtra("suppress_usb_auto", true);
+        Toast.makeText(this, getString(R.string.reset_all_done), Toast.LENGTH_LONG).show(); recreate();
+    }
     private void refreshControls() {
         refreshing = true;
         modeInput.setSelection("cinema".equals(settings.mode) ? 1 : "fps".equals(settings.mode) ? 2 : 0);
@@ -369,7 +436,7 @@ public final class MainActivity extends Activity {
         refreshing = false;
     }
     private void recenter() {
-        pose.recenter(); renderer.setPose(0, 0, 0); client.recenter();
+        pose.recenter(); renderer.setPose(0, 0, 0); if (headsetEdit == null) client.recenter();
         if (surface != null) surface.requestRender();
     }
     private void setPanelVisible(boolean visible) {
@@ -382,7 +449,7 @@ public final class MainActivity extends Activity {
     @Override public void onConfigurationChanged(Configuration configuration) {
         super.onConfigurationChanged(configuration);
         ViewGroup.LayoutParams params = overlay.getLayoutParams(); params.width = panelWidth(); overlay.setLayoutParams(params);
-        pose.recenter(); renderer.setPose(0, 0, 0); client.recenter();
+        pose.recenter(); renderer.setPose(0, 0, 0); if (headsetEdit == null) client.recenter();
         surface.requestRender();
     }
     private void showLicenses() {
@@ -420,18 +487,18 @@ public final class MainActivity extends Activity {
         if (initialUsb.onForeground(connectionMode) && !client.isActive()) client.connectUsb();
     }
     private void updateTracking() {
-        boolean needed = resumed && !"full".equals(settings.mode) && pose.isAvailable();
+        boolean needed = resumed && headsetEdit == null && !"full".equals(settings.mode) && pose.isAvailable();
         if (!needed) { if (trackingActive) pose.stop(); trackingActive = false; return; }
         if (trackingActive) return;
         trackingActive = true;
         pose.start((yaw, pitch, roll, timestamp) -> {
-            if (!resumed) return;
+            if (!resumed || headsetEdit != null) return;
             if ("cinema".equals(settings.mode)) { renderer.setPose(yaw, pitch, roll); surface.requestRender(); }
             else if ("fps".equals(settings.mode)) client.sendPose(yaw, pitch);
         });
     }
     @Override protected void onPause() {
-        resumed = false; initialUsb.stop(); trackingActive = false; pose.stop(); client.disconnect(false); renderer.pauseFrames(); surface.onPause();
+        resumed = false; finishHeadsetEdit(false, false); initialUsb.stop(); trackingActive = false; pose.stop(); client.disconnect(false); renderer.pauseFrames(); surface.onPause();
         status.setText(getString(R.string.paused));
         updateConnectButton();
         super.onPause();
@@ -440,7 +507,8 @@ public final class MainActivity extends Activity {
         destroyed = true; pose.stop(); client.shutdown(); renderer.pauseFrames(); super.onDestroy();
     }
     @Override public void onBackPressed() {
-        if (!panelVisible) setPanelVisible(true);
+        if (headsetEdit != null) finishHeadsetEdit(false, true);
+        else if (!panelVisible) setPanelVisible(true);
         else { client.disconnect(false); super.onBackPressed(); }
     }
     private LinearLayout row() { LinearLayout view = new LinearLayout(this); view.setOrientation(LinearLayout.HORIZONTAL); return view; }
