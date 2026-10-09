@@ -28,6 +28,9 @@
 "cinema" = "Cinema";
 "fps" = "FPS";
 "headsetFit" = "Headset fit";
+"precisionHelp" = "Drag for larger changes; use − / + for precise one-step adjustments.";
+"decreaseStep" = "Decrease %@ by one step";
+"increaseStep" = "Increase %@ by one step";
 "scale" = "Image scale";
 "offsetX" = "Horizontal position";
 "offsetY" = "Vertical position";

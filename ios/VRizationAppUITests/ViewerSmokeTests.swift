@@ -62,6 +62,11 @@ final class ViewerSmokeTests: XCTestCase {
         let frame: NativeRect, track: NativeRect, current: NativeRect, minimum: NativeRect, maximum: NativeRect
         let nativeValue: Double, minimumValue: Double, maximumValue: Double
     }
+    private func scaleGeometry() throws -> SliderGeometry {
+        let text = app.staticTexts["setting.scale.label"].value as? String
+        let data = try XCTUnwrap(text?.data(using: .utf8), "Native slider diagnostics are missing")
+        return try JSONDecoder().decode(SliderGeometry.self, from: data)
+    }
     private func dragSlider(_ slider: XCUIElement, to position: Double) throws {
         XCTAssertTrue(slider.isHittable)
         let text = app.staticTexts["setting.scale.label"].value as? String
@@ -85,14 +90,36 @@ final class ViewerSmokeTests: XCTestCase {
         attachment.name = "slider-real-touch"; attachment.lifetime = .keepAlways; add(attachment)
         start.press(forDuration: 0.1, thenDragTo: end)
     }
+    private func setScaleWithPrecisionButtons(step target: Int) throws {
+        XCTAssertTrue((0...50).contains(target))
+        for _ in 0...50 {
+            let current = Int(try scaleGeometry().nativeValue.rounded())
+            if current == target { return }
+            let direction = current < target ? "increase" : "decrease"
+            let button = app.buttons["setting.scale.\(direction)"]
+            XCTAssertTrue(button.isHittable); XCTAssertTrue(button.isEnabled)
+            button.tap()
+            let next = current + (current < target ? 1 : -1)
+            waitLabel(app.staticTexts["setting.scale.label"], contains: "\(50 + next)%")
+            XCTAssertEqual(Int(try scaleGeometry().nativeValue.rounded()), next)
+        }
+        XCTFail("Precision buttons did not reach the requested scale")
+    }
     private func adjustScaleAndWaitForStableEcho() throws {
         let scale = app.sliders["setting.scale"]
         reveal(scale)
+        let initial = app.staticTexts["setting.scale.label"].label
         try dragSlider(scale, to: 0.8)
+        expectation(for: NSPredicate(format: "label != %@", initial), evaluatedWith: app.staticTexts["setting.scale.label"])
+        waitForExpectations(timeout: 20)
+        // Native slider tracking can use approximate scrubbing. Real, public
+        // precision buttons supply the exact final value; no test setter exists.
+        try setScaleWithPrecisionButtons(step: 40)
         waitLabel(app.staticTexts["setting.scale.label"], contains: "90%")
         Thread.sleep(forTimeInterval: 2)
         XCTAssertTrue(app.staticTexts["setting.scale.label"].label.contains("90%"))
         try dragSlider(scale, to: 0.7)
+        try setScaleWithPrecisionButtons(step: 35)
         waitLabel(app.staticTexts["setting.scale.label"], contains: "85%")
     }
     private func waitLabel(_ element: XCUIElement, contains text: String, timeout: TimeInterval = 20) {

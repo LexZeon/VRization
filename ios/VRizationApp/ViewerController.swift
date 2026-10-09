@@ -186,6 +186,7 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
         modes.setEnabled(motion.available, forSegmentAt: 1); modes.setEnabled(motion.available, forSegmentAt: 2)
         modes.addTarget(self, action: #selector(modeChanged), for: .valueChanged); content.addArrangedSubview(modes)
         content.addArrangedSubview(label(L.text("headsetFit"), size: 18))
+        content.addArrangedSubview(label(L.text("precisionHelp"), size: 12))
         addSlider("scale", path: \.scale, min: 0.5, max: 1, steps: 50)
         addSlider("offsetX", path: \.offsetX, min: -0.3, max: 0.3, steps: 120)
         addSlider("offsetY", path: \.offsetY, min: -0.3, max: 0.3, steps: 120)
@@ -235,7 +236,7 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
             self.settings[keyPath: path] = value; self.changed(sendNow: final)
         }
         slider.end = { [weak self] in self?.sync.endGesture(); self?.changed(sendNow: true) }
-        sliders.append(slider); content.addArrangedSubview(slider.label); content.addArrangedSubview(slider.control)
+        sliders.append(slider); content.addArrangedSubview(slider.label); content.addArrangedSubview(slider.row)
     }
     private func refreshControls() {
         modes.selectedSegmentIndex = settings.mode == "cinema" ? 1 : settings.mode == "fps" ? 2 : 0
@@ -349,6 +350,8 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
 
 private final class SettingSlider: NSObject {
     let label = UILabel(), control = UISlider()
+    let row = UIStackView()
+    private let decrease = UIButton(type: .system), increase = UIButton(type: .system)
     let key: String, path: WritableKeyPath<VRSettings, Double>, lower: Double, upper: Double, steps: Int
     var begin: (() -> Void)?, change: ((Double, Bool) -> Void)?, end: (() -> Void)?
     init(key: String, path: WritableKeyPath<VRSettings, Double>, lower: Double, upper: Double, steps: Int) {
@@ -361,6 +364,22 @@ private final class SettingSlider: NSObject {
         control.addTarget(self, action: #selector(start), for: .touchDown)
         control.addTarget(self, action: #selector(update), for: .valueChanged)
         control.addTarget(self, action: #selector(stop), for: [.touchUpInside, .touchUpOutside, .touchCancel])
+        row.axis = .horizontal; row.alignment = .center; row.spacing = 8
+        row.addArrangedSubview(control)
+        for (button, title, suffix, labelKey, action) in [
+            (decrease, "−", "decrease", "decreaseStep", #selector(decrement)),
+            (increase, "+", "increase", "increaseStep", #selector(increment))
+        ] {
+            button.setTitle(title, for: .normal)
+            button.titleLabel?.font = .systemFont(ofSize: 23, weight: .medium)
+            button.backgroundColor = UIColor(white: 0.22, alpha: 1); button.layer.cornerRadius = 6
+            button.accessibilityIdentifier = "setting.\(key).\(suffix)"
+            button.accessibilityLabel = String(format: L.text(labelKey), L.text(key))
+            button.widthAnchor.constraint(equalToConstant: 44).isActive = true
+            button.heightAnchor.constraint(equalToConstant: 44).isActive = true
+            button.addTarget(self, action: action, for: .touchUpInside)
+            row.addArrangedSubview(button)
+        }
     }
     private var value: Double {
         let step = Int(control.value.rounded())
@@ -372,12 +391,23 @@ private final class SettingSlider: NSObject {
         control.value = Float((value - lower) / (upper - lower) * Double(steps)); show(value)
     }
     private func show(_ value: Double) {
-        let formatted = key == "scale" ? String(format: "%.0f%%", value * 100) : String(format: "%.2f", value)
+        let precision = ["offsetX", "offsetY", "eyeSeparation", "distortion"].contains(key) ? "%.3f" : "%.2f"
+        let formatted = key == "scale" ? String(format: "%.0f%%", value * 100) : String(format: precision, value)
         // Keep UIKit's slider accessibility value tied to its native thumb
         // position. The adjacent accessible label announces the actual value.
         label.text = L.text(key) + "  " + formatted
+        decrease.isEnabled = value > lower; increase.isEnabled = value < upper
         recordTestingGeometry()
     }
+    private func nudge(_ direction: Int) {
+        // Precision is part of the normal UI, using the same discrete steps
+        // and final settings-send path as a released slider gesture.
+        let step = min(steps, max(0, Int(control.value.rounded()) + direction))
+        control.value = Float(step)
+        let next = value; show(next); change?(next, true)
+    }
+    @objc private func decrement() { nudge(-1) }
+    @objc private func increment() { nudge(1) }
     func recordTestingGeometry() {
         guard ProcessInfo.processInfo.arguments.contains("--ui-testing"),
               let window = control.window, control.bounds.width > 0, control.bounds.height > 0 else { return }

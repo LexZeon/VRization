@@ -28,6 +28,9 @@
 "cinema" = "大屏幕";
 "fps" = "FPS";
 "headsetFit" = "盒子适配";
+"precisionHelp" = "拖动可大幅调整；使用 − / + 每次精确微调一格。";
+"decreaseStep" = "%@减少一格";
+"increaseStep" = "%@增加一格";
 "scale" = "画面缩放";
 "offsetX" = "水平位置";
 "offsetY" = "垂直位置";
