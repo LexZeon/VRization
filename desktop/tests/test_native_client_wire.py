@@ -259,6 +259,21 @@ class NativeClientWireTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(self.host.controller.armed)
         self.assertEqual(self.sink.moves, [])
 
+    async def test_joined_spacing_is_accepted_acknowledged_and_broadcast_to_phone(self):
+        peer = await self.connect()
+        await peer.next_json("hello")
+        await peer.send_json({"v": 1, "type": "settings", "clientSeq": 7,
+                              "settings": {"scale": .5, "offsetX": 0, "eyeSeparation": -.75}})
+        ack = await peer.next_json("settings")
+        self.assertEqual((ack["clientSeq"], ack["revision"]), (7, 1))
+        self.assertEqual(ack["settings"]["eyeSeparation"], -.75)
+        self.host.update_settings({"scale": .6, "eyeSeparation": -.7})
+        broadcast = await peer.next_json("settings")
+        self.assertEqual((broadcast["revision"], broadcast["settings"]["eyeSeparation"]), (2, -.7))
+        self.assertNotIn("clientSeq", broadcast)
+        self.assertFalse(self.host.controller.armed)
+        self.assertEqual(self.sink.moves, [])
+
     async def test_normal_close_reconnect_preserves_settings_resets_pose_sequence(self):
         first = await self.connect()
         await first.next_json("hello")
