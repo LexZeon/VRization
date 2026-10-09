@@ -7,9 +7,10 @@ Detection and relay I/O run separately and never call Windows mouse APIs.
 
 import asyncio
 from contextlib import suppress
+import ctypes
+from ctypes import wintypes
 from dataclasses import dataclass
 import os
-import json
 from pathlib import Path
 import plistlib
 import re
@@ -20,12 +21,23 @@ import threading
 import time
 from xml.parsers.expat import ExpatError
 
-from aiohttp import ClientError, ClientSession, ClientTimeout, WSMsgType
+from aiohttp import ClientError, ClientResponseError, ClientSession, ClientTimeout, WSMsgType
 
 ANDROID_PORT = 18765
 IOS_PORT = 18766
 MAX_FRAME = 8 * 1024 * 1024  # Includes the one-byte kind, excludes length prefix.
 MAX_JSON = 16 * 1024
+
+
+def safe_relay_error(error) -> str:
+    # aiohttp handshake exceptions embed the authenticated URL in str(error).
+    if isinstance(error, ClientResponseError):
+        return f"Host connection failed (HTTP {error.status})"
+    if isinstance(error, ClientError):
+        return "Host connection unavailable"
+    if isinstance(error, UnicodeError):
+        return "Invalid UTF-8 USB message"
+    return str(error)
 
 
 def find_adb(explicit: str = "") -> Path | None:
@@ -88,15 +100,63 @@ def pnp_usb_serials(identities) -> set[str]:
     return result
 
 
+def windows_usb_instance_ids(load_library=None) -> list[str]:
+    """Enumerate present USB instance IDs through read-only Windows SetupAPI."""
+    load_library = load_library or ctypes.WinDLL
+    setup = load_library("setupapi", use_last_error=True)
+
+    class GUID(ctypes.Structure):
+        _fields_ = [("Data1", wintypes.DWORD), ("Data2", wintypes.WORD),
+                    ("Data3", wintypes.WORD), ("Data4", wintypes.BYTE * 8)]
+
+    class SP_DEVINFO_DATA(ctypes.Structure):
+        _fields_ = [("cbSize", wintypes.DWORD), ("ClassGuid", GUID),
+                    ("DevInst", wintypes.DWORD), ("Reserved", ctypes.c_size_t)]
+
+    setup.SetupDiGetClassDevsW.argtypes = [ctypes.c_void_p, wintypes.LPCWSTR, wintypes.HWND, wintypes.DWORD]
+    setup.SetupDiGetClassDevsW.restype = wintypes.HANDLE
+    setup.SetupDiEnumDeviceInfo.argtypes = [wintypes.HANDLE, wintypes.DWORD, ctypes.POINTER(SP_DEVINFO_DATA)]
+    setup.SetupDiEnumDeviceInfo.restype = wintypes.BOOL
+    setup.SetupDiGetDeviceInstanceIdW.argtypes = [wintypes.HANDLE, ctypes.POINTER(SP_DEVINFO_DATA),
+                                               wintypes.LPWSTR, wintypes.DWORD, ctypes.POINTER(wintypes.DWORD)]
+    setup.SetupDiGetDeviceInstanceIdW.restype = wintypes.BOOL
+    setup.SetupDiDestroyDeviceInfoList.argtypes = [wintypes.HANDLE]
+    setup.SetupDiDestroyDeviceInfoList.restype = wintypes.BOOL
+    handle = setup.SetupDiGetClassDevsW(None, "USB", None, 0x00000004 | 0x00000002)
+    if handle is None or handle == ctypes.c_void_p(-1).value:
+        raise ctypes.WinError(ctypes.get_last_error())
+    identities = []
+    try:
+        index = 0
+        while True:
+            info = SP_DEVINFO_DATA()
+            info.cbSize = ctypes.sizeof(SP_DEVINFO_DATA)
+            if not setup.SetupDiEnumDeviceInfo(handle, index, ctypes.byref(info)):
+                error = ctypes.get_last_error()
+                if error == 259:  # ERROR_NO_MORE_ITEMS
+                    break
+                raise ctypes.WinError(error)
+            required = wintypes.DWORD()
+            ok = setup.SetupDiGetDeviceInstanceIdW(handle, ctypes.byref(info), None, 0, ctypes.byref(required))
+            if not ok and ctypes.get_last_error() != 122:  # ERROR_INSUFFICIENT_BUFFER
+                raise ctypes.WinError(ctypes.get_last_error())
+            if not 1 <= required.value <= 32768:
+                raise ValueError("Invalid Windows USB instance ID length")
+            buffer = ctypes.create_unicode_buffer(required.value)
+            if not setup.SetupDiGetDeviceInstanceIdW(handle, ctypes.byref(info), buffer, len(buffer), None):
+                raise ctypes.WinError(ctypes.get_last_error())
+            identities.append(buffer.value)
+            index += 1
+    finally:
+        setup.SetupDiDestroyDeviceInfoList(handle)
+    return identities
+
+
 class WindowsUsbPresence:
     """Read-only physical USB evidence for Windows adb backends reporting unknown."""
-    QUERY = ("[Console]::OutputEncoding=[System.Text.UTF8Encoding]::new(); "
-             "@(Get-CimInstance Win32_PnPEntity | Where-Object { "
-             "$_.PNPDeviceID -like 'USB\\VID_*' -and $_.ConfigManagerErrorCode -eq 0 } | "
-             "Select-Object -ExpandProperty PNPDeviceID) | ConvertTo-Json -Compress")
 
-    def __init__(self, runner=None, *, windows=None, clock=None):
-        self.runner, self.clock = runner or subprocess.run, clock or time.monotonic
+    def __init__(self, reader=None, *, windows=None, clock=None):
+        self.reader, self.clock = reader or windows_usb_instance_ids, clock or time.monotonic
         self.windows = os.name == "nt" if windows is None else windows
         self._expires, self._serials = 0, set()
 
@@ -105,14 +165,9 @@ class WindowsUsbPresence:
             return False
         if self.clock() >= self._expires:
             self._serials = set()
-            executable = Path(os.environ.get("SystemRoot", r"C:\Windows")) / "System32" / "WindowsPowerShell" / "v1.0" / "powershell.exe"
             try:
-                result = self.runner([str(executable), "-NoProfile", "-NonInteractive", "-Command", self.QUERY],
-                                     capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=4,
-                                     creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
-                if result.returncode == 0:
-                    self._serials = pnp_usb_serials(json.loads(result.stdout or "[]"))
-            except (OSError, ValueError, subprocess.TimeoutExpired):
+                self._serials = pnp_usb_serials(self.reader())
+            except (OSError, ValueError):
                 pass
             self._expires = self.clock() + 10
         return serial.casefold() in self._serials
@@ -238,8 +293,11 @@ class AppleMux:
     def devices(self) -> list[AppleDevice]:
         with self._socket() as sock:
             result = self.exchange(sock, {"MessageType": "ListDevices"})
+        entries = result.get("DeviceList", [])
+        if not isinstance(entries, list):
+            raise ValueError("Invalid Apple USB device list")
         devices = []
-        for entry in result.get("DeviceList", []):
+        for entry in entries:
             if not isinstance(entry, dict):
                 continue
             props = entry.get("Properties", {})
@@ -299,7 +357,7 @@ class IosRelay:
         try:
             asyncio.run(self._relay(device))
         except (ClientError, OSError, ValueError, asyncio.IncompleteReadError, asyncio.TimeoutError) as exc:
-            self.on_status("iOS USB: {detail}", detail=str(exc))
+            self.on_status("iOS USB: {detail}", detail=safe_relay_error(exc))
         except asyncio.CancelledError:
             pass
 

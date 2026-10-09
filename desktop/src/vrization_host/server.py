@@ -125,13 +125,20 @@ class HostServer:
             loopback = ipaddress.ip_address(request.remote or "").is_loopback
         except ValueError:
             loopback = False
+        # Android's reverse tunnel preserves its phone-side Host port (18765).
+        # Do not trust DNS-resolved names, forwarded headers, or browser origins.
+        allowed_hosts = {f"{name}:{port}" for name in ("127.0.0.1", "localhost", "[::1]")
+                         for port in (self.port, 18765)}
+        host_headers = request.headers.getall("Host", [])
+        native_host = (len(host_headers) == 1 and host_headers[0].lower() in allowed_hosts
+                       and "Origin" not in request.headers)
         authorized = False
-        if loopback and self.usb_authorized is not None:
+        if loopback and native_host and self.usb_authorized is not None:
             try:
                 authorized = bool(self.usb_authorized())
             except Exception:
                 pass
-        headers = {"Cache-Control": "no-store"}
+        headers = {"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"}
         if not authorized:
             return web.json_response({"error": "USB unauthorized"}, status=403, headers=headers)
         if not self.running:
@@ -241,18 +248,18 @@ class HostServer:
 
     async def _send_frames(self, ws):
         after = self._buffer.sequence
-        count, sent_bytes, started = 0, 0, time.monotonic()
+        count, sent_bytes, started = 0, 0, time.perf_counter()
         try:
             while not ws.closed:
                 after, frame = await self._buffer.next(after)
                 await asyncio.wait_for(ws.send_bytes(frame.jpeg), timeout=2)
                 count += 1
                 sent_bytes += len(frame.jpeg)
-                elapsed = time.monotonic() - started
+                elapsed = time.perf_counter() - started
                 if elapsed >= 1:
                     self._emit("stats", fps=count / elapsed, mbps=sent_bytes * 8 / elapsed / 1_000_000,
                                width=frame.width, height=frame.height)
-                    count, sent_bytes, started = 0, 0, time.monotonic()
+                    count, sent_bytes, started = 0, 0, time.perf_counter()
         except (asyncio.TimeoutError, ConnectionError, RuntimeError):
             self.controller.disarm("stream connection stalled")
             await ws.close(code=1001, message=b"stream stalled")

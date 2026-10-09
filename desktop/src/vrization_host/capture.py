@@ -140,12 +140,19 @@ class CaptureWorker:
             self.buffer.publish(frame)
 
     def _run(self):
+        next_frame_at, previous_fps = None, None
         try:
             while not self.stop_event.is_set():
                 if not self.active.wait(0.1):
+                    next_frame_at = None
                     continue
-                started = time.monotonic()
+                if self.stop_event.is_set():
+                    break
+                started = time.perf_counter()
                 config = self.get_config()
+                if next_frame_at is None or config.fps != previous_fps:
+                    next_frame_at = started
+                previous_fps = config.fps
                 try:
                     frame = self.source.read(config)
                     # At most one callback in the event-loop queue, even if it stalls.
@@ -157,7 +164,19 @@ class CaptureWorker:
                 except Exception as exc:
                     self.on_error(str(exc))
                     self.stop_event.wait(0.5)
-                self.stop_event.wait(max(0.0, 1 / config.fps - (time.monotonic() - started)))
+                # CPython 3.12 on Windows uses a coarse GetTickCount64 clock
+                # for monotonic(), and Event.wait() rounds small waits to system
+                # ticks. QPC + sleep() uses Python's high-resolution waitable
+                # timer without changing the global Windows timer resolution.
+                # Keep an absolute cadence so ordinary wake-up lateness does
+                # not accumulate; a slow capture resets it, with no catch-up.
+                now = time.perf_counter()
+                next_frame_at = max(next_frame_at + 1 / config.fps, now)
+                delay = next_frame_at - now
+                if delay > 0 and not self.stop_event.is_set():
+                    # At most one frame interval (200ms at the minimum 5 FPS).
+                    # The loop checks stop immediately after this bounded wait.
+                    time.sleep(delay)
         finally:
             self.source.close()
 

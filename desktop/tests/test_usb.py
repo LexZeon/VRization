@@ -1,5 +1,6 @@
 """USB protocol and ownership regressions, using no hardware or real mouse input."""
 import asyncio
+import ctypes
 from io import BytesIO
 import json
 from pathlib import Path
@@ -12,9 +13,10 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
-from aiohttp import ClientSession
+from aiohttp import ClientSession, RequestInfo, WSServerHandshakeError
 from aiohttp.test_utils import TestServer, make_mocked_request
 from PIL import Image
+from yarl import URL
 
 from vrization_host.capture import CaptureConfig
 from vrization_host.profiles import PROFILES, CUSTOM, apply_profile, capture_profile, initial_capture
@@ -22,7 +24,7 @@ from vrization_host.server import HostServer
 from vrization_host.storage import load_usb_preferences, save_usb_preferences
 from vrization_host.usb import (AdbReverse, AndroidDevice, AppleDevice, AppleMux, IOSUsbRelay,
                                 MAX_FRAME, UsbManager, pack_frame, parse_adb_devices, read_frame)
-from vrization_host.usb import WindowsUsbPresence, pnp_usb_serials
+from vrization_host.usb import WindowsUsbPresence, pnp_usb_serials, windows_usb_instance_ids
 from test_native_client_wire import SyntheticJpegSource, RecordingInputSink
 
 
@@ -170,6 +172,13 @@ class UsbOwnershipTests(unittest.TestCase):
             self.assertEqual(request["MessageType"], "ReadPairRecord")
             self.assertTrue(sock.closed)
 
+    def test_mux_invalid_device_list_cannot_crash_detection_with_type_error(self):
+        for value in ("invalid", 7, {"DeviceID": 1}):
+            sock = MemorySocket({"DeviceList": value})
+            mux = AppleMux(connector=lambda *args, **kwargs: sock)
+            with self.assertRaises(ValueError):
+                mux.devices()
+
     def test_manager_requires_unique_device_or_explicit_selection(self):
         class Adb:
             owned = None
@@ -221,18 +230,15 @@ class UsbOwnershipTests(unittest.TestCase):
         self.assertTrue(adb.ensure("USB123", 9000))
         self.assertEqual(runner.mappings, {("tcp:1111", "tcp:2222"), ("tcp:18765", "tcp:9000")})
 
-    def test_windows_pnp_exact_serial_cache_and_fixed_query(self):
+    def test_windows_pnp_exact_serial_cache_and_read_only_provider(self):
         calls, now = [], [0]
-        def runner(command, **kwargs):
-            calls.append(command)
-            return SimpleNamespace(returncode=0, stdout=json.dumps([
-                r"USB\VID_12D1&PID_107E\ABC123", r"ROOT\ABC123", r"USB\VID_12D1&PID_107E\ABC123suffix"]))
-        presence = WindowsUsbPresence(runner, windows=True, clock=lambda: now[0])
+        def reader():
+            calls.append(True)
+            return [r"USB\VID_12D1&PID_107E\ABC123", r"ROOT\ABC123", r"USB\VID_12D1&PID_107E\ABC123suffix"]
+        presence = WindowsUsbPresence(reader, windows=True, clock=lambda: now[0])
         self.assertTrue(presence("abc123"))
         self.assertFalse(presence("ABC12"))
         self.assertEqual(len(calls), 1)
-        self.assertEqual(calls[0][-1], WindowsUsbPresence.QUERY)
-        self.assertNotIn("ABC123", calls[0][-1])
         now[0] = 11
         self.assertTrue(presence("ABC123"))
         self.assertEqual(len(calls), 2)
@@ -245,6 +251,72 @@ class UsbOwnershipTests(unittest.TestCase):
             return SimpleNamespace(returncode=0, stdout=output, stderr="")
         adb = AdbReverse(Path("adb.exe"), runner, usb_presence=lambda serial: serial == "USB123")
         self.assertEqual(adb.devices(), [AndroidDevice("USB123", "device", True)])
+
+    def test_native_setupapi_uses_present_usb_and_always_destroys_handle(self):
+        class Function:
+            def __init__(self, callback):
+                self.callback = callback
+            def __call__(self, *args):
+                return self.callback(*args)
+        for fail in (False, True):
+            error, requests, destroyed = [0], [], []
+            def get_class(*args):
+                requests.append(args)
+                return 42
+            def enum(handle, index, info):
+                if index == 0:
+                    self.assertGreater(info._obj.cbSize, 0)
+                    return True
+                error[0] = 259
+                return False
+            def identity(handle, info, buffer, size, required):
+                if fail:
+                    error[0] = 5
+                    return False
+                if buffer is None:
+                    required._obj.value = len(r"USB\VID_12D1&PID_107E\TEST") + 1
+                    error[0] = 122
+                    return False
+                buffer.value = r"USB\VID_12D1&PID_107E\TEST"
+                return True
+            api = SimpleNamespace(SetupDiGetClassDevsW=Function(get_class),
+                                  SetupDiEnumDeviceInfo=Function(enum),
+                                  SetupDiGetDeviceInstanceIdW=Function(identity),
+                                  SetupDiDestroyDeviceInfoList=Function(lambda handle: destroyed.append(handle)))
+            with patch.object(ctypes, "get_last_error", lambda: error[0], create=True), \
+                 patch.object(ctypes, "WinError", lambda code: OSError(code, "fixture"), create=True):
+                if fail:
+                    with self.assertRaises(OSError):
+                        windows_usb_instance_ids(lambda *args, **kwargs: api)
+                else:
+                    self.assertEqual(windows_usb_instance_ids(lambda *args, **kwargs: api),
+                                     [r"USB\VID_12D1&PID_107E\TEST"])
+            self.assertEqual(requests, [(None, "USB", None, 6)])
+            self.assertEqual(destroyed, [42])
+
+    def test_usb_presence_reader_failure_fails_closed_and_is_cached(self):
+        calls = []
+        def unavailable():
+            calls.append(True)
+            raise OSError("fixture unavailable")
+        presence = WindowsUsbPresence(unavailable, windows=True, clock=lambda: 0)
+        self.assertFalse(presence("TEST"))
+        self.assertFalse(presence("TEST"))
+        self.assertEqual(calls, [True])
+
+    def test_relay_handshake_error_diagnostics_never_include_authenticated_url(self):
+        events = []
+        url = URL("http://127.0.0.1:8765/ws?token=123456")
+        error = WSServerHandshakeError(RequestInfo(url, "GET", {}, url), (), status=409)
+        relay = IOSUsbRelay(SimpleNamespace(), on_status=lambda message, **values: events.append((message, values)))
+        async def reject(device):
+            raise error
+        with patch.object(relay, "_relay", reject):
+            relay._run(AppleDevice(1, "FIXTURE"))
+        self.assertIn("409", str(events))
+        self.assertNotIn("123456", str(events))
+        self.assertNotIn("token", str(events))
+        self.assertNotIn("/ws", str(events))
 
 
 class UsbAsyncTests(unittest.IsolatedAsyncioTestCase):
@@ -285,6 +357,7 @@ class UsbAsyncTests(unittest.IsolatedAsyncioTestCase):
         host = HostServer(capture_source=SyntheticJpegSource(), input_sink=RecordingInputSink())
         server = TestServer(host.make_app())
         await server.start_server()
+        host.port = server.port
         try:
             async with ClientSession() as session:
                 async with session.get(server.make_url("/usb-bootstrap")) as response:
@@ -297,6 +370,7 @@ class UsbAsyncTests(unittest.IsolatedAsyncioTestCase):
                 async with session.get(server.make_url("/usb-bootstrap")) as response:
                     self.assertEqual(response.status, 200)
                     self.assertEqual(response.headers["Cache-Control"], "no-store")
+                    self.assertEqual(response.headers["X-Content-Type-Options"], "nosniff")
                     data = await response.json()
                     self.assertEqual(data["token"], host.token)
                     self.assertEqual(data["port"], server.port)
@@ -304,6 +378,34 @@ class UsbAsyncTests(unittest.IsolatedAsyncioTestCase):
                                               transport=SimpleNamespace(get_extra_info=lambda *args: ("192.0.2.4", 1234)))
                 response = await host._usb_bootstrap(request)
                 self.assertEqual(response.status, 403)
+        finally:
+            await server.close()
+
+    async def test_bootstrap_rejects_dns_rebinding_browser_origins_and_duplicate_hosts(self):
+        host = HostServer(capture_source=SyntheticJpegSource(), input_sink=RecordingInputSink(),
+                          usb_authorized=lambda: True)
+        server = TestServer(host.make_app())
+        await server.start_server()
+        host.port, host.running = server.port, True
+        try:
+            async with ClientSession() as session:
+                for headers in ({"Host": "evil.example:18765"}, {"Host": f"evil.example:{server.port}"},
+                                {"Host": "127.0.0.1.evil.example:18765"}, {"Host": "127.0.0.1:9999"},
+                                {"Origin": "http://evil.example"}, {"Origin": "null"}, {"Origin": ""}):
+                    async with session.get(server.make_url("/usb-bootstrap"), headers=headers) as response:
+                        self.assertEqual(response.status, 403, headers)
+                        self.assertEqual(response.headers["Cache-Control"], "no-store")
+                        self.assertEqual(response.headers["X-Content-Type-Options"], "nosniff")
+                        self.assertNotIn("token", await response.text())
+                for name in ("127.0.0.1", "localhost", "[::1]"):
+                    for port in (server.port, 18765):
+                        async with session.get(server.make_url("/usb-bootstrap"),
+                                               headers={"Host": f"{name}:{port}"}) as response:
+                            self.assertEqual(response.status, 200)
+                duplicate = make_mocked_request("GET", "/usb-bootstrap",
+                    headers=[("Host", "127.0.0.1:18765"), ("Host", "evil.example:18765")],
+                    transport=SimpleNamespace(get_extra_info=lambda *args: ("127.0.0.1", 1234)))
+                self.assertEqual((await host._usb_bootstrap(duplicate)).status, 403)
         finally:
             await server.close()
 
@@ -354,6 +456,13 @@ class UsbAsyncTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(settings["settings"]["scale"], 1)
             self.assertFalse(host.controller.armed)
             self.assertEqual(host.controller.sink.moves, [])
+            for _ in range(20):
+                if host.controller.last_seq == 1:
+                    break
+                await asyncio.sleep(.01)
+            # Explicitly arm only the recording sink, then verify USB close
+            # revokes that local authorization. No further pose can move it.
+            self.assertTrue(host.arm()[0])
             writer.close()
             await writer.wait_closed()
             for _ in range(30):
@@ -361,6 +470,8 @@ class UsbAsyncTests(unittest.IsolatedAsyncioTestCase):
                     break
                 await asyncio.sleep(.05)
             self.assertFalse(host.controller.connected)
+            self.assertFalse(host.controller.armed)
+            self.assertEqual(host.controller.sink.moves, [])
         finally:
             await asyncio.to_thread(relay.stop)
             phone_server.close()
