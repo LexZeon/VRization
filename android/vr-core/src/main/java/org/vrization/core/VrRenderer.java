@@ -135,17 +135,19 @@ public final class VrRenderer implements GLSurfaceView.Renderer {
         vertices.position(0); GLES20.glEnableVertexAttribArray(position);
         GLES20.glVertexAttribPointer(position, 2, GLES20.GL_FLOAT, false, 0, vertices);
         uniform("uImageAspect", (float) imageWidth / imageHeight); uniform("uScale", current.scale);
-        uniform("uOffsetX", current.offsetX); uniform("uOffsetY", current.offsetY);
+        uniform("uOffsetY", current.offsetY);
         uniform("uDistortion", current.distortion); uniform("uFov", current.fov); uniform("uDistance", current.distance);
         uniform("uYaw", yaw); uniform("uPitch", pitch); uniform("uRoll", roll);
         uniform("uCinema", "cinema".equals(current.mode) ? 1 : 0);
         int leftWidth = width / 2;
         for (int eye = 0; eye < 2; eye++) {
             int eyeWidth = eye == 0 ? leftWidth : width - leftWidth;
+            float eyeAspect = (float) eyeWidth / height;
+            VrSettings resolved = HeadsetGeometry.resolveFit(current, (float) imageWidth / imageHeight, eyeAspect);
             GLES20.glViewport(eye == 0 ? 0 : leftWidth, 0, eyeWidth, height);
-            uniform("uAspect", (float) eyeWidth / height);
+            uniform("uAspect", eyeAspect); uniform("uOffsetX", resolved.offsetX);
             uniform("uEyeSign", eye == 0 ? -1 : 1);
-            uniform("uEyeShift", current.eyeSeparation * (eye == 0 ? -1 : 1));
+            uniform("uEyeShift", resolved.eyeSeparation * (eye == 0 ? -1 : 1));
             GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4);
         }
         GLES20.glDisableVertexAttribArray(position);

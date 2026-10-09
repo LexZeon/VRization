@@ -25,7 +25,7 @@ public final class VrSettings {
     public void normalize() {
         if (!"full".equals(mode) && !"cinema".equals(mode) && !"fps".equals(mode)) mode = "full";
         scale = clamp(scale, .5f, 1f); offsetX = clamp(offsetX, -.3f, .3f);
-        offsetY = clamp(offsetY, -.3f, .3f); eyeSeparation = clamp(eyeSeparation, 0f, .2f);
+        offsetY = clamp(offsetY, -.3f, .3f); eyeSeparation = clamp(eyeSeparation, -1f, .2f);
         fov = clamp(fov, 50f, 110f); distance = clamp(distance, 1f, 8f);
         distortion = clamp(distortion, 0f, .5f); sensitivity = clamp(sensitivity, 100f, 3000f);
     }

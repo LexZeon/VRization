@@ -304,7 +304,7 @@ public final class MainActivity extends Activity {
         addSlider(content, getString(R.string.scale), .5f, 1f, 100, () -> settings.scale, value -> settings.scale = value, "%.0f%%", 100f);
         addSlider(content, getString(R.string.offset_x), -.3f, .3f, 120, () -> settings.offsetX, value -> settings.offsetX = value, "%.2f", 1f);
         addSlider(content, getString(R.string.offset_y), -.3f, .3f, 120, () -> settings.offsetY, value -> settings.offsetY = value, "%.2f", 1f);
-        addSlider(content, getString(R.string.eye_separation), 0f, .2f, 100, () -> settings.eyeSeparation, value -> settings.eyeSeparation = value, "%.2f", 1f);
+        addSlider(content, getString(R.string.eye_separation), -1f, .2f, 240, () -> settings.eyeSeparation, value -> settings.eyeSeparation = value, "%.2f", 1f);
         addSlider(content, getString(R.string.distortion), 0f, .5f, 100, () -> settings.distortion, value -> settings.distortion = value, "%.2f", 1f);
         content.addView(text(getString(R.string.cinema_game), 16, INK, true));
         addSlider(content, getString(R.string.fov), 50f, 110f, 60, () -> settings.fov, value -> settings.fov = value, "%.0f°", 1f);

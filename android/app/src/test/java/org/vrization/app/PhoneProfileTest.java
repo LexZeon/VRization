@@ -4,6 +4,8 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import org.junit.Test;
 import org.vrization.core.VrSettings;
+import org.vrization.core.HeadsetEdit;
+import org.vrization.core.HeadsetGeometry;
 import static org.junit.Assert.*;
 
 public final class PhoneProfileTest {
@@ -48,5 +50,27 @@ public final class PhoneProfileTest {
         VrSettings result = SettingsValues.decode(partial, previous, false);
         assertEquals(.3f, result.offsetY, 0); assertEquals("fps", result.mode); assertTrue(result.invertY);
         assertEquals(1200, result.sensitivity, 0); assertEquals(0, previous.offsetY, 0);
+    }
+    @Test public void negativeSeamContactSavesAndRestoresThroughTheStrictCompleteProfile() {
+        VrSettings original = new VrSettings(); original.scale = .5f; original.mode = "fps";
+        HeadsetEdit edit = new HeadsetEdit(original);
+        edit.update(HeadsetGeometry.mirroredPan(edit.draft(), .5f, 1, -1, 2, .1f));
+        PhoneProfile profile = new PhoneProfile(null); profile.commit(edit.save());
+        PhoneProfile restarted = new PhoneProfile(SettingsValues.encode(profile.snapshot()));
+        assertEquals(-.75f, restarted.snapshot().eyeSeparation, 0);
+        assertEquals(.1f, restarted.snapshot().offsetY, 0); assertEquals("fps", restarted.snapshot().mode);
+        assertEquals(.5f, restarted.snapshot().scale, 0); assertEquals(.03f, original.eyeSeparation, 0);
+    }
+    @Test public void separationWireBoundsAcceptOldProfilesAndNegativeEndpointsButRejectOvershoot() {
+        for (double valid : new double[]{-1, -.75, 0, .03, .2}) {
+            Map<String, Object> fields = new LinkedHashMap<>(SettingsValues.encode(new VrSettings()));
+            fields.put("eyeSeparation", valid);
+            assertEquals((float)valid, new PhoneProfile(fields).snapshot().eyeSeparation, 0);
+        }
+        for (double invalid : new double[]{-1.000001, .200001, Double.NaN}) {
+            Map<String, Object> fields = new LinkedHashMap<>(SettingsValues.encode(new VrSettings()));
+            fields.put("eyeSeparation", invalid);
+            try { new PhoneProfile(fields); fail(); } catch (IllegalArgumentException expected) { }
+        }
     }
 }

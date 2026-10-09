@@ -34,7 +34,7 @@ final class SettingsValues {
                 case "scale": result.scale = number(value, .5, 1); break;
                 case "offsetX": result.offsetX = number(value, -.3, .3); break;
                 case "offsetY": result.offsetY = number(value, -.3, .3); break;
-                case "eyeSeparation": result.eyeSeparation = number(value, 0, .2); break;
+                case "eyeSeparation": result.eyeSeparation = number(value, -1, .2); break;
                 case "fov": result.fov = number(value, 50, 110); break;
                 case "distance": result.distance = number(value, 1, 8); break;
                 case "distortion": result.distortion = number(value, 0, .5); break;

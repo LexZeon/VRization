@@ -43,7 +43,7 @@ public final class HeadsetGeometryTest {
     @Test public void mirroredPanMovesEyeCentersOppositelyWithoutMovingSharedHorizontalCenter() {
         VrSettings entry = new VrSettings(); entry.offsetX = .17f; entry.offsetY = -.1f; entry.eyeSeparation = .1f;
         for (int eye : new int[]{-1, 1}) for (int direction : new int[]{-1, 1}) {
-            VrSettings value = HeadsetGeometry.mirroredPan(entry, eye, direction * .04f, .05f);
+            VrSettings value = HeadsetGeometry.mirroredPan(entry, 16f / 9, 1, eye, direction * .04f, .05f);
             float separation = .1f + eye * direction * .04f;
             assertEquals(separation, value.eyeSeparation, .00001f);
             assertEquals(.17f, value.offsetX, 0); assertEquals(-.05f, value.offsetY, .00001f);
@@ -56,13 +56,51 @@ public final class HeadsetGeometryTest {
     }
     @Test public void mirroredPanClampsSpacingAndVerticalWhileRejectingInvalidEyeOrDelta() {
         VrSettings entry = new VrSettings(); entry.offsetX = -.19f;
-        assertEquals(.2f, HeadsetGeometry.mirroredPan(entry, -1, -20, 10).eyeSeparation, 0);
-        assertEquals(.3f, HeadsetGeometry.mirroredPan(entry, -1, -20, 10).offsetY, 0);
-        assertEquals(0, HeadsetGeometry.mirroredPan(entry, -1, 20, -10).eyeSeparation, 0);
-        assertEquals(-.3f, HeadsetGeometry.mirroredPan(entry, -1, 20, -10).offsetY, 0);
-        assertEquals(-.19f, HeadsetGeometry.mirroredPan(entry, 1, 20, 0).offsetX, 0);
-        try { HeadsetGeometry.mirroredPan(entry, 0, .1f, 0); fail(); } catch (IllegalArgumentException expected) { }
-        try { HeadsetGeometry.mirroredPan(entry, 1, Float.NaN, 0); fail(); } catch (IllegalArgumentException expected) { }
+        assertEquals(.2f, HeadsetGeometry.mirroredPan(entry, 16f / 9, 1, -1, -20, 10).eyeSeparation, 0);
+        assertEquals(.3f, HeadsetGeometry.mirroredPan(entry, 16f / 9, 1, -1, -20, 10).offsetY, 0);
+        assertEquals(-.15f, HeadsetGeometry.mirroredPan(entry, 16f / 9, 1, -1, 20, -10).eyeSeparation, .00001f);
+        assertEquals(-.3f, HeadsetGeometry.mirroredPan(entry, 16f / 9, 1, -1, 20, -10).offsetY, 0);
+        assertEquals(-.18f, HeadsetGeometry.mirroredPan(entry, 16f / 9, 1, 1, 20, 0).offsetX, .00001f);
+        try { HeadsetGeometry.mirroredPan(entry, 1, 1, 0, .1f, 0); fail(); } catch (IllegalArgumentException expected) { }
+        try { HeadsetGeometry.mirroredPan(entry, 1, 1, 1, Float.NaN, 0); fail(); } catch (IllegalArgumentException expected) { }
+    }
+    @Test public void smallPortraitImagesCanTouchAtTheMidlineWithoutClippingOrOverlap() {
+        VrSettings entry = new VrSettings(); entry.scale = .5f; entry.offsetX = .23f;
+        VrSettings contact = HeadsetGeometry.mirroredPan(entry, .5f, 1, -1, 2, 0);
+        assertEquals(-.75f, contact.eyeSeparation, 0); assertEquals(0, contact.offsetX, 0);
+        float[] left = HeadsetGeometry.bounds(contact, .5f, 1, -1);
+        float[] right = HeadsetGeometry.bounds(contact, .5f, 1, 1);
+        assertEquals(1, left[0] + left[2], 0); assertEquals(-1, right[0] - right[2], 0);
+        assertTrue(left[0] - left[2] >= -1); assertTrue(right[0] + right[2] <= 1);
+    }
+    @Test public void resolveFitReducesOffsetOnlyWhenTheRemainingGapRequiresIt() {
+        VrSettings entry = new VrSettings(); entry.scale = .5f; entry.offsetX = .23f; entry.offsetY = -.17f;
+        entry.eyeSeparation = -.7f;
+        VrSettings near = HeadsetGeometry.resolveFit(entry, .5f, 1);
+        assertEquals(.05f, near.offsetX, .00001f); assertEquals(-.7f, near.eyeSeparation, 0);
+        assertEquals(-.17f, near.offsetY, 0); assertEquals(.23f, entry.offsetX, 0);
+        entry.eyeSeparation = -1;
+        VrSettings contact = HeadsetGeometry.resolveFit(entry, .5f, 1);
+        assertEquals(-.75f, contact.eyeSeparation, 0); assertEquals(0, contact.offsetX, 0);
+        entry.eyeSeparation = .03f;
+        assertEquals(.23f, HeadsetGeometry.resolveFit(entry, .5f, 1).offsetX, 0);
+    }
+    @Test public void resizingContactMovesSpacingOutwardAndKeepsBothInnerEdgesAtTheSeam() {
+        VrSettings entry = new VrSettings(); entry.scale = .5f; entry.eyeSeparation = -.75f;
+        VrSettings larger = HeadsetGeometry.resize(entry, .5f, 1, 1, 1, .1f, .2f);
+        assertEquals(.7f, larger.scale, .00001f); assertEquals(-.65f, larger.eyeSeparation, .00001f);
+        float[] left = HeadsetGeometry.bounds(larger, .5f, 1, -1);
+        float[] right = HeadsetGeometry.bounds(larger, .5f, 1, 1);
+        assertEquals(1, left[0] + left[2], .00001f); assertEquals(-1, right[0] - right[2], .00001f);
+        assertEquals(0, larger.offsetX, 0); assertEquals(0, larger.offsetY, 0);
+    }
+    @Test public void viewportAspectChangesResolveStoredNegativeSpacingWithoutMutatingTheProfile() {
+        VrSettings profile = new VrSettings(); profile.scale = .5f; profile.eyeSeparation = -.75f;
+        profile.mode = "fps"; profile.distortion = .3f; profile.invertY = true;
+        VrSettings wide = HeadsetGeometry.resolveFit(profile, 16f / 9, 1);
+        assertEquals(-.5f, wide.eyeSeparation, 0); assertEquals(-.75f, profile.eyeSeparation, 0);
+        assertEquals("fps", wide.mode); assertEquals(.3f, wide.distortion, 0); assertTrue(wide.invertY);
+        profile.normalize(); assertEquals(-.75f, profile.eyeSeparation, 0);
     }
     @Test public void saveChangesOnlyFitAndPreservesOriginalModeAndOptics() {
         VrSettings entry = new VrSettings(); entry.mode = "fps"; entry.distortion = .4f; entry.fov = 103; entry.invertY = true;
@@ -80,7 +118,7 @@ public final class HeadsetGeometryTest {
     @Test public void discardRestoresIndependentEntrySnapshotAndHasNoCommitValue() {
         VrSettings entry = new VrSettings(); entry.mode = "cinema"; entry.distortion = .25f;
         HeadsetEdit edit = new HeadsetEdit(entry); entry.mode = "full";
-        edit.update(HeadsetGeometry.mirroredPan(edit.draft(), -1, -.1f, -.3f));
+        edit.update(HeadsetGeometry.mirroredPan(edit.draft(), 1, 1, -1, -.1f, -.3f));
         VrSettings discarded = edit.discard();
         assertEquals("cinema", discarded.mode); assertEquals(0, discarded.offsetX, 0);
         assertEquals(0, discarded.offsetY, 0); assertEquals(.25f, discarded.distortion, 0);
