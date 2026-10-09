@@ -66,7 +66,7 @@ def package_ios_source(out):
     # Complete, editable project and core, not an unsigned IPA presented as installable.
     with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as archive:
         for name in ("LICENSE", "NOTICE", "THIRD_PARTY_NOTICES.md", "docs", "licenses",
-                     "examples", "desktop/requirements-lock.txt"):
+                     "examples", "desktop/requirements-lock.txt", "desktop/pyproject.toml", "desktop/src"):
             add_tree(archive, ROOT / name)
         for page in sorted(ROOT.glob("*.md")):
             if page.name != "THIRD_PARTY_NOTICES.md":

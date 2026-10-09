@@ -5,7 +5,7 @@
 <!-- vrization:english -->
 ## English
 
-The native iOS client connects to the same Windows host as Android. It targets **iOS / iPadOS 15+**, landscape, a Metal-capable device and a trusted local network. English is the default even on a Chinese system; select Simplified Chinese in the app to save that preference. This is an Alpha client, not an App Store or TestFlight release.
+The native iOS client connects to the same Windows host as Android. It targets **iOS / iPadOS 15+**, landscape and a Metal-capable device. **USB is the default connection method**; trusted LAN is an explicit alternative. English is the default even on a Chinese system; select Simplified Chinese in the app to save that preference. This is an Alpha client, not an App Store or TestFlight release.
 
 ### 📦 What the downloads mean
 
@@ -27,12 +27,20 @@ There is no universally installable unsigned iPhone IPA. The cloud build checks 
 
 Windows runs the streaming host normally. A Mac is used for this documented Xcode installation path; no Mac is needed while using an already signed and installed client. No Apple ID is entered into the Windows host or VRization.
 
-### 🔌 Connect to Windows
+### 🔌 Default: USB to Windows
+
+Install Apple's official [Apple Devices](https://support.apple.com/guide/devices-windows/welcome/windows) / Apple Mobile Device Support on Windows, connect a data USB cable, unlock the iPhone and approve **Trust This Computer**. Start streaming in the Windows app and open the installed iOS app with **USB** selected. The PC looks for a USB device with an existing local Apple pairing record; the phone waits on a loopback-only port. They recognize each other from the normal host handshake without entering an IP or six-digit code. Neither client can automatically start screen capture or arm mouse input.
+
+This is direct USB framing through Apple's USB service, not Personal Hotspot, Wi-Fi or a charging cable used alongside wireless streaming. No jailbreak or hotspot subscription is required. The original relay and native client are tested with a **simulated usbmux service** in CI; a physical iPhone / Windows Apple driver combination still needs testing. Connect one iPhone for automatic selection. See [USB setup and exact limitations](USB.md).
+
+Leaving the foreground or changing language stops the listener and connection. Tap **Connect** to resume waiting; this prevents a background app from silently resuming control.
+
+### 📶 Alternative: trusted LAN
 
 1. Connect the Windows PC and iPhone to the same trusted LAN. The PC may use Ethernet. Guest Wi-Fi isolation, a VPN or a firewall can prevent local connections.
 2. Start the Windows host, select the intended display or rectangle, and start streaming. For a two-monitor PC, choose your test display explicitly. `Start-on-second-monitor.bat` selects monitor 2; verify its name in the host because enumeration can change.
 3. Allow the host through Windows Firewall on your trusted **private network**. Do not disable the whole firewall. Enter the host's displayed LAN IP, port (normally `8765`) and six-digit pairing code in the iOS app. Keep leading zeros; enter only the host, not a `ws://` URL or path.
-4. Tap **Connect** and allow iOS **Local Network** access. If it was denied, open iOS Settings, find VRization under Apps / Privacy & Security → Local Network, enable access, return and connect again. The exact Settings path varies by iOS version. [Apple's local-network explanation](https://developer.apple.com/documentation/technotes/tn3179-understanding-local-network-privacy) describes the permission.
+4. Select **LAN**, tap **Connect** and allow iOS **Local Network** access. If it was denied, open iOS Settings, find VRization under Apps / Privacy & Security → Local Network, enable access, return and connect again. The exact Settings path varies by iOS version. [Apple's local-network explanation](https://developer.apple.com/documentation/technotes/tn3179-understanding-local-network-privacy) describes the permission.
 5. Start with **Full screen**, adjust scale and offsets, and confirm both eyes show a complete image before inserting the phone into the viewer. Only one phone can connect to the host at a time; disconnect Android first.
 
 `ws://` is unencrypted and the six-digit code is not encryption. The app declares local networking for this LAN protocol, while keeping the Internet transport defaults. Use trusted networks only. See [security](../SECURITY.md).
@@ -62,14 +70,14 @@ xcodebuild -project ios/VRization.xcodeproj -scheme VRization \
   -destination 'generic/platform=iOS' CODE_SIGNING_ALLOWED=NO build
 ```
 
-`python3 scripts/build_ios.py` additionally runs the UI test suite against a loopback synthetic host, exports genuine screenshots and packages the simulator / source downloads. Install the host package and fixture dependencies first as configured in [the workflow](https://github.com/LexZeon/VRization/blob/main/.github/workflows/build.yml). The fixture neither captures a screen nor moves the mouse. Successful compilation / simulator checks do not establish real iPhone, iOS 15 hardware or game compatibility. Exact observed checks appear in [validation](VALIDATION.md) and [compatibility](COMPATIBILITY.md).
+`python3 scripts/build_ios.py` additionally runs the UI test suite against a loopback synthetic host and simulated usbmux service, exports genuine screenshots and packages the simulator / source downloads. Install the host package and fixture dependencies first as configured in [the workflow](https://github.com/LexZeon/VRization/blob/main/.github/workflows/build.yml). The fixture neither captures a screen nor moves the mouse. Successful compilation / simulator checks do not establish real iPhone USB, iOS 15 hardware or game compatibility. Exact observed checks appear in [validation](VALIDATION.md) and [compatibility](COMPATIBILITY.md).
 
 ---
 
 <!-- vrization:chinese -->
 ## 简体中文
 
-原生 iOS 客户端和 Android 使用同一个 Windows 主机，目标为 **iOS / iPadOS 15+**、横屏、支持 Metal 的设备及可信局域网。即使系统是中文，软件仍默认英文；在应用内选择简体中文后会保存偏好。目前是 Alpha 客户端，并非 App Store 或 TestFlight 发行版。
+原生 iOS 客户端和 Android 使用同一个 Windows 主机，目标为 **iOS / iPadOS 15+**、横屏和支持 Metal 的设备。**默认使用 USB**，也可显式选择可信局域网。即使系统是中文，软件仍默认英文；在应用内选择简体中文后会保存偏好。目前是 Alpha 客户端，并非 App Store 或 TestFlight 发行版。
 
 ### 📦 下载文件的用途
 
@@ -91,12 +99,20 @@ xcodebuild -project ios/VRization.xcodeproj -scheme VRization \
 
 Windows 正常运行串流主机。本文的 Xcode 安装方法需要 Mac；客户端签好并装好后，日常串流不需要 Mac。不必在 Windows 主机或 VRization 内输入 Apple ID。
 
-### 🔌 连接 Windows 电脑
+### 🔌 默认：USB 连接 Windows
+
+Windows 安装 Apple 官方 [Apple Devices](https://support.apple.com/guide/devices-windows/welcome/windows) / Apple Mobile Device Support，接入数据 USB 线，解锁 iPhone 并批准**信任此电脑**。Windows 应用开始串流，手机打开已经签名安装的 iOS 应用并选择 **USB**。电脑查找已有本地 Apple 配对记录的 USB 设备，手机在仅本机可访问的端口等待，双方通过主机握手相互识别，不用填写 IP 或六位码。客户端不能自动开启电脑画面采集或授权鼠标。
+
+该方式通过 Apple USB 服务直接传帧，不依赖个人热点、Wi-Fi，也不是一边充电一边无线串流；不需要越狱或热点套餐。目前 CI 通过**模拟 usbmux 服务**检查原创桥接器与原生客户端，真实 iPhone / Windows Apple 驱动组合仍需测试。自动选择时只接一台 iPhone，详见 [USB 配置与实际边界](USB.md)。
+
+进入后台或切换语言会停止监听和连接；点击 **Connect / 连接** 才重新等待，避免后台应用悄悄恢复控制。
+
+### 📶 可选：可信局域网
 
 1. Windows 与 iPhone 连同一个可信局域网，电脑可接网线。访客网络隔离、VPN 或防火墙可能阻止本地连接。
 2. 开电脑端，选择目标显示器或矩形区域，开始串流。双屏电脑明确选择测试屏；`Start-on-second-monitor.bat` 选择编号 2，但显示器枚举可能变化，应核对电脑界面中的名称。
 3. Windows 防火墙只为可信的**专用网络**放行主机，不要关闭整个防火墙。iOS 应用填写主机显示的局域网 IP、端口（通常 `8765`）及六位配对码，保留开头的零；主机栏只填地址，不填 `ws://` 链接或路径。
-4. 点 **Connect**，允许 iOS 的**本地网络**权限。如果曾拒绝，在系统设置的应用 / 隐私与安全性 → 本地网络中找到 VRization 并允许，回应用重新连接。不同 iOS 版本路径可能不同，详见 [Apple 本地网络权限说明](https://developer.apple.com/documentation/technotes/tn3179-understanding-local-network-privacy)。
+4. 选择 **LAN / 局域网**，点 **Connect**，允许 iOS 的**本地网络**权限。如果曾拒绝，在系统设置的应用 / 隐私与安全性 → 本地网络中找到 VRization 并允许，回应用重新连接。不同 iOS 版本路径可能不同，详见 [Apple 本地网络权限说明](https://developer.apple.com/documentation/technotes/tn3179-understanding-local-network-privacy)。
 5. 先用 **Full screen / 全屏**，调整缩放和偏移，确认左右眼完整显示后再装入盒子。主机一次只接一台手机；先断开 Android 再连 iPhone。
 
 `ws://` 是明文，六位配对码并非加密。应用为局域网协议声明本地网络访问，并保留互联网传输默认限制。仅用于可信网络，参见 [安全说明](../SECURITY.md)。
@@ -126,4 +142,4 @@ xcodebuild -project ios/VRization.xcodeproj -scheme VRization \
   -destination 'generic/platform=iOS' CODE_SIGNING_ALLOWED=NO build
 ```
 
-`python3 scripts/build_ios.py` 还会对本机合成串流主机运行 UI 测试、导出真实截图并打包模拟器 / 源码下载。需先按 [构建工作流](https://github.com/LexZeon/VRization/blob/main/.github/workflows/build.yml) 安装主机包和测试依赖。测试主机不采集屏幕、不移动鼠标。编译 / 模拟器通过不能代表真实 iPhone、iOS 15 硬件和游戏兼容性已验证；实际检查范围见 [验证记录](VALIDATION.md) 和 [兼容性](COMPATIBILITY.md)。
+`python3 scripts/build_ios.py` 还会对本机合成串流主机与模拟 usbmux 服务运行 UI 测试、导出真实截图并打包模拟器 / 源码下载。需先按 [构建工作流](https://github.com/LexZeon/VRization/blob/main/.github/workflows/build.yml) 安装主机包和测试依赖。测试主机不采集屏幕、不移动鼠标。编译 / 模拟器通过不能代表真实 iPhone USB、iOS 15 硬件和游戏兼容性已验证；实际检查范围见 [验证记录](VALIDATION.md) 和 [兼容性](COMPATIBILITY.md)。

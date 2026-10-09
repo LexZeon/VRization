@@ -12,6 +12,8 @@
 "pairingError" = "The pairing code is incorrect or has changed.";
 "busyError" = "Another headset is connected. Disconnect it first.";
 "rateError" = "Too many pairing attempts. Wait before trying again.";
+"protocolError" = "The computer sent an invalid or unsupported protocol message. Connection closed; update both apps and reconnect.";
+"handshakeTimeout" = "The computer did not complete its handshake in time. Connection closed. Tap Connect to try again.";
 "invalidAddress" = "Enter a computer IP or hostname, port 1–65535 and a six-digit pairing code.";
 "host" = "Computer IP or hostname";
 "port" = "Port";

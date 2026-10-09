@@ -7,6 +7,7 @@ import VRizationCore
 final class USBListener {
     var onFrame: ((USBFrame) -> Void)?
     var onFailure: (() -> Void)?
+    var onHandshakeTimeout: (() -> Void)?
     private var listener: NWListener?
     private var connection: NWConnection?
     private var generation: UInt64 = 0
@@ -35,10 +36,11 @@ final class USBListener {
                 default: break
                 }
             }
-            self.handshakeTimeout = Timer.scheduledTimer(withTimeInterval: 10, repeats: false) { [weak self, weak incoming] _ in
+            let timer = Timer(timeInterval: 10, repeats: false) { [weak self, weak incoming] _ in
                 guard let self = self, let incoming = incoming, self.matches(incoming, epoch) else { return }
-                self.onFailure?()
+                self.onHandshakeTimeout?()
             }
+            self.handshakeTimeout = timer; RunLoop.main.add(timer, forMode: .common)
             incoming.start(queue: .main)
         }
         listener.start(queue: .main)

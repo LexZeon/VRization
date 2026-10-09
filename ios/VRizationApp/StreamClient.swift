@@ -20,6 +20,8 @@ final class StreamClient: NSObject, URLSessionWebSocketDelegate {
     private var generation: UInt64 { sessions.current }
     private let decoder = JPEGDecoder()
     private let usb = USBListener()
+    private var protocolGate = HostSessionGate()
+    private var handshakeTimeout: Timer?
     private var heartbeat: Timer?
     private var sending = false
     private var pendingHello: Data?
@@ -39,19 +41,18 @@ final class StreamClient: NSObject, URLSessionWebSocketDelegate {
         usb.onFrame = { [weak self] frame in
             guard let self = self, self.transport == .usb, self.state != .disconnected else { return }
             if frame.kind == .jpeg {
-                if self.state == .connected { self.decoder.submit(frame.payload, generation: self.generation) }
+                self.handleJPEG(frame.payload)
             } else {
-                guard let message = try? VRProtocol.decodeHostMessage(frame.payload) else { self.disconnect(reason: "usbFailed"); return }
-                if self.state == .connecting {
-                    guard case .hello = message else { self.disconnect(reason: "usbFailed"); return }
-                    self.usb.acknowledgedHost(); self.beginConnected()
-                }
-                self.handleMessage(message)
+                self.handle(frame.payload)
             }
         }
         usb.onFailure = { [weak self] in
             guard let self = self, self.transport == .usb, self.state != .disconnected else { return }
             self.disconnect(reason: "usbFailed")
+        }
+        usb.onHandshakeTimeout = { [weak self] in
+            guard let self = self, self.transport == .usb, self.state == .connecting else { return }
+            self.disconnect(reason: "handshakeTimeout")
         }
     }
 
@@ -85,6 +86,8 @@ final class StreamClient: NSObject, URLSessionWebSocketDelegate {
         precondition(Thread.isMainThread)
         sessions.invalidate()
         state = .disconnected
+        handshakeTimeout?.invalidate(); handshakeTimeout = nil
+        protocolGate.reset()
         heartbeat?.invalidate(); heartbeat = nil
         usb.stop()
         socket?.cancel(with: .normalClosure, reason: nil); socket = nil
@@ -144,37 +147,58 @@ final class StreamClient: NSObject, URLSessionWebSocketDelegate {
     private func receive(_ task: URLSessionWebSocketTask, epoch: UInt64) {
         task.receive { [weak self, weak task] result in
             DispatchQueue.main.async {
-                guard let self = self, let task = task, self.matches(task, epoch), self.state == .connected else { return }
+                guard let self = self, let task = task, self.matches(task, epoch), self.state != .disconnected else { return }
                 switch result {
-                case .success(.data(let data)): self.decoder.submit(data, generation: epoch)
+                case .success(.data(let data)): self.handleJPEG(data)
                 case .success(.string(let text)):
-                    if text.utf8.count <= 65536 { self.handle(Data(text.utf8)) }
+                    guard text.utf8.count <= VRProtocol.maximumTextBytes else { self.disconnect(reason: "protocolError"); return }
+                    self.handle(Data(text.utf8))
                 case .failure: self.disconnect(reason: "failed"); return
-                @unknown default: break
+                @unknown default: self.disconnect(reason: "protocolError"); return
                 }
-                if self.matches(task, epoch) { self.receive(task, epoch: epoch) }
+                if self.matches(task, epoch), self.state != .disconnected { self.receive(task, epoch: epoch) }
             }
         }
     }
 
     private func handle(_ data: Data) {
-        guard let message = try? VRProtocol.decodeHostMessage(data) else { return }
-        handleMessage(message)
+        do {
+            switch try protocolGate.receiveText(data) {
+            case .established(let hello):
+                let epoch = generation
+                if transport == .usb { usb.acknowledgedHost() }
+                beginConnected()
+                guard generation == epoch, state == .connected else { return }
+                onSettings?(hello.settings, hello.revision, nil)
+            case .message(let message): handleMessage(message)
+            }
+        } catch { disconnect(reason: "protocolError") }
+    }
+    private func handleJPEG(_ data: Data) {
+        do {
+            try protocolGate.receiveJPEG(byteCount: data.count)
+            guard state == .connected else { disconnect(reason: "protocolError"); return }
+            decoder.submit(data, generation: generation)
+        } catch { disconnect(reason: "protocolError") }
     }
     private func handleMessage(_ message: HostMessage) {
         switch message {
-        case .hello(let hello): onSettings?(hello.settings, hello.revision, nil)
+        case .hello: disconnect(reason: "protocolError")
         case .settings(let update): onSettings?(update.settings, update.revision, update.clientSeq)
-        case .error: onState?(state, "failed")
+        case .error: disconnect(reason: "protocolError")
         case .pong:
             if let sent = pingSentAt { onRTT?((ProcessInfo.processInfo.systemUptime - sent) * 1000); pingSentAt = nil }
         }
     }
 
     private func beginConnected() {
-        state = .connected; onSessionStarted?()
-        pendingHello = VRProtocol.hello(); drain(); onState?(state, "connected")
+        guard state == .connecting, protocolGate.isEstablished else { return }
+        handshakeTimeout?.invalidate(); handshakeTimeout = nil
         let epoch = generation
+        state = .connected; onSessionStarted?()
+        guard generation == epoch, state == .connected else { return }
+        pendingHello = VRProtocol.hello(); drain(); onState?(state, "connected")
+        guard generation == epoch, state == .connected else { return }
         let timer = Timer(timeInterval: 2, repeats: true) { [weak self] _ in
             guard let self = self, self.generation == epoch, self.state == .connected else { return }
             if let sent = self.pingSentAt {
@@ -188,9 +212,14 @@ final class StreamClient: NSObject, URLSessionWebSocketDelegate {
 
     func urlSession(_ session: URLSession, webSocketTask: URLSessionWebSocketTask, didOpenWithProtocol selectedProtocol: String?) {
         DispatchQueue.main.async { [weak self, weak webSocketTask] in
-            guard let self = self, let task = webSocketTask, self.socket === task else { return }
-            self.beginConnected()
-            self.receive(task, epoch: self.generation)
+            guard let self = self, let task = webSocketTask, self.socket === task, self.state == .connecting else { return }
+            let epoch = self.generation
+            let timer = Timer(timeInterval: 10, repeats: false) { [weak self, weak task] _ in
+                guard let self = self, let task = task, self.matches(task, epoch), self.state == .connecting else { return }
+                self.disconnect(reason: "handshakeTimeout")
+            }
+            self.handshakeTimeout = timer; RunLoop.main.add(timer, forMode: .common)
+            self.receive(task, epoch: epoch)
         }
     }
     func urlSession(_ session: URLSession, webSocketTask: URLSessionWebSocketTask,
