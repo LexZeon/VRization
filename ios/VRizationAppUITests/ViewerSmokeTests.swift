@@ -8,9 +8,13 @@ final class ViewerSmokeTests: XCTestCase {
 
     override func setUpWithError() throws {
         continueAfterFailure = false
+        // Keep hardware orientation, UIKit scene geometry and synthesized gestures
+        // consistent. Fresh CI simulators otherwise start physically in portrait.
+        XCUIDevice.shared.orientation = .landscapeLeft
         app.launchArguments = baseArguments + ["--reset-preferences"]
         app.launch()
     }
+    override func tearDownWithError() throws { app.terminate() }
     private func screenshot(_ name: String) {
         let attachment = XCTAttachment(screenshot: app.screenshot())
         attachment.name = name; attachment.lifetime = .keepAlways; add(attachment)

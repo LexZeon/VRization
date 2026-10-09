@@ -11,6 +11,16 @@
     <key>CFBundleShortVersionString</key><string>$(MARKETING_VERSION)</string>
     <key>CFBundleVersion</key><string>$(CURRENT_PROJECT_VERSION)</string>
     <key>LSRequiresIPhoneOS</key><true/>
+    <key>UIApplicationSceneManifest</key><dict>
+        <key>UIApplicationSupportsMultipleScenes</key><false/>
+        <key>UISceneConfigurations</key><dict>
+            <key>UIWindowSceneSessionRoleApplication</key><array><dict>
+                <key>UISceneConfigurationName</key><string>VRization</string>
+                <key>UISceneClassName</key><string>UIWindowScene</string>
+                <key>UISceneDelegateClassName</key><string>$(PRODUCT_MODULE_NAME).SceneDelegate</string>
+            </dict></array>
+        </dict>
+    </dict>
     <key>UIRequiresFullScreen</key><true/>
     <key>UILaunchScreen</key><dict/>
     <key>UISupportedInterfaceOrientations</key><array><string>UIInterfaceOrientationLandscapeLeft</string><string>UIInterfaceOrientationLandscapeRight</string></array>

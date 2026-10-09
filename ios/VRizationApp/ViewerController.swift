@@ -74,8 +74,6 @@ final class ViewerController: UIViewController {
         ])
         buildControls()
         wireCallbacks()
-        NotificationCenter.default.addObserver(self, selector: #selector(inactive), name: UIApplication.willResignActiveNotification, object: nil)
-        NotificationCenter.default.addObserver(self, selector: #selector(becameActive), name: UIApplication.didBecomeActiveNotification, object: nil)
     }
 
     private func wireCallbacks() {
@@ -301,11 +299,11 @@ final class ViewerController: UIViewController {
     @objc private func recenter() { motion.recenter(); renderer?.setPose(Pose()); client.recenter() }
     @objc private func hideSettings() { view.endEditing(true); overlay.isHidden = true }
     @objc private func showSettings(_ gesture: UILongPressGestureRecognizer) { if gesture.state == .began { overlay.isHidden = false } }
-    @objc private func inactive() {
+    func suspendSession() {
         active = false; motion.stop(); client.disconnect(reason: "paused"); renderer?.clear(); metalView.isPaused = true
         UIApplication.shared.isIdleTimerDisabled = false
     }
-    @objc private func becameActive() {
+    func resumeDisplay() {
         active = true; metalView.isPaused = false; UIApplication.shared.isIdleTimerDisabled = true; updateTracking()
     }
     private func updateTracking() {
@@ -328,7 +326,6 @@ final class ViewerController: UIViewController {
         let controller = LicenseController(text: text)
         present(controller, animated: true)
     }
-    deinit { NotificationCenter.default.removeObserver(self) }
 }
 
 private final class SettingSlider: NSObject {
