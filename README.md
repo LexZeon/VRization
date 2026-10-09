@@ -18,7 +18,7 @@
 
 VRization streams a Windows desktop or rectangular region to an Android phone, iPhone or iPad, renders the image side by side, and optionally maps phone rotation to PC mouse movement. Its reusable Android library, Swift core package and separated host components provide a starting point for embedding these features in other applications.
 
-**v0.3.0-alpha is being validated.** An original Windows DXGI / D3D11 backend crops, rotates and scales on the GPU before smaller pixel readback; the CPU encodes JPEG for the existing WebSocket protocol. GDI / MSS remain compatibility paths. Both eyes receive the same 2D source: ordinary games do not acquire stereoscopic depth. See [performance and measurement limits](docs/PERFORMANCE.md).
+**v0.3.0-alpha — visual headset fitting and saved phone profiles.** An original Windows DXGI / D3D11 backend crops, rotates and scales on the GPU before smaller pixel readback; the CPU encodes JPEG for the existing WebSocket protocol. GDI / MSS remain compatibility paths. Both eyes receive the same 2D source: ordinary games do not acquire stereoscopic depth. See [performance and measurement limits](docs/PERFORMANCE.md).
 
 | Mode | Behavior |
 | --- | --- |
@@ -105,7 +105,11 @@ The host separates capture, JPEG transport and input; Android `vr-core` exposes 
 
 The first settings action opens a flat headset-fit editor. Drag an image horizontally to change linked, mirrored eye spacing: left-eye left / right-eye right widens it, and left-eye right / right-eye left narrows it. Shared X is retained while space allows, then recenters as the inner edges meet. Smaller images can continue inward to the seam. Vertical dragging stays normal; corners keep centers fixed unless seam constraints require adjustment. **Save** commits and synchronizes when connected; **Discard** restores the local entry preview. Preview dragging sends no settings and saves no preferences, and phone pose output pauses during editing. Phones retain committed VR profiles across restarts and restore them after a validated host hello. If both sides changed offline, the saved phone profile wins on reconnect; the PC can Save again afterward.
 
-**Reset all settings** restores VR defaults, English and USB; Windows also restores 640 / 60 / Q45 and automatic USB choice while preserving the explicitly selected display / region and ADB tool path. Phone reset clears preferences and disconnects without automatic reconnection. Neither action authorizes mouse input. See [the complete editor and reset guide](docs/EDITING.md).
+**Reset all settings** restores VR defaults, English and USB; Windows also restores 640 / 60 / Q45 and automatic USB choice while preserving the explicitly selected display / region and ADB tool path. Phone reset clears preferences and disconnects without immediately reconnecting; a fresh launch resumes the normal initial USB policy. Neither action authorizes mouse input. See [the complete editor and reset guide](docs/EDITING.md).
+
+The v0.3 physical Android editor below shows an original card over USB on a HUAWEI Pura 70 Ultra. Smaller images can be brought together at the center; see [the before / after and saved-view screenshots](docs/EDITING.md#physical-android-examples).
+
+![v0.3 physical Android headset editor with small images joined](docs/images/android-v03-small-joined.png)
 
 v0.2.0-alpha is already published and locally archived; v0.3 acceptance is recorded separately. Existing screenshots / performance measurements retain their stated version. See [release history](docs/releases/README.md) and [current notes](docs/RELEASE_NOTES.md).
 
@@ -130,7 +134,7 @@ Windows 桌面串流 · Android / 兼容 Android 的系统 · iPhone / iPad · �
 
 VRization 是一个开源的电脑 → 手机串流实验项目。Windows 端采集显示器或指定矩形区域，Android、iPhone / iPad 客户端将画面显示在 VR 盒子的左右眼区域。你可以让画面固定在眼前，也可以把它当成一个随头部转动观看的虚拟大屏幕，或者用手机的姿态控制电脑游戏视角。
 
-> **v0.3.0-alpha 正在验收。** 原创 Windows DXGI / D3D11 后端在 GPU 裁切、旋转和缩放，再回读较小像素；CPU 编码 JPEG，经已有 WebSocket 协议传输，保留 GDI / MSS 兼容路径。左右眼接收同一张二维桌面图像，**不会把普通游戏自动变成立体 3D**。实测范围见 [性能与测量](docs/PERFORMANCE.md)。
+> **v0.3.0-alpha — 可视盒子适配与手机配置保存。** 原创 Windows DXGI / D3D11 后端在 GPU 裁切、旋转和缩放，再回读较小像素；CPU 编码 JPEG，经已有 WebSocket 协议传输，保留 GDI / MSS 兼容路径。左右眼接收同一张二维桌面图像，**不会把普通游戏自动变成立体 3D**。实测范围见 [性能与测量](docs/PERFORMANCE.md)。
 
 ### 🎮 三种观看方式
 
@@ -234,6 +238,10 @@ Alpha 版尚未提供音频、硬件视频编码、WebRTC、原生立体渲染�
 
 设置第一个操作打开平面盒子适配编辑器，横向拖动调整镜像联动眼间距：左眼向左 / 右眼向右拉开，左眼向右 / 右眼向左收拢；空间允许时保留整体 X，接近中缝时逐渐归零；缩小后仍能继续向内收拢到相接。竖向正常同步，角点通常中心固定，触发接缝约束时必要调整。**保存**提交并在已连接时同步，**放弃**恢复本地进入预览；预览拖动不发送设置、不保存偏好，编辑暂停手机姿态。手机已提交 VR 配置在重启后保留，合法主机 hello 后恢复；若两边离线都改过，重连时保存的手机配置优先，电脑可随后再保存。
 
-**重置全部设置**恢复 VR 默认、英文和 USB；Windows 同时恢复 640 / 60 / Q45 与 USB 自动选择，但保留明确的显示器 / 选区及 ADB 工具路径。手机重置清除偏好并断线，不自动重连；两项操作都不授权鼠标，见 [完整编辑与重置教程](docs/EDITING.md)。
+**重置全部设置**恢复 VR 默认、英文和 USB；Windows 同时恢复 640 / 60 / Q45 与 USB 自动选择，但保留明确的显示器 / 选区及 ADB 工具路径。手机重置清除偏好并断线，当前界面不自动重连；全新启动恢复正常初次 USB 策略；两项操作都不授权鼠标，见 [完整编辑与重置教程](docs/EDITING.md)。
+
+下面是 v0.3 在 HUAWEI Pura 70 Ultra 真机经 USB 显示原创卡的编辑器：缩小后仍可收拢到中心相接，见 [前后对比及保存后画面](docs/EDITING.md#android-真机示例)。
+
+![v0.3 Android 真机盒子编辑器，小画面内边相接](docs/images/android-v03-small-joined.png)
 
 v0.2.0-alpha 已发布并完成本地归档，v0.3 验收另行记录。已有截图与性能数字保留注明的版本，见 [发布历史](docs/releases/README.md) 与 [本版说明](docs/RELEASE_NOTES.md)。

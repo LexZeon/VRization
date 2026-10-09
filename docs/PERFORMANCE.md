@@ -52,6 +52,25 @@ Startup samples were respectively **45.97, 22.64 and 23.92 sent FPS**. All three
 
 These are selected-output / region results on that hardware and workload, not blanket 30 / 60 FPS guarantees. Sustained workload comparisons, real games / headset use and iPhone hardware still need their own evidence. Detailed counts and acceptance checks are in [validation](VALIDATION.md).
 
+### v0.3 AW → physical Huawei follow-up
+
+A separate **30.02-second** final v0.3 session captured an original **1280 × 720** region from the sole **AW2726DL** output on Windows 11, resized through the production GPU backend to **640 × 360 / Q45 / target 60**, and streamed over authorized USB to the same physical Huawei. It did not interact with a game or measure a headset.
+
+| Stage / metric | Observation | Scope |
+| --- | --- | --- |
+| Host sent FPS | 60.00 mean, 30 samples | Sending cadence; includes repeated images. |
+| Distinct JPEG reads | 1,612 distinct, 189 repeats; 53.70 distinct reads/s | Source read evidence, not unique physical phone presentation. |
+| Host capture / conversion / JPEG | 3.21 ms mean | Host-local component. |
+| Latest-buffer queue / local send submission | 0.39 / 0.13 ms mean | Submission is not phone arrival. |
+| Reported send throughput | 4.99 Mbit/s | This selected content and JPEG settings. |
+| Phone received-FPS display | 59.7 | Final statistics window retained after video stopped; not its whole-session mean. |
+| Phone processing display | 9.7 ms mean | Complete reception to texture-call return; excludes PC, earlier link time, GPU completion and display. |
+| Application RTT | Individual XML / screenshot readings 8–11 ms | Continuing ping observations; not a session mean or observed full-session range. |
+
+The screenshot below is an unmodified original from this phone: it shows the retained 59.7 FPS / 9.7 ms window and a later 8 ms ping. Neither adding these components nor adding RTT gives end-to-end video latency. A common visible-event test is still required. The editor / profile acceptance is recorded separately in [validation](VALIDATION.md).
+
+![v0.3 physical Huawei statistics with each measurement boundary labeled](images/android-v03-timings.png)
+
 ### What the measured delay does and does not mean
 
 The first phone check measured approximately **4.1 ms mean host read time**, including the capture / pixel conversion / JPEG work, and **2–7 ms application RTT** in the two phone readings. Do not add these as an end-to-end video-delay estimate: RTT is a control-message round trip rather than one-way JPEG transfer, and these figures omit waiting for a desktop update, queueing, phone decode, GPU upload, display scheduling and the panel's physical response.
@@ -83,7 +102,7 @@ For a useful report, record the release, backend, Windows / GPU, selected displa
 
 ### Editor and measurement versions
 
-The v0.3 headset editor previews a local flat / undistorted draft and pauses phone pose output; Save commits viewing settings, not a new codec or transport. Reset selects the existing 640 / 60 / Q45 default. Measurements above are the recorded v0.2 production / prototype sessions and must not be relabeled as new v0.3 measurements. Editor geometry tests establish consistency, not frame rate, headset comfort or end-to-end latency. See [editing](EDITING.md) and [versioned validation](VALIDATION.md).
+The v0.3 headset editor previews a local flat / undistorted draft and pauses phone pose output; Save commits viewing settings, not a new codec or transport. Reset selects the existing 640 / 60 / Q45 default. Earlier production / prototype sessions are v0.2 evidence and must not be relabeled; the AW follow-up above is explicitly a separate v0.3 measurement. Editor geometry tests establish consistency, not frame rate, headset comfort or end-to-end latency. See [editing](EDITING.md) and [versioned validation](VALIDATION.md).
 
 ---
 
@@ -137,6 +156,25 @@ flowchart LR
 
 这些是对应硬件和负载上的选定输出 / 区域结果，不是普遍的 30 / 60 FPS 保证；持续负载对比、真实游戏 / 头显使用及 iPhone 硬件仍需分别记录证据。详细计数与验收检查见 [验证文档](VALIDATION.md)。
 
+### v0.3 AW → 华为真机复查
+
+独立的最终 v0.3 **30.02 秒**会话在 Windows 11 唯一 **AW2726DL** 输出采集 **1280 × 720** 原创区域，经正式 GPU 后端缩为 **640 × 360 / Q45 / 目标 60**，通过授权 USB 串流到同一华为真机；没有操作游戏或测量盒子。
+
+| 阶段 / 指标 | 观察 | 范围 |
+| --- | --- | --- |
+| 主机发送 FPS | 30 样本均值 60.00 | 发送节奏，含重复图像。 |
+| 不同 JPEG 读取 | 1,612 次不同、189 次重复；每秒 53.70 次不同读取 | 来源读取证据，不是手机物理呈现的独特帧率。 |
+| 主机采集 / 转换 / JPEG | 均值 3.21 毫秒 | 主机自身计时阶段。 |
+| 最新帧排队 / 本地发送提交 | 均值 0.39 / 0.13 毫秒 | 提交不代表手机到达。 |
+| 报告发送吞吐 | 4.99 Mbit/s | 本选定内容与 JPEG 参数。 |
+| 手机接收 FPS 显示 | 59.7 | 视频停止后保留的最终统计窗口，不是整段均值。 |
+| 手机处理显示 | 均值 9.7 毫秒 | 完整接收到纹理调用返回，不含电脑、此前链路、GPU 完成或显示。 |
+| 应用 RTT | XML / 截图个别读数 8–11 毫秒 | 继续 ping 的观察，不是整段均值或完整会话上下界。 |
+
+下面是该手机未修改的原图，显示保留的 59.7 FPS / 9.7 毫秒窗口及稍后的 8 毫秒 ping；不能相加这些组件或 RTT 来求端到端视频延迟，仍需共同可见事件测试。编辑 / 配置验收另记于 [验证](VALIDATION.md)。
+
+![v0.3 华为真机统计，各测量边界均注明](images/android-v03-timings.png)
+
 ### 实测延迟代表什么
 
 首轮手机检查测得主机平均读取约 **4.1 毫秒**，包含采集 / 像素转换 / JPEG 工作；手机两次读数的应用 RTT 为 **2–7 毫秒**。不能相加作为端到端视频延迟：RTT 是控制消息往返，不是 JPEG 单向传输；这些数值不含等待桌面更新、排队、手机解码、GPU 上传、显示调度和面板物理响应。
@@ -169,4 +207,4 @@ flowchart LR
 
 ### 编辑器与测量版本
 
-v0.3 盒子编辑器预览本地无畸变平面草稿并暂停手机姿态；保存提交观看设置，不新增编码或传输。重置选择已有 640 / 60 / Q45 默认。上述数字属于记载的 v0.2 正式 / 原型会话，不改称新的 v0.3 测量；几何检查证明规则一致，不证明帧率、舒适度或端到端延迟。见 [编辑教程](EDITING.md) 与 [分版本验证](VALIDATION.md)。
+v0.3 盒子编辑器预览本地无畸变平面草稿并暂停手机姿态；保存提交观看设置，不新增编码或传输。重置选择已有 640 / 60 / Q45 默认。较早正式 / 原型会话属于 v0.2 证据，不改称新版测量；上方 AW 复查明确是独立 v0.3 测量；几何检查证明规则一致，不证明帧率、舒适度或端到端延迟。见 [编辑教程](EDITING.md) 与 [分版本验证](VALIDATION.md)。

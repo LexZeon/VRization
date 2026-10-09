@@ -94,7 +94,14 @@ xcodebuild -project ios/VRization.xcodeproj -scheme VRization \
 
 ### v0.3 visual editor and saved preferences
 
-The first settings action opens the flat headset-fit editor. Left-eye left / right-eye right widens linked eye spacing; the opposite directions narrow it, including inward movement of smaller images until seam contact. Shared X is retained while the remaining gap permits it, then recenters. Vertical movement is shared and direct; corners normally keep centers fixed, with contact corrections during enlargement. Save commits, Discard restores the entry snapshot, and phone poses pause while editing. Committed VR profiles survive restarts and are restored through normal settings after a validated host hello. Reset clears product / connection preferences, returns English / USB and disconnects without silent reconnection. Existing Simulator screenshots above are from v0.2; they do not picture or validate this new editor. See [editing and reset scope](EDITING.md) and [new-version validation](VALIDATION.md).
+The first settings action opens the flat headset-fit editor. Left-eye left / right-eye right widens linked eye spacing; the opposite directions narrow it, including inward movement of smaller images until seam contact. Shared X is retained while the remaining gap permits it, then recenters. Vertical movement is shared and direct; corners normally keep centers fixed, with contact corrections during enlargement. Save commits, Discard restores the entry snapshot, and phone poses pause while editing. Committed VR profiles survive restarts and are restored through normal settings after a validated host hello. Reset clears product / connection preferences, returns English / USB and disconnects without immediately restarting its listener; a fresh launch resumes normal initial USB waiting. The earlier Simulator screenshots above are from v0.2. Final [CI 37897738507](https://github.com/LexZeon/VRization/actions/runs/37897738507) passed 65 core tests and three real UI cases for v0.3, including draft isolation, negative-separation contact, Save once, broadcasts, restart and reset. Both SDK builds passed; this is native Simulator / simulated-USB evidence, not physical iPhone USB. See [editing and reset scope](EDITING.md) and [new-version validation](VALIDATION.md).
+
+
+The unmodified originals below are from that final **native iOS Simulator** run. The editor shows 50% / −0.500 contact. The clean Metal view shows the saved, enlarged fit at approximately 71.6% / −0.284, still joined; these are different moments, not two views of the same 50% state.
+
+![v0.3 native iOS Simulator editor at 50% seam contact](images/ios-v03-editor-seam.png)
+
+![v0.3 native iOS Simulator saved Metal view after enlargement at contact](images/ios-v03-viewer-seam.png)
 
 ---
 
@@ -191,4 +198,11 @@ xcodebuild -project ios/VRization.xcodeproj -scheme VRization \
 
 ### v0.3 可视编辑器与保存偏好
 
-设置第一个操作打开平面盒子适配编辑器，左眼向左 / 右眼向右拉开联动间距，反向收拢，缩小后仍可继续向内到接缝；共用 X 在剩余间隙允许时保留，接近中缝时居中。竖向正常共用，角点通常中心固定，接触后放大时作必要修正。保存提交，放弃恢复进入快照，编辑时暂停手机姿态。已提交 VR 配置在重启后保留，合法主机 hello 后通过普通设置恢复；重置清除产品 / 连接偏好，恢复英文 / USB 并断线，不偷偷重连。上面的模拟器截图来自 v0.2，不展示或验证新编辑器。见 [编辑与重置范围](EDITING.md)、[新版验证](VALIDATION.md)。
+设置第一个操作打开平面盒子适配编辑器，左眼向左 / 右眼向右拉开联动间距，反向收拢，缩小后仍可继续向内到接缝；共用 X 在剩余间隙允许时保留，接近中缝时居中。竖向正常共用，角点通常中心固定，接触后放大时作必要修正。保存提交，放弃恢复进入快照，编辑时暂停手机姿态。已提交 VR 配置在重启后保留，合法主机 hello 后通过普通设置恢复；重置清除产品 / 连接偏好，恢复英文 / USB 并断线，不立即重启监听；全新启动恢复正常初次 USB 等待。上面较早模拟器截图来自 v0.2。最终 [CI 37897738507](https://github.com/LexZeon/VRization/actions/runs/37897738507) 通过 v0.3 的 65 项核心和三项真实界面用例，包括草稿隔离、负间距接触、一次保存、广播、重启与重置；两种 SDK 构建通过。这是原生模拟器 / 模拟 USB 证据，不是 iPhone 真机 USB。见 [编辑与重置范围](EDITING.md)、[新版验证](VALIDATION.md)。
+
+
+下面未修改的原图来自该最终**原生 iOS 模拟器**检查：编辑器为 50% / −0.500 相接；无控件 Metal 画面是保存后的放大状态，约 71.6% / −0.284，仍然相接。两张是不同时间状态，不是同一个 50% 状态的两个界面。
+
+![v0.3 原生 iOS 模拟器编辑器，50% 中缝相接](images/ios-v03-editor-seam.png)
+
+![v0.3 原生 iOS 模拟器保存后的 Metal 画面，接触后放大](images/ios-v03-viewer-seam.png)

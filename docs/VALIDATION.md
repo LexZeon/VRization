@@ -5,7 +5,7 @@
 <!-- vrization:english -->
 ## English
 
-Recorded 2026-10-08. Automated checks, desktop capture and emulator observations are distinguished from hardware capabilities that remain untested.
+Updated 2026-10-09. Automated checks, desktop capture and emulator observations are distinguished from hardware capabilities that remain untested.
 
 ### Completed for the first release
 
@@ -100,7 +100,7 @@ The first locally verified release used CPython 3.12.14 and has the recorded nat
 
 Microsoft Visual C++ v14 x64 runtime is installed by the system, not shipped inside the EXE. See [build](BUILD.md) and [third-party notices](../THIRD_PARTY_NOTICES.md).
 
-### v0.3.0-alpha — current work, separate acceptance
+### v0.3.0-alpha checks and remaining limits
 
 The original Python headset-fit geometry / local transaction has **28 pure tests passing**: landscape / portrait fit, symmetric eye spacing, unclipped valid bounds, all four normally center-fixed corners, pan / scale / signed-separation clamps, all four selected-eye directions, small-image seam contact, remaining-gap X limits, enlargement contact correction, negative-profile commit / discard, gesture-start rather than accumulated deltas, invalid numeric snapshots and one-shot commit / discard. They perform no capture, GUI automation, USB operation or OS mouse injection.
 
@@ -108,14 +108,22 @@ After the signed-seam correction, the complete local Windows suite passed **152 
 
 The local Android build with the signed-seam correction passed **70 JVM tests (49 app / 21 core)**, APK / AAR compilation and lint with **zero errors / eight warnings**. It targets min API 23 / target 35 with version 0.3.0, code 4, and uses the same local debug certificate as the preceding installed APK. These are automated / build checks, not physical-phone editor acceptance.
 
-Phone UI / device acceptance and the new iOS build checks are still being completed. This paragraph does **not** claim new phone UI, physical-device, Windows GUI or end-to-end acceptance. Record those checks here only after they run; retain the completed v0.2 evidence and [original release notes](releases/v0.2.0-alpha.md) as historical records.
+The final local v0.3 APK was installed on the physical **HUAWEI Pura 70 Ultra** over authorized USB; pulling the installed APK matched the release candidate SHA-256. Windows captured an original **1280 × 720** card in the sole **AW2726DL** output, using GPU resize to **640 × 360**. The Android GL viewport was **2844 × 1260**. All four selected-eye horizontal directions, proportional corner shrink from 85% to 50%, draft / Discard isolation, and inward contact at **50% / separation −0.50 / X 0** passed. Host revision and stored phone preferences stayed unchanged during preview; Save increased revision once. Eight sampled center-seam pixels were the same nonblack card color, and the unmodified normal-view screenshot was visually checked. Force-stop / reopen restored the committed negative profile. See [actual editor screenshots](EDITING.md#physical-android-examples).
+
+PC ↔ phone persistence was checked through the actual `HostWindow` commit / event / save handlers **headlessly, without interacting with the new Windows GUI or injecting OS input**. Phone Save reached the host and PC test preferences. A PC fit commit of scale 0.60 / separation −0.40 / Y 0.05 increased revision once and matched host / PC / phone committed profiles; phone restart retained it. Near the seam, shared X 0.20 resolved to zero and Save synchronized both sides. The public phone language control persisted Chinese across force-stop / reopen. The public Reset all button restored full VR defaults, English, USB, empty host, port 8765 and an empty pairing field, and immediately disconnected. A fresh launch resumed initial USB detection and restored the committed defaults after hello; reset did not authorize mouse input. No fatal, out-of-memory or GL diagnostic error was found for the app's own process in this run.
+
+A separate **30.02-second** v0.3 hardware stream used the same AW original region at **640 × 360 / Q45 / target 60**. Thirty host samples averaged **60.00 sent FPS**, with **1,612 distinct JPEG reads and 189 repeats**, or **53.70 distinct reads/s**. Mean host capture / conversion / JPEG time was **3.21 ms**, latest-buffer queue **0.39 ms**, and local send submission **0.13 ms**; reported throughput was **4.99 Mbit/s**. After video stopped, the phone retained its final statistics window of **59.7 FPS** and **9.7 ms mean reception-to-texture-call return**. Individual continuing ping readings in XML / screenshots were **8–11 ms**, not a session RTT mean or min / max. These are separate clock / stage measurements, not unique physical display FPS or end-to-end delay; see [performance](PERFORMANCE.md).
+
+The same final APK also passed **14 real application-UI checks on a Google-free Android 6.0 / API 23 emulator**. Actual touches closed the seam at 50% / −0.50 and enlarged the corner to 76% / −0.24 / X 0 while retaining contact. Center-preview pixel / frame checks were nonblack; these are emulator / overlaid-preview evidence, not physical light or FPS measurements. Save once / Discard isolation, negative profile after restart and validated-hello restoration once, PC negative broadcasts, Chinese persistence, and complete reset defaults / empty connection fields passed. Only an original calibration card and a fake no-mouse sink were used; this is separate from the physical Huawei result.
+
+Final [GitHub Actions 37897738507](https://github.com/LexZeon/VRization/actions/runs/37897738507) passed **152 Windows tests, 70 Android JVM tests, 65 Swift core tests and three native iOS Simulator UI cases**, with no failures / skips. Both Simulator and unsigned device-target iOS builds succeeded. LAN / simulated USB both-eye color checks and exact nonblack seam-boundary checks passed. Real UI preview / Discard left settings counts unchanged, Save sent once with a negative separation, and PC broadcasts, offline / restart persistence and full reset passed. The simulator observer recorded no mouse moves. Forty-six tested iOS / fixture Git blobs matched the downloaded source ZIP. The Simulator app identifies as **0.3.0 / build 4 / iOS 15 minimum / arm64**, includes the original MIT license, and is not an installable signed iPhone IPA. [iOS screenshots](IOS.md#v03-visual-editor-and-saved-preferences) are explicitly native Simulator evidence. No physical iPhone USB, headset optics, real FPS game, new Windows GUI interaction or end-to-end latency result is claimed. The completed v0.2 evidence and [original release notes](releases/v0.2.0-alpha.md) remain historical records.
 
 ---
 
 <!-- vrization:chinese -->
 ## 简体中文
 
-记录日期：2026-10-08。这里区分自动检查、电脑采集和模拟器观察；未验证的硬件能力不以截图或单元测试代替。
+更新日期：2026-10-09。这里区分自动检查、电脑采集和模拟器观察；未验证的硬件能力不以截图或单元测试代替。
 
 ### 首发已完成
 
@@ -213,7 +221,7 @@ Phone UI / device acceptance and the new iOS build checks are still being comple
 Windows 程序使用系统安装的 Microsoft Visual C++ v14 x64 运行库，不在 EXE 中分发 `VCRUNTIME140*.dll`。完整说明见 [构建指南](BUILD.md) 与 [第三方声明](../THIRD_PARTY_NOTICES.md)。
 
 
-### v0.3.0-alpha — 当前工作与独立验收
+### v0.3.0-alpha 检查与剩余限制
 
 原创 Python 盒子适配几何 / 本地事务已有 **28 项纯检查通过**：横竖比例、对称双眼间距、合法边界不偷偷裁切、四个通常中心固定角点、平移 / 缩放 / 有符号间距限制、选中眼四种方向、小画面中缝接触、剩余间隙对 X 限位、接触放大修正、负值保存 / 放弃、手势起点而非重复累加、非法数字快照及一次提交 / 放弃。检查不采屏、不做界面自动化、不操作 USB、不注入系统鼠标。
 
@@ -221,4 +229,12 @@ Windows 程序使用系统安装的 Microsoft Visual C++ v14 x64 运行库，不
 
 有符号接缝修正后的本地 Android 构建**70 项 JVM 检查通过（应用 49 / 核心 21）**，APK / AAR 编译及 lint 通过，**零错误 / 八条警告**。最低 API 23、target 35、版本 0.3.0 / code 4，沿用此前已安装 APK 的本地 debug 证书；这是自动化 / 构建检查，不是手机实机编辑器验收。
 
-手机界面 / 设备验收及新 iOS 构建检查仍在完成。本段**不宣称**新手机界面、实机、Windows 界面或端到端验收通过；实际执行后再记录，保留 v0.2 已完成证据和 [原发布说明](releases/v0.2.0-alpha.md) 作为历史。
+最终本地 v0.3 APK 已通过授权 USB 安装到 **HUAWEI Pura 70 Ultra 真机**，拉回已安装 APK 的 SHA-256 与候选产物一致。Windows 在唯一 **AW2726DL** 输出选定 **1280 × 720** 原创卡区域，通过 GPU 缩到 **640 × 360**；Android GL 视口为 **2844 × 1260**。选中眼四种横向方向、角点从 85% 等比缩到 50%、草稿 / 放弃隔离，以及 **50% / 间距 −0.50 / X 0** 收拢相接均通过。预览期间主机 revision 与手机已存偏好不变，保存只增加一次 revision；中缝八个采样像素均为相同非黑测试卡颜色，普通观看原图也已目视核对。强制停止 / 重开恢复已提交负间距配置，见 [真实编辑截图](EDITING.md#android-真机示例)。
+
+电脑 ↔ 手机持久化通过实际 `HostWindow` 提交 / 事件 / 保存处理器**无界面调用检查，没有操作新 Windows 界面或注入系统输入**。手机保存到达主机及电脑测试偏好；电脑提交缩放 0.60 / 间距 −0.40 / Y 0.05 只增加一次 revision，主机 / 电脑 / 手机已提交配置一致，手机重启仍保留。接近中缝时共用 X 0.20 解析归零，保存后两端一致。手机公开语言控件选择中文后，强制停止 / 重开仍保留；公开全部重置按钮恢复完整 VR 默认、英文、USB、空主机、8765 端口和空配对字段，并立即断线。全新启动恢复初次 USB 检测，hello 后恢复已提交默认值；重置不授权鼠标。本轮应用自身进程未找到 fatal、内存不足或 GL 诊断错误。
+
+独立的 **30.02 秒** v0.3 硬件串流使用同一 AW 原创区域、**640 × 360 / Q45 / 目标 60**。30 个主机样本平均 **60.00 发送 FPS**，**1,612 次不同 JPEG 读取、189 次重复**，即 **53.70 次不同读取/秒**。主机采集 / 转换 / JPEG 均值 **3.21 毫秒**、最新帧缓冲 **0.39 毫秒**、本地发送提交 **0.13 毫秒**，报告吞吐 **4.99 Mbit/s**。停止视频后手机保留最终统计窗口 **59.7 FPS**、接收到纹理调用返回均值 **9.7 毫秒**；继续 ping 的 XML / 截图个别读数为 **8–11 毫秒**，不是整段 RTT 均值或最小 / 最大值。这些属于不同的时钟 / 阶段，不是物理屏幕独特帧率或端到端延迟，见 [性能说明](PERFORMANCE.md)。
+
+同一最终 APK 还通过无 Google 的 **Android 6.0 / API 23 模拟器 14 项真实应用界面检查**：实际触摸在 50% / −0.50 收拢，再拖角点放大到 76% / −0.24 / X 0 仍相接；中央预览像素 / 边框检查非黑。这是模拟器 / 带覆盖控件预览证据，不是物理光子或 FPS 测量。一次保存 / 放弃隔离、负配置重启及合法 hello 一次恢复、电脑负设置广播、中文记忆、完整重置默认 / 空连接字段均通过；只使用原创卡和假无鼠标接收器，与华为真机结果分开。
+
+最终 [GitHub Actions 37897738507](https://github.com/LexZeon/VRization/actions/runs/37897738507) 通过 **Windows 152 项、Android 70 项 JVM、Swift 核心 65 项及 iOS 原生模拟器界面三项**，无失败 / 跳过；模拟器与未签名真机目标两种 iOS 构建成功。局域网 / 模拟 USB 双眼颜色及准确中缝非黑边界检查通过；真实界面预览 / 放弃不改变设置计数，保存只发送一次负间距配置，电脑广播、离线 / 重启持久化及全部重置通过，模拟器观察器没有鼠标移动。46 个已测试 iOS / fixture Git blob 与下载源码 ZIP 一致；模拟器应用为 **0.3.0 / build 4 / 最低 iOS 15 / arm64**，含原创 MIT 许可，不是可安装的已签名 iPhone IPA。[iOS 图例](IOS.md#v03-可视编辑器与保存偏好) 明确属于原生模拟器证据。不宣称真实 iPhone USB、盒子镜片、真实 FPS 游戏、新 Windows 界面实际交互或端到端延迟已验证；v0.2 完成证据及 [原发布说明](releases/v0.2.0-alpha.md) 仍保留为历史。

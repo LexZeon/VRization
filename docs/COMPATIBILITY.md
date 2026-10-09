@@ -12,7 +12,7 @@ Support targets and observed tests are separate. Passing an emulator test does n
 | Component | Target and requirements | Evidence / limits |
 | --- | --- | --- |
 | Windows host | Windows 10 / 11 x64; Microsoft Visual C++ v14 x64 runtime | Local physical machine runs Windows 11 build 26200. Windows 10 has not been physically tested. |
-| Android client | Android 6.0 / API 23 or later, OpenGL ES 2.0, APK-compatible system | Java application with no bundled ABI-specific native library. v0.2.0 was installed and streamed over USB on a physical HUAWEI Pura 70 Ultra reporting Android 12 / API 31 compatibility; other derivatives require device testing. |
+| Android client | Android 6.0 / API 23 or later, OpenGL ES 2.0, APK-compatible system | Java application with no bundled ABI-specific native library. v0.2.0 and v0.3.0 were installed and streamed over USB on a physical HUAWEI Pura 70 Ultra reporting Android 12 / API 31 compatibility; other derivatives require device testing. |
 | iOS client | iOS / iPadOS 15+, landscape, Metal, local-network permission | Native Swift / UIKit client. Xcode on macOS builds and signs it; the Windows host serves both phone platforms. See [iOS guide](IOS.md) for exact installation / test limits. |
 | Google services | Not required | First-release API 23 emulator uses no Google services. |
 | Full screen | Network and graphics support | No rotation sensor required; verified on the sensor-less API 23 emulator. |
@@ -45,7 +45,7 @@ Other Android phones / derivatives, physical iPhones / iPads including the oldes
 
 ### v0.3 editor / preferences scope
 
-Targets are unchanged. The new flat editor, shared geometry with dynamic seam limits, Save / Discard, explicit reset and committed phone profile restoration are documented in [editing](EDITING.md). The message envelope remains v1, but negative eye separation requires v0.3 on both sides; v0.2 only accepts 0…0.2. Existing nonnegative profiles remain valid. v0.3 phones restore saved profiles only after a valid hello. The historical hardware / emulator results above remain evidence for their named versions. New UI, reset / restart and device checks must be recorded separately in [validation](VALIDATION.md).
+Targets are unchanged. The new flat editor, shared geometry with dynamic seam limits, Save / Discard, explicit reset and committed phone profile restoration are documented in [editing](EDITING.md). The message envelope remains v1, but negative eye separation requires v0.3 on both sides; v0.2 only accepts 0…0.2. Existing nonnegative profiles remain valid. v0.3 phones restore saved profiles only after a valid hello. Historical results remain evidence for their named versions. The final v0.3 APK passed physical Huawei editor / mirrored-direction / small-image contact, Save / Discard, PC ↔ phone persistence, restart, language and reset checks, plus 14 real UI checks on an API 23 emulator. PC consumer / commit handlers were exercised headlessly, not by actual new Windows GUI interactions. Final CI passed 65 Swift core tests / three native Simulator UI cases, both SDK builds and LAN / simulated-USB signed-seam checks; physical iPhone USB and headset optics remain unverified. See [exact validation](VALIDATION.md).
 
 ---
 
@@ -59,7 +59,7 @@ Targets are unchanged. The new flat editor, shared geometry with dynamic seam li
 | 部分 | 目标与要求 | 已有证据 / 限制 |
 | --- | --- | --- |
 | Windows 电脑端 | Windows 10 / 11 x64；Microsoft Visual C++ v14 x64 运行库 | 本机实际运行 Windows 11 build 26200；未在 Windows 10 实机测试。 |
-| Android 手机端 | Android 6.0 / API 23+、OpenGL ES 2.0、可安装 APK 的兼容系统 | Java 应用，不附带 ABI 专用原生库。v0.2.0 已在报告 Android 12 / API 31 兼容层的 HUAWEI Pura 70 Ultra 真机安装并经 USB 串流；其他衍生系统需分别实测。 |
+| Android 手机端 | Android 6.0 / API 23+、OpenGL ES 2.0、可安装 APK 的兼容系统 | Java 应用，不附带 ABI 专用原生库。v0.2.0 与 v0.3.0 已在报告 Android 12 / API 31 兼容层的 HUAWEI Pura 70 Ultra 真机安装并经 USB 串流；其他衍生系统需分别实测。 |
 | iOS 手机端 | iOS / iPadOS 15+、横屏、Metal、本地网络权限 | 原生 Swift / UIKit 客户端，macOS 用 Xcode 构建和签名；Windows 主机同时服务两类手机。安装与实测边界见 [iOS 教程](IOS.md)。 |
 | Google 服务 | 不需要 | 首版 API 23 模拟器不含 Google 服务。 |
 | 全屏模式 | 网络与图形支持 | 无需旋转传感器，已在无传感器 API 23 模拟器检查。 |
@@ -93,4 +93,4 @@ USB 需要官方 Platform Tools / Android 调试授权，或 iOS 的 Apple Windo
 
 ### v0.3 编辑器 / 偏好范围
 
-支持目标不变。新增平面编辑器、带动态接缝限位的共用几何、保存 / 放弃、主动重置与手机已提交配置恢复见 [编辑文档](EDITING.md)。消息封装仍为 v1，但负间距需两端均为 v0.3，v0.2 只接受 0…0.2；已有非负配置仍有效。v0.3 手机只在合法 hello 后恢复保存配置。上述历史硬件 / 模拟器结果只证明注明版本，新界面、重置 / 重启和设备检查需在 [验证](VALIDATION.md) 另记。
+支持目标不变。新增平面编辑器、带动态接缝限位的共用几何、保存 / 放弃、主动重置与手机已提交配置恢复见 [编辑文档](EDITING.md)。消息封装仍为 v1，但负间距需两端均为 v0.3，v0.2 只接受 0…0.2；已有非负配置仍有效。v0.3 手机只在合法 hello 后恢复保存配置。历史结果只证明注明版本。最终 v0.3 APK 已通过华为真机编辑 / 镜像方向 / 小画面接缝、保存 / 放弃、电脑 ↔ 手机持久化、重启、语言和重置检查，以及 API 23 模拟器 14 项真实界面检查。电脑接收 / 提交处理器为无界面调用，不是新 Windows 界面真实交互。最终 iOS CI 通过 65 项 Swift 核心 / 三项原生模拟器界面、两种 SDK 构建及局域网 / 模拟 USB 有符号接缝检查，真实 iPhone USB 和盒子镜片仍未验证；见 [精确验证范围](VALIDATION.md)。

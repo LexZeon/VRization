@@ -25,6 +25,30 @@ Phone backgrounding, disconnecting or changing language discards an open draft; 
 
 Seam contact is guaranteed by the flat preview geometry and undistorted full / FPS display. Cinema perspective, head motion and lens distortion change projected edges, so this is not a guarantee of a seamless image in those views. The PC's selected phone aspect is an approximation; the phone resolves against its real viewport and current image aspect. Update both host and phone to v0.3 before saving negative separation: v0.2 clients / hosts accept only nonnegative values. Existing nonnegative profiles and the 0.03 default remain valid.
 
+### Physical Android examples
+
+These unmodified v0.3.0 screenshots come from a HUAWEI Pura 70 Ultra receiving an original test card over USB from a selected AW2726DL region. They illustrate the flat editor / viewer, not physical headset optics or an end-to-end latency benchmark. The English interface is shown; English / Chinese remain selectable.
+
+![Physical Android editor at 85% scale](images/android-v03-editor.png)
+
+The corner handles resize both eye images. Save / Discard are visible at the top.
+
+| After resizing to 50%, before closing the seam | After dragging inward to contact |
+| --- | --- |
+| ![50% images before inward fitting](images/android-v03-small-before.png) | ![50% images joined in the editor](images/android-v03-small-joined.png) |
+
+The joined preview reads scale 50%, separation −0.50, horizontal 0.00. After Save, the normal viewer below displays the same fit with controls hidden; both inner edges meet at the center.
+
+![Saved 50% fit in the normal viewer, with the middle seam closed](images/android-v03-viewer-joined.png)
+
+### Native iOS Simulator examples
+
+These unmodified v0.3 originals come from the final native Simulator UI run, using an original calibration card. The first shows 50% / −0.500 contact; the second is the saved, enlarged approximately 71.6% / −0.284 fit. Both keep the middle seam closed. This is Simulator evidence, not a physical iPhone, headset or latency benchmark; see [iOS installation and validation](IOS.md).
+
+| 50% contact in the editor | Saved Metal view after enlargement |
+| --- | --- |
+| ![Native Simulator editor at contact](images/ios-v03-editor-seam.png) | ![Native Simulator saved enlarged view at contact](images/ios-v03-viewer-seam.png) |
+
 ### Local phone profile and reconnecting
 
 Both phones keep the complete **committed VR settings** locally, including mode, scale, offsets, eye separation, field of view, distance, distortion, sensitivity and invert Y. Changes made offline are retained; drafts are not. A restart restores the saved profile before connecting. An accepted complete settings snapshot from normal connected synchronization updates the committed profile.
@@ -50,7 +74,7 @@ Reset is explicit and separate from Discard. It removes a pending edit and retur
 
 The PC **preserves the explicitly selected capture display / rectangle and configured ADB executable path**. These identify the intended output and installed tools; resetting viewing preferences must not switch to another screen or remove the user's development environment. USB device choice returns to automatic selection. Reset does not uninstall drivers / SDKs, change platform authorization, start streaming or arm mouse input.
 
-Phone reset clears local view and connection preferences, selects English / USB and ends the current connection; it does not silently reconnect. Any settings update on an already connected host uses the normal validated protocol. A saved reset profile can be restored on the next explicitly established session.
+Phone reset clears local view and connection preferences, selects English / USB and ends the current connection; the current rebuilt reset page does not reconnect automatically. A later fresh app launch resumes the normal first-foreground USB detection / listener policy, and a valid hello restores the committed default profile. Any settings update on an already connected host uses the normal validated protocol. A saved reset profile can be restored on the next explicitly established session.
 
 ### Reusable geometry contract
 
@@ -109,6 +133,30 @@ v0.3.0-alpha 将可视盒子适配放在 Windows、Android 与 iOS 设置首位�
 
 中缝相接由平面预览及无畸变全屏 / FPS 的几何保证。大屏幕透视、头部运动和镜片畸变会改变投影边缘，不保证这些视图也无缝。电脑选择的手机比例只是近似，手机按实际视口和当前图像比例解析。保存负间距前请把电脑与手机都更新到 v0.3：v0.2 只接受非负值。已有非负配置和默认 0.03 仍有效。
 
+### Android 真机示例
+
+以下未修改的 v0.3.0 原始截图来自 HUAWEI Pura 70 Ultra，经 USB 接收选定 AW2726DL 区域里的原创测试卡；展示平面编辑器 / 观看界面，不代表实际盒子镜片或端到端延迟基准。截图采用英文界面，软件仍可选择英文 / 中文。
+
+![Android 真机 85% 缩放编辑器](images/android-v03-editor.png)
+
+角点控制两眼同步缩放，顶部可见保存 / 放弃。
+
+| 缩小至 50%，尚未收拢 | 向内拖到中缝相接 |
+| --- | --- |
+| ![向内适配前的 50% 双眼画面](images/android-v03-small-before.png) | ![编辑器里相接的 50% 双眼画面](images/android-v03-small-joined.png) |
+
+相接预览读数为缩放 50%、间距 −0.50、水平 0.00。保存后，下面的普通观看界面隐藏操作区并采用相同适配，两眼内边在中心相接。
+
+![保存后的普通观看界面：50% 画面，中间无黑缝](images/android-v03-viewer-joined.png)
+
+### 原生 iOS 模拟器示例
+
+以下未修改的 v0.3 原图来自最终原生模拟器界面检查，内容为原创校准卡：第一张为 50% / −0.500 相接，第二张是保存后放大的约 71.6% / −0.284 状态，两者中缝均相接。这是模拟器证据，不是 iPhone 真机、盒子或延迟基准，见 [iOS 安装与验证](IOS.md)。
+
+| 编辑器中 50% 相接 | 放大后保存的 Metal 画面 |
+| --- | --- |
+| ![原生模拟器编辑器中缝接触](images/ios-v03-editor-seam.png) | ![原生模拟器保存的放大接触画面](images/ios-v03-viewer-seam.png) |
+
 ### 手机本地配置与重连
 
 两种手机都在本地保存完整的**已提交 VR 设置**，包括模式、缩放、偏移、眼间距、视场角、距离、畸变、灵敏度与 Y 反转。离线修改也会保留，草稿不保存；重启后先恢复已保存配置。正常连接同步接受的完整设置快照也更新已提交配置。
@@ -134,7 +182,7 @@ v0.3.0-alpha 将可视盒子适配放在 Windows、Android 与 iOS 设置首位�
 
 电脑**保留明确选择的采集显示器 / 选区及配置的 ADB 程序路径**，因为它们标识用户要分享的画面与已安装工具；重置观看偏好不应偷偷切到其他屏幕或删除开发环境。USB 设备选择恢复自动。重置不会卸载驱动 / SDK、改变平台授权、开始串流或授权鼠标。
 
-手机重置清除本地观看与连接偏好，选择英文 / USB 并结束当前连接，不会悄悄重连。已经连接的主机设置更新仍用正常校验协议。保存后的默认配置可在下次明确建立会话后恢复。
+手机重置清除本地观看与连接偏好，选择英文 / USB 并结束当前连接，当前重建的重置界面不自动重连。之后全新启动应用，会恢复正常首前台 USB 检测 / 监听策略，合法 hello 后恢复已提交默认配置。已经连接的主机设置更新仍用正常校验协议。保存后的默认配置可在下次明确建立会话后恢复。
 
 ### 可复用的几何合同
 
