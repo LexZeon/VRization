@@ -11,6 +11,6 @@ $env:ANDROID_HOME = $AndroidHome
 $projectRoot = Split-Path -Parent $PSScriptRoot
 Push-Location (Join-Path $projectRoot 'android')
 try {
-    & ./gradlew.bat --no-daemon :vr-core:testDebugUnitTest :app:assembleDebug :app:lintDebug
+    & ./gradlew.bat --no-daemon :vr-core:testDebugUnitTest :app:testDebugUnitTest :vr-core:assembleRelease :app:assembleDebug :app:lintDebug
     if ($LASTEXITCODE -ne 0) { throw 'Android verification/build failed' }
 } finally { Pop-Location }

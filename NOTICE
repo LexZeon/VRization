@@ -1,3 +1,10 @@
+# VRization notices / 归属声明
+
+[English](#english) · [简体中文](#简体中文)
+
+<!-- vrization:english -->
+## English
+
 VRization
 Copyright (c) 2026 VRization contributors
 Original project code is licensed under the MIT License. See LICENSE.
@@ -23,3 +30,21 @@ licenses/python/pillow-12.3.0/ for the exact component declarations.
 
 No implementation source has been copied from another VR streaming app.
 This file is an attribution index and does not replace third-party licenses.
+
+---
+
+<!-- vrization:chinese -->
+## 简体中文
+
+VRization
+Copyright (c) 2026 VRization contributors
+
+项目原创代码以 MIT 许可授权，完整控制文本见 LICENSE。第三方库的许可证与作者归属仍属于各自版权人，详见 THIRD_PARTY_NOTICES.md 及二进制附带的完整许可。
+
+运行组件包括 aiohttp、MSS、Pillow、OkHttp、Okio、Kotlin 及传递依赖；Windows 产物可能包含 Python 与 Tcl/Tk。PyInstaller、Android / Gradle 工具链用于构建。上述项目不赞助或背书 VRization。
+
+本软件部分基于 Independent JPEG Group 的工作。部分代码版权属于 FreeType Project（1996–2026），保留所有权利。本软件包含加州大学伯克利分校开发的代码。上方英文段落保留所要求的归属原文，解释不代替该原文。
+
+Pillow 原生组件的许可、专利声明和首发本机构建清单随包附带，具体见 licenses/native/ 与 licenses/python/pillow-12.3.0/。清单不是所有 CI 重建产物的统一 SBOM。
+
+项目没有复制其他 VR 串流应用的实现源码。本文件仅作为归属索引，不能替代第三方许可证。

@@ -1,4 +1,4 @@
-name: Build & Alpha release
+name: Build & Alpha release / 构建与发布
 
 on:
   push:
@@ -11,8 +11,21 @@ permissions:
   contents: read
 
 jobs:
+  documentation:
+    name: Bilingual documentation / 双语文档
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: '3.12.10'
+      - name: Check language sections and local links / 检查双语分区与本地链接
+        run: python scripts/check_docs.py
+
   windows:
-    name: Windows host
+    name: Windows host / 电脑端
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -26,22 +39,15 @@ jobs:
         run: ./scripts/build-windows.ps1 -Python (Get-Command python).Source
       - name: Package host with notices and guide
         shell: pwsh
-        run: |
-          $packageDir = Join-Path $env:RUNNER_TEMP 'VRization-Windows-x64'
-          New-Item -ItemType Directory -Force -Path $packageDir | Out-Null
-          Copy-Item -LiteralPath 'desktop/dist/VRization-Host.exe' -Destination $packageDir
-          Copy-Item -LiteralPath 'LICENSE','NOTICE','THIRD_PARTY_NOTICES.md','README.md' -Destination $packageDir
-          Copy-Item -LiteralPath 'licenses','docs' -Destination $packageDir -Recurse
-          New-Item -ItemType Directory -Force -Path artifacts | Out-Null
-          Compress-Archive -Path (Join-Path $packageDir '*') -DestinationPath 'artifacts/VRization-Windows-x64.zip'
+        run: python scripts/package_release.py --windows-only
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: VRization-Windows
-          path: artifacts/VRization-Windows-x64.zip
+          path: artifacts/release/VRization-Windows-x64.zip
           if-no-files-found: error
 
   android:
-    name: Android APK and reusable AAR
+    name: Android APK and reusable AAR / 手机端与核心库
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -58,17 +64,16 @@ jobs:
         working-directory: android
         run: |
           chmod +x gradlew
-          ./gradlew --no-daemon :vr-core:testDebugUnitTest :vr-core:assembleDebug :app:assembleDebug :app:lintDebug
+          ./gradlew --no-daemon :vr-core:testDebugUnitTest :app:testDebugUnitTest :vr-core:assembleDebug :app:assembleDebug :app:lintDebug
       - name: Package testing APK, core and licenses
-        run: |
-          mkdir -p artifacts
-          cp android/app/build/outputs/apk/debug/app-debug.apk artifacts/VRization-Android-debug.apk
-          cp android/vr-core/build/outputs/aar/vr-core-debug.aar artifacts/VRization-vr-core-alpha.aar
-          zip -r artifacts/VRization-Licenses.zip LICENSE NOTICE THIRD_PARTY_NOTICES.md licenses
+        run: python3 scripts/package_release.py --android-only --core-variant debug
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: VRization-Android
-          path: artifacts/*
+          path: |
+            artifacts/release/VRization-Android-debug.apk
+            artifacts/release/VRization-vr-core-alpha.aar
+            artifacts/release/VRization-Licenses.zip
           if-no-files-found: error
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always()
@@ -77,12 +82,13 @@ jobs:
           path: |
             android/app/build/reports/lint-results-debug.html
             android/vr-core/build/reports/tests/testDebugUnitTest/
+            android/app/build/reports/tests/testDebugUnitTest/
           if-no-files-found: ignore
 
   release:
-    name: Publish tagged Alpha prerelease
+    name: Publish tagged Alpha prerelease / 发布 Alpha 预览版
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [windows, android]
+    needs: [documentation, windows, android]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -107,5 +113,5 @@ jobs:
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             echo 'Release already exists. Keeping its verified binaries and signing identity; new builds remain available as workflow artifacts.'
           else
-            gh release create "$RELEASE_TAG" release-assets/* --verify-tag --prerelease --title "VRization $RELEASE_TAG · Alpha" --notes-file docs/RELEASE_NOTES.md
+            gh release create "$RELEASE_TAG" release-assets/* --verify-tag --prerelease --title "VRization $RELEASE_TAG · Alpha / 预览版" --notes-file docs/RELEASE_NOTES.md
           fi

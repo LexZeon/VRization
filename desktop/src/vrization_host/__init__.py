@@ -7,4 +7,4 @@ from .server import HostServer
 
 __all__ = ["CaptureConfig", "CaptureSource", "Frame", "MssCaptureSource", "InputSink",
            "PoseController", "WindowsMouseSink", "Settings", "HostServer"]
-__version__ = "0.1.0"
+__version__ = "0.1.1"

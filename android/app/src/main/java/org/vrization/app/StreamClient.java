@@ -1,8 +1,11 @@
 package org.vrization.app;
 
 import android.graphics.Bitmap;
+import android.content.Context;
 import android.graphics.BitmapFactory;
 import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
 import java.io.IOException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -23,90 +26,109 @@ import org.vrization.core.VrSettings;
 /** Latest-only JPEG transport. At most one compressed frame waits behind the active decode. */
 final class StreamClient {
     interface Listener {
+        void onSessionStarted();
         void onStatus(String text, boolean connected);
-        void onSettings(JSONObject json);
+        void onSettings(JSONObject json, Long revision, Long clientSeq);
         /** Ownership of bitmap transfers to the listener. */
         void onFrame(Bitmap bitmap);
     }
     private static final int MAX_FRAME_BYTES = 8 * 1024 * 1024;
     private final Listener listener;
+    private final Context context;
+    private final Handler main = new Handler(Looper.getMainLooper());
+    private final SessionDispatcher sessions = new SessionDispatcher(action -> main.post(action));
     private final OkHttpClient http = new OkHttpClient.Builder()
         .connectTimeout(8, TimeUnit.SECONDS).readTimeout(0, TimeUnit.SECONDS)
         .pingInterval(10, TimeUnit.SECONDS).build();
     private final ExecutorService decoder = Executors.newSingleThreadExecutor();
     private final Object decodeLock = new Object();
-    private final AtomicLong epoch = new AtomicLong();
     private final AtomicLong poseSequence = new AtomicLong();
     private volatile WebSocket socket;
     private volatile boolean connected;
-    private volatile boolean closed;
     private byte[] pendingJpeg;
     private long pendingEpoch;
     private boolean decoding;
+    private Bitmap pendingBitmap;
+    private long bitmapEpoch;
+    private boolean bitmapDeliveryPosted;
 
-    StreamClient(Listener listener) { this.listener = listener; }
+    StreamClient(Context context, Listener listener) { this.context = context; this.listener = listener; }
     boolean isConnected() { return connected; }
 
     void connect(String host, int port, String code) {
         disconnect(false);
-        if (closed) return;
-        final long connectionEpoch = epoch.incrementAndGet();
+        if (sessions.isClosed()) return;
+        final long connectionEpoch = sessions.invalidate();
         HttpUrl url = new HttpUrl.Builder().scheme("http").host(host).port(port)
             .addPathSegment("ws").addQueryParameter("token", code).build();
-        listener.onStatus("正在连接电脑…", false);
+        listener.onStatus(context.getString(R.string.connecting), false);
         socket = http.newWebSocket(new Request.Builder().url(url).build(), new WebSocketListener() {
             @Override public void onOpen(WebSocket webSocket, Response response) {
-                if (epoch.get() != connectionEpoch || closed) { webSocket.cancel(); return; }
-                connected = true;
-                try {
-                    JSONObject hello = message("hello").put("client", "android").put("device", Build.MODEL);
-                    webSocket.send(hello.toString());
-                } catch (JSONException ignored) { }
-                listener.onStatus("已连接。将手机放入 VR 盒子；触摸“隐藏设置”开始观看。", true);
+                sessions.dispatch(connectionEpoch, () -> {
+                    connected = true;
+                    listener.onSessionStarted();
+                    try {
+                        JSONObject hello = message("hello").put("client", "android").put("device", Build.MODEL);
+                        webSocket.send(hello.toString());
+                    } catch (JSONException ignored) { }
+                    listener.onStatus(context.getString(R.string.connected), true);
+                });
             }
             @Override public void onMessage(WebSocket webSocket, String text) {
-                if (epoch.get() != connectionEpoch || closed || text.length() > 65536) return;
+                if (!sessions.isCurrent(connectionEpoch) || text.length() > 65536) return;
                 try {
                     JSONObject json = new JSONObject(text);
                     String type = json.optString("type");
                     if (json.optInt("v", 1) != 1) return;
                     if (("hello".equals(type) || "settings".equals(type)) && json.optJSONObject("settings") != null) {
-                        listener.onSettings(json.getJSONObject("settings"));
+                        JSONObject incoming = json.getJSONObject("settings");
+                        sessions.dispatch(connectionEpoch, () -> listener.onSettings(incoming,
+                            optionalSequence(json, "revision"), optionalSequence(json, "clientSeq")));
                     } else if ("error".equals(type)) {
-                        listener.onStatus("电脑提示：" + json.optString("message", "连接异常"), connected);
+                        sessions.dispatch(connectionEpoch, () -> listener.onStatus(context.getString(
+                            R.string.host_error, json.optString("message", context.getString(R.string.connection_error))), connected));
                     }
                 } catch (JSONException ignored) { }
             }
             @Override public void onMessage(WebSocket webSocket, ByteString bytes) {
-                if (epoch.get() != connectionEpoch || closed || bytes.size() > MAX_FRAME_BYTES || bytes.size() < 4) return;
+                if (!sessions.isCurrent(connectionEpoch) || bytes.size() > MAX_FRAME_BYTES || bytes.size() < 4) return;
                 queueJpeg(bytes.toByteArray(), connectionEpoch);
             }
             @Override public void onClosed(WebSocket webSocket, int code, String reason) {
-                ended(connectionEpoch, "连接已结束（" + code + "）。点击“连接电脑”重新连接。");
+                ended(connectionEpoch, context.getString(R.string.connection_ended, code));
             }
             @Override public void onClosing(WebSocket webSocket, int code, String reason) { webSocket.close(code, reason); }
             @Override public void onFailure(WebSocket webSocket, Throwable failure, Response response) {
-                String detail = "请检查 Wi-Fi、电脑 IP、配对码及防火墙";
+                String detail = context.getString(R.string.check_connection);
                 if (response != null) {
-                    if (response.code() == 401 || response.code() == 403) detail = "配对码不正确或已更新";
-                    else if (response.code() == 409) detail = "电脑已连接另一台手机；请先断开原手机";
-                    else if (response.code() == 429) detail = "尝试次数过多；请稍等片刻再重试";
+                    if (response.code() == 401 || response.code() == 403) detail = context.getString(R.string.bad_pairing);
+                    else if (response.code() == 409) detail = context.getString(R.string.headset_busy);
+                    else if (response.code() == 429) detail = context.getString(R.string.rate_limited);
                 }
-                ended(connectionEpoch, "连接失败：" + detail + "。点击“连接电脑”重试。");
+                ended(connectionEpoch, context.getString(R.string.connection_failed, detail));
             }
         });
     }
 
     private void ended(long connectionEpoch, String status) {
-        if (epoch.get() != connectionEpoch || closed) return;
-        connected = false;
-        synchronized (decodeLock) { pendingJpeg = null; }
-        listener.onStatus(status, false);
+        sessions.dispatch(connectionEpoch, () -> {
+            connected = false;
+            clearPending();
+            listener.onStatus(status, false);
+        });
+    }
+
+    private static Long optionalSequence(JSONObject json, String key) {
+        Object value = json.opt(key);
+        if (!(value instanceof Number)) return null;
+        double number = ((Number) value).doubleValue();
+        return !Double.isNaN(number) && !Double.isInfinite(number) && number >= 0
+            && number <= 9007199254740991d && number == Math.floor(number) ? (long) number : null;
     }
 
     private void queueJpeg(byte[] jpeg, long connectionEpoch) {
         synchronized (decodeLock) {
-            if (closed || epoch.get() != connectionEpoch) return;
+            if (!sessions.isCurrent(connectionEpoch)) return;
             pendingJpeg = jpeg; pendingEpoch = connectionEpoch;
             if (decoding) return;
             decoding = true;
@@ -121,9 +143,9 @@ final class StreamClient {
             long frameEpoch;
             synchronized (decodeLock) {
                 jpeg = pendingJpeg; frameEpoch = pendingEpoch; pendingJpeg = null;
-                if (jpeg == null || closed) { decoding = false; return; }
+                if (jpeg == null || sessions.isClosed()) { decoding = false; return; }
             }
-            if (epoch.get() != frameEpoch || !connected) continue;
+            if (!sessions.isCurrent(frameEpoch) || !connected) continue;
             BitmapFactory.Options options = new BitmapFactory.Options();
             options.inJustDecodeBounds = true;
             BitmapFactory.decodeByteArray(jpeg, 0, jpeg.length, options);
@@ -139,15 +161,39 @@ final class StreamClient {
             try { bitmap = BitmapFactory.decodeByteArray(jpeg, 0, jpeg.length, options); }
             catch (OutOfMemoryError ignored) { continue; }
             if (bitmap != null) {
-                if (closed || epoch.get() != frameEpoch || !connected) bitmap.recycle();
-                else listener.onFrame(bitmap);
+                publishBitmap(bitmap, frameEpoch);
             }
         }
     }
 
-    void sendSettings(VrSettings settings) {
-        try { send(message("settings").put("settings", SettingsJson.encode(settings))); }
-        catch (JSONException ignored) { }
+    private void publishBitmap(Bitmap bitmap, long frameEpoch) {
+        synchronized (decodeLock) {
+            if (!sessions.isCurrent(frameEpoch) || !connected) { bitmap.recycle(); return; }
+            if (pendingBitmap != null) pendingBitmap.recycle();
+            pendingBitmap = bitmap; bitmapEpoch = frameEpoch;
+            if (bitmapDeliveryPosted) return;
+            bitmapDeliveryPosted = true;
+            main.post(() -> {
+                Bitmap latest; long generation;
+                synchronized (decodeLock) {
+                    latest = pendingBitmap; generation = bitmapEpoch;
+                    pendingBitmap = null; bitmapDeliveryPosted = false;
+                }
+                if (latest == null) return;
+                if (!sessions.isCurrent(generation) || !connected) latest.recycle();
+                else listener.onFrame(latest);
+            });
+        }
+    }
+    private void clearPending() {
+        synchronized (decodeLock) {
+            pendingJpeg = null;
+            if (pendingBitmap != null) { pendingBitmap.recycle(); pendingBitmap = null; }
+        }
+    }
+    boolean sendSettings(VrSettings settings, long sequence) {
+        try { return send(message("settings").put("settings", SettingsJson.encode(settings)).put("clientSeq", sequence)); }
+        catch (JSONException ignored) { return false; }
     }
     void sendPose(float yaw, float pitch) {
         if (Float.isNaN(yaw) || Float.isInfinite(yaw) || Float.isNaN(pitch) || Float.isInfinite(pitch)) return;
@@ -160,20 +206,20 @@ final class StreamClient {
         try { json.put("v", 1).put("type", type); } catch (JSONException ignored) { }
         return json;
     }
-    private void send(JSONObject json) {
+    private boolean send(JSONObject json) {
         WebSocket current = socket;
         // Drop control messages if a stalled connection already queued >64 KiB.
-        if (connected && current != null && current.queueSize() < 65536) current.send(json.toString());
+        return connected && current != null && current.queueSize() < 65536 && current.send(json.toString());
     }
     void disconnect(boolean report) {
-        epoch.incrementAndGet(); connected = false;
+        sessions.invalidate(); connected = false;
         WebSocket current = socket; socket = null;
         if (current != null) { current.close(1000, "Client disconnect"); current.cancel(); }
-        synchronized (decodeLock) { pendingJpeg = null; }
-        if (report && !closed) listener.onStatus("已断开连接。", false);
+        clearPending();
+        if (report && !sessions.isClosed()) listener.onStatus(context.getString(R.string.disconnected), false);
     }
     void shutdown() {
-        closed = true; disconnect(false); decoder.shutdownNow();
+        sessions.close(); disconnect(false); decoder.shutdownNow();
         http.dispatcher().executorService().shutdown(); http.connectionPool().evictAll();
         try { if (http.cache() != null) http.cache().close(); } catch (IOException ignored) { }
     }

@@ -22,6 +22,7 @@ class HostServer:
         self.capture_source = capture_source if capture_source is not None else MssCaptureSource()
         sink = input_sink if input_sink is not None else WindowsMouseSink()
         self.settings = settings or Settings()
+        self._settings_revision = 0
         self.capture_config = capture_config or CaptureConfig()
         self.on_event = on_event
         self.host, self.port = host, port
@@ -39,6 +40,7 @@ class HostServer:
         self._worker = None
         self._watchdog = None
         self._buffer = None
+        self._broadcast_lock = None
         self._limiter = TokenLimiter()
         self.running = False
 
@@ -60,22 +62,36 @@ class HostServer:
         with self.lock:
             self.capture_config = config
 
-    def update_settings(self, patch: dict):
+    def get_settings_snapshot(self) -> tuple[Settings, int]:
+        with self.lock:
+            return self.settings, self._settings_revision
+
+    def update_settings(self, patch: dict, *, client_seq: int | None = None, response_socket=None):
+        owner = self._ws if response_socket is None else response_socket
         with self.lock:
             self.settings = self.settings.update(patch)
             self.controller.set_settings(self.settings)
+            self._settings_revision += 1
             result = self.settings
-        self._emit("settings", settings=result.to_dict())
-        if self._loop and self._loop.is_running():
-            asyncio.run_coroutine_threadsafe(self._broadcast_settings(), self._loop)
+            revision = self._settings_revision
+        self._emit("settings", settings=result.to_dict(), revision=revision)
+        if owner is not None and self._loop and self._loop.is_running():
+            asyncio.run_coroutine_threadsafe(self._broadcast_settings(owner, client_seq), self._loop)
         return result
 
-    async def _broadcast_settings(self):
-        ws = self._ws
-        if ws and not ws.closed:
+    async def _broadcast_settings(self, owner, client_seq: int | None = None):
+        # Read the latest snapshot only after acquiring the send lock. Older
+        # scheduled broadcasts can never overwrite a newer state on the phone.
+        async with self._broadcast_lock:
+            ws = self._ws
+            if ws is not owner or ws.closed:
+                return  # A queued acknowledgement belongs to its original session.
+            settings, revision = self.get_settings_snapshot()
+            message = {"v": 1, "type": "settings", "settings": settings.to_dict(), "revision": revision}
+            if client_seq is not None:
+                message["clientSeq"] = client_seq
             with suppress(ConnectionError, RuntimeError, asyncio.TimeoutError):
-                await asyncio.wait_for(ws.send_json({"v": 1, "type": "settings",
-                                                     "settings": self.settings.to_dict()}), 2)
+                await asyncio.wait_for(ws.send_json(message), 2)
 
     def arm(self) -> tuple[bool, str]:
         return self.controller.arm()
@@ -96,12 +112,13 @@ class HostServer:
         return app
 
     async def _health(self, request):
-        return web.json_response({"name": "VRization", "version": "0.1.0", "protocol": 1,
+        return web.json_response({"name": "VRization", "version": "0.1.1", "protocol": 1,
                                   "connected": self._ws is not None})
 
     async def _startup(self, app):
         self._loop = asyncio.get_running_loop()
         self._buffer = LatestFrameBuffer()
+        self._broadcast_lock = asyncio.Lock()
         self._worker = CaptureWorker(self.capture_source, self.get_capture_config, self._loop,
                                      self._buffer, lambda error: self._emit("error", message=error))
         self._worker.start()
@@ -145,8 +162,9 @@ class HostServer:
             await ws.prepare(request)
             self.controller.set_connected(True)
             self._emit("connection", connected=True, address=address)
+            settings, revision = self.get_settings_snapshot()
             await ws.send_json({"v": 1, "type": "hello", "name": "VRization",
-                                "version": "0.1.0", "settings": self.settings.to_dict(),
+                                "version": "0.1.1", "settings": settings.to_dict(), "revision": revision,
                                 "stream": {"codec": "jpeg", "fps": self.capture_config.fps,
                                            "maxWidth": self.capture_config.width},
                                 "mouseArmed": False})
@@ -166,11 +184,7 @@ class HostServer:
                         msg = parse_message(message.data)
                         kind = msg["type"]
                         if kind == "settings":
-                            with self.lock:
-                                self.settings = self.settings.update(msg["settings"])
-                                self.controller.set_settings(self.settings)
-                            self._emit("settings", settings=self.settings.to_dict())
-                            await self._broadcast_settings()
+                            self.update_settings(msg["settings"], client_seq=msg.get("clientSeq"), response_socket=ws)
                         elif kind == "pose":
                             self.controller.pose(msg["seq"], msg["yaw"], msg["pitch"])
                         elif kind == "recenter":

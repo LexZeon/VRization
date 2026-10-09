@@ -74,6 +74,9 @@ def parse_message(raw: str) -> dict:
                 raise ProtocolError(f"invalid {key}")
     if kind == "settings" and not isinstance(msg.get("settings"), dict):
         raise ProtocolError("expected settings object")
+    if kind == "settings" and "clientSeq" in msg:
+        if type(msg["clientSeq"]) is not int or not 0 <= msg["clientSeq"] <= 2**53 - 1:
+            raise ProtocolError("invalid settings client sequence")
     return msg
 
 

@@ -11,6 +11,7 @@ from tkinter import messagebox, ttk
 
 from .capture import CaptureConfig, MssCaptureSource
 from .input import EmergencyHotkey
+from .i18n import load_language, save_language, translate
 from .protocol import Settings
 from .server import HostServer
 from .storage import load_preferences, save_preferences
@@ -30,9 +31,10 @@ def local_ip() -> str:
             return "127.0.0.1"
 
 
-def monitor_display_name(index: int, monitor: dict) -> str:
+def monitor_display_name(index: int, monitor: dict, language: str = "en") -> str:
     """Read the monitor's EDID product descriptor; never mutate Windows settings."""
-    fallback = "所有显示器" if index == 0 else f"显示器 {index}"
+    fallback = ("所有显示器" if index == 0 else f"显示器 {index}") if language == "zh" else (
+        "All displays" if index == 0 else f"Display {index}")
     unique_id = monitor.get("unique_id", "")
     if os.name != "nt" or not isinstance(unique_id, str):
         return fallback
@@ -58,16 +60,20 @@ def monitor_display_name(index: int, monitor: dict) -> str:
 class HostWindow:
     def __init__(self, root: tk.Tk, initial_monitor: int | None = None):
         self.root = root
+        self.language = load_language()
         self.events = queue.SimpleQueue()
         self.settings, self.config = load_preferences()
+        self.settings_revision = 0
         if initial_monitor is not None:
             self.config = replace(self.config, monitor=initial_monitor, region=None)
         self.server = HostServer(settings=self.settings, capture_config=self.config,
                                  on_event=self.events.put)
-        self.root.title("VRization · 桌面 VR 串流")
+        self.root.title(self.tr("VRization · 桌面 VR 串流"))
         self.root.configure(bg=BG)
-        self.root.geometry("1060x830")
-        self.root.minsize(900, 740)
+        self.root.geometry(f"{min(1060, self.root.winfo_screenwidth() - 80)}x"
+                           f"{min(830, self.root.winfo_screenheight() - 80)}")
+        self.root.minsize(min(900, self.root.winfo_screenwidth() - 80),
+                          min(650, self.root.winfo_screenheight() - 80))
         self.root.protocol("WM_DELETE_WINDOW", self.close)
         self.ip = local_ip()
         self.syncing = False
@@ -78,11 +84,41 @@ class HostWindow:
         if initial_monitor is not None and 0 <= initial_monitor < len(self.monitors):
             monitor = self.monitors[initial_monitor]
             x, y = monitor["left"] + 100, monitor["top"] + 100
-            self.root.geometry(f"1060x980{x:+d}{y:+d}")
+            width, height = min(1060, monitor["width"] - 120), min(980, monitor["height"] - 120)
+            self.root.minsize(min(900, width), min(650, height))
+            self.root.geometry(f"{width}x{height}{x:+d}{y:+d}")
         self.hotkey = EmergencyHotkey(lambda: self.server.disarm("F8 emergency stop"),
                                       lambda error: self.events.put({"event": "hotkey_error", "message": error}))
         self.hotkey_available = self.hotkey.start()
         self.root.after(100, self._pump)
+
+    def tr(self, text, **values):
+        return translate(text, self.language, **values)
+
+    def change_language(self, event=None):
+        language = "zh" if self.language_choice.get() == "简体中文" else "en"
+        if language == self.language:
+            return
+        self.server.disarm("language changed")
+        self.language = language
+        try:
+            save_language(language)
+        except OSError as exc:
+            self._log(self.tr("语言设置未保存: {error}", error=exc))
+        selected_tab = self.notebook.index("current")
+        self.settings, self.settings_revision = self.server.get_settings_snapshot()
+        self.config = self.server.get_capture_config()
+        for widget in self.root.winfo_children():
+            widget.destroy()
+        self.root.title(self.tr("VRization · 桌面 VR 串流"))
+        self._build()
+        self.notebook.select(selected_tab)
+        if self.server.running:
+            self.code_label.configure(text=" ".join(self.server.token))
+            self.start_button.configure(state="disabled")
+            self.stop_button.configure(state="normal")
+            self.status.configure(text=self.tr("●  手机已连接  /  LIVE" if self.server.controller.connected
+                                               else "●  等待手机连接  /  WAITING"), fg=ACCENT)
 
     def _style(self):
         style = ttk.Style(self.root)
@@ -119,6 +155,12 @@ class HostWindow:
                          fg=color, font=("Microsoft YaHei UI", size), **kwargs)
         return label
 
+    def _paragraph(self, parent, text, **kwargs):
+        label = ttk.Label(parent, text=text, wraplength=600, justify="left", **kwargs)
+        parent.bind("<Configure>", lambda event: label.configure(
+            wraplength=max(160, event.width - 40)), add="+")
+        return label
+
     def _build(self):
         outer = tk.Frame(self.root, bg=BG)
         outer.pack(fill="both", expand=True, padx=24, pady=20)
@@ -127,42 +169,52 @@ class HostWindow:
         brand = tk.Frame(header, bg=BG)
         brand.pack(side="left")
         self._label(brand, "VRization", 27, ACCENT).pack(anchor="w")
-        self._label(brand, "把桌面带入你的视野  /  DESKTOP → POCKET VR", 10, MUTED).pack(anchor="w")
-        ttk.Button(header, text="F8  紧急停止控制", style="Danger.TButton",
+        self._label(brand, self.tr("把桌面带入你的视野  /  DESKTOP → POCKET VR"), 10, MUTED).pack(anchor="w")
+        ttk.Button(header, text=self.tr("F8  紧急停止控制"), style="Danger.TButton",
                    command=lambda: self.server.disarm("desktop emergency stop")).pack(side="right", pady=8)
+        self.language_choice = ttk.Combobox(header, values=("English", "简体中文"),
+                                           state="readonly", width=11)
+        self.language_choice.set("简体中文" if self.language == "zh" else "English")
+        self.language_choice.pack(side="right", padx=(8, 12))
+        self.language_choice.bind("<<ComboboxSelected>>", self.change_language)
 
         hero = tk.Frame(outer, bg=CARD, padx=20, pady=16)
         hero.pack(fill="x", pady=(0, 14))
         left = tk.Frame(hero, bg=CARD)
         left.pack(side="left", fill="x", expand=True)
-        self._label(left, "01   连接手机", 11, MUTED).pack(anchor="w")
+        self._label(left, self.tr("01   连接手机"), 11, MUTED).pack(anchor="w")
         self.code_label = self._label(left, "— — — — — —", 32, ACCENT)
         self.code_label.pack(anchor="w", pady=(4, 0))
-        self.address_label = self._label(left, f"电脑地址  {self.ip} : 8765", 11)
+        self.address_label = self._label(left, self.tr("电脑地址  {ip} : 8765", ip=self.ip), 11)
         self.address_label.pack(anchor="w")
-        self._label(left, "手机与电脑连接同一个可信 Wi-Fi，输入地址和六位配对码。", 9, MUTED).pack(anchor="w", pady=(5, 0))
+        hint = self._label(left, self.tr("手机与电脑连接同一个可信 Wi-Fi，输入地址和六位配对码。"),
+                           9, MUTED, justify="left", anchor="w", wraplength=550)
+        hint.pack(fill="x", pady=(5, 0))
+        left.bind("<Configure>", lambda event: hint.configure(wraplength=max(160, event.width)))
         actions = tk.Frame(hero, bg=CARD)
         actions.pack(side="right", padx=(15, 0))
-        self.start_button = ttk.Button(actions, text="开始串流  /  START", style="Primary.TButton", command=self.start)
+        left.pack_forget()
+        left.pack(side="left", fill="x", expand=True)
+        self.start_button = ttk.Button(actions, text=self.tr("开始串流  /  START"), style="Primary.TButton", command=self.start)
         self.start_button.pack(fill="x", pady=(0, 8))
         row = tk.Frame(actions, bg=CARD)
         row.pack(fill="x")
-        self.stop_button = ttk.Button(row, text="停止", command=self.stop, state="disabled")
+        self.stop_button = ttk.Button(row, text=self.tr("停止"), command=self.stop, state="disabled")
         self.stop_button.pack(side="left", fill="x", expand=True, padx=(0, 6))
-        ttk.Button(row, text="复制连接", command=self.copy_link).pack(side="left", fill="x", expand=True)
+        ttk.Button(row, text=self.tr("复制连接"), command=self.copy_link).pack(side="left", fill="x", expand=True)
 
         modes = ttk.Frame(outer, padding=(16, 10))
         modes.pack(fill="x", pady=(0, 12))
-        ttk.Label(modes, text="02   选择模式", style="Muted.TLabel").pack(side="left", padx=(0, 15))
+        ttk.Label(modes, text=self.tr("02   选择模式"), style="Muted.TLabel").pack(side="left", padx=(0, 15))
         self.mode = tk.StringVar(value=self.settings.mode)
-        for text, value in [("全屏  Full", "full"), ("大屏幕  Cinema", "cinema"), ("FPS 游戏", "fps")]:
+        for text, value in [(self.tr("全屏  Full"), "full"), (self.tr("大屏幕  Cinema"), "cinema"), (self.tr("FPS 游戏"), "fps")]:
             ttk.Radiobutton(modes, text=text, variable=self.mode, value=value,
                             command=lambda: self.change_setting("mode", self.mode.get())).pack(side="left", padx=8)
 
         self.notebook = ttk.Notebook(outer, height=330)
-        capture = self._scroll_tab("串流设置  /  STREAM")
-        view = self._scroll_tab("VR 画面  /  VIEW")
-        game = self._scroll_tab("游戏控制  /  INPUT")
+        capture = self._scroll_tab(self.tr("串流设置  /  STREAM"))
+        view = self._scroll_tab(self.tr("VR 画面  /  VIEW"))
+        game = self._scroll_tab(self.tr("游戏控制  /  INPUT"))
         self._capture_tab(capture)
         self.setting_vars = {}
         self._view_tab(view)
@@ -172,15 +224,15 @@ class HostWindow:
         footer.pack(side="bottom", fill="x")
         bottom = tk.Frame(footer, bg=BG)
         bottom.pack(fill="x", pady=(12, 0))
-        self.status = self._label(bottom, "●  尚未启动  /  READY", 10, MUTED)
+        self.status = self._label(bottom, self.tr("●  尚未启动  /  READY"), 10, MUTED)
         self.status.pack(side="left")
-        self.stats = self._label(bottom, "JPEG · 局域网 · v0.1.0", 9, MUTED)
+        self.stats = self._label(bottom, self.tr("JPEG · 局域网 · v0.1.1"), 9, MUTED)
         self.stats.pack(side="right")
         self.log = tk.Text(footer, height=3, bg=BG, fg=MUTED, bd=0, highlightthickness=0,
                            font=("Microsoft YaHei UI", 9), state="disabled", wrap="word")
         self.log.pack(fill="x", pady=(6, 0))
         self.notebook.pack(fill="both", expand=True)
-        self._log("就绪。全屏不跟随转头；大屏幕在虚拟空间中显示；FPS 可在桌面授权后控制鼠标。")
+        self._log(self.tr("就绪。全屏不跟随转头；大屏幕在虚拟空间中显示；FPS 可在桌面授权后控制鼠标。"))
 
     def _scroll_tab(self, title):
         wrapper = ttk.Frame(self.notebook)
@@ -204,9 +256,9 @@ class HostWindow:
         except Exception:
             self.monitors = [{"left": 0, "top": 0, "width": self.root.winfo_screenwidth(),
                               "height": self.root.winfo_screenheight()}]
-        names = [f"{i} · {monitor_display_name(i, m)}  {m['width']} × {m['height']}"
+        names = [f"{i} · {monitor_display_name(i, m, self.language)}  {m['width']} × {m['height']}"
                  for i, m in enumerate(self.monitors)]
-        ttk.Label(tab, text="捕获显示器").grid(row=0, column=0, sticky="w", padx=(0, 24), pady=6)
+        ttk.Label(tab, text=self.tr("捕获显示器")).grid(row=0, column=0, sticky="w", padx=(0, 24), pady=6)
         self.monitor = ttk.Combobox(tab, values=names, state="readonly")
         self.monitor.current(min(self.config.monitor, len(names) - 1))
         self.monitor.grid(row=0, column=1, sticky="ew", pady=6)
@@ -215,9 +267,9 @@ class HostWindow:
         quality.grid(row=1, column=0, columnspan=2, sticky="ew", pady=14)
         self.capture_vars = {}
         for label, key, values, current in [
-                ("最长输出边", "width", (640, 960, 1280, 1600, 1920, 2560, 3840), self.config.width),
-                ("目标帧率", "fps", (15, 24, 30, 45, 60), self.config.fps),
-                ("JPEG 质量", "quality", (45, 60, 75, 85, 95), self.config.quality)]:
+                (self.tr("最长输出边"), "width", (640, 960, 1280, 1600, 1920, 2560, 3840), self.config.width),
+                (self.tr("目标帧率"), "fps", (15, 24, 30, 45, 60), self.config.fps),
+                (self.tr("JPEG 质量"), "quality", (45, 60, 75, 85, 95), self.config.quality)]:
             group = ttk.Frame(quality)
             group.pack(side="left", fill="x", expand=True, padx=(0, 18))
             ttk.Label(group, text=label, style="Muted.TLabel").pack(anchor="w", pady=(0, 5))
@@ -226,25 +278,25 @@ class HostWindow:
             box = ttk.Combobox(group, textvariable=variable, values=values, width=12, state="readonly")
             box.pack(fill="x")
             box.bind("<<ComboboxSelected>>", lambda event: self.apply_capture())
-        region = ttk.LabelFrame(tab, text=" 选区捕获 · 物理像素坐标 ", padding=12)
+        region = ttk.LabelFrame(tab, text=self.tr(" 选区捕获 · 物理像素坐标 "), padding=12)
         region.grid(row=2, column=0, columnspan=2, sticky="ew", pady=6)
         self.use_region = tk.BooleanVar(value=self.config.region is not None)
-        ttk.Checkbutton(region, text="启用选区", variable=self.use_region,
+        ttk.Checkbutton(region, text=self.tr("启用选区"), variable=self.use_region,
                         command=self.apply_capture).pack(anchor="w")
         values = self.config.region or (0, 0, 1280, 720)
         self.region_vars = []
         row = ttk.Frame(region)
         row.pack(fill="x", pady=(8, 0))
-        for label, current in zip(("左 X", "上 Y", "宽", "高"), values):
+        for label, current in zip((self.tr("左 X"), self.tr("上 Y"), self.tr("宽"), self.tr("高")), values):
             ttk.Label(row, text=label, style="Muted.TLabel").pack(side="left", padx=(0, 4))
             variable = tk.StringVar(value=str(current))
             self.region_vars.append(variable)
             ttk.Entry(row, textvariable=variable, width=7).pack(side="left", padx=(0, 10))
-        ttk.Button(row, text="应用", command=self.apply_capture).pack(side="right")
-        ttk.Button(region, text="拖动框选屏幕区域", command=self.select_region).pack(anchor="w", pady=(10, 0))
-        ttk.Label(tab, text="建议先使用 1280 / 30 FPS / 75 质量。降低宽度和质量可减少网络延迟。\n"
-                           "若游戏呈现黑屏，请切换为无边框窗口模式。声音暂不串流。",
-                  style="Muted.TLabel", justify="left").grid(row=3, column=0, columnspan=2, sticky="w", pady=15)
+        ttk.Button(row, text=self.tr("应用"), command=self.apply_capture).pack(side="right")
+        ttk.Button(region, text=self.tr("拖动框选屏幕区域"), command=self.select_region).pack(anchor="w", pady=(10, 0))
+        self._paragraph(tab, text=self.tr("建议先使用 1280 / 30 FPS / 75 质量。降低宽度和质量可减少网络延迟。\n"
+                           "若游戏呈现黑屏，请切换为无边框窗口模式。声音暂不串流。"),
+                  style="Muted.TLabel").grid(row=3, column=0, columnspan=2, sticky="w", pady=15)
 
     def _slider(self, parent, key, label, low, high, row):
         ttk.Label(parent, text=label).grid(row=row, column=0, sticky="w", padx=(0, 14), pady=9)
@@ -265,53 +317,53 @@ class HostWindow:
     def _view_tab(self, tab):
         tab.columnconfigure(1, weight=1)
         for row, args in enumerate([
-                ("scale", "手机盒子适配 · 画面缩放", .5, 1),
-                ("offsetX", "画面水平位置", -.3, .3), ("offsetY", "画面垂直位置", -.3, .3),
-                ("eyeSeparation", "双眼画面间距", 0, .2), ("fov", "视野角度", 50, 110),
-                ("distance", "大屏幕距离", 1, 8), ("distortion", "镜片畸变补偿", 0, .5)]):
+                ("scale", self.tr("手机盒子适配 · 画面缩放"), .5, 1),
+                ("offsetX", self.tr("画面水平位置"), -.3, .3), ("offsetY", self.tr("画面垂直位置"), -.3, .3),
+                ("eyeSeparation", self.tr("双眼画面间距"), 0, .2), ("fov", self.tr("视野角度"), 50, 110),
+                ("distance", self.tr("大屏幕距离"), 1, 8), ("distortion", self.tr("镜片畸变补偿"), 0, .5)]):
             self._slider(tab, *args, row)
         buttons = ttk.Frame(tab)
         buttons.grid(row=7, column=0, columnspan=3, sticky="ew", pady=(12, 0))
-        ttk.Button(buttons, text="恢复画面默认", command=self.reset_view).pack(side="left")
-        ttk.Label(buttons, text="设置会同步到已连接的手机，并自动保存。",
+        ttk.Button(buttons, text=self.tr("恢复画面默认"), command=self.reset_view).pack(side="left")
+        ttk.Label(buttons, text=self.tr("设置会同步到已连接的手机，并自动保存。"),
                   style="Muted.TLabel").pack(side="right")
 
     def _game_tab(self, tab):
         tab.columnconfigure(1, weight=1)
-        ttk.Label(tab, text="手机转头 → 游戏视角", font=("Microsoft YaHei UI", 17, "bold")).grid(
+        ttk.Label(tab, text=self.tr("手机转头 → 游戏视角"), font=("Microsoft YaHei UI", 17, "bold")).grid(
             row=0, column=0, columnspan=3, sticky="w", pady=(0, 10))
-        ttk.Label(tab, text="1  在手机选择 FPS 模式，保持手机传感器运行。\n"
+        self._paragraph(tab, text=self.tr("1  在手机选择 FPS 模式，保持手机传感器运行。\n"
                            "2  在下方勾选允许控制，然后在 5 秒内切换到游戏窗口。\n"
-                           "3  按 F8 随时停止。切换窗口、断线或传感器超时也会自动停止。",
-                  justify="left", style="Muted.TLabel").grid(row=1, column=0, columnspan=3, sticky="w", pady=10)
-        self._slider(tab, "sensitivity", "转头灵敏度 · 像素 / 弧度", 100, 3000, 2)
+                           "3  按 F8 随时停止。切换窗口、断线或传感器超时也会自动停止。"),
+                  style="Muted.TLabel").grid(row=1, column=0, columnspan=3, sticky="w", pady=10)
+        self._slider(tab, "sensitivity", self.tr("转头灵敏度 · 像素 / 弧度"), 100, 3000, 2)
         self.invert = tk.BooleanVar(value=self.settings.invertY)
-        ttk.Checkbutton(tab, text="反转垂直方向", variable=self.invert,
+        ttk.Checkbutton(tab, text=self.tr("反转垂直方向"), variable=self.invert,
                         command=lambda: self.change_setting("invertY", self.invert.get())).grid(
             row=3, column=0, columnspan=3, sticky="w", pady=7)
         self.arm_var = tk.BooleanVar(value=False)
-        self.arm_check = ttk.Checkbutton(tab, text="允许手机陀螺仪控制当前游戏鼠标", variable=self.arm_var,
+        self.arm_check = ttk.Checkbutton(tab, text=self.tr("允许手机陀螺仪控制当前游戏鼠标"), variable=self.arm_var,
                                         command=self.toggle_arm)
         self.arm_check.grid(row=4, column=0, columnspan=3, sticky="w", pady=15)
-        self.arm_status = ttk.Label(tab, text="控制已停止 / DISARMED", foreground=ACCENT)
+        self.arm_status = ttk.Label(tab, text=self.tr("控制已停止 / DISARMED"), foreground=ACCENT)
         self.arm_status.grid(row=5, column=0, columnspan=3, sticky="w", pady=(0, 12))
-        ttk.Button(tab, text="重新居中 / RECENTER", command=self.server.recenter).grid(row=6, column=0, sticky="w")
-        ttk.Label(tab, text="仅在可信局域网使用。部分使用原始输入、管理员权限或反作弊保护的游戏\n"
-                           "可能忽略系统鼠标输入。此软件不绕过游戏保护。",
-                  justify="left", style="Muted.TLabel").grid(row=7, column=0, columnspan=3, sticky="w", pady=18)
+        ttk.Button(tab, text=self.tr("重新居中 / RECENTER"), command=self.server.recenter).grid(row=6, column=0, sticky="w")
+        self._paragraph(tab, text=self.tr("仅在可信局域网使用。部分使用原始输入、管理员权限或反作弊保护的游戏\n"
+                           "可能忽略系统鼠标输入。此软件不绕过游戏保护。"),
+                  style="Muted.TLabel").grid(row=7, column=0, columnspan=3, sticky="w", pady=18)
 
     def change_setting(self, key, value):
         try:
-            self.settings = self.server.update_settings({key: value})
-            self._save_later()
+            # Apply the ordered server event below; a concurrent phone update can
+            # already be newer than this call's returned settings snapshot.
+            self.server.update_settings({key: value})
         except ValueError as exc:
             self._log(str(exc))
 
     def reset_view(self):
         defaults = Settings().to_dict()
-        self.settings = self.server.update_settings({key: defaults[key] for key in
+        self.server.update_settings({key: defaults[key] for key in
             ("scale", "offsetX", "offsetY", "eyeSeparation", "fov", "distance", "distortion")})
-        self._save_later()
 
     def apply_capture(self):
         try:
@@ -324,13 +376,13 @@ class HostWindow:
                 if (x < desktop["left"] or y < desktop["top"]
                         or x + width > desktop["left"] + desktop["width"]
                         or y + height > desktop["top"] + desktop["height"]):
-                    raise ValueError("选区超出桌面范围 / Region is outside the desktop")
+                    raise ValueError(self.tr("选区超出桌面范围 / Region is outside the desktop"))
             self.config = config
             self.server.set_capture_config(config)
             self._save_later()
             return True
         except ValueError as exc:
-            messagebox.showerror("检查串流设置", str(exc), parent=self.root)
+            messagebox.showerror(self.tr("检查串流设置"), str(exc), parent=self.root)
             return False
 
     def select_region(self):
@@ -354,7 +406,7 @@ class HostWindow:
                                 desktop["width"], desktop["height"], 0x0010)
         canvas = tk.Canvas(overlay, bg="#081322", highlightthickness=0, cursor="crosshair")
         canvas.pack(fill="both", expand=True)
-        canvas.create_text(30, 30, anchor="nw", text="拖动选择区域 · Esc 取消", fill="white",
+        canvas.create_text(30, 30, anchor="nw", text=self.tr("拖动选择区域 · Esc 取消"), fill="white",
                            font=("Microsoft YaHei UI", 20))
         start = []
         rect = [None]
@@ -398,35 +450,35 @@ class HostWindow:
             self.code_label.configure(text=" ".join(self.server.token))
             self.start_button.configure(state="disabled")
             self.stop_button.configure(state="normal")
-            self.status.configure(text="●  等待手机连接  /  WAITING", fg=ACCENT)
-            self._log("串流服务已启动。如 Windows 询问防火墙，请只允许专用网络。")
+            self.status.configure(text=self.tr("●  等待手机连接  /  WAITING"), fg=ACCENT)
+            self._log(self.tr("串流服务已启动。如 Windows 询问防火墙，请只允许专用网络。"))
         except (RuntimeError, OSError, TimeoutError) as exc:
-            messagebox.showerror("无法启动", str(exc), parent=self.root)
+            messagebox.showerror(self.tr("无法启动"), str(exc), parent=self.root)
 
     def stop(self):
         self.server.stop()
         self.code_label.configure(text="— — — — — —")
         self.start_button.configure(state="normal")
         self.stop_button.configure(state="disabled")
-        self.status.configure(text="●  已停止  /  STOPPED", fg=MUTED)
+        self.status.configure(text=self.tr("●  已停止  /  STOPPED"), fg=MUTED)
 
     def copy_link(self):
         if not self.server.running:
-            self._log("请先开始串流，再复制连接地址。")
+            self._log(self.tr("请先开始串流，再复制连接地址。"))
             return
         self.root.clipboard_clear()
         self.root.clipboard_append(f"ws://{self.ip}:8765/ws?token={self.server.token}")
-        self._log("连接地址已复制，请只分享给自己的手机。")
+        self._log(self.tr("连接地址已复制，请只分享给自己的手机。"))
 
     def toggle_arm(self):
         if self.arm_var.get():
             if not self.hotkey_available:
                 self.arm_var.set(False)
-                self._log("F8 热键不可用，暂不能启用游戏控制。")
+                self._log(self.tr("F8 热键不可用，暂不能启用游戏控制。"))
                 return
             success, reason = self.server.arm()
             self.arm_var.set(success)
-            self.arm_status.configure(text=reason)
+            self.arm_status.configure(text=self.tr(reason))
             self._log(reason)
         else:
             self.server.disarm("desktop control disabled")
@@ -439,17 +491,34 @@ class HostWindow:
     def _save(self):
         self.save_job = None
         try:
-            save_preferences(self.settings, self.config)
+            current_settings, _ = self.server.get_settings_snapshot()
+            save_preferences(current_settings, self.config)
         except OSError as exc:
-            self._log(f"设置未保存: {exc}")
+            self._log(self.tr("设置未保存: {error}", error=exc))
 
     def _log(self, message):
+        message = self.tr(message)
         self.log.configure(state="normal")
         self.log.insert("end", message + "\n")
         if int(self.log.index("end-1c").split(".")[0]) > 200:
             self.log.delete("1.0", "2.0")
         self.log.see("end")
         self.log.configure(state="disabled")
+
+    def _apply_settings_event(self, event):
+        revision = event["revision"]
+        if revision <= self.settings_revision:
+            return False
+        self.settings_revision = revision
+        self.settings = Settings().update(event["settings"])
+        self.syncing = True
+        self.mode.set(self.settings.mode)
+        self.invert.set(self.settings.invertY)
+        for key, variable in self.setting_vars.items():
+            variable.set(getattr(self.settings, key))
+        self.syncing = False
+        self._save_later()
+        return True
 
     def _pump(self):
         for _ in range(100):
@@ -459,20 +528,13 @@ class HostWindow:
                 break
             kind = event["event"]
             if kind == "settings":
-                self.settings = Settings().update(event["settings"])
-                self.syncing = True
-                self.mode.set(self.settings.mode)
-                self.invert.set(self.settings.invertY)
-                for key, variable in self.setting_vars.items():
-                    variable.set(getattr(self.settings, key))
-                self.syncing = False
-                self._save_later()
+                self._apply_settings_event(event)
             elif kind == "connection":
-                self.status.configure(text="●  手机已连接  /  LIVE" if event["connected"] else "●  等待手机连接  /  WAITING", fg=ACCENT)
-                self._log("手机已连接。" if event["connected"] else "手机已断开，控制已停止。")
+                self.status.configure(text=self.tr("●  手机已连接  /  LIVE") if event["connected"] else self.tr("●  等待手机连接  /  WAITING"), fg=ACCENT)
+                self._log(self.tr("手机已连接。") if event["connected"] else self.tr("手机已断开，控制已停止。"))
             elif kind == "input":
                 self.arm_var.set(event["armed"])
-                self.arm_status.configure(text="控制已启用 / ARMED" if event["armed"] else "控制已停止 / DISARMED")
+                self.arm_status.configure(text=self.tr("控制已启用 / ARMED") if event["armed"] else self.tr("控制已停止 / DISARMED"))
                 self._log(event["reason"])
             elif kind == "stats":
                 self.stats.configure(text=f"{event['width']} × {event['height']}  ·  {event['fps']:.0f} FPS  ·  {event['mbps']:.1f} Mbps")
@@ -486,7 +548,7 @@ class HostWindow:
             elif kind == "server" and not event["running"]:
                 self.start_button.configure(state="normal")
                 self.stop_button.configure(state="disabled")
-                self.status.configure(text="●  已停止  /  STOPPED", fg=MUTED)
+                self.status.configure(text=self.tr("●  已停止  /  STOPPED"), fg=MUTED)
         self.root.after(100, self._pump)
 
     def close(self):

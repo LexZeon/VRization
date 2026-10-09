@@ -1,8 +1,99 @@
-# 🛠️ 开发与构建
+# 🛠️ Development and builds / 开发与构建
+
+[English](#english) · [简体中文](#简体中文)
+
+<!-- vrization:english -->
+## English
+
+Commands start at the repository root. The host targets Windows 10 / 11 x64; Android can be built on Windows, Linux or macOS.
+
+### Environment
+
+| Component | Configuration |
+| --- | --- |
+| Python | 3.12+; first local release 3.12.14, Windows CI 3.12.10 |
+| Java | JDK 17 |
+| Gradle | Wrapper 8.9 |
+| Android Gradle Plugin | 8.7.3 |
+| Android SDK | Platform 35; minimum runtime API 23 / Android 6.0 |
+
+Install [Python](https://www.python.org/downloads/), [JDK 17](https://adoptium.net/temurin/releases/?version=17) and [Android Studio](https://developer.android.com/studio). Install platform 35 in SDK Manager. Set `ANDROID_HOME`, or put `sdk.dir` in the untracked `android/local.properties`. Google Play services, the NDK and a physical device are not required to build.
+
+CI uses CPython 3.12.10 available on GitHub Actions; the first locally verified release used 3.12.14. `licenses/native/runtime-audit.json` records that first local binary, not every CI build. Recheck the actual native runtime when publishing a rebuild.
+
+### Windows host
+
+In PowerShell at the repository root:
+
+```powershell
+py -3.12 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install --upgrade pip
+.\.venv\Scripts\python.exe -m pip install -r desktop/requirements-lock.txt
+.\.venv\Scripts\python.exe -m pip install --no-deps -e ./desktop
+.\.venv\Scripts\python.exe -m vrization_host
+```
+
+Run core checks and build the executable:
+
+```powershell
+.\.venv\Scripts\python.exe -m unittest discover -s desktop/tests -v
+.\scripts\build-windows.ps1 -Python (Resolve-Path .\.venv\Scripts\python.exe).Path
+```
+
+The script installs the specified build tools, runs checks and produces `desktop/dist/VRization-Host.exe`. Use an absolute custom Python path because the script changes directories. PyInstaller builds on the target OS. The single-file EXE contains Python and application dependencies; distribute it with `LICENSE`, `NOTICE`, `THIRD_PARTY_NOTICES.md` and `licenses/`.
+
+The EXE excludes `VCRUNTIME140*.dll`. Microsoft Visual C++ v14 x64 runtime is installed separately. For missing DLL / error 126, use [Microsoft's guide](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist/) and the [current x64 installer](https://aka.ms/vc14/vc_redist.x64.exe). The runtime must be at least as recent as the build toolchain requires; the first local Python build used MSVC 14.44.
+
+### Android APK
+
+From the repository root on Windows:
+
+```powershell
+Set-Location android
+.\gradlew.bat :vr-core:testDebugUnitTest :app:testDebugUnitTest :vr-core:assembleDebug :app:assembleDebug :app:lintDebug
+```
+
+On Linux / macOS:
+
+```sh
+cd android
+./gradlew :vr-core:testDebugUnitTest :app:testDebugUnitTest :vr-core:assembleDebug :app:assembleDebug :app:lintDebug
+```
+
+Output: `android/app/build/outputs/apk/debug/app-debug.apk`. With USB debugging enabled and while still in `android/`:
+
+```sh
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+```
+
+This is a test-signed APK. Debug keys differ across build machines, so an update can require uninstalling the previous app and clearing its settings. Store distributors must create and protect their own release key; never commit private signing keys.
+
+### Documentation, CI and releases
+
+Run `python scripts/check_docs.py`. After building both release binaries and `:vr-core:assembleRelease`, run `python scripts/package_release.py` to create `artifacts/release/`; the packager verifies included Markdown file links. CI uses the same packager with a platform selection. Every public project-owned page contains complete English first and complete Chinese below. The check verifies markers, order, nonempty sections and relative file links; it cannot judge translation accuracy. Original third-party license texts remain verbatim.
+
+Actions builds the host on Windows and Android on Linux, then retains downloadable artifacts. A `v*` tag triggers an alpha prerelease with SHA-256 checksums. If that release already exists, CI preserves its binaries and signing identity and leaves new outputs in Actions. Passing CI establishes successful checks and builds, not physical-headset or game compatibility.
+
+Runtime Python packages are pinned in [requirements-lock.txt](../desktop/requirements-lock.txt); direct Android versions and the Gradle wrapper are specified. This is not a promise of byte-identical reproducibility: runner images, JDK patch versions, Python build isolation (`setuptools>=75`) and some build-tool transitive dependencies can change. Record resolved tools and native inventories when publishing.
+
+Update [third-party notices](../THIRD_PARTY_NOTICES.md) and bundled texts after dependency changes. To inspect Android resolution from `android/`:
+
+```sh
+./gradlew :app:dependencies --configuration debugRuntimeClasspath
+```
+
+### Physical-device validation
+
+Before a release, check connection, all modes, layout, recentering, PC arming / F8, input stopping on disconnect, and no-sensor fallback. Check optics, heat, delay and sensor directions on an actual phone and viewer. Do not describe emulator screenshots or synthetic frames as hardware validation.
+
+---
+
+<!-- vrization:chinese -->
+## 简体中文
 
 本文以仓库根目录为起点。电脑端目标是 Windows 10 / 11 x64；Android 构建可在 Windows、Linux 或 macOS 上进行。
 
-## 环境
+### 环境
 
 | 组件 | 本项目配置 |
 | --- | --- |
@@ -16,7 +107,7 @@
 
 Windows CI 固定使用 GitHub Actions 可提供的 CPython 3.12.10；首发本机构建使用 3.12.14。它们不能视作同一份原生运行时清单。本仓库 `licenses/native/runtime-audit.json` 描述首发本机构建，重建发布时需重新核对实际原生组件。
 
-## Windows 电脑端
+### Windows 电脑端
 
 PowerShell，在仓库根目录执行：
 
@@ -44,20 +135,20 @@ py -3.12 -m venv .venv
 
 程序不附带 `VCRUNTIME140*.dll`，Microsoft Visual C++ v14 x64 运行库作为系统前提由微软安装器提供。遇到启动缺少 DLL 或错误 126 时，按 [微软说明](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist/) 使用 [当前 x64 安装器](https://aka.ms/vc14/vc_redist.x64.exe)。运行库版本应不早于构建工具所需版本；首发本机 Python 使用 MSVC 14.44。
 
-## Android APK
+### Android APK
 
 在仓库根目录执行：
 
 ```powershell
 Set-Location android
-.\gradlew.bat :vr-core:testDebugUnitTest :vr-core:assembleDebug :app:assembleDebug :app:lintDebug
+.\gradlew.bat :vr-core:testDebugUnitTest :app:testDebugUnitTest :vr-core:assembleDebug :app:assembleDebug :app:lintDebug
 ```
 
 Linux / macOS 使用：
 
 ```sh
 cd android
-./gradlew :vr-core:testDebugUnitTest :vr-core:assembleDebug :app:assembleDebug :app:lintDebug
+./gradlew :vr-core:testDebugUnitTest :app:testDebugUnitTest :vr-core:assembleDebug :app:assembleDebug :app:lintDebug
 ```
 
 输出位于 `android/app/build/outputs/apk/debug/app-debug.apk`。连接开启 USB 调试的手机后，可安装：
@@ -68,16 +159,18 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 这是测试签名 APK。不同构建机器的 debug key 可能不同，覆盖安装可能失败；可先卸载旧版，代价是删除保存的设置。正式商店分发应由发布者创建并安全保存自己的签名密钥，密钥不要提交到 GitHub。
 
-## CI 与发布
+### CI 与发布
 
 GitHub Actions 分别在 Windows 构建电脑端、在 Linux 构建 APK，保留产物供下载。`v*` 标签触发 Alpha 预发布流程，附带 SHA-256 文件；如果同标签的 Release 已存在，CI 保留已有二进制和签名，只在 Actions 留下新构建产物。CI 的通过只表示自动检查和构建成功，不代表手机盒子实机体验或全部游戏兼容性已经验证。
 
-第三方依赖使用固定版本，升级时同步核查 [第三方声明](../THIRD_PARTY_NOTICES.md) 与随产物分发的许可文本。Android 依赖解析可以执行：
+运行时 Python 包、Android 直接依赖和 Gradle Wrapper 指定版本；这不承诺字节一致的可重复构建。CI 系统镜像、JDK 补丁版本、Python 隔离构建使用的 `setuptools>=75` 和部分构建工具传递依赖仍可能变化，发布时应记录实际解析工具与原生组件。运行 `python scripts/check_docs.py` 检查公共页面英文在上、中文在下的分区、非空内容和相对文件链接；该检查不能判断翻译质量。升级时同步核查 [第三方声明](../THIRD_PARTY_NOTICES.md) 与随产物分发的许可文本。Android 依赖解析可以执行：
 
 ```sh
 ./gradlew :app:dependencies --configuration debugRuntimeClasspath
 ```
 
-## 实机验证
+### 实机验证
+
+构建两端与 `:vr-core:assembleRelease` 后运行 `python scripts/package_release.py`，产物在 `artifacts/release/`；打包器检查附带 Markdown 文件链接，CI 使用相同打包逻辑。
 
 发布前至少检查：两端连接、三种模式、缩放偏移、回正、FPS 电脑授权与 F8 停止、断线后停止输入、无传感器设备的全屏回退。还应在实际手机与盒子上检查对齐、发热、延迟和传感器方向。不要把模拟器截图或局域网合成帧测试写成实机验证结果。

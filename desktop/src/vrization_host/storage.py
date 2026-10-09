@@ -19,6 +19,8 @@ def load_preferences(path: Path | None = None) -> tuple[Settings, CaptureConfig]
         value = json.loads((path or preference_path()).read_text(encoding="utf-8"))
         settings = Settings().update(value["settings"])
         config = value["capture"]
+        if not isinstance(config, dict):
+            raise ValueError("capture preferences must be an object")
         if config.get("region") is not None:
             config["region"] = tuple(config["region"])
         return settings, CaptureConfig(**config)

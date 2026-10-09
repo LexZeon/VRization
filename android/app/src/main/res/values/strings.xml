@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="surface_description">VR stereo viewer. Double tap to recenter; long press for settings.</string>
+    <string name="hide_settings">Hide settings</string>
+    <string name="show_settings">Show settings</string>
+    <string name="recenter">Recenter</string>
+    <string name="tagline">Desktop display → phone VR headset</string>
+    <string name="connection_help">Join the same trusted Wi-Fi, then enter the computer IP and six-digit pairing code.</string>
+    <string name="waiting_frame">Waiting for desktop video</string>
+    <string name="host_hint">Computer IP, e.g. 192.168.1.10</string>
+    <string name="port_hint">Port</string>
+    <string name="code_hint">Six-digit pairing code</string>
+    <string name="connect">Connect</string>
+    <string name="disconnect">Disconnect</string>
+    <string name="network_notice">Video and controls are unencrypted. Use a trusted LAN. FPS mouse control must be enabled on the computer.</string>
+    <string name="sensor_unavailable">No rotation sensor detected. Full mode remains available; Cinema and FPS are disabled.</string>
+    <string name="watch_mode">Viewing mode</string>
+    <string name="headset_fit">Headset fit</string>
+    <string name="scale">Image scale</string>
+    <string name="offset_x">Horizontal position</string>
+    <string name="offset_y">Vertical position</string>
+    <string name="eye_separation">Eye separation</string>
+    <string name="distortion">Lens distortion</string>
+    <string name="cinema_game">Cinema and game controls</string>
+    <string name="fov">Field of view (Cinema)</string>
+    <string name="distance">Screen distance (Cinema)</string>
+    <string name="sensitivity">Mouse sensitivity (FPS)</string>
+    <string name="format_pixels" formatted="false">%.0f pixels/rad</string>
+    <string name="invert_y">Invert vertical FPS movement</string>
+    <string name="reset_view">Reset display settings</string>
+    <string name="licenses">About and licenses</string>
+    <string name="mode_help">Full and FPS use a fixed image for both eyes. Cinema places the 2D desktop in virtual space. This is not native stereoscopic game rendering. Audio stays on the computer.\nEntering the background disconnects video and stops control. Tap Connect after returning.</string>
+    <string name="invalid_port">Port must be an integer between 1 and 65535.</string>
+    <string name="invalid_address">Enter a computer IP or hostname and a valid port, without an http:// prefix.</string>
+    <string name="invalid_code">Enter the six-digit pairing code shown on the computer.</string>
+    <string name="invalid_host">The computer IP or hostname is invalid.</string>
+    <string name="viewer_gestures">Long press or press Back for settings; double tap to recenter.</string>
+    <string name="license_title">Open source licenses · VRization code: MIT</string>
+    <string name="close">Close</string>
+    <string name="license_error">License could not be loaded. Complete license texts are in the project repository.</string>
+    <string name="paused">The app entered the background. Video and control stopped. Tap Connect to resume.</string>
+    <string name="app_name">VRization</string>
+    <string name="slider_value">%1$s  %2$s</string>
+    <string name="language">Language / 语言</string>
+    <string name="sensor_fallback">This phone has no rotation sensor; switched to Full mode.</string>
+    <string name="frame_stats">%1$d × %2$d · Receiving %3$.1f fps · Double tap to recenter; long press or Back for settings</string>
+    <string name="connecting">Connecting to computer…</string>
+    <string name="connected">Connected. Hide settings, then place the phone in your VR headset.</string>
+    <string name="host_error">Computer: %1$s</string>
+    <string name="connection_error">Connection error</string>
+    <string name="connection_ended">Connection ended (%1$d). Tap Connect to reconnect.</string>
+    <string name="check_connection">Check Wi-Fi, computer IP, pairing code and firewall</string>
+    <string name="bad_pairing">The pairing code is incorrect or has changed</string>
+    <string name="headset_busy">Another headset is connected; disconnect it first</string>
+    <string name="rate_limited">Too many attempts; wait briefly before trying again</string>
+    <string name="connection_failed">Connection failed: %1$s. Tap Connect to retry.</string>
+    <string name="disconnected">Disconnected.</string>
+    <string-array name="watch_modes">
+        <item>Full · fixed stereo image</item>
+        <item>Cinema · head-tracked virtual screen</item>
+        <item>FPS · turn your head to control the game</item>
+    </string-array>
+    <string-array name="languages"><item>English</item><item>中文</item></string-array>
+</resources>

@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="surface_description">VR 双眼观看画面。双击回正，长按打开设置。</string>
+    <string name="hide_settings">隐藏设置</string>
+    <string name="show_settings">显示设置</string>
+    <string name="recenter">视角回正</string>
+    <string name="tagline">电脑画面 → 手机 VR 盒子</string>
+    <string name="connection_help">将手机与电脑接入同一可信 Wi-Fi，填入电脑端显示的 IP 和六位配对码。</string>
+    <string name="waiting_frame">等待电脑画面</string>
+    <string name="host_hint">电脑 IP，例如 192.168.1.10</string>
+    <string name="port_hint">端口</string>
+    <string name="code_hint">六位配对码</string>
+    <string name="connect">连接电脑</string>
+    <string name="disconnect">断开连接</string>
+    <string name="network_notice">局域网画面与控制未加密，请只在可信网络使用。电脑端默认关闭鼠标控制，FPS 模式需在电脑上开启。</string>
+    <string name="sensor_unavailable">未检测到旋转传感器：全屏模式仍可使用；大屏幕及 FPS 模式已禁用。</string>
+    <string name="watch_mode">观看模式</string>
+    <string name="headset_fit">盒子适配</string>
+    <string name="scale">画面缩放</string>
+    <string name="offset_x">水平位置</string>
+    <string name="offset_y">垂直位置</string>
+    <string name="eye_separation">双眼间距</string>
+    <string name="distortion">镜头畸变校正</string>
+    <string name="cinema_game">大屏幕与游戏</string>
+    <string name="fov">视野角度（大屏幕）</string>
+    <string name="distance">屏幕距离（大屏幕）</string>
+    <string name="sensitivity">鼠标灵敏度（FPS）</string>
+    <string name="format_pixels" formatted="false">%.0f 像素/弧度</string>
+    <string name="invert_y">FPS 垂直方向反转</string>
+    <string name="reset_view">恢复显示设置</string>
+    <string name="licenses">关于与开源许可</string>
+    <string name="mode_help">全屏和 FPS 使用固定双眼画面；大屏幕把二维桌面放在虚拟空间。画面本身并非游戏原生双眼立体。耳机声音请暂用电脑输出。\n应用进入后台时自动断开串流并停止控制；回到前台后点击连接。</string>
+    <string name="invalid_port">端口应为 1 到 65535 的整数。</string>
+    <string name="invalid_address">请输入电脑 IP 或主机名，以及正确端口；不需要 http:// 前缀。</string>
+    <string name="invalid_code">请输入电脑端显示的六位数字配对码。</string>
+    <string name="invalid_host">电脑 IP 或主机名格式无效。</string>
+    <string name="viewer_gestures">长按画面或按返回键显示设置；双击画面回正</string>
+    <string name="license_title">开源许可 · VRization 原创代码 MIT</string>
+    <string name="close">关闭</string>
+    <string name="license_error">无法读取许可证；项目仓库的 licenses 目录包含完整许可。</string>
+    <string name="paused">应用进入后台，已断开连接并停止控制。点击“连接电脑”恢复。</string>
+    <string name="app_name">VRization</string>
+    <string name="slider_value">%1$s  %2$s</string>
+    <string name="language">语言 / Language</string>
+    <string name="sensor_fallback">此手机缺少旋转传感器，已切换为全屏模式。</string>
+    <string name="frame_stats">%1$d × %2$d · 接收 %3$.1f 帧/秒 · 双击回正，长按或返回键打开设置</string>
+    <string name="connecting">正在连接电脑…</string>
+    <string name="connected">已连接。触摸“隐藏设置”开始观看，再将手机放入 VR 盒子。</string>
+    <string name="host_error">电脑提示：%1$s</string>
+    <string name="connection_error">连接异常</string>
+    <string name="connection_ended">连接已结束（%1$d）。点击“连接电脑”重新连接。</string>
+    <string name="check_connection">请检查 Wi-Fi、电脑 IP、配对码及防火墙</string>
+    <string name="bad_pairing">配对码不正确或已更新</string>
+    <string name="headset_busy">电脑已连接另一台手机；请先断开原手机</string>
+    <string name="rate_limited">尝试次数过多；请稍等片刻再重试</string>
+    <string name="connection_failed">连接失败：%1$s。点击“连接电脑”重试。</string>
+    <string name="disconnected">已断开连接。</string>
+    <string-array name="watch_modes">
+        <item>全屏模式 · 固定双眼画面</item>
+        <item>大屏幕模式 · 转头观看虚拟屏幕</item>
+        <item>FPS 游戏模式 · 转头控制电脑视角</item>
+    </string-array>
+    <string-array name="languages"><item>English</item><item>中文</item></string-array>
+</resources>
