@@ -85,8 +85,8 @@ final class HeadsetEditorView extends View {
             if (position < 0) { gestureStart = null; return true; }
             float dx = 2 * (event.getX(position) - downX) / eyeWidth(eye);
             float dy = -2 * (event.getY(position) - downY) / getHeight();
-            VrSettings draft = corner < 0 ? HeadsetGeometry.pan(gestureStart, dx, dy)
-                : HeadsetGeometry.resize(gestureStart, gestureImageAspect, gestureEyeAspect,
+            VrSettings draft = corner < 0 ? HeadsetTouch.pan(gestureStart, dx, dy)
+                : HeadsetTouch.resize(gestureStart, gestureImageAspect, gestureEyeAspect,
                     SIGN_X[corner], SIGN_Y[corner], dx, dy);
             edit.update(draft); changed.run(); invalidate();
         } else if (event.getActionMasked() == MotionEvent.ACTION_UP || event.getActionMasked() == MotionEvent.ACTION_CANCEL

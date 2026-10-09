@@ -45,7 +45,7 @@
     <string name="invert_y">Invert vertical FPS movement</string>
     <string name="reset_view">Reset display settings</string>
     <string name="edit_headset">Fit headset visually</string>
-    <string name="editor_gestures">Drag corner handles to resize around the center; drag inside to move. Both eyes update together. Flat preview; head controls paused.</string>
+    <string name="editor_gestures">Drag corners to resize around the center. Inside: drag left to move the picture right, or right to move it left; up/down follows your finger. Both eyes update together. Flat preview; head controls paused.</string>
     <string name="editor_values">Scale %1$.0f%% · Horizontal %2$.2f · Vertical %3$.2f</string>
     <string name="editor_save">Save</string>
     <string name="editor_discard">Discard</string>
