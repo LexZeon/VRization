@@ -1,0 +1,286 @@
+{
+  "platform": "Windows x64",
+  "python": "3.12.14",
+  "pillow_version": "12.3.0",
+  "pillow_full_license": "../python/pillow-12.3.0/LICENSE",
+  "pillow_bundled_notice_sections": [
+    "brotli-1.2.0",
+    "freetype-2.14.3",
+    "harfbuzz-14.2.1",
+    "lcms2-2.19.1",
+    "libavif-1.4.2",
+    "libjpeg-turbo-3.1.4.1",
+    "libpng-1.6.58",
+    "libwebp-1.6.0",
+    "openjpeg-2.5.4",
+    "tiff-4.7.1",
+    "xz-5.8.3",
+    "zlib-ng-2.3.3"
+  ],
+  "pillow_publisher_sbom": "../python/pillow-12.3.0/sboms/pillow-12.3.0.cdx.json",
+  "pillow_runtime_features": {
+    "pil": {
+      "available": true,
+      "runtime_version": "12.3.0"
+    },
+    "tkinter": {
+      "available": true,
+      "runtime_version": "8.6"
+    },
+    "freetype2": {
+      "available": true,
+      "runtime_version": "2.14.3"
+    },
+    "littlecms2": {
+      "available": true,
+      "runtime_version": "2.19"
+    },
+    "webp": {
+      "available": true,
+      "runtime_version": "1.6.0"
+    },
+    "avif": {
+      "available": true,
+      "runtime_version": "1.4.2"
+    },
+    "libjpeg_turbo": {
+      "available": true,
+      "runtime_version": "3.1.4.1"
+    },
+    "zlib_ng": {
+      "available": true,
+      "runtime_version": "2.3.3"
+    },
+    "jpg": {
+      "available": true,
+      "runtime_version": "8.0"
+    },
+    "jpg_2000": {
+      "available": true,
+      "runtime_version": "2.5.4"
+    },
+    "zlib": {
+      "available": true,
+      "runtime_version": "1.3.1.zlib-ng"
+    },
+    "libtiff": {
+      "available": true,
+      "runtime_version": "4.7.1"
+    }
+  },
+  "pillow_unavailable_optional_features": {
+    "raqm": false,
+    "libimagequant": false,
+    "xcb": false
+  },
+  "avif_codec_versions": "dav1d [dec]:1.5.3-0-gb546257, aom [enc]:3.14.1",
+  "openssl": "OpenSSL 3.5.8 25 Aug 2026",
+  "tcl_tk": "8.6.12",
+  "libffi": {
+    "abi": 8,
+    "release_version": "not exposed by bundled DLL",
+    "license_source": "libffi v3.4.4 LICENSE (MIT; version not asserted for binary)"
+  },
+  "windows_system_libraries_excluded": [
+    "api-ms-win-*.dll",
+    "ucrtbase.dll",
+    "vcruntime140*.dll"
+  ],
+  "native_binary_hashes": [
+    {
+      "name": "libcrypto-3-x64.dll",
+      "sha256": "8a65f692c5003ac4bfa884369d753d9f50a5408ae5ef5afc66517d1c80b02175"
+    },
+    {
+      "name": "libssl-3-x64.dll",
+      "sha256": "49bc4e70a83523d44544396a14c8681d5f86735f446a354fb0702164e5fe018c"
+    },
+    {
+      "name": "libffi-8.dll",
+      "sha256": "90f4afecab4c0cbb1596d8117b75f47860c5830fda06dc930cbd7d6a317a1ae3"
+    },
+    {
+      "name": "tcl86t.dll",
+      "sha256": "fbfd065f861ec0a90dd513bc209c56bbc23c54d2839964a0ec2df95848af7860"
+    },
+    {
+      "name": "tk86t.dll",
+      "sha256": "cd2f60075064dfc2e65c88b239a970cb4bd07cb3eec7cc26fb1bf978d4356b08"
+    },
+    {
+      "name": "python312.dll",
+      "sha256": "c19758a4dfccc35b5f4da513945dfab85e70bed8cdbf4bc25587662fa7f457d2"
+    }
+  ],
+  "notes": [
+    "The publisher SBOM describes optional build capabilities; actual features are recorded separately.",
+    "No RAQM, FriBiDi, libimagequant or XCB support is available in this wheel.",
+    "Full native notice sections from the installed Pillow wheel are retained verbatim.",
+    "libavif codec notices for dav1d1.5.3 and aom3.14.1 are additionally retained."
+  ],
+  "microsoft_runtime_prerequisite": {
+    "name": "Microsoft Visual C++ x64 Runtime v14",
+    "distribution": "Installed separately by the user from Microsoft; no VCRUNTIME DLL included in the EXE.",
+    "official_download": "https://aka.ms/vs/17/release/vc_redist.x64.exe"
+  },
+  "stdlib_native_components": {
+    "Expat": "2.8.3",
+    "libmpdec": "2.5.1",
+    "bzip2": "License notice identifies1.0.8; the bundled extension does not expose its library release.",
+    "liblzma": "Release version not exposed by bundled _lzma extension; retain current 0BSD and historical public-domain notice."
+  },
+  "bundled_native_files": [
+    {
+      "name": "PIL/_avif.cp312-win_amd64.pyd",
+      "sha256": "6731dce52baab0b96b0eeb3c664844b5b42c2168ea8668af2430e2fbdd2dfbd8"
+    },
+    {
+      "name": "PIL/_imaging.cp312-win_amd64.pyd",
+      "sha256": "c8c519ec72bf75b2945b4fc4afa854af2fca8b970a403134f9ddda3e164d85e9"
+    },
+    {
+      "name": "PIL/_imagingcms.cp312-win_amd64.pyd",
+      "sha256": "c89c633ae1bf3f26a327d14ff688db66628e19c9866ab925479f27dcb60a2d6f"
+    },
+    {
+      "name": "PIL/_imagingmath.cp312-win_amd64.pyd",
+      "sha256": "82ac45c41a008854d05f67deda298b65a7bed850d0d79a3af861ed583f6e7d62"
+    },
+    {
+      "name": "PIL/_imagingtk.cp312-win_amd64.pyd",
+      "sha256": "690cc1cae4a2dc8594a342b9241e691dcc89d81dad4cddcefdf285275365a2b1"
+    },
+    {
+      "name": "PIL/_webp.cp312-win_amd64.pyd",
+      "sha256": "9823cebb84f425af3ac1e7437259bc176e7ad7e25d7fa829b0e1a3e55c11be70"
+    },
+    {
+      "name": "_asyncio.pyd",
+      "sha256": "6265f1eb09c6f382f22605db3a10c906c2c3f09a9a9d9eafa8bc274e63ade96f"
+    },
+    {
+      "name": "_bz2.pyd",
+      "sha256": "26bdf6be9d5103bc3d288c71b4b1d69888d20e7b24ef5fc01604185354f266f9"
+    },
+    {
+      "name": "_ctypes.pyd",
+      "sha256": "ffa594342bd280d72845d160d9b6a4b5129242e134e2d65c32f98188f772da99"
+    },
+    {
+      "name": "_decimal.pyd",
+      "sha256": "b2f69ce91756cac13b5ca29933440bb8501feabfda39a2d70872e0bc7a9b9ef4"
+    },
+    {
+      "name": "_elementtree.pyd",
+      "sha256": "8150bc13b3b3e9cf083cc4da044fbfe701d5cb90b64fc7307837df9013916a4d"
+    },
+    {
+      "name": "_hashlib.pyd",
+      "sha256": "75f84c83b8590db1ea38e1eeaf9372ae517456300876a4702e7b13429193daa3"
+    },
+    {
+      "name": "_lzma.pyd",
+      "sha256": "adfe23c157c2936dc972f1e87b37c18a2e596f60b9f87fbde7e3b9f51b79bfd6"
+    },
+    {
+      "name": "_multiprocessing.pyd",
+      "sha256": "7de7166f7eaeb2796375866c5325d0f0246c5945df378ee85d288b3e53add25f"
+    },
+    {
+      "name": "_overlapped.pyd",
+      "sha256": "4d31874e2c68e2773ad4b8c1ed59ffbd4bec20de464f59ba9097616ffd87ca7c"
+    },
+    {
+      "name": "_queue.pyd",
+      "sha256": "ef2f820bd04e0891db044661a34574b5348b90569136952d9d904e63cd1dc60b"
+    },
+    {
+      "name": "_socket.pyd",
+      "sha256": "25d30500c159546dcf7accb5d729beceecc55c68d8b15d3bab2b1d02eb4e998c"
+    },
+    {
+      "name": "_ssl.pyd",
+      "sha256": "b47377e70d3da420a460c67e12d6032756b2c04e39951bc517efbb658511cea3"
+    },
+    {
+      "name": "_tkinter.pyd",
+      "sha256": "6ebebdcfb02ba7658f4ad9a8ba1f64db48e258d3b32a3300ffdfe9b117bdfa1e"
+    },
+    {
+      "name": "_uuid.pyd",
+      "sha256": "3f60fb6e95552f1bc4e23453f4fce8ffabd5114b718d75c3535c5e21ab03b82a"
+    },
+    {
+      "name": "_wmi.pyd",
+      "sha256": "9659c82510e899b128c427bbe00dfb01b2bce2c2c9fc52bcd9ca26e8252da5da"
+    },
+    {
+      "name": "aiohttp/_http_parser.cp312-win_amd64.pyd",
+      "sha256": "a6c34e57bd47e184c7ff08e7420669babf98e9a73549391f96a0593bb5dc458f"
+    },
+    {
+      "name": "aiohttp/_http_writer.cp312-win_amd64.pyd",
+      "sha256": "c036e159cccf7dd13d572c35a9e2c9812d3e88e61c37461830313762cda6f5bb"
+    },
+    {
+      "name": "aiohttp/_websocket/mask.cp312-win_amd64.pyd",
+      "sha256": "4b61caf167b2d0c1ca45363c8c072e21a58576db09f023c595bdf5830d021ddf"
+    },
+    {
+      "name": "aiohttp/_websocket/reader_c.cp312-win_amd64.pyd",
+      "sha256": "454a580d8265f03a8ab286fdac7e1a1f96a7a65faddc7f1e5c01b1693b634075"
+    },
+    {
+      "name": "frozenlist/_frozenlist.cp312-win_amd64.pyd",
+      "sha256": "ac03ce4d67b103af56efa5a436954c6c5e4da0eafec878a31298f2b8ce9c6f96"
+    },
+    {
+      "name": "libcrypto-3-x64.dll",
+      "sha256": "8a65f692c5003ac4bfa884369d753d9f50a5408ae5ef5afc66517d1c80b02175"
+    },
+    {
+      "name": "libffi-8.dll",
+      "sha256": "90f4afecab4c0cbb1596d8117b75f47860c5830fda06dc930cbd7d6a317a1ae3"
+    },
+    {
+      "name": "libssl-3-x64.dll",
+      "sha256": "49bc4e70a83523d44544396a14c8681d5f86735f446a354fb0702164e5fe018c"
+    },
+    {
+      "name": "multidict/_multidict.cp312-win_amd64.pyd",
+      "sha256": "a79494babeb3c68a3f45a65ff829804be2c166ff104eda363372bf36cd4ee800"
+    },
+    {
+      "name": "propcache/_helpers_c.cp312-win_amd64.pyd",
+      "sha256": "56076d1e6a317c70a5d1dc9971d48e2b5fe56b86d40d09eccdee23117ce34c3c"
+    },
+    {
+      "name": "pyexpat.pyd",
+      "sha256": "8f9c6e498805c6bebb5816fbbabb6298552f5111b1b4d1d171aca8e11cb8c5dc"
+    },
+    {
+      "name": "python312.dll",
+      "sha256": "c19758a4dfccc35b5f4da513945dfab85e70bed8cdbf4bc25587662fa7f457d2"
+    },
+    {
+      "name": "select.pyd",
+      "sha256": "93feb301214cf43c51a22f8bde604b34b825be8b63f94f2a84be37e789e8cc40"
+    },
+    {
+      "name": "tcl86t.dll",
+      "sha256": "fbfd065f861ec0a90dd513bc209c56bbc23c54d2839964a0ec2df95848af7860"
+    },
+    {
+      "name": "tk86t.dll",
+      "sha256": "cd2f60075064dfc2e65c88b239a970cb4bd07cb3eec7cc26fb1bf978d4356b08"
+    },
+    {
+      "name": "unicodedata.pyd",
+      "sha256": "2ae50402855a599054d3b546f22c4dd6bbdfd86446aa8c775b68eeb36d3aab36"
+    },
+    {
+      "name": "yarl/_quoting_c.cp312-win_amd64.pyd",
+      "sha256": "4d5b5978bdb7a001fe9e79f5f62e1b496c11ac331204104b23307c51903cb69a"
+    }
+  ]
+}

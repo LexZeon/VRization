@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vrization-host"
+version = "0.1.0"
+description = "A local-network Windows desktop VR streaming host with an embeddable core"
+requires-python = ">=3.12"
+license = "MIT"
+dependencies = ["aiohttp==3.14.4", "mss==10.2.0", "Pillow==12.3.0"]
+
+[project.optional-dependencies]
+build = ["pyinstaller==6.22.3"]
+
+[project.gui-scripts]
+vrization-host = "vrization_host.gui:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

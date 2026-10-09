@@ -1,0 +1,15 @@
+# Native runtime notices
+
+`runtime-audit.json` records the Windows x64 runtime actually inspected for this build, including native binary hashes, Pillow feature detection and AVIF codec versions. `upstream-sources.json` records original download URLs and SHA-256 hashes of the additional notices in this directory, together with official prerequisite references. License texts are preserved verbatim.
+
+The complete installed Pillow 12.3.0 wheel license is retained at `../python/pillow-12.3.0/LICENSE`. It contains bundled notices for Brotli 1.2.0, FreeType 2.14.3, HarfBuzz 14.2.1, Little CMS 2.19.1, libavif 1.4.2, libjpeg-turbo 3.1.4.1, libpng 1.6.58, libwebp 1.6.0, OpenJPEG 2.5.4, libtiff 4.7.1, XZ 5.8.3 and zlib-ng 2.3.3. FreeType is used under the FreeType License (FTL). This directory additionally retains the exact libavif codec notices for dav1d 1.5.3 and aom 3.14.1, including aom's patent grant and authors list.
+
+Pillow's publisher SBOM is retained unchanged at `../python/pillow-12.3.0/sboms/pillow-12.3.0.cdx.json`. It describes optional build capabilities as well as installed capabilities. Runtime checks show RAQM/FriBiDi, libimagequant and XCB support unavailable in this Windows wheel; the presence of those optional components in that SBOM does not establish that their binaries are shipped. Pillow's Little CMS API reports 2.19, while its bundled license section identifies the build dependency as 2.19.1.
+
+The host also distributes CPython 3.12.14, Tcl/Tk 8.6.12, OpenSSL 3.5.8, libffi ABI 8, Expat 2.8.3, libmpdec 2.5.1 and standard-library compression code. The CPython and installed Tk notices are retained in `../python/`; Tcl's upstream core license is additionally retained here. The bundled libffi DLL does not expose its release version: its ABI and binary hash are recorded instead of inventing a release number. Its permissive MIT license text is retained from upstream v3.4.4. The `_lzma` extension similarly does not expose an XZ release; current 0BSD and historical public-domain notices are retained without asserting an exact release.
+
+This software is based in part on the work of the Independent JPEG Group. Portions of this software are copyright © 1996–2026 The FreeType Project (https://freetype.org). All rights reserved. This software includes code developed by the University of California, Berkeley.
+
+Microsoft's Visual C++ x64 runtime is a separately installed prerequisite. The EXE excludes `vcruntime140*.dll`, `api-ms-win-*.dll` and `ucrtbase.dll`; Windows 10/11 supply the latter system libraries. Microsoft runtime installation terms are referenced through official URLs in the source index; neither Microsoft runtime binaries nor copied Microsoft EULAs are distributed here. Obtain the prerequisite from [Microsoft's official download](https://aka.ms/vs/17/release/vc_redist.x64.exe).
+
+When updating runtime dependencies, rerun the license collector and inspect the new wheel notices, SBOM, runtime features, native codecs and PyInstaller dependency graph before updating this audit.

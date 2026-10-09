@@ -1,0 +1,69 @@
+[
+  {
+    "file": "Tcl-8.6.12-LICENSE.txt",
+    "source": "https://raw.githubusercontent.com/tcltk/tcl/core-8-6-12/license.terms",
+    "sha256": "c0a69a2bfd757361ec7e6143973b103c90409316b49e9c88db26ad6388e79f16"
+  },
+  {
+    "file": "dav1d-1.5.3-COPYING.txt",
+    "source": "https://raw.githubusercontent.com/videolan/dav1d/1.5.3/COPYING",
+    "sha256": "dd92c3c2247c5651606fc23a5e2d6a1ebc5ace9a3e49cbde0e12f05ad1cb1ee5"
+  },
+  {
+    "file": "aom-3.14.1-LICENSE.txt",
+    "source": "https://aomedia.googlesource.com/aom/+/refs/tags/v3.14.1/LICENSE?format=TEXT",
+    "sha256": "4764a286d8b2faeaf42f4418e7d7a28d58fc8fd4d00a3d0a7f44b0a4099de7f2"
+  },
+  {
+    "file": "aom-3.14.1-PATENTS.txt",
+    "source": "https://aomedia.googlesource.com/aom/+/refs/tags/v3.14.1/PATENTS?format=TEXT",
+    "sha256": "661fb8e504744e95587b556b94a58343448300606a41bea8c7a9b97125696e61"
+  },
+  {
+    "file": "aom-3.14.1-AUTHORS.txt",
+    "source": "https://aomedia.googlesource.com/aom/+/refs/tags/v3.14.1/AUTHORS?format=TEXT",
+    "sha256": "1bf4faf64255fc1ffe1428e56f58f36050eeaac47a6401e532ca15823d21e9ac"
+  },
+  {
+    "file": "OpenSSL-3.5.8-LICENSE.txt",
+    "source": "https://raw.githubusercontent.com/openssl/openssl/openssl-3.5.8/LICENSE.txt",
+    "sha256": "7d5450cb2d142651b8afa315b5f238efc805dad827d91ba367d8516bc9d49e7a"
+  },
+  {
+    "file": "libffi-ABI8-LICENSE.txt",
+    "source": "https://raw.githubusercontent.com/libffi/libffi/v3.4.4/LICENSE",
+    "sha256": "2c9c2acb9743e6b007b91350475308aee44691d96aa20eacef8e199988c8c388"
+  },
+  {
+    "reference": "Microsoft Visual Studio 2022 REDIST list",
+    "source": "https://learn.microsoft.com/en-us/visualstudio/releases/2022/redistribution",
+    "purpose": "VC\\redist runtime object code list permitted by developer redistribution terms; retained for reference only, no VC runtime DLL distributed."
+  },
+  {
+    "file": "Expat-2.8.3-COPYING.txt",
+    "source": "https://raw.githubusercontent.com/libexpat/libexpat/R_2_8_3/expat/COPYING",
+    "sha256": "31b15de82aa19a845156169a17a5488bf597e561b2c318d159ed583139b25e87"
+  },
+  {
+    "file": "XZ-COPYING.0BSD.txt",
+    "source": "https://raw.githubusercontent.com/tukaani-project/xz/v5.8.3/COPYING.0BSD",
+    "sha256": "0b01625d853911cd0e2e088dcfb743261034a091bb379246cb25a14cc4c74bf1"
+  },
+  {
+    "file": "XZ-5.2.5-COPYING.txt",
+    "source": "https://raw.githubusercontent.com/tukaani-project/xz/v5.2.5/COPYING",
+    "sha256": "bcb02973ef6e87ea73d331b3a80df7748407f17efdb784b61b47e0e610d3bb5c"
+  },
+  {
+    "file": "libmpdec-2.5.1-LICENSE.txt",
+    "source": "https://www.bytereef.org/software/mpdecimal/releases/mpdecimal-2.5.1.tar.gz",
+    "archive_member": "mpdecimal-2.5.1/LICENSE.txt",
+    "archive_sha256": "9f9cd4c041f99b5c49ffb7b59d9f12d95b683d88585608aa56a6307667b2b21f",
+    "sha256": "b07528d8b1dbf1e2d2741052996f0876e23342ce2d30d0effa39c5457716c25a"
+  },
+  {
+    "reference": "Microsoft VC++ runtime installation license terms",
+    "source": "https://visualstudio.microsoft.com/license-terms/vs2022-cruntime/",
+    "purpose": "Official installation prerequisite terms; Microsoft DLLs are not distributed."
+  }
+]

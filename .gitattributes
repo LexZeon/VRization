@@ -1,0 +1,8 @@
+* text=auto
+android/gradlew text eol=lf
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+*.png -text
+*.jar -text
+# Preserve upstream license bytes and their publisher hashes verbatim.
+licenses/** -text -whitespace

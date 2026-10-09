@@ -1,0 +1,110 @@
+name: Build & Alpha release
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    name: Windows host
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: '3.12.10'
+      - name: Test and build
+        shell: pwsh
+        run: ./scripts/build-windows.ps1 -Python (Get-Command python).Source
+      - name: Package host with notices and guide
+        shell: pwsh
+        run: |
+          $packageDir = Join-Path $env:RUNNER_TEMP 'VRization-Windows-x64'
+          New-Item -ItemType Directory -Force -Path $packageDir | Out-Null
+          Copy-Item -LiteralPath 'desktop/dist/VRization-Host.exe' -Destination $packageDir
+          Copy-Item -LiteralPath 'LICENSE','NOTICE','THIRD_PARTY_NOTICES.md','README.md' -Destination $packageDir
+          Copy-Item -LiteralPath 'licenses','docs' -Destination $packageDir -Recurse
+          New-Item -ItemType Directory -Force -Path artifacts | Out-Null
+          Compress-Archive -Path (Join-Path $packageDir '*') -DestinationPath 'artifacts/VRization-Windows-x64.zip'
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: VRization-Windows
+          path: artifacts/VRization-Windows-x64.zip
+          if-no-files-found: error
+
+  android:
+    name: Android APK and reusable AAR
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install Android platform
+        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+      - name: Test, lint and build
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon :vr-core:testDebugUnitTest :vr-core:assembleDebug :app:assembleDebug :app:lintDebug
+      - name: Package testing APK, core and licenses
+        run: |
+          mkdir -p artifacts
+          cp android/app/build/outputs/apk/debug/app-debug.apk artifacts/VRization-Android-debug.apk
+          cp android/vr-core/build/outputs/aar/vr-core-debug.aar artifacts/VRization-vr-core-alpha.aar
+          zip -r artifacts/VRization-Licenses.zip LICENSE NOTICE THIRD_PARTY_NOTICES.md licenses
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: VRization-Android
+          path: artifacts/*
+          if-no-files-found: error
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: always()
+        with:
+          name: Android-check-reports
+          path: |
+            android/app/build/reports/lint-results-debug.html
+            android/vr-core/build/reports/tests/testDebugUnitTest/
+          if-no-files-found: ignore
+
+  release:
+    name: Publish tagged Alpha prerelease
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [windows, android]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          pattern: VRization-*
+          merge-multiple: true
+          path: release-assets
+      - name: Generate checksums
+        working-directory: release-assets
+        run: sha256sum ./* > SHA256SUMS.txt
+      - name: Publish new prerelease without replacing existing binaries
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo 'Release already exists. Keeping its verified binaries and signing identity; new builds remain available as workflow artifacts.'
+          else
+            gh release create "$RELEASE_TAG" release-assets/* --verify-tag --prerelease --title "VRization $RELEASE_TAG · Alpha" --notes-file docs/RELEASE_NOTES.md
+          fi

@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.venv/
+venv/
+*.egg-info/
+.coverage
+htmlcov/
+
+# Android / Gradle
+.gradle/
+**/build/
+local.properties
+.idea/
+*.iml
+.cxx/
+captures/
+
+# Build outputs and local tools
+/dist/
+/artifacts/
+/build/
+/.tools/
+*.spec
+!desktop/VRization.spec
+*.apk
+*.aab
+*.exe
+*.zip
+*.jks
+*.keystore
+*.pem
+
+# Local connection information
+.env
+.env.*
+!.env.example
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini

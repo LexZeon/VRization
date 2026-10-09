@@ -1,0 +1,25 @@
+VRization
+Copyright (c) 2026 VRization contributors
+Original project code is licensed under the MIT License. See LICENSE.
+
+This project uses independently maintained open-source libraries. Their
+licenses and authorship remain with their respective copyright holders.
+See THIRD_PARTY_NOTICES.md and the license files shipped with each binary.
+
+Runtime components include aiohttp, MSS, Pillow, OkHttp, Okio, Kotlin and
+their transitive dependencies. Python and Tcl/Tk may accompany Windows
+binary distributions. PyInstaller and the Android / Gradle toolchain are
+used for building. These projects do not sponsor or endorse VRization.
+
+This software is based in part on the work of the Independent JPEG Group.
+Portions of this software are copyright © 1996–2026 The FreeType Project
+(https://freetype.org). All rights reserved.
+This software includes code developed by the University of California,
+Berkeley.
+
+Pillow native component licenses, patent notices and the recorded build
+inventory accompany the distribution. See licenses/native/ and
+licenses/python/pillow-12.3.0/ for the exact component declarations.
+
+No implementation source has been copied from another VR streaming app.
+This file is an attribution index and does not replace third-party licenses.
