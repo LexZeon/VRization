@@ -150,5 +150,6 @@ jobs:
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             echo 'Release already exists. Keeping its verified binaries and signing identity; new builds remain available as workflow artifacts.'
           else
-            gh release create "$RELEASE_TAG" release-assets/* --verify-tag --prerelease --title "VRization $RELEASE_TAG · Alpha / 预览版" --notes-file docs/RELEASE_NOTES.md
+            python3 scripts/prepare_release_notes.py --tag "$RELEASE_TAG" --output release-notes.md
+            gh release create "$RELEASE_TAG" release-assets/* --verify-tag --prerelease --title "VRization $RELEASE_TAG · Alpha / 预览版" --notes-file release-notes.md
           fi
