@@ -7,18 +7,18 @@
 
 **Put your PC screen inside a phone VR viewer.**
 
-![Alpha](https://img.shields.io/badge/version-0.2.0--alpha-orange)
+![Alpha](https://img.shields.io/badge/version-0.3.0--alpha-orange)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Desktop](https://img.shields.io/badge/desktop-Windows%2010%2F11-blue)
 ![Android](https://img.shields.io/badge/Android-6.0%2B-3DDC84)
 ![iOS](https://img.shields.io/badge/iOS%2FiPadOS-15%2B-black)
 [![Build](https://github.com/LexZeon/VRization/actions/workflows/build.yml/badge.svg)](https://github.com/LexZeon/VRization/actions/workflows/build.yml)
 
-[简体中文](#简体中文) · [Quick start](docs/QUICKSTART.md) · [🔌 USB setup](docs/USB.md) · [⚡ Performance](docs/PERFORMANCE.md) · [📦 Downloads](docs/DOWNLOADS.md) · [🍎 iPhone + Windows](docs/IOS.md) · [Build](docs/BUILD.md) · [Architecture](docs/ARCHITECTURE.md)
+[简体中文](#简体中文) · [Quick start](docs/QUICKSTART.md) · [🔌 USB setup](docs/USB.md) · [🥽 Edit and save](docs/EDITING.md) · [⚡ Performance](docs/PERFORMANCE.md) · [📦 Downloads](docs/DOWNLOADS.md) · [🍎 iPhone + Windows](docs/IOS.md) · [Build](docs/BUILD.md) · [Architecture](docs/ARCHITECTURE.md)
 
 VRization streams a Windows desktop or rectangular region to an Android phone, iPhone or iPad, renders the image side by side, and optionally maps phone rotation to PC mouse movement. Its reusable Android library, Swift core package and separated host components provide a starting point for embedding these features in other applications.
 
-**v0.2.0-alpha is an experimental baseline.** An original Windows DXGI / D3D11 backend crops, rotates and scales on the GPU before smaller pixel readback; the CPU encodes JPEG for the existing WebSocket protocol. GDI / MSS remain compatibility paths. Both eyes receive the same 2D source: ordinary games do not acquire stereoscopic depth. See [performance and measurement limits](docs/PERFORMANCE.md).
+**v0.3.0-alpha is being validated.** An original Windows DXGI / D3D11 backend crops, rotates and scales on the GPU before smaller pixel readback; the CPU encodes JPEG for the existing WebSocket protocol. GDI / MSS remain compatibility paths. Both eyes receive the same 2D source: ordinary games do not acquire stereoscopic depth. See [performance and measurement limits](docs/PERFORMANCE.md).
 
 | Mode | Behavior |
 | --- | --- |
@@ -36,7 +36,7 @@ The first production ASUS full-output → Huawei USB check showed phone decoded-
 | --- | --- |
 | ![Running Windows host](docs/images/desktop.png) | ![Running Android client](docs/images/android.png) |
 
-The new USB screenshots below show **v0.2.0 on a physical HUAWEI Pura 70 Ultra** receiving the original calibration card through a real data cable. Earlier screenshots show v0.1.1 on a Google-free API 23 emulator. They establish the pictured viewing flow, not headset optics or performance benchmarks.
+The USB screenshots below show **v0.2.0 on a physical HUAWEI Pura 70 Ultra** receiving the original calibration card through a real data cable. Earlier Android screenshots show v0.1.1 on a Google-free API 23 emulator. They establish the pictured viewing flow, not headset optics or performance benchmarks, and do not show the new v0.3 editor.
 
 | 🔌 Android USB on a real phone | 🥽 Both eyes, controls hidden |
 | --- | --- |
@@ -44,7 +44,7 @@ The new USB screenshots below show **v0.2.0 on a physical HUAWEI Pura 70 Ultra**
 
 ### 🚀 Try it
 
-1. Download the Windows archive and Android APK from [Releases](https://github.com/LexZeon/VRization/releases/tag/v0.2.0-alpha), or [build from source](docs/BUILD.md). For iPhone / iPad, use the [iOS installation guide](docs/IOS.md): source and a Mac Simulator build are provided; physical installation requires your Apple signing in Xcode.
+1. Download the Windows archive and Android APK from [Releases](https://github.com/LexZeon/VRization/releases), or [build from source](docs/BUILD.md). For iPhone / iPad, use the [iOS installation guide](docs/IOS.md): source and a Mac Simulator build are provided; physical installation requires your Apple signing in Xcode.
 2. Connect a data USB cable. Android needs official Platform Tools, USB debugging and computer authorization. iPhone needs Apple Devices / its Windows driver, Trust approval and your signed foreground app. See [USB setup](docs/USB.md).
 3. Start the host, choose a display or region, and start streaming. USB detection configures the authorized connection; multiple Android phones require selection.
 4. Open the phone app in its default USB mode. Its first foreground session tries automatically; after backgrounding or changing language, tap Connect. LAN remains an optional mode with manual IP, port and pairing code.
@@ -101,6 +101,14 @@ Every project-owned public page presents complete **English first**, then comple
 
 The host separates capture, JPEG transport and input; Android `vr-core` exposes pose and GLES rendering; Swift `VRizationCore` separates protocol, settings synchronization and rotation math from the iOS UI / Metal renderer. Clients share [protocol v1](docs/PROTOCOL.md). See the [roadmap](docs/ROADMAP.md) for future adapters and codecs. The Android AAR depends on Android framework APIs and is not a platform-independent Java SDK.
 
+### 🥽 Edit, save and reset
+
+The first settings action opens a flat headset-fit editor. Drag an image to move both eyes, or a corner to resize them around a fixed center. Interior horizontal pan is reversed on all three: pointer left moves the picture right; vertical pan and corners remain normal. **Save** commits and synchronizes when connected; **Discard** restores the local entry preview. Preview dragging sends no settings and saves no preferences, and phone pose output pauses during editing. Phones retain committed VR profiles across restarts and restore them after a validated host hello. If both sides changed offline, the saved phone profile wins on reconnect; the PC can Save again afterward.
+
+**Reset all settings** restores VR defaults, English and USB; Windows also restores 640 / 60 / Q45 and automatic USB choice while preserving the explicitly selected display / region and ADB tool path. Phone reset clears preferences and disconnects without automatic reconnection. Neither action authorizes mouse input. See [the complete editor and reset guide](docs/EDITING.md).
+
+v0.2.0-alpha is already published and locally archived; v0.3 acceptance is recorded separately. Existing screenshots / performance measurements retain their stated version. See [release history](docs/releases/README.md) and [current notes](docs/RELEASE_NOTES.md).
+
 ---
 
 <!-- vrization:chinese -->
@@ -110,19 +118,19 @@ The host separates capture, JPEG transport and input; Android `vr-core` exposes 
 
 Windows 桌面串流 · Android / 兼容 Android 的系统 · iPhone / iPad · 可复用核心模块
 
-![Alpha](https://img.shields.io/badge/version-0.2.0--alpha-orange)
+![Alpha](https://img.shields.io/badge/version-0.3.0--alpha-orange)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Desktop](https://img.shields.io/badge/desktop-Windows%2010%2F11-blue)
 ![Android](https://img.shields.io/badge/Android-6.0%2B-3DDC84)
 ![iOS](https://img.shields.io/badge/iOS%2FiPadOS-15%2B-black)
 [![Build](https://github.com/LexZeon/VRization/actions/workflows/build.yml/badge.svg)](https://github.com/LexZeon/VRization/actions/workflows/build.yml)
 
-[🚀 上手教程](docs/QUICKSTART.md) · [🔌 USB 连接](docs/USB.md) · [⚡ 性能与测量](docs/PERFORMANCE.md) · [📦 下载与本地备份](docs/DOWNLOADS.md) · [🍎 iPhone 与 Windows](docs/IOS.md) · [🛠️ 开发与构建](docs/BUILD.md) · [🧩 集成指南](docs/ARCHITECTURE.md) · [English](README.en.md)
+[🚀 上手教程](docs/QUICKSTART.md) · [🔌 USB 连接](docs/USB.md) · [🥽 编辑与保存](docs/EDITING.md) · [⚡ 性能与测量](docs/PERFORMANCE.md) · [📦 下载与本地备份](docs/DOWNLOADS.md) · [🍎 iPhone 与 Windows](docs/IOS.md) · [🛠️ 开发与构建](docs/BUILD.md) · [🧩 集成指南](docs/ARCHITECTURE.md) · [English](README.en.md)
 
 
 VRization 是一个开源的电脑 → 手机串流实验项目。Windows 端采集显示器或指定矩形区域，Android、iPhone / iPad 客户端将画面显示在 VR 盒子的左右眼区域。你可以让画面固定在眼前，也可以把它当成一个随头部转动观看的虚拟大屏幕，或者用手机的姿态控制电脑游戏视角。
 
-> **当前版本：可运行的 Alpha 基础版。** 原创 Windows DXGI / D3D11 后端在 GPU 裁切、旋转和缩放，再回读较小像素；CPU 编码 JPEG，经已有 WebSocket 协议传输，保留 GDI / MSS 兼容路径。左右眼接收同一张二维桌面图像，**不会把普通游戏自动变成立体 3D**。实测范围见 [性能与测量](docs/PERFORMANCE.md)。
+> **v0.3.0-alpha 正在验收。** 原创 Windows DXGI / D3D11 后端在 GPU 裁切、旋转和缩放，再回读较小像素；CPU 编码 JPEG，经已有 WebSocket 协议传输，保留 GDI / MSS 兼容路径。左右眼接收同一张二维桌面图像，**不会把普通游戏自动变成立体 3D**。实测范围见 [性能与测量](docs/PERFORMANCE.md)。
 
 ### 🎮 三种观看方式
 
@@ -155,7 +163,7 @@ FPS 控制需要在**电脑端主动授权**。手机连接或切换模式不会
 | --- | --- |
 | ![VRization 电脑端实际界面](docs/images/desktop-zh.png) | ![VRization Android 客户端实际界面](docs/images/android.png) |
 
-新增 USB 截图来自 **HUAWEI Pura 70 Ultra 真机运行 v0.2.0**，经真实数据线接收原创校准卡。较早截图为无 Google 的 API 23 模拟器运行 v0.1.1。截图展示对应连接与双眼显示流程，不代表镜片舒适度或性能基准。
+USB 截图来自 **HUAWEI Pura 70 Ultra 真机运行 v0.2.0**，经真实数据线接收原创校准卡。较早 Android 截图为无 Google 的 API 23 模拟器运行 v0.1.1。截图展示对应连接与双眼显示流程，不代表镜片舒适度或性能基准，也不展示新增 v0.3 编辑器。
 
 | 🔌 Android 真机 USB | 🥽 隐藏设置后的双眼画面 |
 | --- | --- |
@@ -176,7 +184,7 @@ FPS 控制需要在**电脑端主动授权**。手机连接或切换模式不会
 
 ### 🚀 五步把电脑放进盒子
 
-1. 在 [Releases](https://github.com/LexZeon/VRization/releases/tag/v0.2.0-alpha) 下载 Windows 电脑端压缩包与 Android APK。iPhone / iPad 按 [iOS 安装教程](docs/IOS.md) 使用源码和 Mac 模拟器构建；真机安装需要在 Xcode 使用自己的 Apple 签名。
+1. 在 [Releases](https://github.com/LexZeon/VRization/releases) 下载 Windows 电脑端压缩包与 Android APK。iPhone / iPad 按 [iOS 安装教程](docs/IOS.md) 使用源码和 Mac 模拟器构建；真机安装需要在 Xcode 使用自己的 Apple 签名。
 2. 用数据 USB 线连接。Android 需要官方 Platform Tools、USB 调试和电脑授权；iPhone 需要 Windows 的 Apple Devices / 驱动、信任这台电脑，以及自己签名并在前台运行的应用。详见 [USB 教程](docs/USB.md)。
 3. 打开电脑端，选择显示器或矩形区域，再开始串流。USB 检测会配置授权后的连接；多台 Android 手机需要选择一台。
 4. 手机应用默认 USB，首次前台会自动尝试连接；进入后台或切换语言后，显式点击连接。局域网作为可选方式，需要填写 IP、端口与配对码。
@@ -220,3 +228,12 @@ Alpha 版尚未提供音频、硬件视频编码、WebRTC、原生立体渲染�
 ### 🌐 文档语言
 
 所有项目自有公共页面在同一页先完整英文、再完整中文，修改时同步维护两种语言。自动文档检查只验证结构和文件链接，不判断翻译质量；原始许可证全文保持不变。
+
+
+### 🥽 编辑、保存与重置
+
+设置第一个操作打开平面盒子适配编辑器，拖画面同步移动两眼，拖角点围绕固定中心缩放。三端内部横向都反向：指针向左让画面向右，竖向与角点仍正常。**保存**提交并在已连接时同步，**放弃**恢复本地进入预览；预览拖动不发送设置、不保存偏好，编辑暂停手机姿态。手机已提交 VR 配置在重启后保留，合法主机 hello 后恢复；若两边离线都改过，重连时保存的手机配置优先，电脑可随后再保存。
+
+**重置全部设置**恢复 VR 默认、英文和 USB；Windows 同时恢复 640 / 60 / Q45 与 USB 自动选择，但保留明确的显示器 / 选区及 ADB 工具路径。手机重置清除偏好并断线，不自动重连；两项操作都不授权鼠标，见 [完整编辑与重置教程](docs/EDITING.md)。
+
+v0.2.0-alpha 已发布并完成本地归档，v0.3 验收另行记录。已有截图与性能数字保留注明的版本，见 [发布历史](docs/releases/README.md) 与 [本版说明](docs/RELEASE_NOTES.md)。

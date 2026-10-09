@@ -81,6 +81,10 @@ This was a short experiment on one Windows 11 system, one selected display and a
 
 For a useful report, record the release, backend, Windows / GPU, selected display and refresh / rotation, region, output dimensions, FPS / JPEG quality, phone, transport, load, duration, distinct-frame method and metric stage. Keep screen geometry fixed for comparisons. Report background-app load as an observation; a changed layout or uncontrolled workload prevents attributing an FPS change to one application. If a capture error occurs, stop and reselect before retrying; preserve explicit PC mouse arming and F8 emergency stop.
 
+### Editor and measurement versions
+
+The v0.3 headset editor previews a local flat / undistorted draft and pauses phone pose output; Save commits viewing settings, not a new codec or transport. Reset selects the existing 640 / 60 / Q45 default. Measurements above are the recorded v0.2 production / prototype sessions and must not be relabeled as new v0.3 measurements. Editor geometry tests establish consistency, not frame rate, headset comfort or end-to-end latency. See [editing](EDITING.md) and [versioned validation](VALIDATION.md).
+
 ---
 
 <!-- vrization:chinese -->
@@ -161,3 +165,8 @@ flowchart LR
 - **端到端延迟** 需要共同可见事件和测量方法，例如同时拍摄来源屏幕与手机的高速视频。
 
 有效反馈应记录版本、后端、Windows / 显卡、选定显示器及刷新 / 旋转、选区、输出尺寸、FPS / JPEG 质量、手机、传输、负载、时长、不同帧判断方法与指标所属阶段。对比时保持屏幕几何不变；后台应用负载仅作为观察，布局变化或未控制的工作负载不能把帧率变化归因于某个应用。发生采集错误时停止并重新选区再试，保留电脑明确鼠标授权和 F8 紧急停止。
+
+
+### 编辑器与测量版本
+
+v0.3 盒子编辑器预览本地无畸变平面草稿并暂停手机姿态；保存提交观看设置，不新增编码或传输。重置选择已有 640 / 60 / Q45 默认。上述数字属于记载的 v0.2 正式 / 原型会话，不改称新的 v0.3 测量；几何检查证明规则一致，不证明帧率、舒适度或端到端延迟。见 [编辑教程](EDITING.md) 与 [分版本验证](VALIDATION.md)。

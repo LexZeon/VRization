@@ -26,7 +26,7 @@ Native iOS / iPadOS client with UIKit, Metal, Core Motion, all three modes, Engl
 
 USB is now the default preference: Android discovers an authorized physical device through official ADB reverse, while iOS uses a native loopback listener and an original Windows relay through Apple's USB service. LAN remains explicitly selectable. The PC still starts streaming and arms FPS input manually. Foreground detection is one initial attempt; backgrounding, phone language changes and disconnects require explicit reconnection. USB discovery protects existing reverse mappings and reads Apple pairing records without creating trust or exposing keys.
 
-New GUI users get the 960 / 60 FPS / Q60 low-latency preset; stable, quality and custom presets are available, and saved capture choices remain effective. Latest-frame work, on-demand Android rendering and received-FPS / ping-RTT diagnostics help inspection; these are not an end-to-end latency benchmark or guaranteed game frame rate.
+New GUI users get the 640 / 60 FPS / Q45 low-latency preset; stable, quality and custom presets are available, and saved capture choices remain effective. Latest-frame work, on-demand Android rendering and received-FPS / ping-RTT diagnostics help inspection; these are not an end-to-end latency benchmark or guaranteed game frame rate.
 
 Cloud builds compile simulator and device SDKs and exercise the native iOS Simulator over a synthetic stream and simulated usbmux service. Physical iPhone installation still needs Apple signing, and real iPhone USB / motion remains unverified. Huawei Android hardware checks are tracked separately in [validation](VALIDATION.md); neither path establishes headset optics, game compatibility or measured motion-to-photon latency.
 
@@ -43,6 +43,10 @@ Cloud builds compile simulator and device SDKs and exercise the native iOS Simul
 ### Outside current scope
 
 This is not an OpenXR runtime or SteamVR driver. It does not provide 6DoF tracking, universal game injection, anti-cheat bypass, or automatic conversion of ordinary games into native VR.
+
+### v0.3.0-alpha visual fitting and local profiles
+
+The next release follows the separately published / archived v0.2 GPU / latency work. Windows, Android and iOS receive a first-position flat headset editor with synchronized eye movement, center-fixed proportional corners, explicit Save / Discard, Reset all settings and persistent committed phone VR profiles. Drafts stay local; phones restore their saved profile only after a validated hello, using normal settings synchronization. Mouse arming, explicit reconnects and the selected PC capture output remain protected. See [editor scope](EDITING.md), [release history](releases/README.md) and [actual validation](VALIDATION.md).
 
 ---
 
@@ -70,7 +74,7 @@ This is not an OpenXR runtime or SteamVR driver. It does not provide 6DoF tracki
 
 USB 已是默认偏好：Android 经官方 ADB reverse 发现已授权真实设备，iOS 使用原生回环监听及经 Apple USB 服务的原创 Windows 中继；局域网仍可显式选择。电脑仍手动开始串流与授权 FPS。首次前台只尝试一次，进入后台、手机切语言、断线后需显式重连。发现过程保护已有 reverse 映射，只读 Apple 配对记录，不创建信任或暴露密钥。
 
-新界面用户默认低延迟 960 / 60 FPS / 质量 60，另有稳定、画质和自定义预设；已有捕获配置继续生效。最新帧处理、Android 按需渲染及接收帧率 / ping RTT 便于诊断，不代表端到端延迟基准或保证游戏帧率。
+新界面用户默认低延迟 640 / 60 FPS / 质量 45，另有稳定、画质和自定义预设；已有捕获配置继续生效。最新帧处理、Android 按需渲染及接收帧率 / ping RTT 便于诊断，不代表端到端延迟基准或保证游戏帧率。
 
 云端编译模拟器 / 真机 SDK，并经合成串流与模拟 usbmux 服务运行原生 iOS 模拟器。真实 iPhone 安装仍须 Apple 签名，真实 iPhone USB / 姿态尚未验证。华为 Android 实机检查另见 [验证记录](VALIDATION.md)；两条路径均不证明盒子镜片、游戏兼容或运动到光子延迟已经通过。
 
@@ -87,3 +91,8 @@ USB 已是默认偏好：Android 经官方 ADB reverse 发现已授权真实设�
 ### 暂无的能力
 
 当前不是 OpenXR 运行时或 SteamVR 驱动，没有 6DoF 位置追踪、通用游戏注入、反作弊绕过或一键将普通游戏转换成原生 VR 的功能。
+
+
+### v0.3.0-alpha 可视适配与本地配置
+
+本版在独立发布 / 归档的 v0.2 GPU / 延迟工作之后推进：Windows、Android 与 iOS 加入设置首位平面编辑器、双眼同步移动、中心固定等比角点、主动保存 / 放弃、全部重置和手机已提交 VR 配置持久化。草稿只在本地，合法 hello 后才用普通同步恢复已保存配置；保留鼠标授权、显式重连及选定电脑画面的边界。见 [编辑范围](EDITING.md)、[发布历史](releases/README.md) 与 [实际验证](VALIDATION.md)。

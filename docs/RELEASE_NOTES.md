@@ -1,89 +1,65 @@
-# 🥽 VRization v0.2.0-alpha — release notes / 发布说明
+# 🥽 VRization v0.3.0-alpha — release notes / 发布说明
 
 [English](#english) · [简体中文](#简体中文)
 
 <!-- vrization:english -->
 ## English
 
-Windows screen → Android, iPhone or iPad VR viewing, with fixed full screen, a head-tracked cinema screen and gyro-to-mouse FPS mode. English is the default; Simplified Chinese is selectable and saved. FPS still requires explicit PC arming; **F8** stops input.
+This release adds visual headset fitting and saved phone profiles to the Windows / Android / iOS viewer. The GPU capture, USB transports and latency work were published separately in [v0.2.0-alpha](releases/v0.2.0-alpha.md); its verified downloads and local archive are retained. v0.3 application builds / UI acceptance are being completed; only checks explicitly recorded in [validation](VALIDATION.md) count as passed.
 
-### New in v0.2.0-alpha
+### New in v0.3.0-alpha
 
-- Native iOS / iPadOS 15+ client: UIKit, Metal, Core Motion and a reusable dependency-free Swift core package. Includes viewer-fit settings, recentering, settings acknowledgments, session validation, foreground lifecycle handling and language choice.
-- **USB is the default** on the Windows host and both mobile clients. Authorized physical Android devices use official ADB reverse forwarding and local host discovery; iOS uses Apple's Windows USB service and an original framed relay. LAN with manual pairing remains available.
-- Automatic authorized-device detection: one Android phone is selected automatically; multiple Android devices require selection. iOS supports one attached Apple mobile device. Start streaming on the PC and keep the phone app in the foreground. Backgrounding or changing phone language requires explicit reconnecting.
-- Capture presets (long edge / target FPS / JPEG quality): low latency **640 / 60 / Q45** for new configurations, stable **640 / 30 / Q50**, quality **960 / 30 / Q60**, or custom. Saved choices remain effective. The phone reports receive FPS and link round trip; neither measures end-to-end video latency.
-- Original Windows DXGI / D3D11 GPU capture: crop, rotate and downscale before smaller pixel readback, then CPU JPEG encoding. Explicit adapter / output selection, identity / layout checks, owned textures / bytes and same-thread resource cleanup; verified initial unsupported cases use the same region through GDI / MSS. Later access / identity errors stop capture and disarm FPS input. No DXcam, NumPy or comtypes runtime is bundled; research ideas retain [source credit](https://github.com/LexZeon/VRization/blob/main/THIRD_PARTY_NOTICES.md).
-- Windows DPI fallbacks, USB mapping ownership / cleanup, local bootstrap restrictions, and bounded iOS framing / handshake validation.
-- Illustrated bilingual USB / iOS guides and a verified local release archive tool that preserves historical versions and a fully extracted latest Windows program. Every project-owned public page remains complete English first, then Chinese below.
+- Visual headset fitting is first in each application's settings: Windows **Headset editor**, Android **Fit headset visually**, and iOS **Visual headset fit editor**. Move either eye image or drag a corner to resize both together, keeping the center and image aspect ratio fixed. The PC offers an approximate phone-shaped preview with a selectable aspect ratio.
+- Interior horizontal pan is reversed on all three applications: finger / mouse left moves the picture right, and right moves it left. Vertical pan and corner resizing remain direct; FPS mouse mapping is unchanged. Connected Save synchronizes PC ↔ phone through normal validated settings / acknowledgments / broadcasts and preserves committed profiles on both sides; offline Save stays local until a valid connection.
+- **Save / Discard:** the editor is a local draft. Preview dragging sends no host setting updates and writes no preferences. Phone Save commits the complete draft; PC Save updates only the fit fields into current host settings, preserving other concurrent changes; Discard restores the entry snapshot. A flat, undistorted preview preserves the actual viewing mode and other optical values. Editing pauses phone pose messages and sends disarm-only hello metadata on entry; it never arms mouse control. The PC preview reuses existing JPEGs without starting another capture.
+- **Persistent phone profiles:** committed VR settings survive restarts and offline changes. After a validated host hello, a saved phone profile is restored through one normal settings update with a fresh client sequence. Subsequent host changes retain revision / acknowledgment synchronization. Pairing secrets are not saved.
+- **Reset all settings:** restore VR defaults, English and USB. Windows restores low-latency capture defaults (640 / 60 / Q45) and automatic USB choice, while preserving the explicitly chosen capture display / rectangle and ADB executable path. Phone reset clears its preferences / pairing field and disconnects without reconnecting automatically.
+- The original reusable Python geometry / transaction module and matching Android / Swift geometry use the same normalized coordinates, center-fixed corner projection and wire bounds. See [the behavior and integration contract](EDITING.md).
 
-### Verification and limits
+### Verification and inherited limits
 
-The new Android APK upgraded a physical **HUAWEI Pura 70 Ultra** in place, using the same local signing certificate. Real USB host discovery, automatic connection after a fresh app launch, JPEG reception, both-eye rendering and real sensor-pose reception were observed. These tests used an original calibration card and a fake mouse sink; they do not establish headset optics, game compatibility or gyro-axis accuracy. Exact checks, build outcomes and later measurements are recorded in [validation](https://github.com/LexZeon/VRization/blob/main/docs/VALIDATION.md).
+The original Python geometry / transaction has 14 automated checks for aspect fit, both-eye spacing, all four corners, clamp limits, gesture-start deltas, invalid inputs and commit / discard. These are pure checks with no screen capture, OS mouse input or physical headset. Application and device acceptance must be recorded separately; inherited v0.2 performance numbers are not new v0.3 measurements.
 
-The first production GPU full-output stream from the ASUS 2160 × 3840 display to that phone used 360 × 640 / Q45 / target 60 FPS. Phone decoded-FPS readings were **59.9 and 57.7**; 41 host samples averaged **59.66 sent FPS** including startup. Repeated static reads were separately recorded, so these are not 60 unique displayed frames per second or end-to-end delay. Profile / region checks and timing boundaries are in [performance](https://github.com/LexZeon/VRization/blob/main/docs/PERFORMANCE.md).
+Targets remain Windows 10 / 11 x64, Android 6.0+ with GLES 2.0, and iOS / iPadOS 15+ with Metal. The iOS USB bridge has native Simulator / simulated-usbmux evidence; **physical iPhone USB, physical headset optics and real FPS game input remain unverified**. iPhone installation still needs a Mac, Xcode and your Apple signing. The Simulator download is arm64 for an Apple Silicon Mac, not an iPhone IPA or Windows app.
 
-The iOS USB bridge has software / simulated-device tests. **No physical iPhone USB test has been completed.** iOS source and Mac Simulator builds require different installation steps: a physical iPhone needs a Mac, Xcode and your Apple signing. No signed, directly installable iPhone IPA is supplied. See [the iOS guide](https://github.com/LexZeon/VRization/blob/main/docs/IOS.md).
+Capture profiles remain longest edge / target FPS / JPEG quality: low **640 / 60 / Q45**, stable **640 / 30 / Q50**, quality **960 / 30 / Q60**, plus custom. Both eyes receive the same 2D image. No audio, hardware video encoding, native game stereo or 6DoF position tracking is supplied. FPS targets, link RTT and phone-local texture-submission times are not end-to-end video-latency guarantees. See [performance boundaries](PERFORMANCE.md).
 
-### Downloads
+### Downloads and setup
 
-- `VRization-Windows-x64.zip`: extract completely and run `VRization-Host.exe`; Windows 10 / 11 x64 target.
-- `VRization-Android-debug.apk`: Android 6.0+ test-signed APK. APK-compatible derivatives depend on their device capabilities.
-- `VRization-vr-core-alpha.aar`: reusable Android core; alpha APIs.
-- `VRization-iOS-source.zip`: editable Xcode project and Swift core; sign for your own device on a Mac.
-- `VRization-iOS-Simulator.zip`: Mac Simulator build, not an iPhone installer or a Windows app.
-- `VRization-Licenses.zip` and `SHA256SUMS.txt`: license / provenance records and download checksums.
+The asset names remain `VRization-Windows-x64.zip`, `VRization-Android-debug.apk`, `VRization-vr-core-alpha.aar`, `VRization-iOS-source.zip`, `VRization-iOS-Simulator.zip`, `VRization-Licenses.zip` and `SHA256SUMS.txt`. Completely extract Windows, keep its license / documentation folders and use the separate Microsoft Visual C++ v14 x64 runtime. The APK remains test-signed; preserving application data on upgrade requires a matching certificate. iOS source is editable, not pre-signed for your phone.
 
-### First USB connection
+Follow [quick start](QUICKSTART.md), [USB setup](USB.md), [iOS signing](IOS.md) and [verified download / local archive instructions](DOWNLOADS.md). Select the intended display before starting capture. USB connection, profile restore, Save and Reset never authorize PC mouse input; FPS needs explicit PC arming and **F8** remains the stop key. LAN `ws://` remains unencrypted and should be used only on trusted networks.
 
-Android: install official Platform Tools → enable and authorize USB debugging → connect a data cable → select the display and Start streaming on the PC → open the phone app in USB mode. iPhone: first sign / install with Xcode, install Apple Devices on Windows and approve Trust, then keep the app in the foreground. Use the phone connection button if its first attempt has ended. Follow the [USB tutorial](https://github.com/LexZeon/VRization/blob/main/docs/USB.md) and [download / archive guide](https://github.com/LexZeon/VRization/blob/main/docs/DOWNLOADS.md).
-
-### Alpha boundaries
-
-GPU capture / scaling followed by CPU JPEG sends the same 2D image to both eyes. Audio, hardware video encoding, native game stereo and 6DoF tracking are not provided. Actual frame rate and latency depend on the hardware; a 60 FPS target is not a performance guarantee. LAN `ws://` is unencrypted: use trusted networks and never expose the port to the internet. USB requires platform authorization and never arms mouse input automatically.
-
-Android uses a debug signature; a build from another machine can require uninstalling the old app and clearing its settings. The Windows EXE has no commercial code signature and requires Microsoft's Visual C++ v14 x64 runtime, supplied separately. For a missing DLL / error 126, follow [Microsoft's runtime guide](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist/).
+[Release history](releases/README.md)
 
 ---
 
 <!-- vrization:chinese -->
 ## 简体中文
 
-Windows 电脑画面 → Android、iPhone 或 iPad VR 观看，支持固定全屏、头部追踪虚拟大屏幕与陀螺仪转鼠标 FPS 模式。默认英文，可选择并保存简体中文。FPS 仍需电脑主动授权，**F8** 停止输入。
+本版在 Windows / Android / iOS 观看端加入可视盒子适配与手机本地配置。GPU 采集、USB 传输和延迟优化已先独立发布为 [v0.2.0-alpha](releases/v0.2.0-alpha.md)，已校验下载与本地归档继续保留。v0.3 应用构建 / 界面验收正在完成，只有 [验证记录](VALIDATION.md) 明确记载的检查才算通过。
 
-### v0.2.0-alpha 新增
+### v0.3.0-alpha 新增
 
-- 原生 iOS / iPadOS 15+ 客户端，使用 UIKit、Metal、Core Motion，以及无外部依赖的可复用 Swift 核心包。包含盒子适配、回正、设置确认、会话校验、前台生命周期处理与语言选择。
-- Windows 和两种手机端均**默认 USB**。已授权 Android 真机通过官方 ADB 反向转发与本机服务发现连接；iOS 通过 Apple 的 Windows USB 服务和原创分帧中继连接。保留手动配对的局域网方式。
-- 自动检测授权设备：一台 Android 自动选择，多台需选择；iOS 支持连接一台 Apple 移动设备。电脑需开始串流，手机需保持前台。手机进入后台或切换语言后需显式重连。
-- 采集预设（最长边 / 目标 FPS / JPEG 质量）：新配置默认低延迟 **640 / 60 / Q45**，稳定 **640 / 30 / Q50**，画质 **960 / 30 / Q60**，或自定义；已有设置继续生效。手机显示接收帧率和链路往返时间，两者都不是端到端视频延迟。
-- 原创 Windows DXGI / D3D11 GPU 采集：裁切、旋转、缩小后回读较少像素，再由 CPU 编码 JPEG。显式选择显卡 / 输出，核对身份 / 布局，自有纹理 / 字节及同线程资源清理；已确认初始化不支持的情况对同一区域采用 GDI / MSS。之后的访问 / 身份错误会停止采集并解除 FPS 输入授权。不打包 DXcam、NumPy 或 comtypes 运行时，研究思路保留 [来源鸣谢](https://github.com/LexZeon/VRization/blob/main/THIRD_PARTY_NOTICES.md)。
-- Windows DPI 回退、USB 映射归属与清理、本地 bootstrap 限制，以及 iOS 分帧大小与握手校验。
-- 新增双语图文 USB / iOS 教程及校验式本地归档工具，保留历史版本和完整解压的最新版 Windows 程序。所有自有公共页面继续先完整英文、再完整中文。
+- 三端设置首位提供可视适配：Windows **画面编辑**、Android **可视化适配 VR 盒子**、iOS **可视化盒子画面编辑器**。拖任一眼画面同步移动两眼，拖角点同步缩放，中心与图像比例保持；电脑提供可选择宽高比的近似手机形预览。
+- 三端内部横向平移都反向：手指 / 鼠标向左让画面向右，向右让画面向左；竖向与角点缩放保持正常，FPS 鼠标映射不变。已连接的保存经普通合法设置 / 确认 / 广播同步电脑 ↔ 手机，两端保留已提交配置；离线保存先留在本地，等合法连接。
+- **保存 / 放弃**：编辑器是本地草稿。预览拖动不向主机更新设置、不保存偏好；手机保存提交完整草稿，电脑只把适配字段合并到当前主机设置并保留其他并发变化；放弃恢复进入快照。平面、无畸变预览保留实际模式与其他光学值。编辑暂停手机姿态，进入时发送仅解除授权的 hello 元数据，不授权鼠标；电脑预览复用已有 JPEG，不新增采集。
+- **手机配置持久保存**：已提交 VR 设置在重启和离线更改后保留。合法主机 hello 后，用新客户端序号通过一次普通设置更新恢复手机配置；后续电脑改动仍按 revision / 确认同步。不保存配对秘密。
+- **重置全部设置**：恢复 VR 默认、英文和 USB。Windows 恢复低延迟采集默认 640 / 60 / Q45 与 USB 自动选择，但保留明确选择的采集显示器 / 选区及 ADB 程序路径；手机清除偏好 / 配对字段并断线，不自动重连。
+- 原创可复用 Python 几何 / 事务模块和对应 Android / Swift 几何共用归一化坐标、中心固定的角点投影与协议边界。见 [操作行为与集成合同](EDITING.md)。
 
-### 验证与限制
+### 验证与继承限制
 
-新版 APK 使用同一本地签名在 **HUAWEI Pura 70 Ultra 真机**覆盖升级，已观察到真实 USB 服务发现、新启动自动连接、JPEG 接收、双眼渲染与真实传感器姿态接收。测试采用原创校准卡与假鼠标接收器，不代表镜片舒适度、游戏兼容性或陀螺仪轴向已经验证。确切检查、构建结果与后续测量见 [验证记录](https://github.com/LexZeon/VRization/blob/main/docs/VALIDATION.md)。
+原创 Python 几何 / 事务已有 14 项自动检查，覆盖比例适配、双眼间距、四角、端点限制、手势起点总位移、非法输入以及提交 / 放弃。它们不采屏、不发操作系统鼠标输入，也不使用真实盒子；应用与设备验收需另记。v0.2 的性能数字不能当作新的 v0.3 测量。
 
-首轮正式 GPU 全输出串流从 ASUS 2160 × 3840 显示器到该手机，使用 360 × 640 / Q45 / 目标 60 FPS。手机解码 FPS 两次读数为 **59.9、57.7**，41 个主机样本平均 **59.66 发送 FPS**，包含启动阶段。重复静态读取另行记录，不能当作每秒 60 张不同图像实际显示或端到端延迟；选区 / 预设检查及计时边界见 [性能文档](https://github.com/LexZeon/VRization/blob/main/docs/PERFORMANCE.md)。
+目标仍为 Windows 10 / 11 x64、支持 GLES 2.0 的 Android 6.0+，以及支持 Metal 的 iOS / iPadOS 15+。iOS USB 有原生模拟器 / 模拟 usbmux 证据，**真实 iPhone USB、实际盒子镜片与真实 FPS 游戏输入仍未验证**。iPhone 安装仍需 Mac、Xcode 和自己的 Apple 签名；模拟器下载为 Apple Silicon Mac 的 arm64 应用，不是 iPhone IPA 或 Windows 软件。
 
-iOS USB 目前有软件 / 模拟设备桥接测试，**尚未完成真实 iPhone USB 测试**。iOS 源码与 Mac 模拟器构建安装方式不同：真机需要 Mac、Xcode 和自己的 Apple 签名，未提供可直接安装的已签名 iPhone IPA。详见 [iOS 教程](https://github.com/LexZeon/VRization/blob/main/docs/IOS.md)。
+预设仍按最长边 / 目标 FPS / JPEG 质量表示：低延迟 **640 / 60 / Q45**、稳定 **640 / 30 / Q50**、画质 **960 / 30 / Q60**，另有自定义。两眼接收同一二维图像，没有音频、硬件视频编码、原生游戏立体或 6DoF 位置追踪。目标 FPS、链路 RTT 和手机本地纹理提交耗时都不保证端到端视频延迟，见 [性能边界](PERFORMANCE.md)。
 
-### 下载
+### 下载与安装
 
-- `VRization-Windows-x64.zip`：完整解压后运行 `VRization-Host.exe`；目标 Windows 10 / 11 x64。
-- `VRization-Android-debug.apk`：Android 6.0+ 测试签名 APK；兼容 APK 的衍生系统取决于设备能力。
-- `VRization-vr-core-alpha.aar`：可复用 Android 核心，仍为 Alpha API。
-- `VRization-iOS-source.zip`：可编辑 Xcode 项目和 Swift 核心，在 Mac 为自己的真机签名。
-- `VRization-iOS-Simulator.zip`：Mac 模拟器构建，不是 iPhone 安装包或 Windows 软件。
-- `VRization-Licenses.zip` 与 `SHA256SUMS.txt`：许可证 / 来源记录与下载校验值。
+产物名称仍为 `VRization-Windows-x64.zip`、`VRization-Android-debug.apk`、`VRization-vr-core-alpha.aar`、`VRization-iOS-source.zip`、`VRization-iOS-Simulator.zip`、`VRization-Licenses.zip` 与 `SHA256SUMS.txt`。Windows 完整解压，保留许可 / 文档文件夹，另行使用 Microsoft Visual C++ v14 x64 运行库。APK 仍为测试签名，保留数据覆盖升级要求签名一致；iOS 源码可编辑，没有替你的手机预先签名。
 
-### 首次 USB 连接
+按 [上手教程](QUICKSTART.md)、[USB 前提](USB.md)、[iOS 签名](IOS.md) 与 [已校验下载 / 本地归档](DOWNLOADS.md) 使用。采集前明确选择画面。USB 连接、配置恢复、保存和重置均不会授权电脑鼠标；FPS 须电脑主动授权，**F8** 仍为停止键。局域网 `ws://` 仍未加密，只用于可信网络。
 
-Android：安装官方 Platform Tools → 开启 USB 调试并授权 → 接数据线 → 电脑选择屏幕并开始串流 → 手机打开 USB 模式。iPhone：先用 Xcode 签名安装，Windows 安装 Apple Devices 并允许信任，保持手机应用前台。如果首次连接尝试已结束，点手机连接按钮。详见 [USB 教程](https://github.com/LexZeon/VRization/blob/main/docs/USB.md) 与 [下载 / 本地归档说明](https://github.com/LexZeon/VRization/blob/main/docs/DOWNLOADS.md)。
-
-### Alpha 边界
-
-GPU 采集 / 缩放后由 CPU 编码 JPEG，向两眼发送同一二维图像，未提供音频、硬件视频编码、原生游戏立体画面与 6DoF 追踪。实际帧率与延迟取决于硬件，目标 60 FPS 不是性能保证。局域网 `ws://` 未加密，仅在可信网络使用，不要开放到公网。USB 需要平台授权，不会自动开启鼠标控制。
-
-Android 使用测试签名，其他机器构建可能需要卸载旧版并清除设置。Windows EXE 没有商业代码签名，需要另行安装微软 Visual C++ v14 x64 运行库。缺少 DLL / 错误 126 时见 [微软运行库说明](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist/)。
+[发布历史](releases/README.md)

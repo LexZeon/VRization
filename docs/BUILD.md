@@ -94,6 +94,10 @@ For USB prerequisites and default profiles, see [USB setup](USB.md). After publi
 
 Before a release, check connection, all modes, layout, recentering, PC arming / F8, input stopping on disconnect, and no-sensor fallback. Check optics, heat, delay and sensor directions on an actual phone and viewer. Do not describe emulator screenshots or synthetic frames as hardware validation.
 
+### v0.3 geometry / preference changes
+
+Run the host suite above for `view_edit.py`; it includes pure both-eye geometry and local transaction tests without GUI / capture / input. Android / Swift cores also own the shared geometry, and app tests cover committed profiles, draft / reset behavior and reconnect restoration. Build on the original target platforms and validate application behavior separately; pure math or SDK compilation alone does not establish a completed headset editor UI pass. See [the editor contract](EDITING.md).
+
 ---
 
 <!-- vrization:chinese -->
@@ -190,3 +194,8 @@ USB 前提与默认预设见 [USB 教程](USB.md)。发布后可按 [本地归�
 构建两端与 `:vr-core:assembleRelease` 后运行 `python scripts/package_release.py`，产物在 `artifacts/release/`；打包器检查附带 Markdown 文件链接，CI 使用相同打包逻辑。
 
 发布前至少检查：两端连接、三种模式、缩放偏移、回正、FPS 电脑授权与 F8 停止、断线后停止输入、无传感器设备的全屏回退。还应在实际手机与盒子上检查对齐、发热、延迟和传感器方向。不要把模拟器截图或局域网合成帧测试写成实机验证结果。
+
+
+### v0.3 几何 / 偏好变化
+
+上述主机测试包含 `view_edit.py` 的纯双眼几何与本地事务，不需要界面 / 采屏 / 输入；Android / Swift 核心也负责共用几何，应用检查覆盖已提交配置、草稿 / 重置和重连恢复。仍在原目标平台构建，另行验证应用行为；纯数学或 SDK 编译不能算作盒子编辑器界面验收。见 [编辑合同](EDITING.md)。

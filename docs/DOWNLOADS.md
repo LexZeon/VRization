@@ -13,7 +13,7 @@ Download published assets and `SHA256SUMS.txt` from [GitHub Releases](https://gi
 | `VRization-Android-debug.apk` | Install on Android. This is the project's debug-signed alpha APK; normal Android installation approval still applies. A matching signing certificate is required to upgrade an existing installation without uninstalling it. |
 | `VRization-vr-core-alpha.aar` | Android library for developers integrating rendering / pose functionality; not a phone installer. |
 | `VRization-iOS-source.zip` | Source and Xcode project. Build on a Mac and use your own Apple signing for a physical iPhone / iPad. See [iOS instructions](IOS.md). |
-| `VRization-iOS-Simulator.zip` | Build for the matching Mac Simulator architecture. It cannot be installed on an iPhone or run as a Windows application. |
+| `VRization-iOS-Simulator.zip` | arm64 application for an Apple Silicon Mac's iOS Simulator. Intel Mac users build the source for their architecture. It cannot be installed on an iPhone or run as a Windows application. |
 | `VRization-Licenses.zip` | License texts and provenance indexes; not an application. |
 
 iOS source and Simulator downloads are **not signed, directly installable iPhone packages**. Android USB requires separately installed official Platform Tools; iOS USB requires separately installed Apple Devices / Apple Mobile Device support on Windows. See [the USB guide](USB.md).
@@ -52,6 +52,10 @@ Open `OPEN-ME.html` for the local bilingual index. Double-click `latest/Start-Wi
 
 Updating stages a complete new `latest` copy and preserves the old managed copy as `previous-latest-…`. `versions/` retains the historical downloads. An existing `latest` without the script's ownership metadata is left untouched and causes an error; choose another destination rather than deleting an unrelated folder. Keep the full Windows folder when moving an extracted version. Refresh the archive after a new GitHub release is published to obtain that release; unpublished local builds are not downloaded.
 
+### Keep v0.2 and v0.3 separate
+
+v0.2.0-alpha was published and archived before the v0.3 editor / reset / profile changes. Keep its verified assets and checksums; refresh the archive only after the next version is actually published. [Release history](releases/README.md) preserves old notes. Reset in an application changes local preferences; it does not delete historical releases or replace archive downloads. See [editor reset scope](EDITING.md).
+
 ---
 
 <!-- vrization:chinese -->
@@ -65,7 +69,7 @@ Updating stages a complete new `latest` copy and preserves the old managed copy 
 | `VRization-Android-debug.apk` | 安装到 Android。它是项目 debug 签名的 alpha APK，仍需正常 Android 安装授权。若要保留数据升级已有安装，签名证书必须一致。 |
 | `VRization-vr-core-alpha.aar` | 供开发者集成渲染 / 姿态功能的 Android 库，不是手机安装包。 |
 | `VRization-iOS-source.zip` | 源码与 Xcode 工程。在 Mac 构建，使用自己的 Apple 签名安装到真实 iPhone / iPad。见 [iOS 教程](IOS.md)。 |
-| `VRization-iOS-Simulator.zip` | 用于匹配架构的 Mac 模拟器，不能安装到 iPhone，也不是 Windows 程序。 |
+| `VRization-iOS-Simulator.zip` | Apple Silicon Mac 的 iOS 模拟器 arm64 应用；Intel Mac 需从源码编译对应架构，不能安装到 iPhone，也不是 Windows 程序。 |
 | `VRization-Licenses.zip` | 许可证原文与来源索引，不是应用程序。 |
 
 iOS 源码与模拟器产物**不是已签名、可直接安装到 iPhone 的安装包**。Android USB 需要另行安装官方 Platform Tools；iOS USB 需要 Windows 另行安装 Apple Devices / Apple Mobile Device 支持。见 [USB 指南](USB.md)。
@@ -103,3 +107,8 @@ Documents/VRization-Releases/
 打开 `OPEN-ME.html` 查看本地双语索引。双击 `latest/Start-Windows.bat`，或打开 `latest/Windows/VRization-Host.exe`。第二显示器启动器选择编号 2 的屏幕，串流前请核对显示器名称。这些 Windows 文件已经完整解压，之后每次运行无需再解压 ZIP。脚本不会自动运行软件、安装 APK、为 iOS 签名或启用串流 / FPS 控制。
 
 更新时先准备完整的新 `latest`，再把旧的已管理副本保留为 `previous-latest-…`；`versions/` 继续保留历史下载。如果已有 `latest` 不含脚本归属元数据，会保持不动并报错；应选择其他目标目录，不要删除无关文件夹。移动已解压版本时保留整个 Windows 文件夹。GitHub 新版本发布后重新运行才能取得该版本，尚未发布的本机构建不会被下载。
+
+
+### 分开保留 v0.2 与 v0.3
+
+v0.2.0-alpha 已先发布 / 归档，再推进 v0.3 编辑器 / 重置 / 配置变化；保留它的已校验产物与校验值，下一版实际发布后再刷新归档。[发布历史](releases/README.md) 保留原说明。应用内重置只改变本地偏好，不删除历史版本或替换归档下载，见 [编辑重置范围](EDITING.md)。

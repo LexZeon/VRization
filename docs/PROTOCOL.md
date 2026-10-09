@@ -5,7 +5,7 @@
 <!-- vrization:english -->
 ## English
 
-v0.2.0-alpha retains integration **protocol v1**: 2D JPEG frames and JSON control messages. Android and iOS use the same messages over LAN or their USB adapters. This is not OpenXR or a stereoscopic video format. For installation and device authorization, read [USB setup](USB.md).
+v0.3.0-alpha retains integration **protocol v1**: 2D JPEG frames and JSON control messages. Android and iOS use the same messages over LAN or their USB adapters. This is not OpenXR or a stereoscopic video format. For installation and device authorization, read [USB setup](USB.md).
 
 ### LAN WebSocket connection
 
@@ -26,7 +26,7 @@ The Windows GUI's optional `UsbManager` discovers a physical, authorized Android
 The phone requests `GET http://127.0.0.1:18765/usb-bootstrap`:
 
 ```json
-{"v":1,"name":"VRization","version":"0.2.0","port":8765,"token":"001234"}
+{"v":1,"name":"VRization","version":"0.3.0","port":8765,"token":"001234"}
 ```
 
 `port` describes the PC listener; it does **not** change the phone destination. The phone then uses `ws://127.0.0.1:18765/ws?token=001234` with the ordinary v1 WebSocket protocol. The example token is fictitious. Responses use `Cache-Control: no-store` and `X-Content-Type-Options: nosniff`. Access requires a loopback peer, one `Host` header naming `127.0.0.1`, `localhost` or `[::1]` with the PC port or reverse port `18765`, no `Origin` header, and an authorized physical USB mapping owned by this manager. Refusal is `403`; a reachable but stopped host returns `503`, while a stopped listener usually refuses the TCP connection. Ordinary `HostServer` embedding disables bootstrap unless explicitly supplied an authorization callback. No CORS permission is granted.
@@ -64,7 +64,7 @@ Each JSON message requires integer `v: 1` and string `type`. On connection the h
   "v": 1,
   "type": "hello",
   "name": "VRization",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "revision": 0,
   "settings": {
     "mode": "full", "scale": 0.85, "offsetX": 0.0, "offsetY": 0.0,
@@ -78,9 +78,9 @@ Each JSON message requires integer `v: 1` and string `type`. On connection the h
 
 Stream numbers are examples. v1 retains `maxWidth` as a width bound; the current host also limits the **longest edge** to this value. A 2160 × 3840 source becomes 360 × 640 at limit 640. Render the actual JPEG dimensions rather than inferring aspect ratio from this bound. GPU crop / rotation / scaling changes the host implementation, not the JPEG payload or protocol version. Static refresh packets can repeat an owned JPEG; v1 has no wire capture timestamp or distinct-frame counter.
 
-Use `hello.settings` for the session instead of overwriting a new host with stale client settings. Optional client handshake: `{"v":1,"type":"hello"}`.
+Validate `hello` before establishing the session. Since v0.3, a phone with a saved committed VR profile then sends that complete profile once using a new `clientSeq`; the user's local preference intentionally replaces the initial host settings. Without a saved profile, use the validated `hello.settings`. Later acknowledgments / PC broadcasts follow the revision rules below. Optional client handshake: `{"v":1,"type":"hello"}`.
 
-The current iOS client waits for a valid v1 `hello` before marking either LAN or USB connected, with a ten-second host-handshake deadline. A socket opening alone does not establish the session. Invalid / unsupported host messages disconnect; this client-side gate is not a new server protocol version.
+Both current phone clients wait for a valid v1 `hello` before marking either LAN or USB connected, with a ten-second host-handshake deadline. A socket opening alone does not establish the session. Invalid / unsupported host messages disconnect; this client-side gate is not a new server protocol version.
 
 ### Settings
 
@@ -134,12 +134,30 @@ Client text messages are limited to 16 KiB. Repeated invalid messages or excessi
 
 New codecs, native per-eye frames, timestamps or stronger authentication require explicit protocol negotiation / versioning. Do not guess unknown binary formats. `mouseArmed` reports initial state; it does not grant the phone authorization power.
 
+### Editor drafts and saved local profiles (v0.3)
+
+These are client / GUI policies, not new wire types. Preview pan / resize is local: no `settings`, `pose` or preference writes occur while editing. A flat / undistorted preview retains the saved mode and other optical values. Phone Save commits the complete draft and sends one normal settings update when connected. PC Save patches only scale / offsetX / offsetY against the latest host state, preserving concurrent changes to other fields. Discard restores the local entry preview and sends none. Editor exit never arms input. Phone backgrounding / disconnecting discards an open draft.
+
+Phones persist all committed VR fields, including offline changes; pairing secrets are not stored. After each validated host hello, a saved profile is restored once via normal complete settings with a fresh clientSeq. Do not replay old socket work, bypass validation or reset revisions to accommodate it. Accepted subsequent complete snapshots update the local profile normally. This explicit user-requested persistence replaces the earlier host-initial-settings preference for v0.3 clients; old v1 clients retain their behavior.
+
+Connected Save from the PC or phone uses settings / acknowledgments / broadcasts and retains the accepted state on both sides. Offline changes stay local. If both sides have conflicting offline changes, the saved phone profile takes precedence on reconnect; the PC can Save again afterward. No timestamp / clock comparison, automatic merge or new conflict wire type is introduced. All editor UI adapters reverse only interior horizontal pan before the pure normalized math; the settings-coordinate convention and FPS mapping stay unchanged.
+
+Reset restores standard Settings defaults, English and USB; phone reset clears connection preferences and disconnects without auto-reconnect. Host reset also restores capture 640 / 60 / Q45 but preserves explicit monitor / region and ADB tool path. Connected updates use ordinary settings validation. No remote reset / arm message is introduced. See [editor geometry and reset scope](EDITING.md).
+
+### Disarm-only editor metadata (v0.3)
+
+```json
+{"v":1,"type":"hello","editing":true}
+```
+
+On editor entry, the phone stops new poses and drops application-pending pose work (already submitted transport bytes cannot be recalled) and sends this once on an already validated connection. Optional `editing` must be a JSON boolean; true disarms the current host immediately on receipt. False or omission never arms input. It is metadata on the existing v1 hello, not a draft settings update or a fourth mode. Older hosts can ignore the field; withholding poses still triggers their watchdog. Video / ping can continue during editing, and normal exit recentering remains allowed. Save or Discard never sends an arm request; the user must authorize again on the PC.
+
 ---
 
 <!-- vrization:chinese -->
 ## 简体中文
 
-v0.2.0-alpha 保留集成**协议 v1**：传输二维 JPEG 帧和 JSON 控制消息。Android 与 iOS 经局域网或各自 USB 适配器使用相同消息。它不是 OpenXR 或立体视频协议；安装和设备授权见 [USB 教程](USB.md)。
+v0.3.0-alpha 保留集成**协议 v1**：传输二维 JPEG 帧和 JSON 控制消息。Android 与 iOS 经局域网或各自 USB 适配器使用相同消息。它不是 OpenXR 或立体视频协议；安装和设备授权见 [USB 教程](USB.md)。
 
 ### 局域网 WebSocket 连接
 
@@ -160,7 +178,7 @@ Windows 界面可启用 `UsbManager`，检测已授权的真实 Android USB 设�
 手机请求 `GET http://127.0.0.1:18765/usb-bootstrap`：
 
 ```json
-{"v":1,"name":"VRization","version":"0.2.0","port":8765,"token":"001234"}
+{"v":1,"name":"VRization","version":"0.3.0","port":8765,"token":"001234"}
 ```
 
 `port` 说明电脑监听端口，**不改变**手机目的端口；手机随后以普通 v1 协议连接 `ws://127.0.0.1:18765/ws?token=001234`。示例 token 为虚构。响应含 `Cache-Control: no-store`、`X-Content-Type-Options: nosniff`。请求必须来自回环地址，仅含一个 `Host`，主机为 `127.0.0.1`、`localhost` 或 `[::1]`，端口为电脑端口或反向端口 `18765`，不能含 `Origin`，并且 manager 必须拥有已授权的真实 USB 映射。拒绝返回 `403`；服务可达但已停止返回 `503`，监听停止时通常直接拒绝 TCP 连接。普通 `HostServer` 嵌入默认关闭 bootstrap，须显式提供授权回调；接口不授予 CORS 访问。
@@ -198,7 +216,7 @@ WebSocket 的 JPEG 内容没有自定义二进制头、帧序号、时间戳、�
   "v": 1,
   "type": "hello",
   "name": "VRization",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "revision": 0,
   "settings": {
     "mode": "full", "scale": 0.85, "offsetX": 0.0, "offsetY": 0.0,
@@ -212,9 +230,9 @@ WebSocket 的 JPEG 内容没有自定义二进制头、帧序号、时间戳、�
 
 `stream` 数值仅为示例，以主机当次配置为准。`maxWidth` 保留 v1 字段名，表示输出宽度上限；当前主机也把该数值作为**最长边**限制，以控制竖屏帧的解码负担。例如 2160 × 3840 的源画面在限值 640 下输出 360 × 640。客户端应以实际 JPEG 尺寸渲染，不根据该上限猜测帧的纵横比。GPU 裁切 / 旋转 / 缩放改变主机实现，不改变 JPEG 内容或协议版本；静态刷新包可能重复自有 JPEG，v1 没有传输采集时间戳或不同帧计数。
 
-客户端应以 `hello.settings` 为当前会话设置，不用自己的旧设置覆盖新主机。可选客户端握手：
+先校验 `hello` 再建立会话。v0.3 手机若有保存的已提交 VR 配置，再用新的 `clientSeq` 一次发送完整配置，用户本地偏好明确替代主机初始值；没有保存配置时采用合法 `hello.settings`。后续确认 / 电脑广播按下面的 revision 规则处理。可选客户端握手：
 
-当前 iOS 客户端在 LAN / USB 都等待合法 v1 `hello` 才显示已连接，主机握手期限为十秒。仅 socket 打开不代表会话已建立；非法 / 不支持的主机消息会断开。此客户端门控不是新的服务端协议版本。
+两种当前手机客户端在 LAN / USB 都等待合法 v1 `hello` 才显示已连接，主机握手期限为十秒。仅 socket 打开不代表会话已建立；非法 / 不支持的主机消息会断开。此客户端门控不是新的服务端协议版本。
 
 ```json
 {"v":1,"type":"hello"}
@@ -278,3 +296,23 @@ FPS 控制需要有效会话、`mode: fps`、近期姿态和电脑端主动授�
 ### 兼容性原则
 
 添加不同编码、原生左右眼帧、时间戳或更强认证时应升级协议并显式协商。v1 客户端不应猜测不认识的二进制内容。`mouseArmed` 是初始状态提示，不是手机的授权能力。
+
+
+### 编辑草稿与本地保存配置（v0.3）
+
+这是客户端 / 界面策略，不新增协议类型。预览平移 / 缩放只在本地，编辑期间不发 `settings`、`pose`，不写偏好；无畸变平面预览保留原模式与其他光学值。手机保存提交完整草稿，已连接时发送一次普通设置更新；电脑只对最新主机状态更新 scale / offsetX / offsetY，保留其他字段并发变化。放弃恢复本地进入预览，不发送。退出编辑不授权鼠标，手机后台 / 断线会放弃草稿。
+
+手机保存全部已提交 VR 字段，包括离线更改，不保存配对秘密。每次合法主机 hello 后，通过带新 clientSeq 的普通完整 settings 一次恢复本地配置；不得重放旧 socket 任务、跳过校验或为此重置 revision。后续接受的完整快照正常更新本地配置。此用户明确要求的持久化策略，在 v0.3 客户端替代先前优先主机初始设置的策略；旧 v1 客户端保持原行为。
+
+电脑或手机已连接的保存经设置 / 确认 / 广播传播，两端保留接受状态；离线变化只在本地。若两边离线冲突，重连时已保存手机配置优先，电脑可随后再保存；不比较时间戳 / 时钟、不自动合并、不新增冲突协议类型。所有编辑器界面只在内部平移时把横向取反后交给纯归一化数学，设置坐标约定与 FPS 映射不变。
+
+重置恢复标准 Settings 默认、英文与 USB；手机清除连接偏好并断线，不自动重连。主机还恢复采集 640 / 60 / Q45，但保留明确显示器 / 选区和 ADB 工具路径；已连接更新仍经过普通设置校验，不新增远程 reset / arm 消息。见 [几何与重置范围](EDITING.md)。
+
+
+### 只解除授权的编辑元数据（v0.3）
+
+```json
+{"v":1,"type":"hello","editing":true}
+```
+
+手机进入编辑器时停止新姿态、丢弃应用层待发姿态（已提交传输层字节无法撤回），在已校验连接上一次发送。可选 `editing` 必须为 JSON 布尔值，true 让当前主机收到后立即解除授权；false 或省略均不授权。这是已有 v1 hello 的元数据，不是草稿设置更新或第四模式；旧主机可忽略，暂停姿态仍触发其看门狗。编辑期间可继续视频 / ping，正常退出仍可回正；保存或放弃不发送授权请求，用户须重新在电脑主动授权。

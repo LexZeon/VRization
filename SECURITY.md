@@ -5,7 +5,7 @@
 <!-- vrization:english -->
 ## English
 
-v0.2.0-alpha defaults to authorized USB connections, with a trusted-LAN alternative. The host sends its selected display / region to one connected viewer, and FPS mode can move the PC mouse only after local authorization. USB pairing does not start PC streaming or grant mouse control.
+v0.3.0-alpha defaults to authorized USB connections, with a trusted-LAN alternative. The host sends its selected display / region to one connected viewer, and FPS mode can move the PC mouse only after local authorization. USB pairing does not start PC streaming or grant mouse control.
 
 ### Connection boundaries
 
@@ -33,12 +33,16 @@ Use Issues for ordinary bugs. For pairing bypass, unauthorized input, code execu
 
 This alpha has no formal security-maintenance SLA. Include version, OS, minimal reproduction conditions and possible impact, with real IP addresses, codes and private screens removed.
 
+### Editor / reset and local preference boundaries
+
+Editor dragging sends no settings and writes no preferences. Phone poses pause; editor entry stops new poses and drops application-pending pose work (already submitted transport bytes cannot be recalled) and sends one disarm-only hello with `editing: true`, while video / ping may continue. Desktop entry also disarms input. Leaving / saving never re-arms it. Discard restores the entry snapshot. Committed local phone profiles are restored only after a validated hello through ordinary bounded settings messages; pairing secrets remain excluded. Reset does not grant control or platform trust. The PC preserves the explicitly selected capture display / region and configured ADB path to avoid sharing an unintended output or changing installed tools. Phone reset disconnects without automatic reconnection. See [editor scope](docs/EDITING.md).
+
 ---
 
 <!-- vrization:chinese -->
 ## 简体中文
 
-v0.2.0-alpha 默认已授权 USB 连接，也可选择可信局域网。服务器把电脑选定显示器 / 区域发给一个观看端；FPS 鼠标功能须电脑主动授权。USB 配对不自动开始电脑串流，也不授予鼠标控制。
+v0.3.0-alpha 默认已授权 USB 连接，也可选择可信局域网。服务器把电脑选定显示器 / 区域发给一个观看端；FPS 鼠标功能须电脑主动授权。USB 配对不自动开始电脑串流，也不授予鼠标控制。
 
 ### 连接边界
 
@@ -65,3 +69,8 @@ Windows 目标为 10 / 11 x64，本地已记录测试来自 Windows 11。华为 
 普通功能问题请开 Issue。涉及绕过配对、未授权输入、远程代码执行或画面泄漏的问题，请优先使用 GitHub 仓库 **Security → Report a vulnerability**（仓库维护者启用私密报告后可用）。若入口尚未启用，可先开一个仅请求私密联系渠道的 Issue，不公开利用步骤、个人数据或配对码。
 
 该 Alpha 没有正式安全维护 SLA。报告中请包含版本、操作系统、最小复现条件和可能影响，移除真实 IP、配对码和屏幕私密内容。
+
+
+### 编辑 / 重置与本地偏好边界
+
+编辑拖动不发设置、不写偏好。手机暂停姿态，进入时丢弃应用层待发姿态（已提交传输层字节无法撤回）并用 hello 一次发送仅解除授权的 `editing: true`；视频 / ping 可继续，电脑进入也解除授权。退出 / 保存不重新授权；放弃恢复进入快照。手机已提交本地配置只在合法 hello 后通过普通有界设置消息恢复，排除配对秘密。重置不授予控制或平台信任；电脑保留明确的采集显示器 / 选区与 ADB 路径，避免分享非预期画面或改变工具。手机重置断线、不自动重连，见 [编辑范围](docs/EDITING.md)。

@@ -53,6 +53,10 @@ Android uses official ADB reverse forwarding, with the phone's `127.0.0.1:18765`
 
 iOS uses a native Network-framework listener at phone loopback `127.0.0.1:18766`. The Windows relay uses Apple's local USB multiplexing service to reach it, then bridges the existing host session. Frames have a four-byte big-endian length including a one-byte kind: `1` for UTF-8 protocol JSON, `2` for JPEG, with length `1…8 MiB`; phone-to-host messages are JSON only, up to 16 KiB. This is VRization's framing inside the USB tunnel, separate from the usbmux service's own plist framing. If detection fails, first check Apple Devices, trust, a single attached device and the foreground signed app. Source and protocol-reference credit is in [third-party notices](../THIRD_PARTY_NOTICES.md).
 
+### Saved view profiles and Reset (v0.3)
+
+USB discovery / authorization is unchanged. A saved phone VR profile is applied only after the valid host hello and uses normal settings synchronization; it neither starts capture nor arms input. Editor drafts stay local. Phone reset returns English / USB and disconnects without another automatic attempt; use Connect explicitly. PC reset preserves the selected capture display / region and ADB path, returns USB device selection to automatic and leaves platform authorization / installed tools intact. See [editing](EDITING.md).
+
 ---
 
 <!-- vrization:chinese -->
@@ -105,3 +109,8 @@ VRization 读取已有的本地 Apple 配对记录来确认已建立信任，不
 Android 使用官方 ADB 反向端口映射，把手机 `127.0.0.1:18765` 转发到电脑配置的服务端口（默认 `8765`）。手机请求 `GET http://127.0.0.1:18765/usb-bootstrap`，校验版本、软件标识、端口和六位 token 后连接 `ws://127.0.0.1:18765/ws?token=…`。响应中的电脑端口仅用于说明，手机始终使用固定转发端口。bootstrap 只在电脑拥有已授权的真实 Android USB 映射、请求来自回环地址时返回 token；普通嵌入服务默认关闭此接口。token 不写入手机偏好或 bootstrap 日志。电脑服务停止时通常连接被拒绝；HTTP 403 表示 USB 授权不可用，503 表示服务可达但串流已停止。重试前检查线缆、调试授权、所选设备和电脑串流状态。反向映射语法见 Google 的 [ADB 手册](https://android.googlesource.com/platform/packages/modules/adb/+/refs/heads/main/docs/user/adb.1.md)。
 
 iOS 使用原生 Network 框架在手机回环地址 `127.0.0.1:18766` 监听。Windows 中继通过 Apple 本地 USB 多路复用服务访问此端口，桥接已有电脑会话。帧头为四字节大端长度，长度包含一字节类型：`1` 为 UTF-8 协议 JSON，`2` 为 JPEG，长度 `1…8 MiB`；手机发向电脑只允许 JSON，最大 16 KiB。这是 USB 隧道内的 VRization 分帧，独立于 usbmux 服务自己的 plist 分帧。未检测到时先检查 Apple Devices、信任、是否只接一台设备，以及已签名软件是否在前台。源码与协议参考贡献见 [第三方声明](../THIRD_PARTY_NOTICES.md)。
+
+
+### 保存观看配置与重置（v0.3）
+
+USB 发现 / 授权不变。手机保存配置只在合法主机 hello 后经普通设置同步恢复，不开始采集、不授权输入；编辑草稿只在本地。手机重置恢复英文 / USB 并断线，不再自动尝试，需主动连接；电脑保留采集显示器 / 选区及 ADB 路径，USB 设备选择恢复自动，不改变平台授权或已安装工具。见 [编辑文档](EDITING.md)。

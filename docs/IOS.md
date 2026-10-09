@@ -92,6 +92,10 @@ xcodebuild -project ios/VRization.xcodeproj -scheme VRization \
 
 `python3 scripts/build_ios.py` additionally runs the UI test suite against a loopback synthetic host and simulated usbmux service, exports genuine screenshots and packages the simulator / source downloads. Install the host package and fixture dependencies first as configured in [the workflow](https://github.com/LexZeon/VRization/blob/main/.github/workflows/build.yml). The fixture neither captures a screen nor moves the mouse. Successful compilation / simulator checks do not establish real iPhone USB, iOS 15 hardware or game compatibility. Exact observed checks appear in [validation](VALIDATION.md) and [compatibility](COMPATIBILITY.md).
 
+### v0.3 visual editor and saved preferences
+
+The first settings action opens the flat headset-fit editor. Drag either image or a corner; Save commits, Discard restores the entry snapshot, and phone poses pause while editing. Committed VR profiles survive restarts and are restored through normal settings after a validated host hello. Reset clears product / connection preferences, returns English / USB and disconnects without silent reconnection. Existing Simulator screenshots above are from v0.2; they do not picture or validate this new editor. See [editing and reset scope](EDITING.md) and [new-version validation](VALIDATION.md).
+
 ---
 
 <!-- vrization:chinese -->
@@ -183,3 +187,8 @@ xcodebuild -project ios/VRization.xcodeproj -scheme VRization \
 ```
 
 `python3 scripts/build_ios.py` 还会对本机合成串流主机与模拟 usbmux 服务运行 UI 测试、导出真实截图并打包模拟器 / 源码下载。需先按 [构建工作流](https://github.com/LexZeon/VRization/blob/main/.github/workflows/build.yml) 安装主机包和测试依赖。测试主机不采集屏幕、不移动鼠标。编译 / 模拟器通过不能代表真实 iPhone USB、iOS 15 硬件和游戏兼容性已验证；实际检查范围见 [验证记录](VALIDATION.md) 和 [兼容性](COMPATIBILITY.md)。
+
+
+### v0.3 可视编辑器与保存偏好
+
+设置第一个操作打开平面盒子适配编辑器，拖画面或角点；保存提交，放弃恢复进入快照，编辑时暂停手机姿态。已提交 VR 配置在重启后保留，合法主机 hello 后通过普通设置恢复；重置清除产品 / 连接偏好，恢复英文 / USB 并断线，不偷偷重连。上面的模拟器截图来自 v0.2，不展示或验证新编辑器。见 [编辑与重置范围](EDITING.md)、[新版验证](VALIDATION.md)。

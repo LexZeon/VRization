@@ -52,6 +52,10 @@ Received FPS / ping RTT / end-to-end measurement (distinguish them):
 Symptoms, reproduction, measurement method:
 ```
 
+### Editor / profile invariants
+
+Keep the shared y-up per-eye geometry and center-fixed proportional corner contract in [editing](docs/EDITING.md). Compute drags from their gesture-start snapshot and preserve actual mode / optical fields in a flat preview. Drafts must not broadcast settings, persist or send poses; the entry hello editing:true is disarm-only control metadata. Save / Discard have explicit transaction boundaries. Persist committed phone settings only, validate hello before restoration with normal clientSeq synchronization, and never store pairing secrets. Reset retains PC capture selection / ADB path and cannot auto-connect or arm input. Use pure geometry / fake storage / fake transport checks, then record actual UI acceptance separately.
+
 ---
 
 <!-- vrization:chinese -->
@@ -103,3 +107,8 @@ VR 盒子型号（可选）：
 接收帧率 / ping RTT / 端到端测量（分别填写）：
 现象、复现步骤、测量方法：
 ```
+
+
+### 编辑器 / 配置不变量
+
+保持 [编辑合同](docs/EDITING.md) 的每眼 y 向上坐标与中心固定等比角点。从手势起点快照计算拖动，平面预览保留实际模式 / 光学字段。草稿不得广播设置、持久保存或发送姿态；进入时的 hello editing:true 只是解除授权的控制元数据。保存 / 放弃有明确事务边界；只保存手机已提交设置，合法 hello 后才经普通 clientSeq 恢复，不存配对秘密。重置保留电脑采集选择 / ADB 路径，不自动连接或授权。用纯几何 / 假存储 / 假传输检查，再另记真实界面验收。

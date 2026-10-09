@@ -43,6 +43,10 @@ The original Windows DXGI / D3D11 capture backend uses system DLLs, with GPU cro
 
 Other Android phones / derivatives, physical iPhones / iPads including the oldest target iOS 15, actual viewer optics, gyro-axis accuracy / drift / comfort, real FPS games, Windows 10 hardware and measured end-to-end video latency. Windows ARM64 / x86 native builds are not supplied. Please submit device results with version, settings and measurement method through [contributing](../CONTRIBUTING.md).
 
+### v0.3 editor / preferences scope
+
+Targets are unchanged. The new flat editor, center-fixed shared geometry, Save / Discard, explicit reset and committed phone profile restoration are documented in [editing](EDITING.md). Older v1 hosts / clients keep their protocol; v0.3 phones restore saved profiles only after a valid hello. The historical hardware / emulator results above remain evidence for their named versions. New UI, reset / restart and device checks must be recorded separately in [validation](VALIDATION.md).
+
 ---
 
 <!-- vrization:chinese -->
@@ -85,3 +89,8 @@ USB 需要官方 Platform Tools / Android 调试授权，或 iOS 的 Apple Windo
 ### 仍未验证
 
 其他 Android 手机 / 衍生系统、真实 iPhone / iPad（包括最低目标 iOS 15）、真实盒子镜片、陀螺仪轴向 / 漂移 / 舒适度、真实 FPS 游戏、Windows 10 硬件及端到端视频延迟测量。未提供 Windows ARM64 / x86 原生构建。欢迎按 [贡献说明](../CONTRIBUTING.md) 提交版本、设置与测量方法完整的设备结果。
+
+
+### v0.3 编辑器 / 偏好范围
+
+支持目标不变。新增平面编辑器、中心固定共用几何、保存 / 放弃、主动重置与手机已提交配置恢复见 [编辑文档](EDITING.md)。旧 v1 主机 / 客户端保留协议；v0.3 手机只在合法 hello 后恢复保存配置。上述历史硬件 / 模拟器结果只证明注明版本，新界面、重置 / 重启和设备检查需在 [验证](VALIDATION.md) 另记。

@@ -5,7 +5,7 @@
 <!-- vrization:english -->
 ## English
 
-v0.2.0-alpha sends one Windows desktop / rectangular region to both eyes of an Android or iOS phone viewer. **USB is the default**; trusted LAN is optional. The image is the same 2D source in both eyes, with no audio or native game stereo. English is the default software language; choose Simplified Chinese independently on each device.
+v0.3.0-alpha sends one Windows desktop / rectangular region to both eyes of an Android or iOS phone viewer. **USB is the default**; trusted LAN is optional. The image is the same 2D source in both eyes, with no audio or native game stereo. English is the default software language; choose Simplified Chinese independently on each device.
 
 ### 1. Get the applications
 
@@ -45,12 +45,16 @@ Choose **LAN / Wi-Fi · manual pairing** on the phone. Join the same trusted net
 
 After backgrounding, changing phone language or disconnecting, use the connection button explicitly. The phone does not silently resume the session. Desktop language changes keep streaming running but stop mouse authorization. Finish by stopping PC streaming. Read [security](../SECURITY.md) before sharing private content.
 
+### 5. Edit and keep your headset fit
+
+Open the editor from the first settings action: Windows **Headset editor → Open visual headset editor**, Android **Fit headset visually**, or iOS **Visual headset fit editor**. On all three, drag the interior left to move the picture right, or right to move it left; vertical dragging and all corner resizes remain direct. Then choose **Save** or **Discard**; the draft preview sends no settings, and phone entry sends disarm-only metadata before pausing poses. A connected Save synchronizes through the validated host and retains the committed settings on both sides. Offline Save stays local until a valid connection. **Reset all settings** returns product defaults; Windows preserves the intended capture display / region and ADB tool path, while phone reset disconnects without automatic reconnecting. Follow [the complete editor guide](EDITING.md) for restoration priority, geometry, reset scope and safety boundaries.
+
 ---
 
 <!-- vrization:chinese -->
 ## 简体中文
 
-v0.2.0-alpha 把 Windows 桌面 / 矩形区域发给 Android 或 iOS 手机盒子的两眼。**默认 USB**，可信局域网为可选项。两眼是相同二维源画面，没有声音或原生游戏立体深度。软件默认英文，每台设备可独立选择简体中文。
+v0.3.0-alpha 把 Windows 桌面 / 矩形区域发给 Android 或 iOS 手机盒子的两眼。**默认 USB**，可信局域网为可选项。两眼是相同二维源画面，没有声音或原生游戏立体深度。软件默认英文，每台设备可独立选择简体中文。
 
 ### 1. 安装应用
 
@@ -89,3 +93,8 @@ FPS 使用可用旋转传感器，在手机选择模式，在电脑勾选“**�
 手机选择“**局域网 / Wi-Fi · 手动配对**”。两端同一可信网络，电脑开始串流，手机填显示的电脑局域网主机、端口（默认 `8765`）及六位码，保留开头的零；主机栏不填 URL 或路径。防火墙只开放必要的专用网络访问，iOS 可能需要允许本地网络。`ws://` 未加密，不向公网暴露；USB 不需要开放局域网入站防火墙端口。
 
 进入后台、手机切语言或断线后须主动点连接，不会悄悄恢复。电脑切语言会保持串流，但停止鼠标授权。使用结束停止电脑串流，共享私密内容前阅读 [安全说明](../SECURITY.md)。
+
+
+### 5. 编辑并保存盒子适配
+
+从设置首位打开编辑器：Windows **画面编辑 → 打开可视画面编辑器**、Android **可视化适配 VR 盒子**、iOS **可视化盒子画面编辑器**。三端内部向左拖都让画面向右，向右拖让画面向左，竖向和全部角点缩放仍正常。之后选**保存**或放弃 / 弃用；草稿预览不发设置，手机进入时先发送仅解除授权的元数据再暂停姿态。已连接的保存通过合法主机同步，两端保留已提交配置；离线保存先留在本地，等合法连接。**重置全部设置**恢复产品默认；Windows 保留采集显示器 / 选区与 ADB 工具路径，手机重置断线而不自动重连。恢复优先规则、几何、重置范围与输入边界见 [完整编辑教程](EDITING.md)。

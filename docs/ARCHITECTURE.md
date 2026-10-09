@@ -5,7 +5,7 @@
 <!-- vrization:english -->
 ## English
 
-v0.2.0-alpha separates the image source, transport, rendering and input sink. Reuse includes an embeddable Python host, an Android AAR and the Foundation-based Swift package `VRizationCore`. The Android and iOS apps default to USB, with LAN as an explicit alternative. Alpha APIs may change.
+v0.3.0-alpha separates the image source, transport, rendering and input sink. Reuse includes an embeddable Python host, an Android AAR and the Foundation-based Swift package `VRizationCore`. The Android and iOS apps default to USB, with LAN as an explicit alternative. Alpha APIs may change.
 
 ```mermaid
 flowchart LR
@@ -28,6 +28,7 @@ flowchart LR
 | Path | Responsibility |
 | --- | --- |
 | `desktop/src/vrization_host/` | Python capture, protocol, server, input adapter and GUI. |
+| `desktop/src/vrization_host/view_edit.py` | Pure per-eye fit geometry and local draft transactions. |
 | `desktop/tests/` | Core checks without real games. |
 | `android/vr-core/` | Reusable Android settings, pose interfaces and GLES renderer. |
 | `android/app/` | Connection UI, WebSocket client, JPEG decoding and settings. |
@@ -110,7 +111,7 @@ The Android app keeps one pending JPEG and one renderer Bitmap slot. Its decoder
 
 ### Embed Swift core or an iOS viewer
 
-Add the local Swift package at `ios/` to an Xcode project and depend on **VRizationCore**. The package uses Foundation without UIKit, Metal, Core Motion or Network dependencies. It exposes `VRSettings`, `VRProtocol`, `SettingsSync`, `SessionGeneration`, `HostSessionGate`, `ConnectionInput`, `PoseMath`, `RotationCenter`, `USBFraming` and `USBFrameDecoder`. It contains no third-party package dependencies. The package declares iOS 13 / macOS 10.15 minima; the complete viewer app targets iOS / iPadOS 15+ and needs Metal.
+Add the local Swift package at `ios/` to an Xcode project and depend on **VRizationCore**. The package uses Foundation without UIKit, Metal, Core Motion or Network dependencies. It exposes `VRSettings`, `VRProtocol`, `SettingsSync`, `SessionGeneration`, `HostSessionGate`, `ConnectionInput`, `PoseMath`, `RotationCenter`, `USBFraming` and `USBFrameDecoder`; v0.3 adds `HeadsetFit`, `PhonePreferencesStore` and `LocalProfileSync`. It contains no third-party package dependencies. The package declares iOS 13 / macOS 10.15 minima; the complete viewer app targets iOS / iPadOS 15+ and needs Metal.
 
 ```swift
 import VRizationCore
@@ -138,12 +139,20 @@ Hardware Huawei Android checks and the iOS simulated-usbmux / Simulator checks a
 
 Swift protocol / math reuse is available now; engine adapters and a stable SDK remain possible future work. Alpha interfaces carry no long-term compatibility promise.
 
+### Visual editing and committed phone preferences
+
+The original host `view_edit.py` is a pure geometry / draft-transaction module. `fit_size` computes aspect fit; `eye_bounds` returns y-up left / bottom / right / top bounds; `dragged` projects total gesture-start deltas for shared pan and center-fixed corner resize. `EditTransaction` exposes an immutable entry snapshot, local draft and one commit / discard action without storage or network side effects. Android / Swift cores use the same geometry contract; see [editor integration](EDITING.md).
+
+App editors preview full-screen flat geometry with distortion disabled, while retaining actual mode / optical values in the draft. Phone poses pause during editing; entry sends one existing hello with editing:true to disarm immediately, and desktop entry disarms locally. Phone Save commits the whole draft once; PC Save patches only the three fit fields into the latest state, preserving other concurrent changes. Discard restores the local entry preview, and phone lifecycle / disconnection ends an uncommitted draft. Phones persist committed complete VR profiles. A validated host hello opens the session first, then a saved local profile is sent once via normal settings / clientSeq; subsequent revision synchronization remains authoritative. Pairing secrets are excluded.
+
+Reset restores VR / English / USB and low capture defaults. The host preserves explicit capture monitor / rectangle and ADB path to avoid selecting unintended content or deleting tools; phone reset disconnects and does not reconnect by itself. These user-preference changes do not change protocol v1, the bounded JPEG pipeline or explicit mouse authorization.
+
 ---
 
 <!-- vrization:chinese -->
 ## 简体中文
 
-v0.2.0-alpha 把画面来源、传输、渲染与输入接收拆为相邻组件。现在可复用 Python 主机、Android AAR 与基于 Foundation 的 Swift 包 `VRizationCore`。Android / iOS 应用默认 USB，局域网为显式可选项；公共接口仍处于 Alpha，可能调整。
+v0.3.0-alpha 把画面来源、传输、渲染与输入接收拆为相邻组件。现在可复用 Python 主机、Android AAR 与基于 Foundation 的 Swift 包 `VRizationCore`。Android / iOS 应用默认 USB，局域网为显式可选项；公共接口仍处于 Alpha，可能调整。
 
 ```mermaid
 flowchart LR
@@ -166,6 +175,7 @@ flowchart LR
 | 路径 | 职责 |
 | --- | --- |
 | `desktop/src/vrization_host/` | Python 采集、协议、服务器、鼠标适配器与桌面界面。 |
+| `desktop/src/vrization_host/view_edit.py` | 纯单眼适配几何与本地草稿事务。 |
 | `desktop/tests/` | 不依赖真实游戏的核心检查。 |
 | `android/vr-core/` | 可复用 Android library：设置、旋转传感器接口与 OpenGL ES 双眼渲染。 |
 | `android/app/` | 连接界面、WebSocket 客户端、JPEG 解码和设置交互。 |
@@ -251,7 +261,7 @@ Android 应用保留一张待解码 JPEG 和一个渲染 Bitmap 槽。解码线�
 
 ### 嵌入 Swift 核心或 iOS 观看端
 
-在 Xcode 项目添加 `ios/` 本地 Swift 包并依赖 **VRizationCore**。该包使用 Foundation，不依赖 UIKit、Metal、Core Motion 或 Network；公开 `VRSettings`、`VRProtocol`、`SettingsSync`、`SessionGeneration`、`HostSessionGate`、`ConnectionInput`、`PoseMath`、`RotationCenter`、`USBFraming`、`USBFrameDecoder`，没有第三方包依赖。包声明最低 iOS 13 / macOS 10.15，完整观看应用要求 iOS / iPadOS 15+ 和 Metal。
+在 Xcode 项目添加 `ios/` 本地 Swift 包并依赖 **VRizationCore**。该包使用 Foundation，不依赖 UIKit、Metal、Core Motion 或 Network；公开 `VRSettings`、`VRProtocol`、`SettingsSync`、`SessionGeneration`、`HostSessionGate`、`ConnectionInput`、`PoseMath`、`RotationCenter`、`USBFraming`、`USBFrameDecoder`，v0.3 新增 `HeadsetFit`、`PhonePreferencesStore` 与 `LocalProfileSync`，没有第三方包依赖。包声明最低 iOS 13 / macOS 10.15，完整观看应用要求 iOS / iPadOS 15+ 和 Metal。
 
 ```swift
 import VRizationCore
@@ -278,3 +288,12 @@ let usbFrame = try USBFraming.encode(USBFrame(kind: .json, payload: poseJSON))
 5. 如需要真正立体游戏画面，在游戏 / 引擎侧为左右眼分别渲染，并定义新协议。这超出当前二维桌面复制能力。
 
 Swift 协议 / 数学已经可以复用；引擎适配器和稳定 SDK 仍是未来方向。现阶段不要把 Alpha 接口作为长期兼容承诺。
+
+
+### 可视编辑与手机已提交偏好
+
+原创主机 `view_edit.py` 是纯几何 / 草稿事务模块：`fit_size` 计算比例适配，`eye_bounds` 返回 y 向上的左 / 下 / 右 / 上边界，`dragged` 按手势起点总位移计算共用平移与中心固定角点缩放；`EditTransaction` 提供不可变进入快照、本地草稿及一次提交 / 放弃，不带存储或网络副作用。Android / Swift 核心使用相同合同，见 [编辑器集成](EDITING.md)。
+
+应用编辑器预览无畸变全屏平面，草稿仍保留实际模式 / 光学值。手机编辑时暂停姿态，进入时用已有 hello 的 editing:true 一次立即解除授权；电脑进入则本地解除。手机一次提交完整草稿，电脑只把三个适配字段合并进最新状态以保留其他并发变化；放弃恢复本地进入预览，手机生命周期变化 / 断线结束未提交草稿。手机保存完整已提交 VR 配置：先合法主机 hello 建立会话，再通过普通 settings / clientSeq 一次恢复本地配置，之后继续 revision 同步；排除配对秘密。
+
+重置恢复 VR / 英文 / USB 与低延迟采集默认；主机保留明确的显示器 / 选区和 ADB 路径，避免切到非预期内容或删除工具。手机重置断线，不自行重连。这些用户偏好变化不改变协议 v1、有限 JPEG 队列或电脑主动授权边界。

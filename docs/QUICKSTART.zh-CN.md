@@ -29,6 +29,10 @@ For manual LAN, explicitly choose LAN on the phone, join the same trusted networ
 
 Allow necessary private-network firewall access for LAN only; do not disable the firewall. For missing runtime DLLs, use Microsoft's official installer linked in [build prerequisites](BUILD.md). APK debug-signature conflicts may require uninstalling the older app, which clears its settings. USB port conflicts must be resolved without stealing another program's mapping. See [USB troubleshooting](USB.md), [compatibility](COMPATIBILITY.md), [security](../SECURITY.md) and [contributing](../CONTRIBUTING.md).
 
+### Visual fit in v0.3
+
+The first settings action is the headset-fit editor, with a local preview and explicit Save / Discard. Phones retain committed profiles; Reset restores defaults without granting input permission. See [the editor guide](EDITING.md).
+
 ---
 
 <!-- vrization:chinese -->
@@ -57,3 +61,8 @@ Allow necessary private-network firewall access for LAN only; do not disable the
 手动局域网需在手机显式选择 LAN，两端同一可信网络，填电脑显示的局域网主机 / 端口 / 当前六位码，保留开头的零；主机栏不填 URL。旧截图的 `10.0.2.2` 是模拟器专用地址，不是真实手机的电脑地址。手机回环 `127.0.0.1:18765` 仅通过已配置的 Android USB reverse 隧道使用。
 
 只有局域网连接需要必要的专用网络防火墙放行，不要关闭防火墙。缺运行库 DLL 时用 [构建前提](BUILD.md) 中的 Microsoft 官方安装器。APK 调试签名冲突可能需卸载旧应用，这会清空其设置。USB 端口冲突不能靠抢占其他软件映射解决。参见 [USB 排查](USB.md)、[兼容性](COMPATIBILITY.md)、[安全说明](../SECURITY.md)、[贡献指南](../CONTRIBUTING.md)。
+
+
+### v0.3 可视适配
+
+设置第一个操作是盒子适配编辑器，本地预览后明确保存 / 放弃；手机保存已提交配置，重置恢复默认，不授予输入权限。见 [编辑教程](EDITING.md)。
