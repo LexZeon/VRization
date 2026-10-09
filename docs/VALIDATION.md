@@ -49,9 +49,20 @@ The actual client rendered the original 1280 × 720 card in both eyes. Hiding co
 
 No FATAL, native-fatal or out-of-memory errors were observed. One `EGL_BAD_SURFACE` appeared while the old PopupWindow was recreated during a Chinese language selection; the new Activity continued rendering normally afterward, with no persistent GL failure. This is recorded as a nonblocking lifecycle observation, not a claim of an entirely empty GL error log.
 
+### v0.2.0-alpha checks
+
+- Windows host: **59 automated tests passed**, including USB discovery / mapping ownership, iOS relay framing / pairing checks, loopback bootstrap restrictions, Windows DPI fallback, actual WebSocket wire messages and capture pacing. A new local Windows EXE was built with CPython 3.12.14.
+- Android: **27 tests passed** (6 core and 21 app), APK build / lint passed. The same local debug certificate upgraded the attached HUAWEI Pura 70 Ultra from version code 1 to code 3 without uninstalling.
+- Physical phone: HUAWEI Pura 70 Ultra, reporting Android 12 / API 31 compatibility, received the original **960 × 540** calibration card over an actual data cable. USB and English were default. Authorized discovery, fresh-launch automatic connection, both-eye rendering and hidden controls / Back recovery passed. No manual IP or pairing code was entered in USB mode.
+- Chinese persisted after force-stop / reopen; switching language disconnected the host and required an explicit reconnect. A new process launch made its documented one-time USB connection attempt. In FPS mode the host received **877 real sensor pose messages** during the observed interval. No operating-system mouse input was armed; the fake sink remained empty. These observations do not verify physical gyro axes or real-game control.
+- USB detection encountered a real Huawei difference: ADB did not return a usable USB path. The final Windows implementation verifies the physical USB serial through native SetupAPI enumeration. Emulators and network ADB remain excluded.
+- New screenshots show this phone and its USB reception; the source is an original calibration card, not a game. The phone's observed ping round trip of **4–7 ms** is a connection diagnostic, **not end-to-end video latency**.
+
+The release retains the previous API 23 / 36 results below as historical evidence; they are not fresh hardware coverage of every v0.2.0 change. iOS builds / UI results and final Windows interface checks are recorded here after their actual completion. Physical iPhone USB remains untested.
+
 ### Still needs physical testing
 
-- Actual phones / Android derivatives: installation, Wi-Fi, heat and battery life.
+- Other phones / Android derivatives, Wi-Fi, heat and battery life.
 - Real rotation sensors: axes, stability, recentering and cinema tracking.
 - Viewer optics: alignment, field of view, distortion and comfort.
 - Real FPS games: input acceptance, control feel and compatibility.
@@ -117,9 +128,20 @@ Microsoft Visual C++ v14 x64 runtime is installed by the system, not shipped ins
 
 未观察到 FATAL、原生 fatal 或内存不足错误。中文语言选择重建旧 PopupWindow 时出现过一次 `EGL_BAD_SURFACE`，随后新 Activity 持续正常渲染，没有持续 GL 失败。这里如实记录为非阻塞生命周期观察，不声称该环境的 GL 错误日志完全为空。
 
+### v0.2.0-alpha 检查
+
+- Windows 电脑端 **59 项自动检查通过**，包含 USB 识别 / 映射归属、iOS 中继分帧 / 配对、回环 bootstrap 限制、Windows DPI 回退、实际 WebSocket 报文与采集节奏。本地使用 CPython 3.12.14 重新构建 Windows EXE。
+- Android **27 项检查通过**（核心 6、应用 21），APK 构建 / lint 通过。同一本地 debug 证书在接入的 HUAWEI Pura 70 Ultra 从 version code 1 覆盖升级到 code 3，无需卸载。
+- 真机 HUAWEI Pura 70 Ultra 报告 Android 12 / API 31 兼容层，经真实数据线接收 **960 × 540** 原创校准卡。默认 USB 和英文，授权发现、新启动自动连接、双眼渲染、隐藏设置 / 返回恢复通过，USB 未手填 IP 或配对码。
+- 中文在强制停止 / 重开后保留；切换语言会断开并要求显式重连。新进程启动进行了文档约定的一次 USB 自动尝试。FPS 模式的观察区间收到 **877 条真实传感器姿态消息**，未授权操作系统鼠标，假接收器保持为空。这不代表陀螺仪实际轴向或真实游戏控制已经验证。
+- 真机测试发现华为差异：ADB 未提供可用 USB 路径。最终 Windows 实现通过原生 SetupAPI 枚举确认真实 USB 序列号，继续排除模拟器与网络 ADB。
+- 新截图展示此手机的 USB 接收，来源是原创校准卡而非游戏。手机观察到 **4–7 ms** ping 往返仅作连接诊断，**不是端到端视频延迟**。
+
+以下 API 23 / 36 结果保留为历史证据，不代表重新覆盖了 v0.2.0 的所有改动。iOS 构建 / 界面结果和最终 Windows 界面检查会在实际完成后记入本节。真实 iPhone USB 仍未验证。
+
 ### 仍需实机验证
 
-- Android 真机与不同 Android 衍生系统的安装、无线网络、发热与续航。
+- 其他 Android 手机 / 衍生系统、无线网络、发热与续航。
 - 真实陀螺仪 / 旋转传感器的方向、稳定性、回正和大屏幕转头体验。
 - 手机 VR 盒子的镜片对齐、视场角、畸变与佩戴舒适度。
 - FPS 游戏实际接收鼠标输入的行为、头部控制手感与兼容性。

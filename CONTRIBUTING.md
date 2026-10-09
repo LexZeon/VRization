@@ -9,7 +9,7 @@ Contributions to quality, compatibility, controls, tutorials and reusable interf
 
 ### Report a problem
 
-Include PC OS / GPU, phone and Android / derivative version, mode, dimensions, network and reproduction steps. Explain performance measurement methods; emulator results do not establish physical-viewer experience. Remove private screens, addresses and pairing codes from logs / screenshots.
+Include the release version, PC OS / GPU, phone and Android / derivative or iOS version, mode, dimensions, transport and reproduction steps. For USB, describe the cable, authorization, official SDK / Apple Devices version and device-count / port-conflict symptoms. Explain performance measurement methods: received FPS and ping RTT are not end-to-end video latency. Separate physical Huawei / other hardware evidence from emulators, simulated usbmux and unsigned device-SDK compilation. Remove private screens, addresses, pairing codes, serials and signing / pairing material from logs or screenshots.
 
 ### Submit code
 
@@ -18,7 +18,9 @@ Include PC OS / GPU, phone and Android / derivative version, mode, dimensions, n
 3. Run affected checks and describe untested hardware / platforms.
 4. Update documentation and compatibility records; describe trigger, changed behavior and validation.
 
-Retain explicit PC arming and an emergency stop. Remote clients must not unlock input themselves. Add codecs / adapters through interfaces instead of mixing platform implementations into `vr-core`.
+Retain explicit PC arming and an emergency stop. Remote clients must not unlock input themselves. Add codecs / adapters through interfaces instead of mixing platform implementations into Android `vr-core` or Swift `VRizationCore`. Preserve v1 WebSocket behavior for old Android clients; new codecs / per-eye formats require explicit negotiation. Default USB detection must not steal existing reverse ports, manage wireless ADB, kill the ADB server, create Apple trust records or start OS input automatically. Keep bootstrap local and browser-origin restrictions intact.
+
+Host changes can be checked without a real mouse using `python -m unittest discover -s desktop/tests -v`. Android changes need affected app / core tests; Swift changes need `swift test --package-path ios` on the supported development environment. Run appropriate builds / lint when application code changes. Use fake capture, input sinks, USB mappings and mux services in automation; physical-device tests require separate evidence. The supplied Windows target remains 10 / 11 x64; do not report a Windows 10 or mixed-DPI hardware pass from unit tests alone.
 
 ### English first, Chinese below — every public page
 
@@ -26,7 +28,7 @@ All project-owned public documents, README files, tutorials, release notes, issu
 
 Original license / copyright texts remain verbatim; explanatory bilingual text supplements them rather than replacing them. Do not invent a translated license as the controlling text.
 
-English is the default and primary software language. Both applications must retain selectable Simplified Chinese and save the user's language choice locally.
+English is the default and primary software language. Windows, Android and iOS applications must retain selectable Simplified Chinese and save language choice locally. Phone language / background transitions must not silently reconnect; desktop language changes must revoke input authorization.
 
 ### Attribution and licensing
 
@@ -39,11 +41,14 @@ Prefer compatible commercially usable MIT, BSD or Apache-2.0 dependencies. Free 
 ```text
 VRization version:
 Windows / GPU:
-Phone / Android or derivative version:
+Phone / Android, derivative or iOS version:
 Rotation sensor available:
 VR viewer (optional):
 Mode / dimensions / FPS / JPEG quality:
-Network (Ethernet / Wi-Fi band):
+Transport (USB / LAN), SDK or Apple Devices version:
+Cable / authorization / number of USB devices, or network details:
+Evidence type (physical device / emulator / simulated mux):
+Received FPS / ping RTT / end-to-end measurement (distinguish them):
 Symptoms, reproduction, measurement method:
 ```
 
@@ -56,7 +61,7 @@ Symptoms, reproduction, measurement method:
 
 ### 提交问题
 
-请提供电脑系统、手机型号 / 系统版本、是否为兼容 Android 的衍生系统、模式、分辨率、网络条件和复现步骤。性能反馈应说明测量方法；不要用模拟器结果代替手机盒子实机表现。日志和截图先移除个人画面、IP 与配对码。
+请提供发行版本、电脑系统 / GPU、手机及 Android / 衍生系统或 iOS 版本、模式、尺寸、传输与复现步骤。USB 问题说明数据线、授权、官方 SDK / Apple Devices 版本，以及设备数量 / 端口冲突。性能反馈区分接收帧率、ping RTT 与端到端视频延迟。华为 / 其他真机证据应与模拟器、模拟 usbmux、未签名真机 SDK 编译分开。日志 / 截图移除个人画面、地址、配对码、序列号和签名 / 配对材料。
 
 ### 提交代码
 
@@ -65,7 +70,9 @@ Symptoms, reproduction, measurement method:
 3. 运行受影响模块的检查，记录无法测试的设备与平台。
 4. 更新文档与兼容性记录，PR 描述说明触发条件、行为变化和验证方法。
 
-保留“电脑主动授权 + 紧急停止”的输入边界。不要让远程客户端自行解锁鼠标。新增编码器或插件应通过模块接口接入，避免将平台实现混入 `vr-core`。
+保留“电脑主动授权 + 紧急停止”边界，不让远程客户端自行解锁鼠标。编码器 / 适配器通过接口接入，避免把平台实现混入 Android `vr-core` 或 Swift `VRizationCore`。保留旧 Android 的 v1 WebSocket 行为，新编码 / 左右眼格式需显式协商。默认 USB 检测不得抢占已有 reverse 端口、管理无线 ADB、关闭 ADB server、创建 Apple 信任记录或自动启动系统输入；保留 bootstrap 的本机与浏览器来源限制。
+
+主机改动可用 `python -m unittest discover -s desktop/tests -v` 检查，无需真实鼠标。Android 改动运行受影响 app / core 测试；Swift 改动在支持的开发环境运行 `swift test --package-path ios`；应用代码改动还需适当构建 / lint。自动化使用假采集、输入接收器、USB 映射与 mux 服务，实机测试另记证据。Windows 发行目标仍为 10 / 11 x64，不能仅凭单测报告 Windows 10 或混合 DPI 硬件已通过。
 
 ### 所有公共页面：完整英文在上，完整中文在下
 
@@ -73,7 +80,7 @@ Symptoms, reproduction, measurement method:
 
 许可证与版权原文保持完整；双语解释作为补充，不制作替代原文的“译版许可证”。
 
-软件以英文为默认和主语言。两端保留可选简体中文，并在本地保存用户的语言选择。
+软件以英文为默认和主语言，Windows、Android、iOS 均保留可选简体中文并在本地保存。手机切语言 / 进入后台不得悄悄重连；电脑切语言必须撤销输入授权。
 
 ### 来源与许可
 
@@ -86,10 +93,13 @@ Symptoms, reproduction, measurement method:
 ```text
 VRization 版本：
 Windows 版本 / GPU：
-手机 / Android 或衍生系统版本：
+手机 / Android、衍生系统或 iOS 版本：
 旋转传感器是否可用：
 VR 盒子型号（可选）：
 模式 / 画面尺寸 / FPS / JPEG 质量：
-网络（有线 / Wi-Fi 频段）：
+传输（USB / 局域网）、SDK 或 Apple Devices 版本：
+线缆 / 授权 / USB 设备数，或网络条件：
+证据类型（真机 / 模拟器 / 模拟 mux）：
+接收帧率 / ping RTT / 端到端测量（分别填写）：
 现象、复现步骤、测量方法：
 ```

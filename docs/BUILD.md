@@ -88,6 +88,8 @@ Update [third-party notices](../THIRD_PARTY_NOTICES.md) and bundled texts after 
 ./gradlew :app:dependencies --configuration debugRuntimeClasspath
 ```
 
+For USB prerequisites and default profiles, see [USB setup](USB.md). After publishing, [the local archive guide](DOWNLOADS.md) preserves each release and a fully extracted latest Windows program.
+
 ### Physical-device validation
 
 Before a release, check connection, all modes, layout, recentering, PC arming / F8, input stopping on disconnect, and no-sensor fallback. Check optics, heat, delay and sensor directions on an actual phone and viewer. Do not describe emulator screenshots or synthetic frames as hardware validation.
@@ -180,6 +182,8 @@ GitHub Actions 分别在 Windows 构建电脑端、Linux 构建 APK、macOS 构�
 ```sh
 ./gradlew :app:dependencies --configuration debugRuntimeClasspath
 ```
+
+USB 前提与默认预设见 [USB 教程](USB.md)。发布后可按 [本地归档说明](DOWNLOADS.md) 保留每个版本和完整解压的最新版 Windows 程序。
 
 ### 实机验证
 

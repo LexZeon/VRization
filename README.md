@@ -14,7 +14,7 @@
 ![iOS](https://img.shields.io/badge/iOS%2FiPadOS-15%2B-black)
 [![Build](https://github.com/LexZeon/VRization/actions/workflows/build.yml/badge.svg)](https://github.com/LexZeon/VRization/actions/workflows/build.yml)
 
-[简体中文](#简体中文) · [Quick start](docs/QUICKSTART.zh-CN.md) · [🍎 iPhone + Windows](docs/IOS.md) · [Build](docs/BUILD.md) · [Architecture](docs/ARCHITECTURE.md)
+[简体中文](#简体中文) · [Quick start](docs/QUICKSTART.md) · [🔌 USB setup](docs/USB.md) · [📦 Downloads](docs/DOWNLOADS.md) · [🍎 iPhone + Windows](docs/IOS.md) · [Build](docs/BUILD.md) · [Architecture](docs/ARCHITECTURE.md)
 
 VRization streams a Windows desktop or rectangular region to an Android phone, iPhone or iPad, renders the image side by side, and optionally maps phone rotation to PC mouse movement. Its reusable Android library, Swift core package and separated host components provide a starting point for embedding these features in other applications.
 
@@ -26,7 +26,7 @@ VRization streams a Windows desktop or rectangular region to an Android phone, i
 | 🎬 Cinema | A virtual screen viewed through phone rotation. |
 | 🎯 FPS | Side-by-side viewing plus rotation-to-mouse input, explicitly armed on the PC. Press **F8** to stop input. |
 
-Adjust image scale and offsets for large phones, eye separation, field of view, screen distance, distortion, recentering, mouse sensitivity and vertical inversion. The host also offers display / region selection and stream quality controls.
+Adjust image scale and offsets for large phones, eye separation, field of view, screen distance, distortion, recentering, mouse sensitivity and vertical inversion. **USB is the default on both phone platforms and the Windows host**, with authorized-device detection. The default low-latency profile uses a 960-pixel longest edge, a 60 FPS target and JPEG quality 60; stable / quality presets and custom controls are also available. Targets are not guaranteed achieved frame rates.
 
 ### 📸 Interface
 
@@ -34,14 +34,18 @@ Adjust image scale and offsets for large phones, eye separation, field of view, 
 | --- | --- |
 | ![Running Windows host](docs/images/desktop.png) | ![Running Android client](docs/images/android.png) |
 
-Phone screenshots show the final v0.1.1 English interface on a Google-free Android 6.0 / API 23 emulator receiving the project's original [animated calibration card](examples/embedded_host.py). They document connection and rendering, not physical headset compatibility or latency / performance benchmarks.
+The new USB screenshots below show **v0.2.0 on a physical HUAWEI Pura 70 Ultra** receiving the original calibration card through a real data cable. Earlier screenshots show v0.1.1 on a Google-free API 23 emulator. They establish the pictured viewing flow, not headset optics or performance benchmarks.
+
+| 🔌 Android USB on a real phone | 🥽 Both eyes, controls hidden |
+| --- | --- |
+| ![USB default and English UI on Huawei](docs/images/huawei-usb.png) | ![Real Huawei USB stereo view](docs/images/huawei-usb-vr.png) |
 
 ### 🚀 Try it
 
 1. Download the Windows archive and Android APK from [Releases](https://github.com/LexZeon/VRization/releases/tag/v0.2.0-alpha), or [build from source](docs/BUILD.md). For iPhone / iPad, use the [iOS installation guide](docs/IOS.md): source and a Mac Simulator build are provided; physical installation requires your Apple signing in Xcode.
-2. Connect both devices to the same trusted LAN. Prefer wired Ethernet for the PC and a strong Wi-Fi connection for the phone.
-3. Start the host, choose a display or region, and start streaming. Allow the Windows firewall prompt only for a trusted private network.
-4. Enter the host's displayed IP address, port and pairing code on the phone. Start in full-screen mode.
+2. Connect a data USB cable. Android needs official Platform Tools, USB debugging and computer authorization. iPhone needs Apple Devices / its Windows driver, Trust approval and your signed foreground app. See [USB setup](docs/USB.md).
+3. Start the host, choose a display or region, and start streaming. USB detection configures the authorized connection; multiple Android phones require selection.
+4. Open the phone app in its default USB mode. Its first foreground session tries automatically; after backgrounding or changing language, tap Connect. LAN remains an optional mode with manual IP, port and pairing code.
 5. Adjust the image to your viewer, recenter cinema mode, and explicitly arm PC mouse input before trying FPS mode.
 
 Windows 10 / 11 x64 is the desktop target. Android 6.0+ and compatible derivatives need no Google services; derivative-system compatibility depends on their APK, rendering and sensor support. Full-screen viewing does not require a gyroscope. Games may reject simulated mouse input, especially under raw-input or anti-cheat restrictions.
@@ -54,11 +58,11 @@ The host requires Microsoft Visual C++ v14 x64 runtime. If launch reports a miss
 
 See [architecture](docs/ARCHITECTURE.md) and [protocol v1](docs/PROTOCOL.md) for integration. The current deliverable is source-level modules, not a stable public SDK, Unity / Unreal plug-in or OpenXR driver.
 
-Audio, hardware video encoding, WebRTC, dedicated USB transport, native stereo game rendering and 6DoF position tracking are not included. Real-world performance and device support require testing on your hardware.
+Audio, hardware video encoding, WebRTC, native stereo game rendering and 6DoF position tracking are not included. Real-world performance and device support require testing on your hardware.
 
 See the [validation record](docs/VALIDATION.md) for exact per-version checks, iOS builds and simulator observations. Physical gyro behavior, headset optics and actual FPS game input remain unverified.
 
-Transport uses **unencrypted `ws://`**. The pairing code is an access gate, not encryption. Use trusted LANs only; do not expose the port to the internet. See [security](SECURITY.md).
+LAN transport uses **unencrypted `ws://`**. The pairing code is an access gate, not encryption. Use trusted LANs only; do not expose the port to the internet. USB requires an authorized Android debugging channel or an Apple pairing record; connecting never arms PC mouse input. See [security](SECURITY.md).
 
 ### 🤝 License and credit
 
@@ -111,7 +115,7 @@ Windows 桌面串流 · Android / 兼容 Android 的系统 · iPhone / iPad · �
 ![iOS](https://img.shields.io/badge/iOS%2FiPadOS-15%2B-black)
 [![Build](https://github.com/LexZeon/VRization/actions/workflows/build.yml/badge.svg)](https://github.com/LexZeon/VRization/actions/workflows/build.yml)
 
-[🚀 上手教程](docs/QUICKSTART.zh-CN.md) · [🍎 iPhone 与 Windows](docs/IOS.md) · [🛠️ 开发与构建](docs/BUILD.md) · [🧩 集成指南](docs/ARCHITECTURE.md) · [English](README.en.md)
+[🚀 上手教程](docs/QUICKSTART.md) · [🔌 USB 连接](docs/USB.md) · [📦 下载与本地备份](docs/DOWNLOADS.md) · [🍎 iPhone 与 Windows](docs/IOS.md) · [🛠️ 开发与构建](docs/BUILD.md) · [🧩 集成指南](docs/ARCHITECTURE.md) · [English](README.en.md)
 
 
 VRization 是一个开源的电脑 → 手机串流实验项目。Windows 端采集显示器或指定矩形区域，Android、iPhone / iPad 客户端将画面显示在 VR 盒子的左右眼区域。你可以让画面固定在眼前，也可以把它当成一个随头部转动观看的虚拟大屏幕，或者用手机的姿态控制电脑游戏视角。
@@ -137,6 +141,8 @@ FPS 控制需要在**电脑端主动授权**。手机连接或切换模式不会
 - **显示器 / 矩形选区、输出最长边、帧率和 JPEG 质量**：保持画面比例，同时限制横屏与竖屏的解码负担。
 - **纯局域网、无需 Google 服务**：Android 6.0+，可在提供 Android APK 兼容层的系统上尝试安装。兼容性仍取决于设备的图形、网络与传感器实现；全屏模式不要求陀螺仪。
 
+**两种手机端与 Windows 均默认 USB 连接**，自动检测已授权设备。新配置默认使用低延迟预设：最长边 960、目标 60 FPS、JPEG 质量 60，也可选稳定 / 画质预设或自定义。目标帧率不代表实际达到的帧率。
+
 ### 📸 看看界面
 
 电脑端负责选画面、开串流和授权 FPS；手机端负责连接、观看和调整镜片中的布局。
@@ -145,7 +151,11 @@ FPS 控制需要在**电脑端主动授权**。手机连接或切换模式不会
 | --- | --- |
 | ![VRization 电脑端实际界面](docs/images/desktop-zh.png) | ![VRization Android 客户端实际界面](docs/images/android.png) |
 
-图示来自项目运行界面。手机图为最终 v0.1.1 默认英文界面，运行于不含 Google 服务的 Android 6.0 / API 23 模拟器，画面为本项目的 [动态校准卡示例](examples/embedded_host.py)；可在语言设置切换简体中文。截图展示连接与显示流程，不代表手机盒子实机测试结果；接收帧率不是延迟或性能基准。
+新增 USB 截图来自 **HUAWEI Pura 70 Ultra 真机运行 v0.2.0**，经真实数据线接收原创校准卡。较早截图为无 Google 的 API 23 模拟器运行 v0.1.1。截图展示对应连接与双眼显示流程，不代表镜片舒适度或性能基准。
+
+| 🔌 Android 真机 USB | 🥽 隐藏设置后的双眼画面 |
+| --- | --- |
+| ![华为手机默认 USB 与英文界面](docs/images/huawei-usb.png) | ![华为真机 USB 双眼画面](docs/images/huawei-usb-vr.png) |
 
 <details>
 <summary>🥽 展开：双眼观看与盒子适配设置</summary>
@@ -163,16 +173,16 @@ FPS 控制需要在**电脑端主动授权**。手机连接或切换模式不会
 ### 🚀 五步把电脑放进盒子
 
 1. 在 [Releases](https://github.com/LexZeon/VRization/releases/tag/v0.2.0-alpha) 下载 Windows 电脑端压缩包与 Android APK。iPhone / iPad 按 [iOS 安装教程](docs/IOS.md) 使用源码和 Mac 模拟器构建；真机安装需要在 Xcode 使用自己的 Apple 签名。
-2. 让电脑与手机连接同一可信局域网。电脑尽量接网线，手机靠近 5 GHz / 6 GHz 路由器。
-3. 打开电脑端，选显示器或矩形区域，再开始串流。如果 Windows 弹出防火墙提示，只允许可信的**专用网络**。
-4. 在手机端填写电脑端显示的 IP 地址、端口与配对码，连接后先试全屏模式。
+2. 用数据 USB 线连接。Android 需要官方 Platform Tools、USB 调试和电脑授权；iPhone 需要 Windows 的 Apple Devices / 驱动、信任这台电脑，以及自己签名并在前台运行的应用。详见 [USB 教程](docs/USB.md)。
+3. 打开电脑端，选择显示器或矩形区域，再开始串流。USB 检测会配置授权后的连接；多台 Android 手机需要选择一台。
+4. 手机应用默认 USB，首次前台会自动尝试连接；进入后台或切换语言后，显式点击连接。局域网作为可选方式，需要填写 IP、端口与配对码。
 5. 调整缩放、偏移和眼间距，确认两眼舒适对齐，再放入 VR 盒子。大屏幕模式先重新居中；FPS 模式还需在电脑端授权鼠标控制。
 
 原生 iOS / iPadOS 15+ 客户端使用 URLSession、Core Motion 和 Metal，不引入第三方运行库；与 Android 共用 Windows 主机和协议，保留电脑主动授权鼠标边界。iOS 源码 / 模拟器下载并非已签名的 iPhone IPA，签名步骤和兼容性边界详见 [iOS 教程](docs/IOS.md)。
 
 Windows 端需要 Microsoft Visual C++ v14 x64 运行库。多数电脑已经安装；如果启动提示缺少 `VCRUNTIME140*.dll`、加载 Python DLL 失败或错误 126，再按 [微软官方说明](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist/) 安装 [当前受支持的 x64 运行库](https://aka.ms/vc14/vc_redist.x64.exe)。
 
-详细步骤、截图说明和常见问题见 [上手教程](docs/QUICKSTART.zh-CN.md)。还没有下载产物时，可以按 [构建指南](docs/BUILD.md) 从源码启动。
+详细步骤、截图说明和常见问题见 [上手教程](docs/QUICKSTART.md)。还没有下载产物时，可以按 [构建指南](docs/BUILD.md) 从源码启动。
 
 ### 🧩 为移植而拆开的结构
 
@@ -190,9 +200,9 @@ Windows 桌面端                         Android 手机端
 
 ### 🧪 当前边界
 
-Alpha 版尚未提供音频、硬件视频编码、WebRTC、USB 专用通道、原生立体渲染或 6DoF 位置追踪。没有承诺帧率或端到端延迟数字；实际体验取决于电脑、手机和网络。传感器不足的设备可以使用全屏模式，大屏幕 / FPS 需要兼容的旋转传感器。已完成的检查与尚需实测的项目见 [验证记录](docs/VALIDATION.md)。
+Alpha 版尚未提供音频、硬件视频编码、WebRTC、原生立体渲染或 6DoF 位置追踪。没有承诺帧率或端到端延迟数字；实际体验取决于电脑、手机和网络。传感器不足的设备可以使用全屏模式，大屏幕 / FPS 需要兼容的旋转传感器。已完成的检查与尚需实测的项目见 [验证记录](docs/VALIDATION.md)。
 
-串流使用明文 `ws://`，配对码只是基础访问门槛，**不是加密**。只在可信局域网使用，不要把服务端口映射到公网。详见 [安全说明](SECURITY.md)。
+局域网串流使用明文 `ws://`，配对码只是基础访问门槛，**不是加密**。只在可信局域网使用，不要把服务端口映射到公网。USB 需要已授权的 Android 调试通道或 Apple 配对记录，连接不会自动授权电脑鼠标控制。详见 [安全说明](SECURITY.md)。
 
 ### 🤝 开源与致谢
 

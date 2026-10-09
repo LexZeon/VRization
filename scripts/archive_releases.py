@@ -79,21 +79,30 @@ def prepare_release(root, release):
         raise ValueError(f"{tag} has no published checksum manifest")
     download(manifest["browser_download_url"], downloads / "SHA256SUMS.txt")
     hashes = checksums(downloads / "SHA256SUMS.txt")
+    verified = set()
     for name in sorted(ASSETS & assets.keys()):
         if name not in hashes:
             raise ValueError(f"{tag} omits a checksum for {name}")
         download(assets[name]["browser_download_url"], downloads / name, hashes[name])
+        verified.add(name)
     windows = downloads / "VRization-Windows-x64.zip"
-    if windows.exists():
+    executable_hash = None
+    if windows.name in verified:
         extract(windows, folder / "Windows")
+        # A stale extracted EXE must not make a new archive without an EXE
+        # runnable. Derive its identity from the verified ZIP itself.
+        with zipfile.ZipFile(windows) as archive:
+            if "VRization-Host.exe" in archive.namelist():
+                executable_hash = hashlib.sha256(archive.read("VRization-Host.exe")).hexdigest()
     for asset, target in (("VRization-Android-debug.apk", "Android"),
                           ("VRization-iOS-source.zip", "iOS-source"),
                           ("VRization-iOS-Simulator.zip", "iOS-Simulator")):
         source = downloads / asset
-        if source.exists():
+        if asset in verified:
             (folder / target).mkdir(exist_ok=True)
             shutil.copy2(source, folder / target / asset)
-    metadata = {"tag": tag, "release": release["html_url"], "checksums": hashes}
+    metadata = {"tag": tag, "release": release["html_url"], "checksums": hashes,
+                "verifiedAssets": sorted(verified), "windowsExecutableSHA256": executable_hash}
     (folder / ".vrization-archive.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")
     print(f"Verified and archived {tag}", flush=True)
     return folder
@@ -101,8 +110,48 @@ def prepare_release(root, release):
 
 def publish_latest(root, folder):
     latest = root / "latest"
+    metadata = json.loads((folder / ".vrization-archive.json").read_text(encoding="utf-8"))
+    executable = folder / "Windows" / "VRization-Host.exe"
+    executable_hash = metadata.get("windowsExecutableSHA256")
+    if ("VRization-Windows-x64.zip" not in metadata.get("verifiedAssets", [])
+            or not isinstance(executable_hash, str)
+            or not re.fullmatch(r"[a-f0-9]{64}", executable_hash)
+            or not executable.is_file()
+            or hashlib.sha256(executable.read_bytes()).hexdigest() != executable_hash):
+        raise ValueError("Selected latest has no verified Windows executable")
+    if latest.resolve().parent != root:
+        raise ValueError("Archive paths escaped the destination")
+    if latest.exists() and not (latest / ".vrization-archive.json").is_file():
+        raise ValueError("Existing latest folder is not managed by this script")
+    verified = set(metadata["verifiedAssets"])
+    hashes = metadata["checksums"]
+    source_downloads = folder / "downloads"
+    if checksums(source_downloads / "SHA256SUMS.txt") != hashes:
+        raise ValueError("Archived checksum manifest changed")
+    for name in verified:
+        if (name not in ASSETS or name not in hashes
+                or hashlib.sha256((source_downloads / name).read_bytes()).hexdigest() != hashes[name]):
+            raise ValueError("Archived release asset changed")
     staging = root / (".latest-staging-" + uuid.uuid4().hex)
-    shutil.copytree(folder, staging)
+    # Rebuild from this release's verified downloads. Never copy an old extracted
+    # tree: it can retain an unpublished APK or a DLL absent from the new ZIP.
+    staging.mkdir()
+    staged_downloads = staging / "downloads"
+    staged_downloads.mkdir()
+    shutil.copy2(source_downloads / "SHA256SUMS.txt", staged_downloads / "SHA256SUMS.txt")
+    for name in sorted(verified):
+        target = staged_downloads / name
+        shutil.copy2(source_downloads / name, target)
+        if hashlib.sha256(target.read_bytes()).hexdigest() != hashes[name]:
+            raise ValueError("Release asset changed while copying")
+    extract(staged_downloads / "VRization-Windows-x64.zip", staging / "Windows")
+    for asset, target in (("VRization-Android-debug.apk", "Android"),
+                          ("VRization-iOS-source.zip", "iOS-source"),
+                          ("VRization-iOS-Simulator.zip", "iOS-Simulator")):
+        if asset in verified:
+            (staging / target).mkdir()
+            shutil.copy2(staged_downloads / asset, staging / target / asset)
+    (staging / ".vrization-archive.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")
     (staging / "Start-Windows.bat").write_bytes(b'@echo off\r\nstart "" "%~dp0Windows\\VRization-Host.exe"\r\n')
     (staging / "Start-on-second-monitor.bat").write_bytes(b'@echo off\r\nstart "" "%~dp0Windows\\VRization-Host.exe" --monitor 2\r\n')
     # Never delete or overwrite an unowned user directory. All directory moves
@@ -110,8 +159,6 @@ def publish_latest(root, folder):
     if staging.resolve().parent != root or latest.resolve().parent != root:
         raise ValueError("Archive paths escaped the destination")
     if latest.exists():
-        if not (latest / ".vrization-archive.json").is_file():
-            raise ValueError("Existing latest folder is not managed by this script")
         previous = root / ("previous-latest-" + time.strftime("%Y%m%d-%H%M%S") + "-" + uuid.uuid4().hex[:6])
         if previous.resolve().parent != root:
             raise ValueError("Backup path escaped the destination")
