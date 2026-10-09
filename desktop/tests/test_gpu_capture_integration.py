@@ -78,7 +78,7 @@ class GpuCaptureIntegrationTests(unittest.TestCase):
         self.assert_frame(negative, (640, 480))
         self.gpu.grab.assert_called_once_with(self.monitors[1], (640, 480), force_latest=True)
         self.gpu_factory.assert_called_once_with(expected_monitors=self.monitors)
-        self.layout.validate.assert_called_once_with(self.monitors)
+        self.assertEqual([call.args for call in self.layout.validate.call_args_list], [(self.monitors,)] * 2)
         self.assert_no_cpu_capture()
 
         portrait = self.source.read(self.config)
@@ -226,8 +226,78 @@ class GpuCaptureIntegrationTests(unittest.TestCase):
             self.source.read(self.config)
         self.gpu.grab.assert_called_once()
         self.gpu.close.assert_called_once()
+        self.assertEqual(self.layout.validate.call_count, 3)
+        self.assert_no_cpu_capture()
+
+    def assert_poison_until_close(self):
+        """A physically restored layout must not revive the rejected session."""
+        self.layout.validate.side_effect = None
+        counts = (self.gpu.grab.call_count, self.gdi.grab.call_count, self.screen.grab.call_count,
+                  self.layout.validate.call_count)
+        with self.assertRaisesRegex(OSError, "layout changed during capture"):
+            self.source.read(self.config)
+        self.assertEqual(counts, (self.gpu.grab.call_count, self.gdi.grab.call_count,
+                                  self.screen.grab.call_count, self.layout.validate.call_count))
+        self.source.close()
+        replacement = self.make_gpu()
+        self.gpu_factory.return_value = replacement
+        self.assert_frame(self.source.read(self.config), (384, 640))
+        replacement.grab.assert_called_once_with(self.monitors[2], (384, 640), force_latest=True)
+
+    def test_gdi_layout_change_during_read_rejects_frame_and_poison_persists(self):
+        changed = [False]
+        def validate(monitors):
+            if changed[0]: raise CaptureLayoutChanged("layout changed during capture")
+        def blit(rectangle, size):
+            changed[0] = True
+            return pixels(size)
+        self.layout.validate.side_effect = validate
+        self.gpu.grab.side_effect = UnsupportedGpuCapture("initial unsupported API")
+        self.gdi.grab.side_effect = blit
+        with self.assertRaisesRegex(CaptureLayoutChanged, "layout changed during capture"):
+            self.source.read(self.config)
+        self.gdi.grab.assert_called_once_with(self.monitors[2], (384, 640))
+        self.screen.grab.assert_not_called()
+        self.assertEqual(self.layout.validate.call_count, 2)
+        self.assert_poison_until_close()
+        self.gdi.close.assert_called_once()
+
+    def test_mss_layout_change_during_read_rejects_frame_without_another_fallback(self):
+        changed = [False]
+        def validate(monitors):
+            if changed[0]: raise CaptureLayoutChanged("layout changed during capture")
+        def screenshot(rectangle):
+            changed[0] = True
+            size = rectangle["width"], rectangle["height"]
+            return SimpleNamespace(size=size, bgra=pixels(size))
+        self.layout.validate.side_effect = validate
+        self.gpu.grab.side_effect = UnsupportedGpuCapture("initial unsupported API")
+        self.gdi.grab.side_effect = OSError("GDI unavailable")
+        self.screen.grab.side_effect = screenshot
+        with self.assertRaisesRegex(CaptureLayoutChanged, "layout changed during capture"):
+            self.source.read(self.config)
+        self.screen.grab.assert_called_once_with(self.monitors[2])
+        self.gdi.close.assert_called_once()
+        self.assertEqual(self.layout.validate.call_count, 2)
+        self.assert_poison_until_close()
+
+    def test_gpu_layout_change_during_jpeg_encoding_rejects_completed_frame_and_cache(self):
+        changed = [False]
+        def validate(monitors):
+            if changed[0]: raise CaptureLayoutChanged("layout changed during capture")
+        encode = Image.Image.save
+        def encode_then_move(image, *args, **kwargs):
+            encode(image, *args, **kwargs)
+            changed[0] = True
+        self.layout.validate.side_effect = validate
+        with patch.object(Image.Image, "save", autospec=True, side_effect=encode_then_move):
+            with self.assertRaisesRegex(CaptureLayoutChanged, "layout changed during capture"):
+                self.source.read(self.config)
+        self.gpu.grab.assert_called_once_with(self.monitors[2], (384, 640), force_latest=True)
+        self.gpu.close.assert_called_once()
         self.assertEqual(self.layout.validate.call_count, 2)
         self.assert_no_cpu_capture()
+        self.assert_poison_until_close()
 
     def test_initial_layout_failure_does_not_create_any_capture_backend(self):
         self.layout.validate.side_effect = OSError("cannot verify layout")

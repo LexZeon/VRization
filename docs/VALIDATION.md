@@ -51,7 +51,7 @@ No FATAL, native-fatal or out-of-memory errors were observed. One `EGL_BAD_SURFA
 
 ### v0.2.0-alpha checks
 
-- Windows host: **104 automated tests passed**, including USB discovery / mapping ownership, iOS relay framing / pairing checks, loopback bootstrap restrictions, Windows DPI fallback, actual WebSocket wire messages, capture pacing, original GPU resources and fallback / cache integration. Local Windows builds use CPython 3.12.14.
+- Windows host: **107 automated tests passed**, including USB discovery / mapping ownership, iOS relay framing / pairing checks, loopback bootstrap restrictions, Windows DPI fallback, actual WebSocket wire messages, capture pacing, original GPU resources and fallback / cache integration. Local Windows builds use CPython 3.12.14.
 - Android: **36 tests passed** (8 core and 28 app), APK / AAR build and lint passed after the final latency improvements. The same local debug certificate upgraded the attached HUAWEI Pura 70 Ultra from version code 1 to code 3 without uninstalling.
 - Physical phone: HUAWEI Pura 70 Ultra, reporting Android 12 / API 31 compatibility, received the original **960 × 540** calibration card over an actual data cable. USB and English were default. Authorized discovery, fresh-launch automatic connection, both-eye rendering and hidden controls / Back recovery passed. No manual IP or pairing code was entered in USB mode.
 - Chinese persisted after force-stop / reopen; switching language disconnected the host and required an explicit reconnect. A new process launch made its documented one-time USB connection attempt. In FPS mode the host received **877 real sensor pose messages** during the observed interval. No operating-system mouse input was armed; the fake sink remained empty. These observations do not verify physical gyro axes or real-game control.
@@ -79,7 +79,7 @@ These are bounded sessions on one GPU / display / phone setup, with an original 
 
 The final latency-improved APK upgraded this Huawei phone in place with the same signing certificate. Its UI showed **59.9 decoded FPS**, **7 ms link RTT** and **11.3 ms mean phone-local processing from complete-JPEG reception to texture submission**. That phone metric excludes PC capture, link transport and physical display. In the bounded final host session, 39 send samples averaged **59.68 FPS**; after startup, host capture averaged **4.06 ms**, latest-frame queue **0.30 ms** and submission to the local transport **0.11 ms**. The original moving window started partway through: there were 1,117 distinct JPEGs and 1,280 repeated / static reads, so the whole session is not a 60-distinct-update benchmark. No capture errors or operating-system mouse moves occurred. Phone decoding now hands frames directly to the renderer through a session gate, and same-size / same-format uploads reuse the texture. These independently measured components must not be added and labelled end-to-end latency.
 
-The release retains the previous API 23 / 36 results above as historical evidence; they are not fresh coverage of every v0.2.0 change. The complete iOS validation result remains pending; it is not recorded as passed. Physical iPhone USB remains untested.
+The release retains the previous API 23 / 36 results above as historical evidence; they are not fresh coverage of every v0.2.0 change. GitHub Actions run [37889266302](https://github.com/LexZeon/VRization/actions/runs/37889266302) passed the iOS checks: 40 reusable-core tests, both Simulator / unsigned device builds, two native UI cases using real slider and precision-button touches, LAN / simulated USB reception, settings echo, and original-image color / orientation validation. These are Simulator results, not physical iPhone USB or a signed IPA.
 
 ### Still needs physical testing
 
@@ -151,7 +151,7 @@ Microsoft Visual C++ v14 x64 runtime is installed by the system, not shipped ins
 
 ### v0.2.0-alpha 检查
 
-- Windows 电脑端 **104 项自动检查通过**，包含 USB 识别 / 映射归属、iOS 中继分帧 / 配对、回环 bootstrap 限制、Windows DPI 回退、实际 WebSocket 报文、采集节奏、原创 GPU 资源及回退 / 缓存接入。本地 Windows 使用 CPython 3.12.14 构建。
+- Windows 电脑端 **107 项自动检查通过**，包含 USB 识别 / 映射归属、iOS 中继分帧 / 配对、回环 bootstrap 限制、Windows DPI 回退、实际 WebSocket 报文、采集节奏、原创 GPU 资源及回退 / 缓存接入。本地 Windows 使用 CPython 3.12.14 构建。
 - Android **36 项检查通过**（核心 8、应用 28），最终延迟优化后的 APK / AAR 构建与 lint 通过。同一本地 debug 证书在接入的 HUAWEI Pura 70 Ultra 从 version code 1 覆盖升级到 code 3，无需卸载。
 - 真机 HUAWEI Pura 70 Ultra 报告 Android 12 / API 31 兼容层，经真实数据线接收 **960 × 540** 原创校准卡。默认 USB 和英文，授权发现、新启动自动连接、双眼渲染、隐藏设置 / 返回恢复通过，USB 未手填 IP 或配对码。
 - 中文在强制停止 / 重开后保留；切换语言会断开并要求显式重连。新进程启动进行了文档约定的一次 USB 自动尝试。FPS 模式的观察区间收到 **877 条真实传感器姿态消息**，未授权操作系统鼠标，假接收器保持为空。这不代表陀螺仪实际轴向或真实游戏控制已经验证。
@@ -179,7 +179,7 @@ Microsoft Visual C++ v14 x64 runtime is installed by the system, not shipped ins
 
 最终低延迟 APK 用相同签名在此华为手机覆盖安装。界面显示 **59.9 解码 FPS**、**7 ms 链路往返**，以及从完整 JPEG 接收到纹理提交的 **11.3 ms 手机本地平均处理耗时**；该手机指标不含电脑采集、链路和物理屏幕显示。最终限时电脑会话 39 个发送样本均值 **59.68 FPS**；启动之后电脑采集平均 **4.06 ms**、最新帧排队 **0.30 ms**、提交给本地连接 **0.11 ms**。原创动态窗口在会话中途启动，统计 1,117 张不同 JPEG、1,280 次重复 / 静态读取，因此整个会话不能当作每秒 60 次不同桌面更新的基准。没有采集错误或操作系统鼠标移动。手机解码通过会话门直接把帧交给渲染器，相同尺寸 / 格式上传复用纹理。这些独立测得的环节不能相加并称为端到端延迟。
 
-上面的 API 23 / 36 结果保留为历史证据，不代表重新覆盖 v0.2.0 的所有改动。完整 iOS 验证结果仍待定，不记为已经通过。真实 iPhone USB 仍未验证。
+上面的 API 23 / 36 结果保留为历史证据，不代表重新覆盖 v0.2.0 的所有改动。GitHub Actions [37889266302](https://github.com/LexZeon/VRization/actions/runs/37889266302) 的 iOS 检查通过：40 项可复用核心测试、模拟器 / 未签名真机目标构建、两个通过实际滑条与精确按钮触摸的原生界面用例、局域网 / 模拟 USB 接收、设置回传，以及原创图像颜色 / 方向校验。这些是模拟器结果，不代表 iPhone 真机 USB 或已签名 IPA。
 
 ### 仍需实机验证
 

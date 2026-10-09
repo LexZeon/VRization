@@ -102,6 +102,22 @@ class MssCaptureSource:
         self._gpu_key = self._gpu_pixels = self._gpu_frame = None
         self._gpu_quality = self._gpu_captured_at = None
 
+    def _validate_layout(self):
+        if os.name != "nt":
+            return
+        from .windows_capture import CaptureLayoutChanged
+        try:
+            self._layout.validate(self._screen.monitors)
+        except (OSError, CaptureLayoutChanged) as error:
+            self._gpu_error = str(error)
+            self._clear_gpu_cache()
+            if self._gpu is not None:
+                try:
+                    self._gpu.close()
+                finally:
+                    self._gpu = None
+            raise
+
     @staticmethod
     def monitors() -> list[dict]:
         from mss import MSS
@@ -120,20 +136,9 @@ class MssCaptureSource:
             if self._layout is None:
                 from .windows_capture import WindowsDisplayLayout
                 self._layout = WindowsDisplayLayout()
-            from .windows_capture import CaptureLayoutChanged
             # MSS caches monitor coordinates. Fail before either backend reads
             # pixels if a display moves/disconnects or another device replaces it.
-            try:
-                self._layout.validate(self._screen.monitors)
-            except (OSError, CaptureLayoutChanged) as error:
-                self._gpu_error = str(error)
-                self._clear_gpu_cache()
-                if self._gpu is not None:
-                    try:
-                        self._gpu.close()
-                    finally:
-                        self._gpu = None
-                raise
+            self._validate_layout()
         monitor = capture_rectangle(config, self._screen.monitors)
         dimensions = output_size(monitor["width"], monitor["height"], config.width)
         selection = config.monitor, config.region
@@ -171,6 +176,7 @@ class MssCaptureSource:
                     self._gpu_quality = config.quality
                 # A static desktop can reuse the owned JPEG. Its original
                 # timestamp distinguishes refresh packets from new captures.
+                self._validate_layout()
                 return self._gpu_frame
             except UnsupportedGpuCapture as error:
                 # Never treat a later failure as initial unsupported hardware.
@@ -218,6 +224,9 @@ class MssCaptureSource:
                 image = image.resize(dimensions, Image.Resampling.BILINEAR)
         output = BytesIO()
         image.save(output, "JPEG", quality=config.quality, optimize=False)
+        # GDI/MSS can race a hotplug/move too. Reject the completed frame before
+        # publication if its validated selection changed during pixel work.
+        self._validate_layout()
         ready = time.perf_counter()
         return Frame(output.getvalue(), image.width, image.height, time.monotonic(),
                      (ready - read_started) * 1000, ready)
