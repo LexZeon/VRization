@@ -45,7 +45,7 @@ Other Android phones / derivatives, physical iPhones / iPads including the oldes
 
 ### v0.3 editor / preferences scope
 
-Targets are unchanged. The new flat editor, center-fixed shared geometry, Save / Discard, explicit reset and committed phone profile restoration are documented in [editing](EDITING.md). Older v1 hosts / clients keep their protocol; v0.3 phones restore saved profiles only after a valid hello. The historical hardware / emulator results above remain evidence for their named versions. New UI, reset / restart and device checks must be recorded separately in [validation](VALIDATION.md).
+Targets are unchanged. The new flat editor, shared geometry with dynamic seam limits, Save / Discard, explicit reset and committed phone profile restoration are documented in [editing](EDITING.md). The message envelope remains v1, but negative eye separation requires v0.3 on both sides; v0.2 only accepts 0…0.2. Existing nonnegative profiles remain valid. v0.3 phones restore saved profiles only after a valid hello. The historical hardware / emulator results above remain evidence for their named versions. New UI, reset / restart and device checks must be recorded separately in [validation](VALIDATION.md).
 
 ---
 
@@ -93,4 +93,4 @@ USB 需要官方 Platform Tools / Android 调试授权，或 iOS 的 Apple Windo
 
 ### v0.3 编辑器 / 偏好范围
 
-支持目标不变。新增平面编辑器、中心固定共用几何、保存 / 放弃、主动重置与手机已提交配置恢复见 [编辑文档](EDITING.md)。旧 v1 主机 / 客户端保留协议；v0.3 手机只在合法 hello 后恢复保存配置。上述历史硬件 / 模拟器结果只证明注明版本，新界面、重置 / 重启和设备检查需在 [验证](VALIDATION.md) 另记。
+支持目标不变。新增平面编辑器、带动态接缝限位的共用几何、保存 / 放弃、主动重置与手机已提交配置恢复见 [编辑文档](EDITING.md)。消息封装仍为 v1，但负间距需两端均为 v0.3，v0.2 只接受 0…0.2；已有非负配置仍有效。v0.3 手机只在合法 hello 后恢复保存配置。上述历史硬件 / 模拟器结果只证明注明版本，新界面、重置 / 重启和设备检查需在 [验证](VALIDATION.md) 另记。

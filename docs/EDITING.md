@@ -16,12 +16,14 @@ v0.3.0-alpha places visual headset fitting first in the settings on Windows, And
 ### Drag, preview, then choose
 
 1. Open the editor using the entry above. The entry settings are captured as a snapshot. Windows shows an approximate phone-shaped preview with whole-phone aspect choices 20:9 (default), 16:9 and 19.5:9; a phone uses its own screen. The PC reuses the existing latest JPEG at up to 10 preview updates per second; it starts no additional capture and does not change the display / rectangle.
-2. Drag inside either image to adjust **linked, mirrored eye spacing** on all three applications. Left-eye left or right-eye right widens the spacing; left-eye right or right-eye left narrows it. Both images move symmetrically, while the global horizontal offset stays unchanged. Vertical dragging moves both images normally. Corner dragging resizes with each center fixed and aspect ratio preserved. Scale is limited to 50–100%, eye separation to 0–0.2, and vertical offset to −0.3…+0.3.
+2. Drag inside either image to adjust **linked, mirrored eye spacing** on all three applications. Left-eye left or right-eye right widens the spacing; left-eye right or right-eye left narrows it. A smaller image can continue inward until the inner edges meet at the middle seam. Shared horizontal offset is retained while space allows, then constrained toward zero as the seam closes. Vertical dragging moves both normally. Corners preserve aspect ratio and normally keep centers fixed; enlargement at contact moves centers outward as needed to prevent overlap. Scale is limited to 50–100%, signed separation to −1…0.2 with an aspect-dependent inward stop, and vertical offset to −0.3…+0.3.
 3. **Save** on a phone commits the complete draft through normal settings synchronization when connected. On Windows it updates only scale / offsetX / offsetY / eyeSeparation once against the current host snapshot, preserving other settings changed during editing, then saves that complete committed state. **Discard** restores the local entry preview and sends no update. Dragging the preview never writes host settings or saved preferences.
 
 The preview temporarily suppresses motion-driven viewing and outgoing phone poses. A connected phone stops new poses and drops application-pending pose work (already submitted transport bytes cannot be recalled) and sends one normal hello with `editing: true` on entry; the current host disarms input immediately on receipt. Desktop entry also disarms it. Video, ping and normal exit recentering may continue; no draft settings or preferences are written. Older hosts still stop on the pose timeout. Saving or leaving the editor never grants new authorization. Use the normal PC authorization flow again before FPS control.
 
 Phone backgrounding, disconnecting or changing language discards an open draft; iOS also cancels it when the viewport changes during rotation. Saved values remain separate from a temporary drag. The editor is a visual fit aid, not a measurement of physical lens alignment, interpupillary distance or headset comfort. A valid offset / eye separation can place an image partly outside an eye viewport; the viewport clips it.
+
+Seam contact is guaranteed by the flat preview geometry and undistorted full / FPS display. Cinema perspective, head motion and lens distortion change projected edges, so this is not a guarantee of a seamless image in those views. The PC's selected phone aspect is an approximation; the phone resolves against its real viewport and current image aspect. Update both host and phone to v0.3 before saving negative separation: v0.2 clients / hosts accept only nonnegative values. Existing nonnegative profiles and the 0.03 default remain valid.
 
 ### Local phone profile and reconnecting
 
@@ -58,21 +60,29 @@ Each eye has normalized coordinates **[−1, 1], y upward**. For image aspect `a
 
 ```text
 fit = (min(1, a/e), min(1, e/a))
-center = (offsetX ± eyeSeparation, offsetY)
+h = fit.x × scale
+minimum separation = h − 1
+resolved separation = clamp(raw separation, h − 1, 0.2)
+gap = max(0, 1 + resolved separation − h)
+resolved offsetX = clamp(raw offsetX, −min(0.3, gap), +min(0.3, gap))
+center = (resolved offsetX ± resolved separation, offsetY)
 half-size = fit × scale
+
+start = resolved_fit(gesture-start settings, a, e)
 eyeSign = −1 for left, +1 for right
-eyeSeparation = clamp(start.eyeSeparation + eyeSign × dx, 0, 0.2)
-offsetY = clamp(start.offsetY + dy, −0.3, +0.3)
-offsetX = start.offsetX
+drag separation = clamp(start.eyeSeparation + eyeSign × dx, h − 1, 0.2)
+drag offsetY = clamp(start.offsetY + dy, −0.3, +0.3)
+drag result = resolved_fit(start with drag separation / offsetY, a, e)
 resize scale = clamp(start.scale +
     dot((dx × cornerX, dy × cornerY), fit) / dot(fit, fit), 0.5, 1)
+resize result = resolved_fit(start with resize scale, a, e)
 ```
 
-Use `−` for the left eye and `+` for the right. Corner signs are −1 / +1 for left / right and bottom / top. Pointer deltas are measured from the **gesture-start snapshot**, never accumulated from each event. Screen y increases downward, so convert it with the opposite sign. A corner resize keeps both offsets unchanged. The two eyes share the resulting scale and offsets.
+Use `−` for the left eye and `+` for the right. Corner signs are −1 / +1 for left / right and bottom / top. Pointer deltas are measured from the **gesture-start snapshot**, never accumulated from each event, with image / viewport aspects frozen for that gesture. Screen y increases downward, so convert it with the opposite sign. At contact, `gap = 0` and shared X resolves to zero. For `fit.x = 0.5`, `scale = 0.5`, the inward limit is −0.75. Rendering resolution does not itself rewrite a saved raw profile; changing image / viewport aspects can change its resolved fit.
 
-All three UI adapters convert pointer movement directly: `dx = 2 × pointerDeltaX / eyeWidth`, `dy = −2 × pointerDeltaY / height`. The selected eye sign makes horizontal movement mirrored; do not negate x globally. `offsetX` stays at its entry value during this linked drag and remains separately adjustable with the ordinary setting. Corner resizing remains direct. FPS gyro / mouse mapping is unchanged, and no new wire field is added.
+All three UI adapters convert pointer movement directly: `dx = 2 × pointerDeltaX / eyeWidth`, `dy = −2 × pointerDeltaY / height`. The selected eye sign makes horizontal movement mirrored; do not negate x globally. X and center positions remain unchanged when the seam constraint is inactive. Ordinary X settings are still available, subject to the remaining gap during flat rendering. Corner motion remains direct. FPS gyro / mouse mapping is unchanged; protocol v1 keeps its existing field but expands the signed range.
 
-Python exposes `fit_size`, `eye_bounds` (left, bottom, right, top; eye 0 left / 1 right), `dragged` (`eye_pan` / `resize`, with reusable ordinary `pan` also available) and an optional `EditTransaction` with local preview / commit / discard. Callers own rendering, persistence and broadcasts. Automated geometry checks do not establish real headset optics or completed UI / device acceptance; consult [validation](VALIDATION.md).
+Python exposes `fit_size`, `resolved_fit`, `eye_bounds` (resolved left, bottom, right, top; eye 0 left / 1 right), `dragged` (`eye_pan` / `resize`, with reusable ordinary `pan` also available) and an optional `EditTransaction` with local preview / commit / discard. Ordinary `pan` retains generic wire offset clamps for integrations; the editor uses the seam-aware path. Callers own rendering, persistence and broadcasts. Automated geometry checks do not establish real headset optics or completed UI / device acceptance; consult [validation](VALIDATION.md).
 
 ---
 
@@ -90,12 +100,14 @@ v0.3.0-alpha 将可视盒子适配放在 Windows、Android 与 iOS 设置首位�
 ### 拖动、预览，再决定
 
 1. 按上表打开编辑器，进入时的完整设置会保存为快照。Windows 提供近似手机形状的预览，可选整部手机宽高比 20:9（默认）、16:9 和 19.5:9；手机使用自身屏幕。电脑最多每秒 10 次复用现有最新 JPEG，不新增采集、不改变显示器或选区。
-2. 三端拖画面内部都调整**左右眼镜像联动间距**：左眼向左或右眼向右拉开间距，左眼向右或右眼向左收拢。两眼对称移动，整体水平偏移不变；竖向仍同步正常移动，角点缩放各自中心固定、比例保持。缩放范围为 50–100%，眼间距 0–0.2，竖向偏移 −0.3…+0.3。
+2. 三端拖画面内部都调整**左右眼镜像联动间距**：左眼向左或右眼向右拉开，左眼向右或右眼向左收拢。缩小后仍可继续向内拖，直到两眼内边在中缝相接。空间允许时保留整体水平偏移，接近中缝时会限位并逐渐归零；竖向仍同步正常移动。角点保持图像比例，通常中心固定；在接触状态放大时，必要时向外调整中心以避免重叠。缩放范围为 50–100%，有符号间距为 −1…0.2、向内终点按画面比例计算，竖向偏移为 −0.3…+0.3。
 3. 手机**保存**提交完整草稿，已连接时通过正常设置同步发送；Windows 保存时只向当前主机快照一次更新 scale / offsetX / offsetY / eyeSeparation，保留编辑期间其他设置改动，再保存完整已提交状态。**放弃**恢复本地进入预览，不发送更新。预览拖动不会写主机设置或保存偏好。
 
 预览暂时停用姿态控制画面，并暂停手机发送姿态。已连接手机停止新姿态、丢弃应用层待发姿态（已提交传输层字节无法撤回），进入时用普通 hello 一次发送 `editing: true`，当前主机收到后立即解除输入授权；电脑进入也解除授权。视频、ping 和正常退出回正可以继续，但不写草稿设置或偏好。旧主机仍由姿态超时停止输入。保存或退出不会重新授予权限；继续 FPS 控制前，重新走电脑正常授权流程。
 
 手机进入后台、断线或切语言会放弃尚未保存的草稿；iOS 在旋转导致显示区域改变时也取消编辑。已保存值与临时拖动分开。编辑器帮助肉眼适配，不测量实际镜片对齐、瞳距或舒适度。合法偏移 / 眼间距也可能使部分画面越出单眼区域，超出部分会被裁切。
+
+中缝相接由平面预览及无畸变全屏 / FPS 的几何保证。大屏幕透视、头部运动和镜片畸变会改变投影边缘，不保证这些视图也无缝。电脑选择的手机比例只是近似，手机按实际视口和当前图像比例解析。保存负间距前请把电脑与手机都更新到 v0.3：v0.2 只接受非负值。已有非负配置和默认 0.03 仍有效。
 
 ### 手机本地配置与重连
 
@@ -132,18 +144,26 @@ v0.3.0-alpha 将可视盒子适配放在 Windows、Android 与 iOS 设置首位�
 
 ```text
 fit = (min(1, a/e), min(1, e/a))
-center = (offsetX ± eyeSeparation, offsetY)
+h = fit.x × scale
+间距下限 = h − 1
+解析间距 = clamp(原始间距, h − 1, 0.2)
+gap = max(0, 1 + 解析间距 − h)
+解析 offsetX = clamp(原始 offsetX, −min(0.3, gap), +min(0.3, gap))
+center = (解析 offsetX ± 解析间距, offsetY)
 half-size = fit × scale
+
+start = resolved_fit(手势开始设置, a, e)
 eyeSign = 左眼 −1，右眼 +1
-eyeSeparation = clamp(start.eyeSeparation + eyeSign × dx, 0, 0.2)
-offsetY = clamp(start.offsetY + dy, −0.3, +0.3)
-offsetX = start.offsetX
+拖动间距 = clamp(start.eyeSeparation + eyeSign × dx, h − 1, 0.2)
+拖动 offsetY = clamp(start.offsetY + dy, −0.3, +0.3)
+拖动结果 = resolved_fit(start 替换拖动间距 / offsetY, a, e)
 resize scale = clamp(start.scale +
     dot((dx × cornerX, dy × cornerY), fit) / dot(fit, fit), 0.5, 1)
+缩放结果 = resolved_fit(start 替换 resize scale, a, e)
 ```
 
-左眼取 `−`，右眼取 `+`；角点符号为左 / 右 −1 / +1、下 / 上 −1 / +1。指针位移根据**手势开始快照**计算，不把每个事件重复累加。屏幕 y 向下，转换时取相反符号。角点缩放不改变两个偏移，两眼共用新缩放与偏移。
+左眼取 `−`，右眼取 `+`；角点符号为左 / 右 −1 / +1、下 / 上 −1 / +1。指针位移根据**手势开始快照**计算，不重复累加事件，并在本次手势冻结图像 / 视口比例。屏幕 y 向下，转换时取相反符号。接触时 `gap = 0`、共用 X 归零；`fit.x = 0.5`、`scale = 0.5` 的向内下限为 −0.75。渲染解析不会自行改写已保存的原始配置，图像 / 视口比例改变时解析结果可能变化。
 
-三端界面都直接转换指针位移：`dx = 2 × 指针水平位移 / 单眼宽度`，`dy = −2 × 指针竖向位移 / 高度`；由选中眼的符号产生水平镜像联动，不统一反转 x。此次联动保持进入时的 `offsetX`，它仍可在普通设置单独调整；角点缩放保持正常，FPS 陀螺仪 / 鼠标映射不变，也不新增协议字段。
+三端界面都直接转换指针位移：`dx = 2 × 指针水平位移 / 单眼宽度`，`dy = −2 × 指针竖向位移 / 高度`；由选中眼符号产生水平镜像联动，不统一反转 x。接缝约束未触发时 X 与中心保持不变；普通设置仍可调整 X，但平面渲染受剩余间隙限制。角点方向仍正常，FPS 陀螺仪 / 鼠标映射不变；协议 v1 沿用已有字段，但扩大为有符号范围。
 
-Python 提供 `fit_size`、`eye_bounds`（左、下、右、上；eye 0 左 / 1 右）、`dragged`（`eye_pan` / `resize`，另保留普通 `pan` 供复用）及可选 `EditTransaction`，负责本地预览 / 提交 / 放弃。调用方负责渲染、存储与广播。几何自动检查不代表真实盒子镜片或界面 / 设备验收已完成，实测范围见 [验证记录](VALIDATION.md)。
+Python 提供 `fit_size`、`resolved_fit`、`eye_bounds`（解析后的左、下、右、上；eye 0 左 / 1 右）、`dragged`（`eye_pan` / `resize`，另保留普通 `pan` 供复用）及可选 `EditTransaction`，负责本地预览 / 提交 / 放弃。普通 `pan` 保留通用协议偏移限位供集成使用，编辑器采用接缝路径。调用方负责渲染、存储与广播。几何自动检查不代表真实盒子镜片或界面 / 设备验收已完成，实测范围见 [验证记录](VALIDATION.md)。

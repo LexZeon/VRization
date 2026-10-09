@@ -46,7 +46,7 @@ This is not an OpenXR runtime or SteamVR driver. It does not provide 6DoF tracki
 
 ### v0.3.0-alpha visual fitting and local profiles
 
-The next release follows the separately published / archived v0.2 GPU / latency work. Windows, Android and iOS receive a first-position flat headset editor with synchronized eye movement, center-fixed proportional corners, explicit Save / Discard, Reset all settings and persistent committed phone VR profiles. Drafts stay local; phones restore their saved profile only after a validated hello, using normal settings synchronization. Mouse arming, explicit reconnects and the selected PC capture output remain protected. See [editor scope](EDITING.md), [release history](releases/README.md) and [actual validation](VALIDATION.md).
+The next release follows the separately published / archived v0.2 GPU / latency work. Windows, Android and iOS receive a first-position flat headset editor with synchronized eye movement, proportional corners with contact constraints, explicit Save / Discard, Reset all settings and persistent committed phone VR profiles. Drafts stay local; phones restore their saved profile only after a validated hello, using normal settings synchronization. Mouse arming, explicit reconnects and the selected PC capture output remain protected. See [editor scope](EDITING.md), [release history](releases/README.md) and [actual validation](VALIDATION.md).
 
 ---
 
@@ -95,4 +95,4 @@ USB 已是默认偏好：Android 经官方 ADB reverse 发现已授权真实设�
 
 ### v0.3.0-alpha 可视适配与本地配置
 
-本版在独立发布 / 归档的 v0.2 GPU / 延迟工作之后推进：Windows、Android 与 iOS 加入设置首位平面编辑器、双眼同步移动、中心固定等比角点、主动保存 / 放弃、全部重置和手机已提交 VR 配置持久化。草稿只在本地，合法 hello 后才用普通同步恢复已保存配置；保留鼠标授权、显式重连及选定电脑画面的边界。见 [编辑范围](EDITING.md)、[发布历史](releases/README.md) 与 [实际验证](VALIDATION.md)。
+本版在独立发布 / 归档的 v0.2 GPU / 延迟工作之后推进：Windows、Android 与 iOS 加入设置首位平面编辑器、双眼同步移动、受接触约束的等比角点、主动保存 / 放弃、全部重置和手机已提交 VR 配置持久化。草稿只在本地，合法 hello 后才用普通同步恢复已保存配置；保留鼠标授权、显式重连及选定电脑画面的边界。见 [编辑范围](EDITING.md)、[发布历史](releases/README.md) 与 [实际验证](VALIDATION.md)。

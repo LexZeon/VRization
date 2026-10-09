@@ -97,7 +97,7 @@ Since v0.1.1, `hello` and host `settings` messages include a nonnegative, monoto
 | `mode` | `full` / `cinema` / `fps` | `full` | Fixed / virtual screen / gyro mouse. |
 | `scale` | 0.5–1.0 | 0.85 | Effective per-eye image scale. |
 | `offsetX`, `offsetY` | -0.3–0.3 | 0 | Normalized horizontal / vertical offset. |
-| `eyeSeparation` | 0–0.2 | 0.03 | Display spacing; not meters or automatic IPD. |
+| `eyeSeparation` | −1–0.2 | 0.03 | Signed display spacing; dynamic flat-fit contact limits apply. Not meters or automatic IPD. |
 | `fov` | 50–110 | 80 | Field of view in degrees. |
 | `distance` | 1–8 | 3 | Virtual screen distance in scene units. |
 | `distortion` | 0–0.5 | 0 | Lens distortion coefficient. |
@@ -140,7 +140,7 @@ These are client / GUI policies, not new wire types. Preview pan / resize is loc
 
 Phones persist all committed VR fields, including offline changes; pairing secrets are not stored. After each validated host hello, a saved profile is restored once via normal complete settings with a fresh clientSeq. Do not replay old socket work, bypass validation or reset revisions to accommodate it. Accepted subsequent complete snapshots update the local profile normally. This explicit user-requested persistence replaces the earlier host-initial-settings preference for v0.3 clients; old v1 clients retain their behavior.
 
-Connected Save from the PC or phone uses settings / acknowledgments / broadcasts and retains the accepted state on both sides. Offline changes stay local. If both sides have conflicting offline changes, the saved phone profile takes precedence on reconnect; the PC can Save again afterward. No timestamp / clock comparison, automatic merge or new conflict wire type is introduced. Editor horizontal dragging updates the existing eyeSeparation field with selected-eye sign (left −1, right +1), mirrored around unchanged offsetX; vertical motion updates shared offsetY. Left-eye left / right-eye right widens, the opposite directions narrow. Corner scaling, settings coordinates and FPS mapping stay unchanged.
+Connected Save from the PC or phone uses settings / acknowledgments / broadcasts and retains the accepted state on both sides. Offline changes stay local. If both sides have conflicting offline changes, the saved phone profile takes precedence on reconnect; the PC can Save again afterward. No timestamp / clock comparison, automatic merge or new conflict wire type is introduced. Editor horizontal dragging updates the existing eyeSeparation field with selected-eye sign (left −1, right +1), mirrored around shared X while the remaining gap permits it; vertical motion updates shared offsetY. Left-eye left / right-eye right widens, the opposite directions narrow. Flat-fit resolution uses h=fit.x×scale, separation=clamp(raw,h−1,.2), gap=max(0,1+separation−h), X=clamp(rawX,±min(.3,gap)). Contact recenters X and enlargement may adjust spacing outward; normal corner motion and FPS mapping stay unchanged. These pure render constraints do not rewrite raw saved settings. Both endpoints must be v0.3 for negative values; v0.2 accepted only 0…0.2. Existing nonnegative profiles remain valid. Only undistorted flat preview / full / FPS guarantees this seam geometry, not cinema or distorted views.
 
 Reset restores standard Settings defaults, English and USB; phone reset clears connection preferences and disconnects without auto-reconnect. Host reset also restores capture 640 / 60 / Q45 but preserves explicit monitor / region and ADB tool path. Connected updates use ordinary settings validation. No remote reset / arm message is introduced. See [editor geometry and reset scope](EDITING.md).
 
@@ -254,7 +254,7 @@ v0.1.1 起，主机 `hello` 与 `settings` 含非负、单调增加的 `revision
 | `scale` | 0.5–1.0 | 0.85 | 每眼有效画面的缩放。 |
 | `offsetX` | -0.3–0.3 | 0 | 归一化水平偏移。 |
 | `offsetY` | -0.3–0.3 | 0 | 归一化垂直偏移。 |
-| `eyeSeparation` | 0–0.2 | 0.03 | 双眼画面的显示间隔参数；不是米或自动测量瞳距。 |
+| `eyeSeparation` | −1–0.2 | 0.03 | 有符号显示间距，平面适配受动态接触边界限制；不是米或自动测量瞳距。 |
 | `fov` | 50–110 | 80 | 视场角，度。 |
 | `distance` | 1–8 | 3 | 虚拟屏幕距离，渲染场景单位。 |
 | `distortion` | 0–0.5 | 0 | 镜片畸变系数。 |
@@ -304,7 +304,7 @@ FPS 控制需要有效会话、`mode: fps`、近期姿态和电脑端主动授�
 
 手机保存全部已提交 VR 字段，包括离线更改，不保存配对秘密。每次合法主机 hello 后，通过带新 clientSeq 的普通完整 settings 一次恢复本地配置；不得重放旧 socket 任务、跳过校验或为此重置 revision。后续接受的完整快照正常更新本地配置。此用户明确要求的持久化策略，在 v0.3 客户端替代先前优先主机初始设置的策略；旧 v1 客户端保持原行为。
 
-电脑或手机已连接的保存经设置 / 确认 / 广播传播，两端保留接受状态；离线变化只在本地。若两边离线冲突，重连时已保存手机配置优先，电脑可随后再保存；不比较时间戳 / 时钟、不自动合并、不新增冲突协议类型。编辑器横向拖动根据选中眼符号（左 −1、右 +1）更新已有 eyeSeparation，围绕不变 offsetX 镜像联动；竖向更新共用 offsetY。左眼向左 / 右眼向右拉开，反向收拢；角点缩放、设置坐标与 FPS 映射不变。
+电脑或手机已连接的保存经设置 / 确认 / 广播传播，两端保留接受状态；离线变化只在本地。若两边离线冲突，重连时已保存手机配置优先，电脑可随后再保存；不比较时间戳 / 时钟、不自动合并、不新增冲突协议类型。编辑器横向拖动根据选中眼符号（左 −1、右 +1）更新已有 eyeSeparation，在剩余间隙允许时围绕共用 X 镜像联动；竖向更新共用 offsetY。左眼向左 / 右眼向右拉开，反向收拢；平面解析采用 h=fit.x×scale、间距=clamp(raw,h−1,.2)、gap=max(0,1+间距−h)、X=clamp(rawX,±min(.3,gap))；接触时 X 居中，放大时可能向外调整间距，普通角点方向与 FPS 映射不变。纯渲染约束不改写原始已存设置。负值需两端均为 v0.3，v0.2 只接受 0…0.2；已有非负配置仍有效。接缝几何只保证无畸变平面预览 / 全屏 / FPS，不含大屏幕或畸变视图。
 
 重置恢复标准 Settings 默认、英文与 USB；手机清除连接偏好并断线，不自动重连。主机还恢复采集 640 / 60 / Q45，但保留明确显示器 / 选区和 ADB 工具路径；已连接更新仍经过普通设置校验，不新增远程 reset / arm 消息。见 [几何与重置范围](EDITING.md)。
 
