@@ -34,7 +34,7 @@ class HeadsetEditor:
         heading.pack(fill="x")
         ttk.Label(heading, text=owner.tr("Drag one eye sideways · The other eye moves oppositely"),
                   font=("Microsoft YaHei UI", 14, "bold")).pack(anchor="w")
-        ttk.Label(heading, text=owner.tr("Both eyes move together. The preview uses a flat picture; your viewing mode and lens settings are retained."),
+        ttk.Label(heading, text=owner.tr("Move inward until the inner edges meet. The fit centers near the seam; corner resizing respects this boundary. Your viewing mode and lens settings are retained."),
                   wraplength=870, style="Muted.TLabel").pack(anchor="w", pady=(8, 0))
         choices = ttk.Frame(self.window, padding=(16, 0, 16, 12))
         choices.pack(fill="x")

@@ -67,6 +67,18 @@ class ProtocolTests(unittest.TestCase):
                 parse_message(text)
         self.assertEqual(parse_message('{"v":1,"type":"recenter"}')["type"], "recenter")
 
+    def test_signed_spacing_round_trips_through_preferences_and_rejects_invalid_limits(self):
+        joined = Settings().update({"eyeSeparation": -.75, "scale": .5})
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "joined.json"
+            save_preferences(joined, CaptureConfig(), path)
+            self.assertEqual(load_preferences(path)[0], joined)
+        for invalid in (-1.00001, .20001, True, float("nan"), float("inf")):
+            with self.assertRaises(ProtocolError):
+                joined.update({"eyeSeparation": invalid})
+        self.assertEqual(joined.update({"eyeSeparation": -1}).eyeSeparation, -1)
+        self.assertEqual(joined.update({"eyeSeparation": .03}).eyeSeparation, .03)
+
     def test_pairing_limiter_expires_and_global_cap(self):
         limiter = TokenLimiter(limit=2, window=60)
         limiter.failed("a", 10)

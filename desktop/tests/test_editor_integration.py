@@ -73,6 +73,19 @@ class EditorIntegrationTests(unittest.TestCase):
             save_preferences(settings, config, path)
             self.assertEqual(load_preferences(path), (Settings(), config))
 
+    def test_pc_save_keeps_signed_joined_spacing_in_host_and_local_preferences(self):
+        host = HostServer(capture_source=Mock(), input_sink=Mock())
+        owner = HostWindow.__new__(HostWindow)
+        owner.server, owner.config = host, CaptureConfig()
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "joined.json"
+            with patch("vrization_host.gui.save_preferences",
+                       side_effect=lambda settings, config: save_preferences(settings, config, path)):
+                owner.commit_editor(Settings(scale=.5, eyeSeparation=-.75))
+            self.assertEqual(load_preferences(path)[0].eyeSeparation, -.75)
+        self.assertEqual(host.get_settings_snapshot()[1], 1)
+        self.assertEqual(host.settings.eyeSeparation, -.75)
+
     def test_local_preview_reads_owned_frame_without_invoking_capture(self):
         source = Mock()
         host = HostServer(capture_source=source, input_sink=Mock())
@@ -178,6 +191,31 @@ class EditorIntegrationTests(unittest.TestCase):
             after = editor.bounds(eye)
             self.assertAlmostEqual((after[0] + after[2]) / 2, (before[eye][0] + before[eye][2]) / 2)
             self.assertAlmostEqual((after[1] + after[3]) / 2, (before[eye][1] + before[eye][3]) / 2)
+
+    def test_small_eyes_can_drag_inward_to_the_same_pixel_with_offset_centered(self):
+        for eye in (0, 1):
+            with self.subTest(eye=eye):
+                editor = self.pointer_editor()
+                editor.transaction = EditTransaction(Settings(scale=.5, offsetX=.2))
+                left, top, right, bottom = editor.bounds(eye)
+                start_x = (left + right) / 2
+                editor.begin(SimpleNamespace(x=start_x, y=(top + bottom) / 2))
+                editor.move(SimpleNamespace(x=start_x + (600 if eye == 0 else -600), y=225))
+                self.assertAlmostEqual(editor.draft.eyeSeparation, -.5)
+                self.assertAlmostEqual(editor.draft.offsetX, 0)
+                self.assertAlmostEqual(editor.bounds(0)[2], 500)
+                self.assertAlmostEqual(editor.bounds(1)[0], 500)
+
+    def test_resizing_joined_small_eyes_preserves_the_seam_boundary(self):
+        editor = self.pointer_editor()
+        editor.transaction = EditTransaction(Settings(scale=.5, eyeSeparation=-.5))
+        left, top, right, bottom = editor.bounds(1)
+        editor.begin(SimpleNamespace(x=right, y=top))
+        editor.move(SimpleNamespace(x=right + 25, y=top - 14.0625))
+        self.assertAlmostEqual(editor.draft.scale, .6)
+        self.assertAlmostEqual(editor.draft.eyeSeparation, -.4)
+        self.assertAlmostEqual(editor.bounds(0)[2], 500)
+        self.assertAlmostEqual(editor.bounds(1)[0], 500)
 
 
 if __name__ == "__main__":

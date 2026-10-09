@@ -72,7 +72,7 @@ CHINESE = {
     'Default settings restored.': '已恢复默认设置。',
     'Visual headset editor': '可视画面编辑器',
     'Drag corners to resize · Drag inside to move': '拖动顶点缩放 · 拖动内部移动',
-    'Both eyes move together. The preview uses a flat picture; your viewing mode and lens settings are retained.': '双眼同步调整。编辑预览使用平面画面，保留原观看模式与镜片设置。',
+    'Move inward until the inner edges meet. The fit centers near the seam; corner resizing respects this boundary. Your viewing mode and lens settings are retained.': '向内拖动直到中间两边相接。接近接缝时自动对齐中线；顶点缩放会保留双眼边界。保留原观看模式与镜片设置。',
     'Phone preview shape': '手机预览比例',
     'Save': '保存', 'Discard': '弃用',
     'Changes stay in this preview until you save.': '保存前仅在此预览中调整。',

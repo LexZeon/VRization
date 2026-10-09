@@ -30,7 +30,7 @@ class Settings:
         if not isinstance(patch, dict) or not patch:
             raise ProtocolError("settings must be a nonempty object")
         bounds = {"scale": (0.5, 1.0), "offsetX": (-0.3, 0.3), "offsetY": (-0.3, 0.3),
-                  "eyeSeparation": (0.0, 0.2), "fov": (50.0, 110.0), "distance": (1.0, 8.0),
+                  "eyeSeparation": (-1.0, 0.2), "fov": (50.0, 110.0), "distance": (1.0, 8.0),
                   "distortion": (0.0, 0.5), "sensitivity": (100.0, 3000.0)}
         clean = {}
         for key, value in patch.items():

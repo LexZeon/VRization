@@ -422,7 +422,7 @@ class HostWindow:
         for row, args in enumerate([
                 ("scale", self.tr("手机盒子适配 · 画面缩放"), .5, 1),
                 ("offsetX", self.tr("画面水平位置"), -.3, .3), ("offsetY", self.tr("画面垂直位置"), -.3, .3),
-                ("eyeSeparation", self.tr("双眼画面间距"), 0, .2), ("fov", self.tr("视野角度"), 50, 110),
+                ("eyeSeparation", self.tr("双眼画面间距"), -1, .2), ("fov", self.tr("视野角度"), 50, 110),
                 ("distance", self.tr("大屏幕距离"), 1, 8), ("distortion", self.tr("镜片畸变补偿"), 0, .5)]):
             self._slider(tab, *args, row)
         buttons = ttk.Frame(tab)
