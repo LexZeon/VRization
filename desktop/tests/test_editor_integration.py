@@ -11,7 +11,8 @@ from vrization_host.capture import CaptureConfig, Frame
 from vrization_host.gui import HostWindow
 from vrization_host.protocol import Settings
 from vrization_host.server import HostServer
-from vrization_host.storage import default_preferences, load_preferences, save_preferences
+from vrization_host.storage import (default_preferences, load_preferences, save_preferences,
+                                    load_usb_preferences, save_usb_preferences)
 from vrization_host.view_edit import EditTransaction
 from vrization_host.view_editor import HeadsetEditor
 
@@ -82,6 +83,51 @@ class EditorIntegrationTests(unittest.TestCase):
         source.read.assert_not_called()
         host.running = False
         self.assertIsNone(host.get_latest_frame())
+
+    def test_reset_action_persists_all_defaults_and_never_changes_capture_identity(self):
+        owner = HostWindow.__new__(HostWindow)
+        owner.server = HostServer(capture_source=Mock(), input_sink=Mock())
+        owner.server.update_settings({"mode": "fps", "scale": .6, "distortion": .4, "invertY": True})
+        old = CaptureConfig(monitor=2, region=(-1280, 50, 960, 540), width=1920, quality=95, fps=30)
+        owner.server.set_capture_config(old)
+        owner.editor = SimpleNamespace(discard=Mock())
+        owner.usb_preferences = {"enabled": False, "preferred_serial": "test-device", "adb_path": "custom/adb.exe"}
+        owner.usb = SimpleNamespace(preferred_serial="test-device", set_enabled=Mock())
+        owner._rebuild = Mock(); owner._log = Mock(); owner.language = "zh"
+        with tempfile.TemporaryDirectory() as directory:
+            path, usb_path = Path(directory) / "prefs.json", Path(directory) / "usb.json"
+            with patch("vrization_host.gui.save_preferences",
+                       side_effect=lambda settings, config: save_preferences(settings, config, path)), \
+                 patch("vrization_host.gui.save_usb_preferences",
+                       side_effect=lambda preferences: save_usb_preferences(preferences, usb_path)), \
+                 patch("vrization_host.gui.save_language") as language:
+                owner.reset_all()
+                language.assert_called_once_with("en")
+            self.assertEqual(load_preferences(path), default_preferences(old))
+            self.assertEqual(load_usb_preferences(usb_path),
+                             {"enabled": True, "preferred_serial": "", "adb_path": "custom/adb.exe"})
+        self.assertEqual(owner.language, "en")
+        owner.editor.discard.assert_called_once()
+        owner.usb.set_enabled.assert_called_once_with(True)
+        owner._rebuild.assert_called_once_with(0)
+        self.assertFalse(owner.server.controller.armed)
+
+    def test_editor_entry_stops_existing_authorization_and_blocks_arm_button(self):
+        owner = HostWindow.__new__(HostWindow)
+        owner.server = HostServer(capture_source=Mock(), input_sink=Mock())
+        owner.server.update_settings({"mode": "fps"})
+        owner.server.controller.set_connected(True)
+        owner.server.controller.pose(0, 0, 0)
+        self.assertTrue(owner.server.arm()[0])
+        owner.editor = None
+        owner.arm_var = Mock()
+        with patch("vrization_host.gui.HeadsetEditor") as editor:
+            owner.open_editor()
+            editor.assert_called_once_with(owner, owner.server.settings)
+        self.assertFalse(owner.server.controller.armed)
+        owner.toggle_arm()
+        owner.arm_var.set.assert_called_once_with(False)
+        self.assertFalse(owner.server.controller.armed)
 
     def pointer_editor(self):
         editor = HeadsetEditor.__new__(HeadsetEditor)
