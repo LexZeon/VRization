@@ -54,8 +54,8 @@ final class SettingsTests: XCTestCase {
         for value in invalid {
             XCTAssertThrowsError(try VRSettings().applying(["stabilization": value]))
         }
-        var invalid = VRSettings(); invalid.stabilization = 2
-        XCTAssertThrowsError(try JSONEncoder().encode(invalid))
+        var invalidSettings = VRSettings(); invalidSettings.stabilization = 2
+        XCTAssertThrowsError(try JSONEncoder().encode(invalidSettings))
     }
     func testExactLegacyTenFieldProfileMigratesAndKeepsOtherValues() throws {
         let previous = try VRSettings().applying(["mode": "fps", "scale": 0.61, "eyeSeparation": -0.4,

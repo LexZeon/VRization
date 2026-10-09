@@ -193,7 +193,10 @@ class UsbToolsTests(unittest.TestCase):
                     patch.object(usb_tools.sys, "frozen", True, create=True), \
                     patch.object(usb_tools.sys, "executable", str(self.base / layout / "VRization-Host.exe")), \
                     patch.dict(os.environ, {"LOCALAPPDATA": str(self.base / "unused-appdata")}):
-                self.assertEqual(usb_tools.default_tools_directory(), self.base / root / "tools/android-sdk")
+                # Windows runner TEMP can use an 8.3 alias such as RUNNER~1;
+                # compare canonical locations while preserving each layout root.
+                self.assertEqual(usb_tools.default_tools_directory().resolve(),
+                                 (self.base / root / "tools/android-sdk").resolve())
 
 
 class Widget:
