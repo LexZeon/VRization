@@ -200,6 +200,18 @@ def main():
     assert not report["mouseMoves"], "The fixture must never move the OS mouse"
     assert any(event["event"] == "connection" and event.get("connected") for event in report["events"]), "UI tests never connected to the host"
     assert any(event["event"] == "settings" for event in report["events"]), "UI tests never synchronized settings"
+    checkpoints = {item["name"]: item for item in report["checkpoints"]}
+    before = checkpoints["editor-entry"]
+    for name in ("editor-discard-preview", "editor-discarded"):
+        assert checkpoints[name]["settingsCount"] == before["settingsCount"], "Editor preview/discard sent settings"
+        assert checkpoints[name]["settings"] == before["settings"], "Editor preview/discard changed host settings"
+    saved = checkpoints["editor-saved"]
+    assert saved["settingsCount"] == before["settingsCount"] + 1, "Editor Save was not one real settings transaction"
+    assert saved["settings"]["scale"] != before["settings"]["scale"], "Real corner drag did not resize the saved image"
+    assert saved["settings"]["offsetX"] != before["settings"]["offsetX"], "Real image drag did not move the saved image"
+    desktop = checkpoints["editor-desktop-updated"]
+    assert desktop["settingsCount"] == saved["settingsCount"] + 1 and desktop["settings"]["scale"] == .78, "Real PC update was not broadcast"
+    assert checkpoints["editor-local-restored"]["settings"]["scale"] != saved["settings"]["scale"], "Offline phone profile was not restored over old host state"
     check_rendered_card_colors()
     run("python3", "scripts/package_release.py", "--ios-only")
 

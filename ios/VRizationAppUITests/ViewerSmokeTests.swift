@@ -41,6 +41,15 @@ final class ViewerSmokeTests: XCTestCase {
     private func reveal(_ element: XCUIElement) {
         let scroll = app.scrollViews["settings.scroll"]
         geometry("before-reveal", target: element)
+        // Scene-backed landscape coordinates now describe the actual scroll
+        // viewport. Prefer the direction of the real target to avoid repeatedly
+        // returning to the top between editor and lower setting controls.
+        for _ in 0..<16 {
+            if element.isHittable { return }
+            let rect = element.frame
+            if rect.width <= 0 || rect.height <= 0 { break }
+            dragScroll(scroll, up: rect.midY >= scroll.frame.midY)
+        }
         for _ in 0..<8 {
             if element.isHittable { return }
             dragScroll(scroll, up: false)
@@ -210,5 +219,194 @@ final class ViewerSmokeTests: XCTestCase {
         waitLabel(frames, contains: "1280")
         screenshot("USB-03-explicit-background-reconnect")
         reveal(toggle); toggle.tap()
+    }
+
+    private struct SavedSettings: Decodable, Equatable {
+        let mode: String
+        let scale: Double, offsetX: Double, offsetY: Double, eyeSeparation: Double
+        let fov: Double, distance: Double, distortion: Double, sensitivity: Double
+        let invertY: Bool
+    }
+    private struct HostObservation: Decodable {
+        let settingsCount: Int
+        let settings: SavedSettings
+        let mouseMoves: [[Int]]
+    }
+    private func observeHost(checkpoint name: String? = nil) throws -> HostObservation {
+        let endpoint = name == nil ? "snapshot" : "checkpoint"
+        var request = URLRequest(url: URL(string: "http://127.0.0.1:18767/\(endpoint)")!)
+        request.timeoutInterval = 5
+        if let name = name {
+            request.httpMethod = "POST"; request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.httpBody = try JSONSerialization.data(withJSONObject: ["name": name])
+        }
+        let completed = expectation(description: "Observe calibration-only host")
+        var payload: Data?, failure: Error?, status: Int?
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            payload = data; failure = error; status = (response as? HTTPURLResponse)?.statusCode; completed.fulfill()
+        }.resume()
+        wait(for: [completed], timeout: 8)
+        XCTAssertNil(failure); XCTAssertEqual(status, 200)
+        return try JSONDecoder().decode(HostObservation.self, from: XCTUnwrap(payload))
+    }
+    private func draftSettings() throws -> SavedSettings {
+        let summary = app.staticTexts["editor.summary"]
+        let data = try XCTUnwrap((summary.value as? String)?.data(using: .utf8))
+        return try JSONDecoder().decode(SavedSettings.self, from: data)
+    }
+    private func updateFixtureDesktopScale(_ scale: Double) throws {
+        // This changes the synthetic PC's real HostServer settings, never the
+        // app's values or preferences. The app must receive its normal broadcast.
+        var request = URLRequest(url: URL(string: "http://127.0.0.1:18767/host-update")!)
+        request.httpMethod = "POST"; request.timeoutInterval = 5
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(withJSONObject: ["scale": scale])
+        let completed = expectation(description: "Update original fixture desktop settings")
+        var status: Int?, failure: Error?
+        URLSession.shared.dataTask(with: request) { _, response, error in
+            status = (response as? HTTPURLResponse)?.statusCode; failure = error; completed.fulfill()
+        }.resume()
+        wait(for: [completed], timeout: 8); XCTAssertNil(failure); XCTAssertEqual(status, 200)
+    }
+    private func panEditor() {
+        let image = app.otherElements["editor.eye0.interior"]
+        XCTAssertTrue(image.isHittable)
+        let start = image.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.6))
+        let end = start.withOffset(CGVector(dx: 28, dy: -22))
+        start.press(forDuration: 0.1, thenDragTo: end)
+    }
+    private func resizeEditor() {
+        let corner = app.otherElements["editor.eye0.bottomRight"]
+        XCTAssertTrue(corner.isHittable)
+        let start = corner.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        start.press(forDuration: 0.1, thenDragTo: start.withOffset(CGVector(dx: -32, dy: -18)))
+    }
+    private func openFitEditor() {
+        let open = app.buttons["view.editor"]; reveal(open); open.tap()
+        XCTAssertTrue(app.buttons["editor.save"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.scrollViews["settings.scroll"].exists)
+    }
+    private func waitHostSettings(_ expected: SavedSettings) throws -> HostObservation {
+        for _ in 0..<25 {
+            let result = try observeHost()
+            if result.settings == expected { return result }
+            Thread.sleep(forTimeInterval: 0.2)
+        }
+        XCTFail("The real host did not receive the saved phone snapshot")
+        return try observeHost()
+    }
+    func testEditorSaveDiscardPersistenceAndReset() throws {
+        let toggle = app.buttons["connection.toggle"]
+        reveal(toggle); toggle.tap(); waitLabel(toggle, contains: "Disconnect")
+        waitLabel(app.staticTexts["frame.status"], contains: "1280")
+        // Let the initial local-profile acknowledgment settle before counting edits.
+        Thread.sleep(forTimeInterval: 1)
+        let entry = try observeHost(checkpoint: "editor-entry")
+        openFitEditor(); panEditor()
+        let panned = try draftSettings()
+        resizeEditor()
+        let discarded = try draftSettings()
+        XCTAssertNotEqual(discarded.scale, entry.settings.scale)
+        XCTAssertNotEqual(discarded.offsetX, entry.settings.offsetX)
+        // The genuine right/up finger pan moves both images left/up. Corner
+        // resize is separate and must leave those offsets unchanged.
+        XCTAssertLessThan(discarded.offsetX, entry.settings.offsetX)
+        XCTAssertGreaterThan(discarded.offsetY, entry.settings.offsetY)
+        XCTAssertEqual(discarded.offsetX, panned.offsetX); XCTAssertEqual(discarded.offsetY, panned.offsetY)
+        Thread.sleep(forTimeInterval: 1)
+        let preview = try observeHost(checkpoint: "editor-discard-preview")
+        XCTAssertEqual(preview.settingsCount, entry.settingsCount)
+        XCTAssertEqual(preview.settings, entry.settings)
+        screenshot("EDITOR-01-local-preview")
+        app.buttons["editor.discard"].tap()
+        let afterDiscard = try observeHost(checkpoint: "editor-discarded")
+        XCTAssertEqual(afterDiscard.settingsCount, entry.settingsCount)
+        XCTAssertEqual(afterDiscard.settings, entry.settings)
+        reveal(app.staticTexts["setting.scale.label"])
+        XCTAssertTrue(app.staticTexts["setting.scale.label"].label.contains("85%"))
+        openFitEditor(); panEditor(); resizeEditor()
+        let saved = try draftSettings()
+        let left = app.otherElements["editor.eye0.interior"].frame, right = app.otherElements["editor.eye1.interior"].frame
+        XCTAssertEqual(left.width, right.width, accuracy: 1); XCTAssertEqual(left.height, right.height, accuracy: 1)
+        XCTAssertEqual(saved.mode, entry.settings.mode); XCTAssertEqual(saved.distortion, entry.settings.distortion)
+        XCTAssertEqual(saved.fov, entry.settings.fov); XCTAssertEqual(saved.distance, entry.settings.distance)
+        screenshot("EDITOR-02-save-draft")
+        app.buttons["editor.save"].tap()
+        _ = try waitHostSettings(saved)
+        Thread.sleep(forTimeInterval: 2)
+        let committed = try observeHost(checkpoint: "editor-saved")
+        XCTAssertEqual(committed.settingsCount, entry.settingsCount + 1)
+        XCTAssertEqual(committed.settings, saved)
+        XCTAssertTrue(committed.mouseMoves.isEmpty)
+        try updateFixtureDesktopScale(0.78)
+        reveal(app.staticTexts["setting.scale.label"])
+        waitLabel(app.staticTexts["setting.scale.label"], contains: "78%")
+        let desktopProfile = try observeHost(checkpoint: "editor-desktop-updated")
+        XCTAssertEqual(desktopProfile.settingsCount, committed.settingsCount + 1)
+        XCTAssertEqual(desktopProfile.settings.scale, 0.78)
+
+        // The same profile is visible offline after an actual app relaunch.
+        let language = app.segmentedControls["language.picker"]; reveal(language); language.buttons["中文"].tap()
+        app.terminate(); app.launchArguments = baseArguments; launchViewer()
+        XCTAssertTrue(app.segmentedControls["language.picker"].buttons["中文"].isSelected)
+        openFitEditor(); XCTAssertEqual(try draftSettings(), desktopProfile.settings)
+        screenshot("EDITOR-03-Chinese-persisted")
+        app.buttons["editor.discard"].tap()
+        let english = app.segmentedControls["language.picker"]; reveal(english); english.buttons["English"].tap()
+        reveal(toggle); toggle.tap(); waitLabel(toggle, contains: "Disconnect")
+        _ = try waitHostSettings(desktopProfile.settings)
+
+        // Change a real public precision control while disconnected. The next
+        // valid hello must restore this local value over the host's old profile.
+        reveal(toggle); toggle.tap(); waitLabel(toggle, contains: "Connect")
+        let scale = app.sliders["setting.scale"]; reveal(scale)
+        app.buttons["setting.scale.increase"].tap()
+        let localStep = Int(try scaleGeometry().nativeValue.rounded())
+        let localScale = 0.5 + Double(localStep) / 100
+        XCTAssertNotEqual(localScale, saved.scale)
+        app.terminate(); launchViewer()
+        reveal(app.staticTexts["setting.scale.label"])
+        XCTAssertTrue(app.staticTexts["setting.scale.label"].label.contains("\(50 + localStep)%"))
+        reveal(toggle); toggle.tap(); waitLabel(toggle, contains: "Disconnect")
+        waitLabel(app.staticTexts["frame.status"], contains: "1280")
+        Thread.sleep(forTimeInterval: 1)
+        let restored = try observeHost(checkpoint: "editor-local-restored")
+        XCTAssertEqual(restored.settings.scale, localScale, accuracy: 0.000001)
+        XCTAssertEqual(restored.settings.offsetX, saved.offsetX, accuracy: 0.000001)
+
+        openFitEditor(); panEditor()
+        XCUIDevice.shared.press(.home); app.activate()
+        XCTAssertFalse(app.buttons["editor.save"].exists)
+        waitLabel(toggle, contains: "Connect")
+        openFitEditor(); XCTAssertEqual(try draftSettings(), restored.settings); app.buttons["editor.discard"].tap()
+
+        let chinese = app.segmentedControls["language.picker"]; reveal(chinese); chinese.buttons["中文"].tap()
+        let reset = app.buttons["view.reset"]; reveal(reset); reset.tap()
+        XCTAssertTrue(app.segmentedControls["language.picker"].buttons["English"].isSelected)
+        XCTAssertTrue(app.segmentedControls["connection.transport"].buttons["USB"].isSelected)
+        waitLabel(toggle, contains: "Connect")
+        Thread.sleep(forTimeInterval: 1)
+        XCTAssertTrue(toggle.label.contains("Connect"))
+        openFitEditor()
+        let defaults = try draftSettings()
+        XCTAssertEqual(defaults.scale, 0.85); XCTAssertEqual(defaults.offsetX, 0); XCTAssertEqual(defaults.offsetY, 0)
+        XCTAssertEqual(defaults.mode, "full"); XCTAssertEqual(defaults.distortion, 0); XCTAssertFalse(defaults.invertY)
+        XCTAssertEqual(defaults.eyeSeparation, 0.03); XCTAssertEqual(defaults.fov, 80)
+        XCTAssertEqual(defaults.distance, 3); XCTAssertEqual(defaults.sensitivity, 1000)
+        app.buttons["editor.discard"].tap()
+        let route = app.segmentedControls["connection.transport"]; reveal(route); route.buttons["LAN"].tap()
+        reveal(app.textFields["connection.host"])
+        XCTAssertEqual(app.textFields["connection.host"].value as? String, "Computer IP or hostname")
+        reveal(app.textFields["connection.port"])
+        XCTAssertEqual(app.textFields["connection.port"].value as? String, "8765")
+        reveal(app.secureTextFields["connection.code"])
+        XCTAssertEqual(app.secureTextFields["connection.code"].value as? String, "Six-digit pairing code")
+        screenshot("EDITOR-04-reset-all-defaults")
+        reveal(route); route.buttons["USB"].tap()
+        app.terminate(); app.launchArguments = ["--ui-testing"]; launchViewer()
+        XCTAssertTrue(app.segmentedControls["language.picker"].buttons["English"].isSelected)
+        XCTAssertTrue(app.segmentedControls["connection.transport"].buttons["USB"].isSelected)
+        waitLabel(toggle, contains: "Disconnect", timeout: 40)
+        openFitEditor(); XCTAssertEqual(try draftSettings(), defaults); app.buttons["editor.discard"].tap()
     }
 }

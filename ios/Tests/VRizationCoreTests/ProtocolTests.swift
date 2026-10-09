@@ -2,6 +2,14 @@ import XCTest
 @testable import VRizationCore
 
 final class ProtocolTests: XCTestCase {
+    func testEditorHelloCarriesOnlyTheDisarmFlag() throws {
+        let object = try XCTUnwrap(JSONSerialization.jsonObject(with: VRProtocol.editorHello()) as? [String: Any])
+        XCTAssertEqual(Set(object.keys), Set(["v", "type", "editing"]))
+        XCTAssertEqual(object["type"] as? String, "hello")
+        XCTAssertEqual(object["editing"] as? Bool, true)
+        XCTAssertEqual(object["v"] as? Int, 1)
+        XCTAssertNil(object["arm"]); XCTAssertNil(object["settings"])
+    }
     private func settingsObject() throws -> Any {
         return try JSONSerialization.jsonObject(with: JSONEncoder().encode(VRSettings()))
     }

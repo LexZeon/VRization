@@ -6,7 +6,12 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
     private let client = StreamClient()
     private let motion = MotionSource()
     private var settings = VRSettings()
-    private var sync = SettingsSync()
+    private var sync = LocalProfileSync()
+    private let preferenceStore = PhonePreferencesStore()
+    private var preferences = PhonePreferences()
+    private var editor: HeadsetEditorView?
+    private var editorEntry: VRSettings?
+    private var launchOverridesActive = true
     private var renderer: StereoRenderer?
     private var metalView: MTKView!
     private let overlay = UIView()
@@ -29,7 +34,7 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
     private var rtt: Double?
     private var frameWidth = 0, frameHeight = 0
     private var selectedTransport: StreamClient.Transport {
-        let choice = argument("--transport") ?? UserDefaults.standard.string(forKey: "transport") ?? "usb"
+        let choice = preferences.transport
         return choice == "lan" ? .lan : .usb
     }
 
@@ -42,9 +47,9 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
         super.viewDidLoad()
         view.backgroundColor = .black
         overrideUserInterfaceStyle = .dark
-        if let data = UserDefaults.standard.data(forKey: "displaySettings"),
-           let saved = try? JSONDecoder().decode(VRSettings.self, from: data),
-           let valid = try? saved.validated() { settings = valid }
+        preferences = preferenceStore.load()
+        if let route = argument("--transport"), ["usb", "lan"].contains(route) { preferences.transport = route }
+        settings = preferences.settings
         if !motion.available { settings.mode = "full" }
         metalView = MTKView(frame: .zero, device: MTLCreateSystemDefaultDevice())
         metalView.translatesAutoresizingMaskIntoConstraints = false
@@ -78,16 +83,28 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
 
     private func wireCallbacks() {
         client.onSessionStarted = { [weak self] in
-            self?.sync.newSession(); self?.frames = 0; self?.sampleFrames = 0
+            self?.closeEditor(save: false, resumeMotion: false)
+            if let self = self { self.sync.newSession(hasSavedProfile: self.preferences.hasCommittedProfile) }
+            self?.frames = 0; self?.sampleFrames = 0
             self?.frameSampleAt = ProcessInfo.processInfo.systemUptime; self?.receiveFPS = 0
         }
         client.onState = { [weak self] _, key in
             guard let self = self else { return }
             self.statusKey = key; self.updateStatus(); self.updateTracking()
-            if self.client.state == .disconnected { self.renderer?.clear(); self.frameStatus.text = L.text("waitingFrame") }
+            if self.client.state == .disconnected {
+                self.closeEditor(save: false, resumeMotion: false)
+                self.renderer?.clear(); self.frameStatus.text = L.text("waitingFrame")
+            }
         }
         client.onSettings = { [weak self] value, revision, sequence in
-            guard let self = self, self.sync.accept(snapshot: value, revision: revision, clientSeq: sequence) else { return }
+            guard let self = self else { return }
+            switch self.sync.receive(snapshot: value, revision: revision, clientSeq: sequence) {
+            case .restoreLocal:
+                self.sync.edited(); self.sendSettingsSnapshot(); self.updateTracking(); return
+            case .ignore: return
+            case .applyHost: break
+            }
+            guard value != self.settings || value != self.preferences.settings || !self.preferences.hasCommittedProfile else { return }
             let oldMode = self.settings.mode
             self.settings = value
             let fallback = !self.motion.available && value.mode != "full"
@@ -104,6 +121,7 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
             guard self.renderer != nil else { return }
             self.frames += 1; self.sampleFrames += 1
             self.frameWidth = image.width; self.frameHeight = image.height
+            self.editor?.refreshVideoAspect()
             self.updateTestingGeometry()
             let now = ProcessInfo.processInfo.systemUptime
             if self.frames == 1 { self.updateFrameStatus() }
@@ -115,12 +133,13 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
         client.onRTT = { [weak self] value in self?.rtt = value; if self?.client.state == .connected { self?.updateFrameStatus() } }
         motion.orientation = { [weak self] in self?.view.window?.windowScene?.interfaceOrientation ?? .landscapeRight }
         motion.onPose = { [weak self] pose in
-            guard let self = self, self.active else { return }
+            guard let self = self, self.active, self.editor == nil else { return }
             if self.settings.mode == "cinema" { self.renderer?.setPose(pose) }
             else if self.settings.mode == "fps" { self.client.sendPose(yaw: pose.yaw, pitch: pose.pitch) }
         }
         motion.onUnavailable = { [weak self] in
             guard let self = self else { return }
+            self.closeEditor(save: false, resumeMotion: false)
             self.settings.mode = "full"; self.statusKey = "sensorFallback"
             self.refreshControls(); self.updateStatus(); self.recenter(); self.changed(sendNow: true)
         }
@@ -153,6 +172,8 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
             content.widthAnchor.constraint(equalTo: scroll.frameLayoutGuide.widthAnchor, constant: -24)
         ])
         let title = label("VRization", size: 25); title.textColor = .systemTeal; content.addArrangedSubview(title)
+        content.addArrangedSubview(button("editorOpen", id: "view.editor", action: #selector(openEditor)))
+        content.addArrangedSubview(label(L.text("editorHelp"), size: 12))
         let languages = UISegmentedControl(items: ["English", "中文"])
         languages.accessibilityIdentifier = "language.picker"
         languages.selectedSegmentIndex = L.language == "zh-Hans" ? 1 : 0
@@ -165,8 +186,8 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
         content.addArrangedSubview(transport)
         status = label(L.text(statusKey), size: 14); status.accessibilityIdentifier = "connection.status"; content.addArrangedSubview(status)
         frameStatus = label(L.text("waitingFrame"), size: 12); frameStatus.accessibilityIdentifier = "frame.status"; content.addArrangedSubview(frameStatus)
-        hostField = field("host", id: "connection.host", value: argument("--host") ?? UserDefaults.standard.string(forKey: "host") ?? "")
-        portField = field("port", id: "connection.port", value: argument("--port") ?? UserDefaults.standard.string(forKey: "port") ?? "8765")
+        hostField = field("host", id: "connection.host", value: argument("--host") ?? preferences.host)
+        portField = field("port", id: "connection.port", value: argument("--port") ?? preferences.port)
         portField.keyboardType = .numberPad
         let address = UIStackView(arrangedSubviews: [hostField, portField]); address.spacing = 8
         portField.widthAnchor.constraint(equalToConstant: 85).isActive = true
@@ -221,9 +242,12 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
         let field = UITextField(); field.placeholder = L.text(key); field.text = value
         field.borderStyle = .roundedRect; field.autocorrectionType = .no; field.autocapitalizationType = .none
         field.keyboardType = .URL; field.accessibilityIdentifier = id
-        field.heightAnchor.constraint(equalToConstant: 38).isActive = true; return field
+        field.heightAnchor.constraint(equalToConstant: 38).isActive = true
+        if key != "code" { field.addTarget(self, action: #selector(addressEdited), for: [.editingChanged, .editingDidEnd]) }
+        return field
     }
     private func argument(_ name: String) -> String? {
+        guard launchOverridesActive else { return nil }
         let args = ProcessInfo.processInfo.arguments
         guard let index = args.firstIndex(of: name), args.indices.contains(index + 1) else { return nil }
         return args[index + 1]
@@ -254,23 +278,36 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
         let ping = rtt.map { String(format: "%.0f ms", $0) } ?? "—"
         frameStatus.text = String(format: L.text("frameFormat"), frameWidth, frameHeight, receiveFPS, ping, frames)
     }
-    private func saveSettings() { if let data = try? JSONEncoder().encode(settings) { UserDefaults.standard.set(data, forKey: "displaySettings") } }
+    private func saveSettings() {
+        preferences.hasCommittedProfile = true
+        preferences.settings = settings
+        try? preferenceStore.save(preferences)
+    }
+    @objc private func addressEdited() {
+        preferences.host = hostField.text ?? ""; preferences.port = portField.text ?? ""
+        try? preferenceStore.save(preferences)
+    }
+    private func sendSettingsSnapshot() {
+        if let sequence = try? sync.nextSequence(), client.sendSettings(settings, sequence: sequence) {
+            try? sync.sent(sequence: sequence, snapshot: settings)
+        }
+    }
     private func changed(sendNow: Bool) {
-        guard (try? settings.validated()) != nil else { return }
+        guard editor == nil, (try? settings.validated()) != nil else { return }
         sync.edited(); renderer?.setSettings(settings); saveSettings()
         let now = ProcessInfo.processInfo.systemUptime
         if sendNow || now - lastSent >= 0.08 {
             lastSent = now
-            if let sequence = try? sync.nextSequence(), client.sendSettings(settings, sequence: sequence) {
-                try? sync.sent(sequence: sequence, snapshot: settings)
-            }
+            sendSettingsSnapshot()
         }
     }
     @objc private func languageChanged(_ picker: UISegmentedControl) {
         let language = picker.selectedSegmentIndex == 1 ? "zh-Hans" : "en"
         guard language != L.language else { return }
+        closeEditor(save: false, resumeMotion: false)
         client.disconnect(notify: false); motion.stop(); renderer?.clear()
-        L.language = language; statusKey = "disconnected"; buildControls()
+        preferences.language = language; try? preferenceStore.save(preferences)
+        statusKey = "disconnected"; buildControls()
     }
     @objc private func toggleConnection() {
         view.endEditing(true)
@@ -282,13 +319,14 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
         guard (try? ConnectionInput.url(host: host, port: port, token: code)) != nil, let number = Int(port) else {
             statusKey = "invalidAddress"; updateStatus(); return
         }
-        UserDefaults.standard.set(host, forKey: "host"); UserDefaults.standard.set(port, forKey: "port")
+        preferences.host = host; preferences.port = port; try? preferenceStore.save(preferences)
         recenter()
         if !client.connect(host: host, port: number, code: code) { statusKey = "invalidAddress"; updateStatus() }
     }
     @objc private func transportChanged(_ picker: UISegmentedControl) {
+        closeEditor(save: false, resumeMotion: false)
         client.disconnect(notify: false); motion.stop(); renderer?.clear()
-        UserDefaults.standard.set(picker.selectedSegmentIndex == 0 ? "usb" : "lan", forKey: "transport")
+        preferences.transport = picker.selectedSegmentIndex == 0 ? "usb" : "lan"; try? preferenceStore.save(preferences)
         statusKey = "disconnected"; buildControls()
     }
     @objc private func modeChanged() {
@@ -297,19 +335,67 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
         recenter(); changed(sendNow: true); updateTracking()
     }
     @objc private func invertChanged() { settings.invertY = invert.isOn; changed(sendNow: true) }
-    @objc private func resetSettings() { let mode = settings.mode; settings = VRSettings(); settings.mode = mode; refreshControls(); changed(sendNow: true); recenter() }
-    @objc private func recenter() { motion.recenter(); renderer?.setPose(Pose()); client.recenter() }
+    @objc private func resetSettings() {
+        closeEditor(save: false, resumeMotion: false)
+        client.disconnect(notify: false); motion.stop(); renderer?.clear()
+        sync = LocalProfileSync(); launchOverridesActive = false; startedInitialUSB = true
+        try? preferenceStore.reset(); preferences = preferenceStore.load(); settings = preferences.settings
+        codeField.text = ""; statusKey = "disconnected"
+        motion.recenter(); renderer?.setPose(Pose()); renderer?.setSettings(settings)
+        overlay.isHidden = false; buildControls()
+    }
+    @objc private func recenter() {
+        guard editor == nil else { return }
+        motion.recenter(); renderer?.setPose(Pose()); client.resumePose(); updateTracking()
+    }
+    @objc private func openEditor() {
+        guard editor == nil else { return }
+        view.endEditing(true); motion.stop(); client.pauseForEditor(); renderer?.setPose(Pose())
+        editorEntry = settings; sync.beginPreview()
+        let editing = HeadsetEditorView(entry: settings, imageAspect: { [weak self] in
+            guard let self = self, self.frameWidth > 0, self.frameHeight > 0 else { return 16.0 / 9 }
+            return Double(self.frameWidth) / Double(self.frameHeight)
+        })
+        editing.translatesAutoresizingMaskIntoConstraints = false
+        editor = editing; overlay.isHidden = true; view.addSubview(editing)
+        NSLayoutConstraint.activate([
+            editing.leadingAnchor.constraint(equalTo: view.leadingAnchor), editing.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            editing.topAnchor.constraint(equalTo: view.topAnchor), editing.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+        ])
+        editing.onDraft = { [weak self] draft in self?.preview(draft) }
+        editing.onSave = { [weak self] _ in self?.closeEditor(save: true) }
+        editing.onDiscard = { [weak self] in self?.closeEditor(save: false) }
+        preview(settings)
+    }
+    private func preview(_ draft: VRSettings) {
+        var flat = draft; flat.mode = "full"; flat.distortion = 0
+        renderer?.setSettings(flat); renderer?.setPose(Pose())
+    }
+    private func closeEditor(save: Bool, resumeMotion: Bool = true) {
+        guard let editing = editor, let entry = editorEntry else { return }
+        let result = save ? editing.draft : entry
+        editing.removeFromSuperview(); editor = nil; editorEntry = nil; sync.endPreview()
+        settings = result; renderer?.setSettings(settings); renderer?.setPose(Pose())
+        overlay.isHidden = false; refreshControls()
+        if save { changed(sendNow: true) }
+        motion.recenter()
+        if resumeMotion {
+            // Rebase the host before any new FPS origin sample can be sent.
+            client.resumePose(); updateTracking()
+        }
+    }
     @objc private func hideSettings() { view.endEditing(true); overlay.isHidden = true }
     @objc private func showSettings(_ gesture: UILongPressGestureRecognizer) { if gesture.state == .began { overlay.isHidden = false } }
     func suspendSession() {
-        active = false; motion.stop(); client.disconnect(reason: "paused"); renderer?.clear(); metalView.isPaused = true
+        active = false; closeEditor(save: false, resumeMotion: false)
+        motion.stop(); client.disconnect(reason: "paused"); renderer?.clear(); metalView.isPaused = true
         UIApplication.shared.isIdleTimerDisabled = false
     }
     func resumeDisplay() {
         active = true; metalView.isPaused = false; UIApplication.shared.isIdleTimerDisabled = true; updateTracking()
     }
     private func updateTracking() {
-        if active && client.state == .connected && settings.mode != "full" && motion.available { motion.start() }
+        if active && editor == nil && client.state == .connected && settings.mode != "full" && motion.available { motion.start() }
         else { motion.stop() }
     }
     override func viewDidAppear(_ animated: Bool) {
@@ -339,6 +425,7 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
     }
     override func viewWillTransition(to size: CGSize, with coordinator: UIViewControllerTransitionCoordinator) {
         super.viewWillTransition(to: size, with: coordinator)
+        closeEditor(save: false, resumeMotion: false)
         coordinator.animate(alongsideTransition: nil) { [weak self] _ in self?.recenter() }
     }
     @objc private func showLicense() {

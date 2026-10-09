@@ -79,6 +79,8 @@ public enum VRProtocol {
         return try JSONSerialization.data(withJSONObject: message, options: [.sortedKeys])
     }
     public static func hello() -> Data { return Data("{\"v\":1,\"type\":\"hello\"}".utf8) }
+    /// Safety-only request: the host disarms input; it never grants input permission.
+    public static func editorHello() -> Data { return Data("{\"v\":1,\"type\":\"hello\",\"editing\":true}".utf8) }
     public static func recenter() -> Data { return Data("{\"v\":1,\"type\":\"recenter\"}".utf8) }
     public static func ping() -> Data { return Data("{\"v\":1,\"type\":\"ping\"}".utf8) }
 }

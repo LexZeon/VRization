@@ -2,9 +2,11 @@
 from __future__ import annotations
 
 import argparse
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 from pathlib import Path
 import signal
+import re
 import sys
 import threading
 
@@ -28,12 +30,15 @@ def main():
     parser.add_argument("--report", type=Path, required=True)
     parser.add_argument("--port", type=int, default=18765)
     parser.add_argument("--usb-fixture", action="store_true")
+    parser.add_argument("--control-port", type=int, default=18767)
     args = parser.parse_args()
     events = []
     guard = threading.Lock()
     stop = threading.Event()
     sink = NoMouse()
     usb = mux_fixture = None
+    control = None
+    checkpoints = []
 
     def on_event(event):
         # Only synthetic fixture state; never record pairing URLs / credentials.
@@ -44,11 +49,72 @@ def main():
     host = HostServer(capture_source=CalibrationCard(), input_sink=sink,
                       capture_config=CaptureConfig(width=1280, fps=12),
                       host="127.0.0.1", port=args.port, on_event=on_event)
+
+    def snapshot():
+        with guard:
+            count = sum(event["event"] == "settings" for event in events)
+        return {"settingsCount": count, "settings": host.get_settings_snapshot()[0].to_dict(), "mouseMoves": list(sink.moves)}
+
+    class ObservationHandler(BaseHTTPRequestHandler):
+        # Observation endpoints cannot mutate app state. The separate host-update
+        # endpoint exercises the same HostServer update path used by the PC UI;
+        # it only changes display settings of our original calibration fixture.
+        def log_message(self, *_):
+            pass
+
+        def respond(self, payload, status=200):
+            body = json.dumps(payload).encode("utf-8")
+            self.send_response(status)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def do_GET(self):
+            if self.path == "/snapshot":
+                self.respond(snapshot())
+            else:
+                self.respond({"error": "unknown observation"}, 404)
+
+        def do_POST(self):
+            if self.path == "/host-update":
+                try:
+                    length = int(self.headers.get("Content-Length", "0"))
+                    if not 0 < length <= 1024:
+                        raise ValueError
+                    patch = json.loads(self.rfile.read(length))
+                    if not isinstance(patch, dict) or set(patch) != {"scale"}:
+                        raise ValueError
+                    host.update_settings(patch)
+                except (ValueError, KeyError, TypeError):
+                    self.respond({"error": "invalid fixture host update"}, 400)
+                    return
+                self.respond(snapshot())
+                return
+            if self.path != "/checkpoint":
+                self.respond({"error": "unknown observation"}, 404)
+                return
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+                if not 0 < length <= 1024:
+                    raise ValueError
+                name = json.loads(self.rfile.read(length))["name"]
+                if not isinstance(name, str) or not re.fullmatch(r"[a-zA-Z0-9_-]{1,64}", name):
+                    raise ValueError
+            except (ValueError, KeyError, TypeError):
+                self.respond({"error": "invalid observation name"}, 400)
+                return
+            record = {"name": name, **snapshot()}
+            with guard:
+                checkpoints.append(record)
+            self.respond(record)
     for number in (signal.SIGINT, signal.SIGTERM):
         signal.signal(number, lambda *_: stop.set())
     try:
         host.start()
         host.token = "123456"  # Public loopback fixture, after start() rotates the real code.
+        control = ThreadingHTTPServer(("127.0.0.1", args.control_port), ObservationHandler)
+        threading.Thread(target=control.serve_forever, daemon=True).start()
         if args.usb_fixture:
             from ios_usb_fixture import NoAndroid, SimulatedAppleMux
             from vrization_host.usb import AppleMux, UsbManager
@@ -59,6 +125,8 @@ def main():
         print("Synthetic iOS fixture ready on loopback.", flush=True)
         stop.wait()
     finally:
+        if control:
+            control.shutdown(); control.server_close()
         if usb:
             usb.stop()
         if mux_fixture:
@@ -67,7 +135,8 @@ def main():
         with guard:
             report = {"events": events, "mouseMoves": sink.moves,
                       "settings": host.get_settings_snapshot()[0].to_dict(),
-                      "usbService": "simulated" if args.usb_fixture else "disabled"}
+                      "usbService": "simulated" if args.usb_fixture else "disabled",
+                      "checkpoints": checkpoints}
         args.report.parent.mkdir(parents=True, exist_ok=True)
         args.report.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
 

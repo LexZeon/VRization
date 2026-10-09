@@ -31,6 +31,7 @@ final class StreamClient: NSObject, URLSessionWebSocketDelegate {
     private var pingSentAt: TimeInterval?
     private var pendingRecenter = false
     private var poseSequence: Int64 = 0
+    private var posesPaused = false
 
     override init() {
         super.init()
@@ -93,6 +94,7 @@ final class StreamClient: NSObject, URLSessionWebSocketDelegate {
         socket?.cancel(with: .normalClosure, reason: nil); socket = nil
         session?.invalidateAndCancel(); session = nil
         sending = false; pendingHello = nil; pendingSettings = nil; pendingPose = nil; pendingRecenter = false; pendingPing = false
+        posesPaused = false
         pingSentAt = nil; onRTT?(nil)
         decoder.reset(generation: generation)
         if notify { onState?(state, reason) }
@@ -104,10 +106,19 @@ final class StreamClient: NSObject, URLSessionWebSocketDelegate {
         return true
     }
     func sendPose(yaw: Double, pitch: Double) {
-        guard state == .connected, yaw.isFinite, pitch.isFinite, poseSequence < 9_007_199_254_740_991 else { return }
+        guard state == .connected, !posesPaused, yaw.isFinite, pitch.isFinite, poseSequence < 9_007_199_254_740_991 else { return }
         poseSequence += 1
         pendingPose = try? VRProtocol.encodePose(sequence: poseSequence, yaw: yaw, pitch: pitch)
         drain()
+    }
+    func pauseForEditor() {
+        posesPaused = true; pendingPose = nil
+        if state == .connected { pendingHello = VRProtocol.editorHello(); drain() }
+    }
+    func resumePose() {
+        // A new origin control is queued before subsequent pose samples. An
+        // already-sent pre-editor pose precedes this control on either stream.
+        recenter(); posesPaused = false
     }
     func recenter() {
         // A queued old-origin pose must never follow the recenter control message.
@@ -195,6 +206,7 @@ final class StreamClient: NSObject, URLSessionWebSocketDelegate {
         guard state == .connecting, protocolGate.isEstablished else { return }
         handshakeTimeout?.invalidate(); handshakeTimeout = nil
         let epoch = generation
+        posesPaused = false
         state = .connected; onSessionStarted?()
         guard generation == epoch, state == .connected else { return }
         pendingHello = VRProtocol.hello(); drain(); onState?(state, "connected")

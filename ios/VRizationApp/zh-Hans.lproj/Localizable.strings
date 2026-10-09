@@ -40,7 +40,14 @@
 "distance" = "屏幕距离（大屏幕）";
 "sensitivity" = "鼠标灵敏度（FPS，像素/弧度）";
 "invertY" = "FPS 垂直方向反转";
-"reset" = "恢复显示设置";
+"reset" = "恢复手机全部默认设置";
+"editorOpen" = "可视化盒子画面编辑器";
+"editorHelp" = "水平拖动反向移动双眼画面，垂直跟随手指；拖动任一角点正常等比例缩放双眼。先在手机本地预览，再保存或放弃。设置会在本机记住。";
+"editorSave" = "保存";
+"editorDiscard" = "放弃";
+"editorPan" = "拖动双眼画面：水平反向，垂直跟随手指";
+"editorResize" = "拖动角点以画面中心等比例缩放双眼";
+"editorSummary" = "水平拖动反向 · 角点正常缩放\n缩放 %.0f%% · 水平 %.3f · 垂直 %.3f";
 "licenses" = "关于与开源许可";
 "close" = "关闭";
 "metalUnavailable" = "此设备不支持 Metal 画面渲染。";
