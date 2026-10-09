@@ -53,14 +53,46 @@ final class ViewerSmokeTests: XCTestCase {
         screenshot("failed-reveal-screen")
         XCTAssertTrue(element.isHittable)
     }
-    private func adjustScaleAndWaitForStableEcho() {
+    private struct NativeRect: Decodable {
+        let x: Double, y: Double, width: Double, height: Double
+        var midX: Double { x + width / 2 }
+        var midY: Double { y + height / 2 }
+    }
+    private struct SliderGeometry: Decodable {
+        let frame: NativeRect, track: NativeRect, current: NativeRect, minimum: NativeRect, maximum: NativeRect
+        let nativeValue: Double, minimumValue: Double, maximumValue: Double
+    }
+    private func dragSlider(_ slider: XCUIElement, to position: Double) throws {
+        XCTAssertTrue(slider.isHittable)
+        let text = app.staticTexts["setting.scale.label"].value as? String
+        let data = try XCTUnwrap(text?.data(using: .utf8), "Native slider diagnostics are missing")
+        let native = try JSONDecoder().decode(SliderGeometry.self, from: data)
+        XCTAssertEqual(native.frame.x, Double(slider.frame.minX), accuracy: 1)
+        XCTAssertEqual(native.frame.y, Double(slider.frame.minY), accuracy: 1)
+        XCTAssertGreaterThan(native.frame.width, 0)
+        XCTAssertGreaterThan(native.frame.height, 0)
+        XCTAssertEqual(native.minimumValue, 0)
+        XCTAssertEqual(native.maximumValue, 50)
+        let x = native.minimum.midX + (native.maximum.midX - native.minimum.midX) * position
+        let y = native.current.midY
+        let start = slider.coordinate(withNormalizedOffset: CGVector(
+            dx: CGFloat((native.current.midX - native.frame.x) / native.frame.width),
+            dy: CGFloat((y - native.frame.y) / native.frame.height)))
+        let end = slider.coordinate(withNormalizedOffset: CGVector(
+            dx: CGFloat((x - native.frame.x) / native.frame.width),
+            dy: CGFloat((y - native.frame.y) / native.frame.height)))
+        let attachment = XCTAttachment(string: "native=\(text ?? ""); targetWindowPoint=(\(x),\(y)); normalized=\(position)")
+        attachment.name = "slider-real-touch"; attachment.lifetime = .keepAlways; add(attachment)
+        start.press(forDuration: 0.1, thenDragTo: end)
+    }
+    private func adjustScaleAndWaitForStableEcho() throws {
         let scale = app.sliders["setting.scale"]
         reveal(scale)
-        scale.adjust(toNormalizedSliderPosition: 0.8)
+        try dragSlider(scale, to: 0.8)
         waitLabel(app.staticTexts["setting.scale.label"], contains: "90%")
         Thread.sleep(forTimeInterval: 2)
         XCTAssertTrue(app.staticTexts["setting.scale.label"].label.contains("90%"))
-        scale.adjust(toNormalizedSliderPosition: 0.7)
+        try dragSlider(scale, to: 0.7)
         waitLabel(app.staticTexts["setting.scale.label"], contains: "85%")
     }
     private func waitLabel(_ element: XCUIElement, contains text: String, timeout: TimeInterval = 20) {
@@ -90,7 +122,7 @@ final class ViewerSmokeTests: XCTestCase {
         let frames = app.staticTexts["frame.status"]
         waitLabel(frames, contains: "1280")
         screenshot("03-real-WebSocket-JPEG")
-        adjustScaleAndWaitForStableEcho()
+        try adjustScaleAndWaitForStableEcho()
         let sensor = app.staticTexts["motion.status"]
         if sensor.exists {
             let modes = app.segmentedControls["view.mode"]
@@ -134,7 +166,7 @@ final class ViewerSmokeTests: XCTestCase {
         waitLabel(toggle, contains: "Disconnect", timeout: 40)
         let frames = app.staticTexts["frame.status"]
         waitLabel(frames, contains: "1280")
-        adjustScaleAndWaitForStableEcho()
+        try adjustScaleAndWaitForStableEcho()
         screenshot("USB-01-auto-detected-settings")
         app.buttons["settings.hide"].tap()
         let surface = app.otherElements["vr.surface"]

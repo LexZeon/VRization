@@ -324,6 +324,7 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
     func scrollViewDidScroll(_ scrollView: UIScrollView) { updateTestingGeometry() }
     private func updateTestingGeometry() {
         guard ProcessInfo.processInfo.arguments.contains("--ui-testing"), let scroll = scroll, let window = view.window else { return }
+        sliders.forEach { $0.recordTestingGeometry() }
         // Record actual UIKit geometry, independent of XCTest's screen rotation
         // and accessibility conversion. No address or pairing data is included.
         metalView.accessibilityValue = [
@@ -375,6 +376,29 @@ private final class SettingSlider: NSObject {
         // Keep UIKit's slider accessibility value tied to its native thumb
         // position. The adjacent accessible label announces the actual value.
         label.text = L.text(key) + "  " + formatted
+        recordTestingGeometry()
+    }
+    func recordTestingGeometry() {
+        guard ProcessInfo.processInfo.arguments.contains("--ui-testing"),
+              let window = control.window, control.bounds.width > 0, control.bounds.height > 0 else { return }
+        // Read native thumb geometry for real XCTest touches. This diagnostics
+        // path never changes the slider, settings or connection state.
+        let track = control.trackRect(forBounds: control.bounds)
+        func rect(_ value: CGRect) -> [String: Double] {
+            return ["x": Double(value.minX), "y": Double(value.minY),
+                    "width": Double(value.width), "height": Double(value.height)]
+        }
+        func thumb(_ value: Float) -> [String: Double] {
+            return rect(control.convert(control.thumbRect(forBounds: control.bounds, trackRect: track, value: value), to: window))
+        }
+        let geometry: [String: Any] = [
+            "frame": rect(control.convert(control.bounds, to: window)),
+            "track": rect(control.convert(track, to: window)),
+            "current": thumb(control.value), "minimum": thumb(control.minimumValue), "maximum": thumb(control.maximumValue),
+            "nativeValue": Double(control.value), "minimumValue": Double(control.minimumValue), "maximumValue": Double(control.maximumValue)
+        ]
+        if let data = try? JSONSerialization.data(withJSONObject: geometry, options: [.sortedKeys]),
+           let text = String(data: data, encoding: .utf8) { label.accessibilityValue = text }
     }
     @objc private func start() { begin?() }
     @objc private func update() { let next = value; show(next); change?(next, !control.isTracking) }
