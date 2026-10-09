@@ -29,7 +29,6 @@ class HeadsetEditor:
         self.window.geometry(f"960x610{owner.root.winfo_rootx():+d}{owner.root.winfo_rooty():+d}")
         self.window.minsize(620, 440)
         self.window.bind("<Escape>", lambda event: self.discard())
-        self.window.grab_set()
 
         heading = ttk.Frame(self.window, padding=16)
         heading.pack(fill="x")
@@ -49,7 +48,7 @@ class HeadsetEditor:
         self.values.pack(side="right")
         self.canvas = tk.Canvas(self.window, bg="#050910", highlightthickness=0)
         self.canvas.pack(fill="both", expand=True, padx=16)
-        self.canvas.bind("<Configure>", lambda event: self.draw(force=True))
+        self.canvas.bind("<Configure>", lambda event: self._shape_changed())
         self.canvas.bind("<ButtonPress-1>", self.begin)
         self.canvas.bind("<B1-Motion>", self.move)
         self.canvas.bind("<ButtonRelease-1>", lambda event: self.end())
@@ -60,7 +59,12 @@ class HeadsetEditor:
                    command=self.save).pack(side="right", padx=(0, 12))
         ttk.Label(footer, text=owner.tr("Changes stay in this preview until you save."),
                   style="Muted.TLabel").pack(side="left")
+        self.window.after_idle(self._take_grab)
         self.refresh()
+
+    def _take_grab(self):
+        if not self.closed:
+            self.window.grab_set()
 
     @property
     def draft(self):
@@ -146,20 +150,20 @@ class HeadsetEditor:
         if not (x <= event.x <= x + width and y <= event.y <= y + height):
             return
         eye = 0 if event.x < x + width / 2 else 1
+        image_aspect = self.image.width / self.image.height if self.image is not None else 16 / 9
         left, top, right, bottom = self.bounds(eye)
         for px, py, sx, sy in ((left, top, -1, 1), (right, top, 1, 1),
                                 (left, bottom, -1, -1), (right, bottom, 1, -1)):
             if math.hypot(event.x - px, event.y - py) <= 22:
-                self.gesture = (self.draft, "resize", event.x, event.y, (sx, sy), width, height)
+                self.gesture = (self.draft, "resize", event.x, event.y, (sx, sy), width, height, image_aspect)
                 return
         if left <= event.x <= right and top <= event.y <= bottom:
-            self.gesture = (self.draft, "pan", event.x, event.y, (1, 1), width, height)
+            self.gesture = (self.draft, "pan", event.x, event.y, (1, 1), width, height, image_aspect)
 
     def move(self, event):
         if self.gesture is None:
             return
-        entry, kind, x, y, signs, width, height = self.gesture
-        image_aspect = self.image.width / self.image.height if self.image is not None else 16 / 9
+        entry, kind, x, y, signs, width, height, image_aspect = self.gesture
         self.transaction.preview(kind, (event.x - x) * 4 / width,
                                  -(event.y - y) * 2 / height, image_aspect,
                                  width / 2 / height, corner_signs=signs,
