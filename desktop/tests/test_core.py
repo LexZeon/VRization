@@ -78,6 +78,14 @@ class ProtocolTests(unittest.TestCase):
             limiter.failed(str(index), 73)
         self.assertFalse(limiter.allowed("new", 74))
 
+    def test_editor_pause_is_a_boolean_optional_hello_extension(self):
+        self.assertTrue(parse_message('{"v":1,"type":"hello","editing":true}')["editing"])
+        self.assertFalse(parse_message('{"v":1,"type":"hello","editing":false}')["editing"])
+        self.assertEqual(parse_message('{"v":1,"type":"hello"}'), {"v": 1, "type": "hello"})
+        for value in ('"true"', '1', 'null', '{}'):
+            with self.assertRaises(ProtocolError):
+                parse_message('{"v":1,"type":"hello","editing":' + value + '}')
+
     def test_preferences_do_not_store_secret_and_validate_on_read(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "settings.json"
@@ -293,6 +301,28 @@ class ServerTests(unittest.IsolatedAsyncioTestCase):
         await socket.send_str('{"v":1,"type":"settings","settings":{"scale":0.7,"sensitivity":NaN}}')
         await self.next_json(socket, "error")
         self.assertEqual(self.host.settings, Settings())
+        await socket.close()
+
+    async def test_phone_editor_entry_disarms_and_quick_exit_never_rearms(self):
+        socket = await self.session.ws_connect(self.url())
+        await self.next_json(socket, "hello")
+        await socket.send_json({"v": 1, "type": "settings", "settings": {"mode": "fps"}})
+        await self.next_json(socket, "settings")
+        await socket.send_json({"v": 1, "type": "pose", "seq": 1, "yaw": 0, "pitch": 0})
+        await socket.send_json({"v": 1, "type": "ping"})
+        await self.next_json(socket, "pong")
+        self.assertTrue(self.host.arm()[0])
+        revision = self.host.get_settings_snapshot()[1]
+        await socket.send_json({"v": 1, "type": "hello", "editing": True})
+        await socket.send_json({"v": 1, "type": "hello", "editing": False})
+        await socket.send_json({"v": 1, "type": "recenter"})
+        await socket.send_json({"v": 1, "type": "pose", "seq": 2, "yaw": .1, "pitch": .1})
+        await socket.send_json({"v": 1, "type": "ping"})
+        await self.next_json(socket, "pong")
+        self.assertFalse(self.host.controller.armed)
+        self.assertEqual(self.sink.moves, [])
+        self.assertEqual(self.host.get_settings_snapshot()[1], revision)
+        self.assertTrue(self.host.arm()[0])  # fresh explicit desktop authorization
         await socket.close()
 
     async def test_client_ack_and_desktop_broadcast_share_monotonic_revisions(self):

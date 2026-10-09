@@ -65,6 +65,8 @@ def parse_message(raw: str) -> dict:
     kind = msg.get("type")
     if kind not in ("hello", "settings", "pose", "recenter", "ping"):
         raise ProtocolError("unknown message type")
+    if kind == "hello" and "editing" in msg and type(msg["editing"]) is not bool:
+        raise ProtocolError("editing must be boolean")
     if kind == "pose":
         if type(msg.get("seq")) is not int or not 0 <= msg["seq"] <= 2**53 - 1:
             raise ProtocolError("invalid pose sequence")

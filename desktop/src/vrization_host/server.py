@@ -235,7 +235,9 @@ class HostServer:
                             self.controller.recenter()
                         elif kind == "ping":
                             await ws.send_json({"v": 1, "type": "pong"})
-                        # A client's optional hello is accepted without changing state.
+                        elif kind == "hello" and msg.get("editing") is True:
+                            # A control pause only: false/exit can never authorize input.
+                            self.controller.disarm("headset editor opened")
                     except (ProtocolError, TypeError, ValueError) as exc:
                         errors += 1
                         await ws.send_json({"v": 1, "type": "error", "message": str(exc)[:200]})
