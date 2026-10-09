@@ -4,7 +4,8 @@ from dataclasses import replace
 import unittest
 
 from vrization_host.protocol import Settings
-from vrization_host.view_edit import EditTransaction, dragged, eye_bounds, fit_size
+from vrization_host.view_edit import (EditTransaction, dragged, eye_bounds,
+                                     fit_size, resolved_fit)
 
 
 class FitGeometryTests(unittest.TestCase):
@@ -27,7 +28,10 @@ class FitGeometryTests(unittest.TestCase):
     def test_valid_bounds_are_not_silently_clipped(self):
         bounds = eye_bounds(Settings(scale=1, offsetX=0.3, eyeSeparation=0.2),
                             1, 1, 1)
-        self.assertEqual(bounds, (-0.5, -1, 1.5, 1))
+        # Shared X resolves to .2 to keep both inner edges inside their eyes;
+        # the outer edge still extends past the viewport and is not clipped.
+        for value, expected in zip(bounds, (-0.6, -1, 1.4, 1)):
+            self.assertAlmostEqual(value, expected)
 
     def test_nonpositive_nonfinite_and_boolean_aspects_rejected(self):
         for invalid in (0, -1, float("nan"), float("inf"), True, "2", 10**1000):
@@ -162,15 +166,16 @@ class MirroredEyePanTests(unittest.TestCase):
                 self.assertAlmostEqual((left_center + right_center) / 2,
                                        self.entry.offsetX)
 
-    def test_spacing_and_shared_vertical_offset_clamp_without_moving_offset_x(self):
-        for eye, dx, expected in ((0, -10, 0.2), (0, 10, 0),
-                                  (1, 10, 0.2), (1, -10, 0)):
+    def test_spacing_and_shared_vertical_clamp_and_contact_recenters_x(self):
+        for eye, dx, expected in ((0, -10, 0.2), (0, 10, -0.3),
+                                  (1, 10, 0.2), (1, -10, -0.3)):
             for dy, expected_y in ((10, 0.3), (-10, -0.3)):
                 with self.subTest(eye=eye, dx=dx, dy=dy):
                     result = dragged(self.entry, "eye_pan", dx, dy, 2, 1, eye=eye)
-                    self.assertEqual(result.eyeSeparation, expected)
+                    self.assertAlmostEqual(result.eyeSeparation, expected)
                     self.assertEqual(result.offsetY, expected_y)
-                    self.assertEqual(result.offsetX, self.entry.offsetX)
+                    expected_x = 0 if expected < 0 else self.entry.offsetX
+                    self.assertAlmostEqual(result.offsetX, expected_x)
 
     def test_vertical_motion_is_direct_and_does_not_change_spacing(self):
         for eye in (0, 1):
@@ -199,6 +204,90 @@ class MirroredEyePanTests(unittest.TestCase):
         edit.preview("eye_pan", 0.07, 0.1, 2, 1, eye=1)
         self.assertIs(edit.discard(), self.entry)
         self.assertIs(edit.draft, self.entry)
+
+
+class SeamFitTests(unittest.TestCase):
+    @staticmethod
+    def global_inner_edges(settings, image_aspect, eye_aspect):
+        left = eye_bounds(settings, 0, image_aspect, eye_aspect)
+        right = eye_bounds(settings, 1, image_aspect, eye_aspect)
+        return -1 + left[2], 1 + right[0]
+
+    def test_small_portrait_image_can_close_the_seam_with_either_eye(self):
+        entry = Settings(scale=0.5, offsetX=0.2)
+        for eye, inward in ((0, 10), (1, -10)):
+            with self.subTest(eye=eye):
+                result = dragged(entry, "eye_pan", inward, 0, 0.5, 1, eye=eye)
+                self.assertEqual(result.eyeSeparation, -0.75)
+                self.assertEqual(result.offsetX, 0)
+                self.assertEqual(self.global_inner_edges(result, 0.5, 1), (0, 0))
+
+    def test_contact_resolves_both_signs_of_global_offset_to_zero(self):
+        for offset in (-0.3, 0.3):
+            entry = Settings(scale=0.5, offsetX=offset, eyeSeparation=-1,
+                             mode="cinema", distortion=0.4, fov=100)
+            resolved = resolved_fit(entry, 0.5, 1)
+            self.assertEqual((resolved.eyeSeparation, resolved.offsetX), (-0.75, 0))
+            self.assertEqual(self.global_inner_edges(resolved, 0.5, 1), (0, 0))
+            self.assertEqual(replace(resolved, offsetX=entry.offsetX,
+                                     eyeSeparation=entry.eyeSeparation), entry)
+
+    def test_midway_drag_preserves_x_until_gap_requires_a_smaller_offset(self):
+        entry = Settings(scale=0.5, offsetX=0.2, eyeSeparation=0)
+        roomy = dragged(entry, "eye_pan", 0.1, 0, 1, 1, eye=0)
+        tight = dragged(entry, "eye_pan", 0.4, 0, 1, 1, eye=0)
+        self.assertEqual(roomy.offsetX, entry.offsetX)
+        self.assertAlmostEqual(tight.offsetX, 0.1)
+        left, right = self.global_inner_edges(tight, 1, 1)
+        self.assertLessEqual(left, 0)
+        self.assertGreaterEqual(right, 0)
+        self.assertLessEqual(left, right)
+
+    def test_negative_saved_fit_adapts_to_new_aspect_without_mutating_profile(self):
+        saved = Settings(scale=0.5, eyeSeparation=-0.75, offsetX=0.2)
+        narrow = resolved_fit(saved, 0.5, 1)
+        wide = resolved_fit(saved, 2, 1)
+        self.assertEqual(narrow.eyeSeparation, -0.75)
+        self.assertEqual(wide.eyeSeparation, -0.5)
+        self.assertEqual((saved.eyeSeparation, saved.offsetX), (-0.75, 0.2))
+        self.assertEqual(resolved_fit(wide, 2, 1), wide)
+        self.assertEqual(self.global_inner_edges(wide, 2, 1), (0, 0))
+
+    def test_resize_enlargement_at_contact_moves_centers_to_preserve_seam(self):
+        entry = Settings(scale=0.5, eyeSeparation=-0.75, offsetX=0)
+        result = dragged(entry, "resize", 0.25, 0.5, 0.5, 1)
+        self.assertEqual(result.scale, 1)
+        self.assertEqual(result.eyeSeparation, -0.5)
+        self.assertEqual(self.global_inner_edges(result, 0.5, 1), (0, 0))
+        self.assertEqual(replace(result, scale=entry.scale,
+                                 eyeSeparation=entry.eyeSeparation), entry)
+
+    def test_shrink_keeps_centers_and_then_allows_further_inward_motion(self):
+        entry = Settings(scale=1, eyeSeparation=0)
+        shrunk = dragged(entry, "resize", -0.5, -0.5, 1, 1)
+        self.assertEqual((shrunk.scale, shrunk.eyeSeparation), (0.5, 0))
+        self.assertEqual(self.global_inner_edges(shrunk, 1, 1), (-0.5, 0.5))
+        closed = dragged(shrunk, "eye_pan", -0.5, 0, 1, 1, eye=1)
+        self.assertEqual(self.global_inner_edges(closed, 1, 1), (0, 0))
+
+    def test_resolved_invalid_settings_and_aspects_are_rejected(self):
+        for entry in (Settings(eyeSeparation=-1.01), Settings(offsetX=0.31),
+                      Settings(scale=float("nan"))):
+            with self.assertRaises(ValueError):
+                resolved_fit(entry, 1, 1)
+        for aspect in (0, True, float("inf")):
+            with self.assertRaises(ValueError):
+                resolved_fit(Settings(), aspect, 1)
+
+    def test_negative_spacing_commit_and_discard_keep_transaction_boundaries(self):
+        entry = Settings(scale=0.5, eyeSeparation=-0.4, offsetY=0.1)
+        saved_edit = EditTransaction(entry)
+        saved = saved_edit.preview("eye_pan", 0.3, 0.1, 0.5, 1, eye=0)
+        self.assertAlmostEqual(saved.eyeSeparation, -0.7)
+        self.assertEqual(saved_edit.commit(), saved)
+        discarded_edit = EditTransaction(entry)
+        discarded_edit.preview("eye_pan", 10, -0.1, 0.5, 1, eye=0)
+        self.assertIs(discarded_edit.discard(), entry)
 
 
 if __name__ == "__main__":
