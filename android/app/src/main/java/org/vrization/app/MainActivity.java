@@ -121,7 +121,7 @@ public final class MainActivity extends Activity {
             @Override public void onStatus(String text, boolean connected) {
                 runOnUiThread(() -> {
                     if (destroyed) return;
-                    if (!connected && headsetEdit != null) finishHeadsetEdit(false, false);
+                    if (!connected && !client.isActive() && headsetEdit != null) finishHeadsetEdit(false, false);
                     status.setText(text); updateConnectButton();
                 });
             }
