@@ -9,10 +9,16 @@ USB is the default connection preference in the Windows host, Android app and iO
 
 The host detects authorized USB devices automatically when its USB option is enabled. **You must click Start streaming on the PC.** A new phone app launch makes one foreground USB connection attempt; Android discovers the running host, while iOS opens its local listener and waits for the PC. If it fails, use the phone's connection button to retry. Returning from the background or changing the phone's language disconnects and requires a manual connection; neither action silently reconnects. USB never enables FPS mouse control: explicitly allow control on the PC, switch to the game within five seconds, and press **F8** to stop it.
 
+### Find the PC's USB controls and status
+
+Click **USB connection…** in the PC's top connection card to open the USB controls directly. Alternatively, select the **Stream** tab and scroll down to the **USB connection** group. Keep **Detect authorized USB phones automatically (recommended)** checked; the device selector and **Choose official SDK adb.exe…** button are in the same group.
+
+Read the USB status in the top connection card, below the PC address and connection hint; status changes also appear in the bottom activity log. **Waiting for phone** only means the streaming server is waiting for a viewer, and does not establish that USB is ready. After starting streaming, look for **Android USB ready: …**, then retry **Detect USB and connect** on Android if its initial attempt has ended. If the PC reports USB off, unavailable, waiting or a port conflict, follow that message before repeatedly retrying on the phone.
+
 ### Android: first setup
 
 1. Install the release's Android APK on the phone. Android 6.0 / API 23 or newer is the application's minimum; actual derivative / device results are listed in [compatibility records](COMPATIBILITY.md).
-2. Download and extract Google's official [Android SDK Platform Tools for Windows](https://developer.android.com/tools/releases/platform-tools). VRization does **not** bundle `adb.exe`, the Android SDK or a USB driver. Keep the extracted Platform Tools folder intact. In the PC application's USB settings, choose **Choose official SDK adb.exe…** and select its `adb.exe` if automatic SDK discovery does not find it.
+2. Download and extract Google's official [Android SDK Platform Tools for Windows](https://developer.android.com/tools/releases/platform-tools). VRization does **not** bundle `adb.exe`, the Android SDK or a USB driver. Keep the extracted Platform Tools folder intact. Open the PC's **USB connection…** shortcut, then use **Choose official SDK adb.exe…** and select its `adb.exe` if automatic SDK discovery does not find it.
 3. Enable the phone's Developer options and **USB debugging**, connect a data cable, unlock the phone and approve USB debugging for this computer. OEM menu names and driver requirements vary; use the manufacturer's USB driver if Windows does not recognize its debugging interface. Google's [ADB setup guide](https://developer.android.com/tools/adb#Enabling) explains device authorization.
 4. Keep **Detect authorized USB phones automatically (recommended)** enabled on the PC. With one authorized Android USB device it is selected automatically. With several, choose the intended serial number in the USB device list. Emulators and wireless ADB are excluded from this USB discovery.
 5. Select the screen / region, then click **Start streaming** on the PC. Open VRization on the phone with **USB cable · default** selected. If its first attempt has already ended, tap **Detect USB and connect**. You do not enter an IP address or six-digit code in USB mode.
@@ -40,22 +46,22 @@ Use the host's **Performance profile** selector. The new-user default is low lat
 
 | Profile | Maximum long edge | Capture target | JPEG quality |
 | --- | --- | --- | --- |
-| Low latency — default for new users | 960 pixels | 60 FPS | 60 |
-| Stable | 1280 pixels | 30 FPS | 65 |
-| Quality | 1920 pixels | 30 FPS | 80 |
+| Low latency — default for new users | 640 pixels | 60 FPS | 45 |
+| Stable | 640 pixels | 30 FPS | 50 |
+| Quality | 960 pixels | 30 FPS | 60 |
 | Custom | Your selection | Your selection | Your selection |
 
 The long-edge bound preserves aspect ratio. A profile changes capture size, FPS target and JPEG quality, leaving your monitor / region selection intact. Smaller frames can reduce encoding, transfer and phone decoding work. The actual rate depends on the PC, cable, USB service, phone decoder and display; 60 FPS is a target, not a guarantee. The phone reports received-frame FPS and link ping round-trip time. **Neither is end-to-end video / motion-to-photon latency**: ping does not include desktop capture, JPEG encoding, image decode or display presentation. Audio stays on the computer.
 
 ### Transport details and troubleshooting
 
-Android uses official ADB reverse forwarding, with the phone's `127.0.0.1:18765` mapped to the PC's configured host port (default `8765`). The phone requests `GET http://127.0.0.1:18765/usb-bootstrap`, validates the version, identity, port and six-digit token, then connects to `ws://127.0.0.1:18765/ws?token=…`. An advertised PC port is informational; the phone keeps using its fixed forwarded port. The bootstrap endpoint returns a token only to a loopback request while the host has an authorized physical Android USB mapping; it is disabled for ordinary embedding by default. Tokens are not saved in phone preferences or bootstrap logs. A stopped host usually refuses the connection; HTTP 403 indicates USB authorization is unavailable, and 503 indicates a reachable but stopped host. Check the cable, debugging approval, selected device and PC streaming before retrying. Reverse syntax is documented in Google's [ADB manual](https://android.googlesource.com/platform/packages/modules/adb/+/refs/heads/main/docs/user/adb.1.md).
+Android uses official ADB reverse forwarding, with the phone's `127.0.0.1:18765` mapped to the PC's configured host port (default `8765`). The phone requests `GET http://127.0.0.1:18765/usb-bootstrap`, validates the version, identity, port and six-digit token, then connects to `ws://127.0.0.1:18765/ws?token=…`. An advertised PC port is informational; the phone keeps using its fixed forwarded port. The bootstrap endpoint returns a token only to a loopback request while the host has an authorized physical Android USB mapping; it is disabled for ordinary embedding by default. Tokens are not saved in phone preferences or bootstrap logs. A stopped host usually refuses the connection; HTTP 403 means the host rejected USB bootstrap, while 503 indicates a reachable but stopped host. Debugging approval on the phone alone does not establish a usable reverse mapping. For 403 or “not detected”, first check the PC's USB status, automatic-detection checkbox and official `adb.exe` path, then the cable, selected device, debugging approval and streaming state. Retry on the phone after the PC reports **Android USB ready: …**. Reverse syntax is documented in Google's [ADB manual](https://android.googlesource.com/platform/packages/modules/adb/+/refs/heads/main/docs/user/adb.1.md).
 
 iOS uses a native Network-framework listener at phone loopback `127.0.0.1:18766`. The Windows relay uses Apple's local USB multiplexing service to reach it, then bridges the existing host session. Frames have a four-byte big-endian length including a one-byte kind: `1` for UTF-8 protocol JSON, `2` for JPEG, with length `1…8 MiB`; phone-to-host messages are JSON only, up to 16 KiB. This is VRization's framing inside the USB tunnel, separate from the usbmux service's own plist framing. If detection fails, first check Apple Devices, trust, a single attached device and the foreground signed app. Source and protocol-reference credit is in [third-party notices](../THIRD_PARTY_NOTICES.md).
 
 ### Saved view profiles and Reset (v0.3)
 
-USB discovery / authorization is unchanged. A saved phone VR profile is applied only after the valid host hello and uses normal settings synchronization; it neither starts capture nor arms input. Editor drafts stay local. Phone reset returns English / USB and disconnects without another automatic attempt; use Connect explicitly. PC reset preserves the selected capture display / region and ADB path, returns USB device selection to automatic and leaves platform authorization / installed tools intact. See [editing](EDITING.md).
+USB discovery / authorization is unchanged. A saved phone VR profile is applied only after the valid host hello and uses normal settings synchronization; it neither starts capture nor arms input. Editor drafts stay local. Phone reset returns English / USB and disconnects without an immediate automatic attempt in the reset screen; use Connect there explicitly. A fresh phone-app launch resumes the normal initial USB discovery / listening policy. PC reset preserves the selected capture display / region and ADB path, returns USB device selection to automatic and leaves platform authorization / installed tools intact. See [editing](EDITING.md).
 
 ---
 
@@ -66,10 +72,16 @@ Windows 电脑端、Android 端和 iOS 端都默认优先 USB。需要支持数�
 
 电脑启用 USB 选项后会自动检测已授权的 USB 设备。**电脑必须由你点击“开始串流”。** 手机软件新启动时只在前台自动尝试一次 USB 连接：Android 寻找正在运行的电脑服务，iOS 打开本地监听并等待电脑连接。失败后用手机连接按钮重试。手机进入后台或切换语言会断开，回来后需要手动连接，不会悄悄重连。USB 不会自动开启 FPS 鼠标控制：仍须在电脑主动允许控制、五秒内切换到游戏，并可随时按 **F8** 停止。
 
+### 找到电脑端 USB 控件与状态
+
+点击电脑顶部连接卡片的“**USB 连接…**”可直接打开 USB 控件；也可以选择“**串流设置**”页，向下滚动到“**USB 连接**”区域。保持勾选“**自动检测已授权的 USB 手机（推荐）**”；设备选择框与“**选择官方 SDK 中的 adb.exe…**”按钮也在这里。
+
+USB 状态位于顶部连接卡片、电脑地址和连接提示下方，状态变化也会显示在底部活动日志。“**等待手机连接**”只代表串流服务在等待观看端，不表示 USB 已经就绪。开始串流后，先确认电脑显示“**安卓 USB 已就绪：…**”；若手机首次尝试已结束，再点“**检测 USB 并连接**”。如果电脑提示 USB 已关闭、不可用、等待中或端口冲突，先按该提示排查，再在手机重试。
+
 ### Android：首次设置
 
 1. 在手机安装发布版 Android APK。软件最低支持 Android 6.0 / API 23；实际衍生系统和设备验证见 [兼容性记录](COMPATIBILITY.md)。
-2. 下载并解压 Google 官方 [Windows Android SDK Platform Tools](https://developer.android.com/tools/releases/platform-tools)。VRization **不附带** `adb.exe`、Android SDK 或 USB 驱动。请保留解压后的完整 Platform Tools 文件夹。若电脑没有自动找到 SDK，在软件 USB 设置里点“**选择官方 SDK 中的 adb.exe…**”，选中其中的 `adb.exe`。
+2. 下载并解压 Google 官方 [Windows Android SDK Platform Tools](https://developer.android.com/tools/releases/platform-tools)。VRization **不附带** `adb.exe`、Android SDK 或 USB 驱动。请保留解压后的完整 Platform Tools 文件夹。若电脑没有自动找到 SDK，打开“**USB 连接…**”快捷入口，点“**选择官方 SDK 中的 adb.exe…**”，选中其中的 `adb.exe`。
 3. 在手机启用开发者选项和 **USB 调试**，接入数据线，解锁手机并允许此电脑进行 USB 调试。不同厂商的菜单和驱动要求不同；若 Windows 未识别调试接口，使用该厂商的 USB 驱动。Google 的 [ADB 设置指南](https://developer.android.com/tools/adb#Enabling) 说明了设备授权。
 4. 电脑保持勾选“**自动检测已授权的 USB 手机（推荐）**”。只有一台已授权 Android USB 设备时自动选择；多台时在 USB 设备列表选择目标序列号。此 USB 检测排除模拟器和无线 ADB。
 5. 选择屏幕 / 选区，在电脑点“**开始串流**”。手机打开 VRization，保持选择“**USB 数据线 · 默认**”。若首次尝试已经结束，点“**检测 USB 并连接**”。USB 模式无需手填 IP 或六位配对码。
@@ -97,20 +109,20 @@ VRization 读取已有的本地 Apple 配对记录来确认已建立信任，不
 
 | 预设 | 最大长边 | 捕获目标 | JPEG 质量 |
 | --- | --- | --- | --- |
-| 低延迟 — 新用户默认 | 960 像素 | 60 FPS | 60 |
-| 稳定 | 1280 像素 | 30 FPS | 65 |
-| 清晰 | 1920 像素 | 30 FPS | 80 |
+| 低延迟 — 新用户默认 | 640 像素 | 60 FPS | 45 |
+| 稳定 | 640 像素 | 30 FPS | 50 |
+| 清晰 | 960 像素 | 30 FPS | 60 |
 | 自定义 | 自行选择 | 自行选择 | 自行选择 |
 
 长边限制保持画面比例。预设修改捕获大小、目标帧率和 JPEG 质量，保留显示器 / 选区。较小画面可减少编码、传输和手机解码工作。实际帧率取决于电脑、线缆、USB 服务、手机解码与屏幕；60 FPS 是目标而非保证。手机显示接收帧率和链路 ping 往返时间。**两者都不是端到端视频 / 运动到光子延迟**：ping 不包括桌面采集、JPEG 编码、图像解码或显示呈现。声音仍留在电脑。
 
 ### 传输细节与排查
 
-Android 使用官方 ADB 反向端口映射，把手机 `127.0.0.1:18765` 转发到电脑配置的服务端口（默认 `8765`）。手机请求 `GET http://127.0.0.1:18765/usb-bootstrap`，校验版本、软件标识、端口和六位 token 后连接 `ws://127.0.0.1:18765/ws?token=…`。响应中的电脑端口仅用于说明，手机始终使用固定转发端口。bootstrap 只在电脑拥有已授权的真实 Android USB 映射、请求来自回环地址时返回 token；普通嵌入服务默认关闭此接口。token 不写入手机偏好或 bootstrap 日志。电脑服务停止时通常连接被拒绝；HTTP 403 表示 USB 授权不可用，503 表示服务可达但串流已停止。重试前检查线缆、调试授权、所选设备和电脑串流状态。反向映射语法见 Google 的 [ADB 手册](https://android.googlesource.com/platform/packages/modules/adb/+/refs/heads/main/docs/user/adb.1.md)。
+Android 使用官方 ADB 反向端口映射，把手机 `127.0.0.1:18765` 转发到电脑配置的服务端口（默认 `8765`）。手机请求 `GET http://127.0.0.1:18765/usb-bootstrap`，校验版本、软件标识、端口和六位 token 后连接 `ws://127.0.0.1:18765/ws?token=…`。响应中的电脑端口仅用于说明，手机始终使用固定转发端口。bootstrap 只在电脑拥有已授权的真实 Android USB 映射、请求来自回环地址时返回 token；普通嵌入服务默认关闭此接口。token 不写入手机偏好或 bootstrap 日志。电脑服务停止时通常连接被拒绝；HTTP 403 表示电脑拒绝了 USB bootstrap，503 表示服务可达但串流已停止。手机已批准调试不等于电脑已经建立可用的反向映射。遇到 403 或“未检测到”，先检查电脑 USB 状态、自动检测开关与官方 `adb.exe` 路径，再检查数据线、所选设备、调试批准与串流状态。电脑显示“**安卓 USB 已就绪：…**”后再在手机重试。反向映射语法见 Google 的 [ADB 手册](https://android.googlesource.com/platform/packages/modules/adb/+/refs/heads/main/docs/user/adb.1.md)。
 
 iOS 使用原生 Network 框架在手机回环地址 `127.0.0.1:18766` 监听。Windows 中继通过 Apple 本地 USB 多路复用服务访问此端口，桥接已有电脑会话。帧头为四字节大端长度，长度包含一字节类型：`1` 为 UTF-8 协议 JSON，`2` 为 JPEG，长度 `1…8 MiB`；手机发向电脑只允许 JSON，最大 16 KiB。这是 USB 隧道内的 VRization 分帧，独立于 usbmux 服务自己的 plist 分帧。未检测到时先检查 Apple Devices、信任、是否只接一台设备，以及已签名软件是否在前台。源码与协议参考贡献见 [第三方声明](../THIRD_PARTY_NOTICES.md)。
 
 
 ### 保存观看配置与重置（v0.3）
 
-USB 发现 / 授权不变。手机保存配置只在合法主机 hello 后经普通设置同步恢复，不开始采集、不授权输入；编辑草稿只在本地。手机重置恢复英文 / USB 并断线，不再自动尝试，需主动连接；电脑保留采集显示器 / 选区及 ADB 路径，USB 设备选择恢复自动，不改变平台授权或已安装工具。见 [编辑文档](EDITING.md)。
+USB 发现 / 授权不变。手机保存配置只在合法主机 hello 后经普通设置同步恢复，不开始采集、不授权输入；编辑草稿只在本地。手机重置恢复英文 / USB 并断线，当前重置后的页面不立即自动尝试，可主动点连接；全新启动手机软件时恢复正常首次 USB 发现 / 监听策略。电脑保留采集显示器 / 选区及 ADB 路径，USB 设备选择恢复自动，不改变平台授权或已安装工具。见 [编辑文档](EDITING.md)。

@@ -1,73 +1,75 @@
-# 🥽 VRization v0.3.0-alpha — release notes / 发布说明
+# 🔌 VRization v0.3.1-alpha — release notes / 发布说明
 
 [English](#english) · [简体中文](#简体中文)
 
 <!-- vrization:english -->
 ## English
 
-This release adds visual headset fitting and saved phone profiles to the Windows / Android / iOS viewer. The GPU capture, USB transports and latency work were published separately in [v0.2.0-alpha](releases/v0.2.0-alpha.md); its verified downloads and local archive are retained. The local Windows / Android checks, physical Huawei acceptance, API 23 emulator checks and final iOS Simulator CI passed within the exact scope in [validation](VALIDATION.md). The new Windows GUI, physical iPhone USB, headset optics and real FPS game input remain unverified.
+This is a **Windows USB connection patch**. The Windows host is **0.3.1**; Android and iOS applications remain **0.3.0** and use the unchanged protocol v1. **An existing v0.3.0 phone installation does not need reinstalling or upgrading for this patch.** Visual headset editing, saved profiles, capture defaults and the PC-only FPS authorization boundary are retained. The original [v0.3.0-alpha notes](releases/v0.3.0-alpha.md) preserve that release's completed checks and measurements.
 
-### New in v0.3.0-alpha
+### Changes
 
-- Visual headset fitting is first in each application's settings: Windows **Headset editor**, Android **Fit headset visually**, and iOS **Visual headset fit editor**. Drag either eye horizontally for linked spacing, vertically to move both, or a corner to resize both with aspect ratio preserved and centers normally fixed. The PC offers an approximate phone-shaped preview with a selectable aspect ratio.
-- Linked mirrored eye spacing works on all three applications: left-eye left / right-eye right widens, left-eye right / right-eye left narrows. Smaller images continue inward until seam contact; shared X is retained while space permits, then recenters. Vertical motion remains direct, corners keep centers fixed unless contact requires adjustment, and FPS mouse mapping is unchanged. Connected Save synchronizes PC ↔ phone through normal validated settings / acknowledgments / broadcasts and preserves committed profiles on both sides; offline Save stays local until a valid connection.
-- **Save / Discard:** the editor is a local draft. Preview dragging sends no host setting updates and writes no preferences. Phone Save commits the complete draft; PC Save updates only the fit fields into current host settings, preserving other concurrent changes; Discard restores the entry snapshot. A flat, undistorted preview preserves the actual viewing mode and other optical values. Editing pauses phone pose messages and sends disarm-only hello metadata on entry; it never arms mouse control. The PC preview reuses existing JPEGs without starting another capture.
-- **Persistent phone profiles:** committed VR settings survive restarts and offline changes. After a validated host hello, a saved phone profile is restored through one normal settings update with a fresh client sequence. Subsequent host changes retain revision / acknowledgment synchronization. Pairing secrets are not saved.
-- **Reset all settings:** restore VR defaults, English and USB. Windows restores low-latency capture defaults (640 / 60 / Q45) and automatic USB choice, while preserving the explicitly chosen capture display / rectangle and ADB executable path. Phone reset clears its preferences / pairing field and disconnects without immediately reconnecting; a fresh launch resumes normal initial USB discovery / listening.
-- The original reusable Python geometry / transaction module and matching Android / Swift geometry use the same normalized coordinates, proportional corner projection and resolved seam bounds. Signed eye separation uses −1…0.2 on the wire, with an aspect-dependent inward limit; existing nonnegative profiles and the 0.03 default remain valid. Update both ends: v0.2 does not understand negative values. The seam guarantee is for the flat preview / undistorted full or FPS view, not cinema perspective or lens distortion. See [the behavior and integration contract](EDITING.md).
+- Background ADB commands use an independent null standard input, avoiding reliance on a missing or invalid input handle inherited from the Windows launcher.
+- Official ADB discovery includes the already managed SDK installation. An explicitly selected official `adb.exe` remains supported; Platform Tools and USB drivers are not bundled.
+- The PC's top connection card offers **USB connection…**, opening the Stream tab at its USB controls. USB status changes also appear in the bottom activity log. The [USB guide](USB.md) shows where to find the automatic-detection checkbox, official ADB selector and readiness status.
 
-### Verification and inherited limits
+### Verification and limits
 
-The original Python geometry / transaction has 28 automated checks for aspect fit, both-eye spacing, all four corners, all four selected-eye drag directions, clamp limits, remaining-gap X limits, small-image seam contact, resize contact correction, negative-profile commit / discard, gesture-start deltas, invalid inputs and commit / discard. These are pure checks with no screen capture, OS mouse input or physical headset. Application and device acceptance must be recorded separately; inherited v0.2 performance numbers are not new v0.3 measurements.
+The Windows candidate passed **157 tests plus 36 subcases**, and its source check matched 15 project modules. A controlled native experiment with an invalid standard-input handle failed with the former ADB launch behavior and detected the authorized USB phone with the new behavior. This is evidence for the robustness fix, **not proof of the precise original GUI failure**. The local machine already had a configured SDK; the additional discovery path is not established as the cause of that failure.
 
-Final local checks passed: **152 Windows tests plus 36 subcases**, **70 Android JVM tests** and lint with zero errors / eight warnings. The local EXE audit matched 15 project modules, 44 notice files and all 38 recorded native components. The final APK's installed hash matched on the physical Huawei. Actual Huawei gestures / seam contact, Save / Discard, committed profile restart, PC ↔ phone persistence, language and reset passed, as did 14 real UI checks on the Google-free API 23 emulator. PC handlers were tested headlessly; **the new Windows GUI has not been accepted through actual interaction**. Final [CI 37897738507](https://github.com/LexZeon/VRization/actions/runs/37897738507) passed 65 Swift core tests and three real Simulator UI cases, both iOS SDK builds, LAN / simulated-USB reception, both-eye colors and signed-seam boundary checks, with no failures or skips. See [the precise validation](VALIDATION.md) and [unmodified editor screenshots](EDITING.md#physical-android-examples).
+The candidate launched through the ordinary Windows GUI, automatically established the phone's `18765` → host `8765` reverse mapping, and returned USB bootstrap **HTTP 200**. After the user selected **Start streaming** and connected on the Huawei, host health reported **connected=true**. The user confirmed that the phone showed the stream and the experience was good. This establishes the observed connection / visible-image result; **no new quantitative FPS or latency measurement was made for this patch**.
 
-A separate 30.02-second v0.3 AW → Huawei USB run averaged **60.00 host sent FPS**; distinct JPEG reads were **53.70/s**. The phone retained a final-window **59.7 FPS / 9.7 ms receive-to-texture-call mean** after video stopped; individual ping observations were **8–11 ms**. These stages are not whole-session phone averages or end-to-end delay. See [performance](PERFORMANCE.md).
+Historical v0.3.0 hardware / Simulator results remain scoped to that release. Physical iPhone USB, headset optics, real FPS game input and end-to-end latency remain unverified. This patch does not claim a complete Windows editor GUI acceptance. See [historical validation](VALIDATION.md), [performance boundaries](PERFORMANCE.md) and [compatibility](COMPATIBILITY.md).
 
-Targets remain Windows 10 / 11 x64, Android 6.0+ with GLES 2.0, and iOS / iPadOS 15+ with Metal. The iOS USB bridge has native Simulator / simulated-usbmux evidence; **physical iPhone USB, physical headset optics and real FPS game input remain unverified**. iPhone installation still needs a Mac, Xcode and your Apple signing. The Simulator download is arm64 for an Apple Silicon Mac, not an iPhone IPA or Windows app.
+### Assets and update steps
 
-Capture profiles remain longest edge / target FPS / JPEG quality: low **640 / 60 / Q45**, stable **640 / 30 / Q50**, quality **960 / 30 / Q60**, plus custom. Both eyes receive the same 2D image. No audio, hardware video encoding, native game stereo or 6DoF position tracking is supplied. FPS targets, link RTT and phone-local texture-submission times are not end-to-end video-latency guarantees. See [performance boundaries](PERFORMANCE.md).
+| Asset | Version / update scope |
+| --- | --- |
+| `VRization-Windows-x64.zip` | Updated Windows host **0.3.1** and documentation. Extract the complete archive and run its `VRization-Host.exe`. |
+| `VRization-Android-debug.apk`, `VRization-vr-core-alpha.aar` | The verified **0.3.0** assets are reused byte for byte with the same SHA-256 values. Existing phone installs can stay in place. |
+| `VRization-iOS-Simulator.zip` | The verified **0.3.0 / build 4** arm64 Simulator asset is reused unchanged. It is not an iPhone installer. |
+| `VRization-iOS-source.zip` | Regenerated source bundle includes the updated desktop / documentation; the iOS application's version remains **0.3.0 / build 4**. Physical installation still needs your Apple signing. |
+| `VRization-Licenses.zip`, `SHA256SUMS.txt` | License notices and the manifest for this release's exact assets. Check the manifest when downloading. |
 
-### Downloads and setup
+Close the old Windows host before using the new one. Keep the complete extracted folder and the separately installed Microsoft Visual C++ v14 x64 runtime. Leave the existing Android app and its saved profiles installed. Open **USB connection…**, keep automatic USB detection enabled, and check for **Android USB ready: …** before retrying **Detect USB and connect** on the phone. Follow [the USB prerequisites](USB.md) and [download / archive instructions](DOWNLOADS.md); preserve the old verified release archive.
 
-The asset names remain `VRization-Windows-x64.zip`, `VRization-Android-debug.apk`, `VRization-vr-core-alpha.aar`, `VRization-iOS-source.zip`, `VRization-iOS-Simulator.zip`, `VRization-Licenses.zip` and `SHA256SUMS.txt`. Completely extract Windows, keep its license / documentation folders and use the separate Microsoft Visual C++ v14 x64 runtime. The APK remains test-signed; preserving application data on upgrade requires a matching certificate. iOS source is editable, not pre-signed for your phone.
+USB connection never authorizes PC mouse input. FPS still requires explicit PC arming, and **F8** stops it. LAN remains optional and uses unencrypted `ws://` on trusted networks.
 
-Follow [quick start](QUICKSTART.md), [USB setup](USB.md), [iOS signing](IOS.md) and [verified download / local archive instructions](DOWNLOADS.md). Select the intended display before starting capture. USB connection, profile restore, Save and Reset never authorize PC mouse input; FPS needs explicit PC arming and **F8** remains the stop key. LAN `ws://` remains unencrypted and should be used only on trusted networks.
-
-[Release history](releases/README.md)
+[v0.3.0-alpha](releases/v0.3.0-alpha.md) · [v0.2.0-alpha](releases/v0.2.0-alpha.md) · [Release history](releases/README.md)
 
 ---
 
 <!-- vrization:chinese -->
 ## 简体中文
 
-本版在 Windows / Android / iOS 观看端加入可视盒子适配与手机本地配置。GPU 采集、USB 传输和延迟优化已先独立发布为 [v0.2.0-alpha](releases/v0.2.0-alpha.md)，已校验下载与本地归档继续保留。v0.3 本地 Windows / Android 检查、华为真机验收、API 23 模拟器及最终 iOS 模拟器 CI 已在 [验证记录](VALIDATION.md) 明确范围内通过；新 Windows 界面、真实 iPhone USB、盒子镜片和真实 FPS 游戏输入仍未验证。
+本版是 **Windows USB 连接补丁**。电脑端为 **0.3.1**，Android 与 iOS 应用仍为 **0.3.0**，使用不变的协议 v1。**手机已经安装 v0.3.0 时，本补丁无需重装或升级手机软件。** 可视盒子编辑、配置保存、采集默认与电脑主动授权 FPS 的边界继续保留。[v0.3.0-alpha 原说明](releases/v0.3.0-alpha.md) 保留该版已完成的检查和测量。
 
-### v0.3.0-alpha 新增
+### 修改内容
 
-- 三端设置首位提供可视适配：Windows **画面编辑**、Android **可视化适配 VR 盒子**、iOS **可视化盒子画面编辑器**。横向拖任一眼联动间距、竖向同步移动，拖角点同步缩放，保持图像比例、通常中心固定；电脑提供可选择宽高比的近似手机形预览。
-- 三端镜像联动眼间距：左眼向左 / 右眼向右拉开，左眼向右 / 右眼向左收拢；缩小后仍可收拢到接缝；空间允许时保留共用 X，接近中缝时居中；竖向正常，角点通常中心固定，触发接触约束时必要修正，FPS 鼠标映射不变。已连接的保存经普通合法设置 / 确认 / 广播同步电脑 ↔ 手机，两端保留已提交配置；离线保存先留在本地，等合法连接。
-- **保存 / 放弃**：编辑器是本地草稿。预览拖动不向主机更新设置、不保存偏好；手机保存提交完整草稿，电脑只把适配字段合并到当前主机设置并保留其他并发变化；放弃恢复进入快照。平面、无畸变预览保留实际模式与其他光学值。编辑暂停手机姿态，进入时发送仅解除授权的 hello 元数据，不授权鼠标；电脑预览复用已有 JPEG，不新增采集。
-- **手机配置持久保存**：已提交 VR 设置在重启和离线更改后保留。合法主机 hello 后，用新客户端序号通过一次普通设置更新恢复手机配置；后续电脑改动仍按 revision / 确认同步。不保存配对秘密。
-- **重置全部设置**：恢复 VR 默认、英文和 USB。Windows 恢复低延迟采集默认 640 / 60 / Q45 与 USB 自动选择，但保留明确选择的采集显示器 / 选区及 ADB 程序路径；手机清除偏好 / 配对字段并断线，当前界面不自动重连；全新启动恢复正常初次 USB 发现 / 监听。
-- 原创可复用 Python 几何 / 事务模块和对应 Android / Swift 几何共用归一化坐标、等比角点投影与解析接缝边界。有符号眼间距协议范围为 −1…0.2、向内下限按比例计算，旧非负配置与默认 0.03 不变。v0.2 不理解负值，需两端更新。接缝保证只用于平面预览 / 无畸变全屏或 FPS，不含大屏幕透视或镜片畸变。见 [操作行为与集成合同](EDITING.md)。
+- 后台 ADB 命令使用独立的空标准输入，不依赖 Windows 启动环境传入的缺失或无效输入句柄。
+- 官方 ADB 发现包含已管理的 SDK 安装位置，仍支持手动选择官方 `adb.exe`；不附带 Platform Tools 或 USB 驱动。
+- 电脑顶部连接卡片新增“**USB 连接…**”，直接打开串流设置页的 USB 控件；USB 状态变化也写入底部活动日志。[USB 教程](USB.md) 说明自动检测开关、官方 ADB 选择及就绪状态的位置。
 
-### 验证与继承限制
+### 检查与限制
 
-原创 Python 几何 / 事务已有 28 项自动检查，覆盖比例适配、双眼间距、四角、选中眼四种横向方向、端点限制、剩余间隙对 X 限位、小画面接缝、接触放大修正、负值保存 / 放弃、手势起点总位移、非法输入及提交 / 放弃。它们不采屏、不发操作系统鼠标输入，也不使用真实盒子；应用与设备验收需另记。v0.2 的性能数字不能当作新的 v0.3 测量。
+Windows 候选通过 **157 项测试及 36 个子项**，源代码核对匹配 15 个自有模块。受控原生无效标准输入句柄实验中，旧 ADB 启动方式失败，新方式能识别已授权 USB 手机。这证明稳健性修复的作用，**不等于证明原电脑界面故障的精确原因**。本机已有配置好的 SDK，不能把新增发现路径认定为当时故障的原因。
 
-最终本地检查已通过：**Windows 152 项测试及 36 个子项**、**Android 70 项 JVM 检查**、lint 零错误 / 八警告；本地 EXE 审计匹配 15 个自有模块、44 份许可通知及全部 38 个原生组件，华为真机已安装最终 APK 的哈希一致。真机实际拖动 / 接缝、保存 / 放弃、已提交配置重启、电脑 ↔ 手机持久化、语言和重置均通过，无 Google API 23 模拟器另有 14 项真实界面检查。电脑处理器为无界面调用，**未通过真实交互验收新 Windows 界面**。最终 [CI 37897738507](https://github.com/LexZeon/VRization/actions/runs/37897738507) 通过 65 项 Swift 核心和三项真实模拟器界面用例、两种 iOS SDK 构建、局域网 / 模拟 USB 接收、双眼颜色及有符号接缝边界检查，无失败或跳过，见 [精确验证范围](VALIDATION.md) 与 [未修改的编辑原图](EDITING.md#android-真机示例)。
+候选通过普通 Windows 界面启动后，自动建立手机 `18765` → 电脑 `8765` 反向映射，USB bootstrap 返回 **HTTP 200**。用户点“**开始串流**”并在华为连接后，主机 health 显示 **connected=true**。用户确认手机可以看到串流，且效果不错。这证明本次观察到的连接 / 可见画面结果，**本补丁没有新增定量 FPS 或延迟测量**。
 
-独立 30.02 秒 v0.3 AW → 华为 USB 会话主机平均 **60.00 发送 FPS**、每秒 **53.70 次不同 JPEG 读取**；视频停止后手机保留最终窗口 **59.7 FPS / 接收到纹理调用均值 9.7 毫秒**，个别 ping 观察 **8–11 毫秒**。这些不是整段手机均值或端到端延迟，见 [性能说明](PERFORMANCE.md)。
+历史 v0.3.0 真机 / 模拟器结果仍只证明对应版本。真实 iPhone USB、盒子镜片、真实 FPS 游戏输入与端到端延迟仍未验证，本补丁不宣称已完整交互验收 Windows 编辑器界面。参见 [历史验证](VALIDATION.md)、[性能边界](PERFORMANCE.md) 与 [兼容性](COMPATIBILITY.md)。
 
-目标仍为 Windows 10 / 11 x64、支持 GLES 2.0 的 Android 6.0+，以及支持 Metal 的 iOS / iPadOS 15+。iOS USB 有原生模拟器 / 模拟 usbmux 证据，**真实 iPhone USB、实际盒子镜片与真实 FPS 游戏输入仍未验证**。iPhone 安装仍需 Mac、Xcode 和自己的 Apple 签名；模拟器下载为 Apple Silicon Mac 的 arm64 应用，不是 iPhone IPA 或 Windows 软件。
+### 产物与更新步骤
 
-预设仍按最长边 / 目标 FPS / JPEG 质量表示：低延迟 **640 / 60 / Q45**、稳定 **640 / 30 / Q50**、画质 **960 / 30 / Q60**，另有自定义。两眼接收同一二维图像，没有音频、硬件视频编码、原生游戏立体或 6DoF 位置追踪。目标 FPS、链路 RTT 和手机本地纹理提交耗时都不保证端到端视频延迟，见 [性能边界](PERFORMANCE.md)。
+| 产物 | 版本 / 更新范围 |
+| --- | --- |
+| `VRization-Windows-x64.zip` | 更新后的 **0.3.1** 电脑端与文档。完整解压，运行其中的 `VRization-Host.exe`。 |
+| `VRization-Android-debug.apk`、`VRization-vr-core-alpha.aar` | 原样复用已验证 **0.3.0** 产物，字节与 SHA-256 不变；已有手机安装可保留。 |
+| `VRization-iOS-Simulator.zip` | 原样复用已验证 **0.3.0 / build 4** arm64 模拟器产物，不是 iPhone 安装包。 |
+| `VRization-iOS-source.zip` | 重新生成的源码包包含更新后的桌面端 / 文档，iOS 应用仍为 **0.3.0 / build 4**；真机安装仍需自己的 Apple 签名。 |
+| `VRization-Licenses.zip`、`SHA256SUMS.txt` | 本次产物的许可通知与校验清单，下载后按清单核对。 |
 
-### 下载与安装
+先关闭旧电脑端，再运行新版；保留完整解压目录与另行安装的 Microsoft Visual C++ v14 x64 运行库。手机保留已有 Android 安装及保存配置。打开“**USB 连接…**”，保持自动检测 USB，确认电脑显示“**安卓 USB 已就绪：…**”，再在手机点“**检测 USB 并连接**”。按 [USB 前提](USB.md) 与 [下载 / 归档说明](DOWNLOADS.md) 使用，并保留旧版已校验归档。
 
-产物名称仍为 `VRization-Windows-x64.zip`、`VRization-Android-debug.apk`、`VRization-vr-core-alpha.aar`、`VRization-iOS-source.zip`、`VRization-iOS-Simulator.zip`、`VRization-Licenses.zip` 与 `SHA256SUMS.txt`。Windows 完整解压，保留许可 / 文档文件夹，另行使用 Microsoft Visual C++ v14 x64 运行库。APK 仍为测试签名，保留数据覆盖升级要求签名一致；iOS 源码可编辑，没有替你的手机预先签名。
+USB 连接不会授权电脑鼠标；FPS 仍须在电脑主动授权，**F8** 停止控制。局域网继续可选，明文 `ws://` 仅用于可信网络。
 
-按 [上手教程](QUICKSTART.md)、[USB 前提](USB.md)、[iOS 签名](IOS.md) 与 [已校验下载 / 本地归档](DOWNLOADS.md) 使用。采集前明确选择画面。USB 连接、配置恢复、保存和重置均不会授权电脑鼠标；FPS 须电脑主动授权，**F8** 仍为停止键。局域网 `ws://` 仍未加密，只用于可信网络。
-
-[发布历史](releases/README.md)
+[v0.3.0-alpha](releases/v0.3.0-alpha.md) · [v0.2.0-alpha](releases/v0.2.0-alpha.md) · [发布历史](releases/README.md)

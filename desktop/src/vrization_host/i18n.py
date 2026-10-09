@@ -87,6 +87,8 @@ CHINESE = {
     'Custom': '自定义',
     'Low latency is the default for new users. FPS is a capture target; actual latency depends on the phone and connection. Try borderless mode for black games. Audio is not streamed.': '新用户默认低延迟预设。帧率是捕获目标，实际延迟取决于手机和连接。游戏黑屏可尝试无边框窗口模式。暂不串流声音。',
     'USB connection': 'USB 连接',
+    'USB connection…': 'USB 连接…',
+    'JPEG · USB / LAN · v{version}': 'JPEG · USB / 局域网 · v{version}',
     'Detect authorized USB phones automatically (recommended)': '自动检测已授权的 USB 手机（推荐）',
     'Automatic (one Android device)': '自动（仅一台安卓设备）',
     'Choose official SDK adb.exe…': '选择官方 SDK 中的 adb.exe…',

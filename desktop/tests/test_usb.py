@@ -3,10 +3,12 @@ import asyncio
 import ctypes
 from io import BytesIO
 import json
+import os
 from pathlib import Path
 import plistlib
 import socket
 import struct
+import subprocess
 import tempfile
 import threading
 from types import SimpleNamespace
@@ -23,7 +25,7 @@ from vrization_host.profiles import PROFILES, CUSTOM, apply_profile, capture_pro
 from vrization_host.server import HostServer
 from vrization_host.storage import load_usb_preferences, save_usb_preferences
 from vrization_host.usb import (AdbReverse, AndroidDevice, AppleDevice, AppleMux, IOSUsbRelay,
-                                MAX_FRAME, UsbManager, pack_frame, parse_adb_devices, read_frame)
+                                MAX_FRAME, UsbManager, find_adb, pack_frame, parse_adb_devices, read_frame)
 from vrization_host.usb import WindowsUsbPresence, pnp_usb_serials, windows_usb_instance_ids
 from test_native_client_wire import SyntheticJpegSource, RecordingInputSink
 
@@ -79,7 +81,117 @@ class MemorySocket:
         self.close()
 
 
+class AdbDiscoveryTests(unittest.TestCase):
+    def test_fresh_preferences_find_managed_sdk_and_authorize_only_physical_usb(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            path = base / "VRization/tools/android-sdk/platform-tools/adb.exe"
+            path.parent.mkdir(parents=True)
+            path.touch()  # Never execute the SDK fixture.
+            preferences = load_usb_preferences(base / "usb.json")
+            runner = FakeAdbRunner([("tcp:1111", "tcp:2222")])
+            calls = []
+
+            def run(command, **kwargs):
+                args = command[1:]
+                if args == ["devices", "-l"]:
+                    output = "USB123 device model:Huawei\nUNMATCHED device\nemulator-5554 device\n192.0.2.1:5555 device\n"
+                    return SimpleNamespace(returncode=0, stdout=output, stderr="")
+                if args[-1] == "get-devpath":
+                    return SimpleNamespace(returncode=0, stdout="unknown\n", stderr="")
+                return runner(command, **kwargs)
+
+            presence = WindowsUsbPresence(lambda: [r"USB\VID_12D1&PID_107E\USB123"],
+                                          windows=True, clock=lambda: 0)
+
+            def create_adb(selected_path):
+                calls.append(selected_path)
+                return AdbReverse(selected_path, run, usb_presence=presence)
+
+            events = []
+            manager = UsbManager(SimpleNamespace(port=8765, running=False), events.append,
+                                 adb_path=preferences["adb_path"],
+                                 preferred_serial=preferences["preferred_serial"],
+                                 mux=SimpleNamespace(devices=lambda: []))
+            with patch.dict(os.environ, {"LOCALAPPDATA": directory}, clear=True), \
+                 patch("vrization_host.usb.AdbReverse", side_effect=create_adb):
+                manager.set_enabled(preferences["enabled"])
+                manager.scan()
+                self.assertEqual(calls, [path.resolve()])
+                self.assertTrue(manager.authorized.is_set())
+                self.assertIn({"event": "usb_devices", "serials": ("USB123",)}, events)
+                self.assertIn(("tcp:18765", "tcp:8765"), runner.mappings)
+                manager.set_enabled(False)
+                manager.scan()
+                self.assertFalse(manager.authorized.is_set())
+                self.assertEqual(runner.mappings, {("tcp:1111", "tcp:2222")})
+
+    def test_explicit_environment_and_standard_sdk_keep_discovery_priority(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            paths = [base / "chosen/adb.exe", base / "sdk-home/platform-tools/adb.exe",
+                     base / "sdk-root/platform-tools/adb.exe",
+                     base / "Android/Sdk/platform-tools/adb.exe",
+                     base / "VRization/tools/android-sdk/platform-tools/adb.exe"]
+            for path in paths:
+                path.parent.mkdir(parents=True)
+                path.touch()
+            environment = {"LOCALAPPDATA": directory, "ANDROID_HOME": str(base / "sdk-home"),
+                           "ANDROID_SDK_ROOT": str(base / "sdk-root")}
+            with patch.dict(os.environ, environment, clear=True):
+                self.assertEqual(find_adb(str(paths[0])), paths[0].resolve())
+                self.assertEqual(find_adb(), paths[1].resolve())
+                with patch.dict(os.environ, {"ANDROID_HOME": ""}):
+                    self.assertEqual(find_adb(), paths[2].resolve())
+                    with patch.dict(os.environ, {"ANDROID_SDK_ROOT": ""}):
+                        self.assertEqual(find_adb(), paths[3].resolve())
+
+    def test_unknown_path_tool_and_non_adb_explicit_file_are_not_discovered(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            other = base / "untrusted/adb.exe"
+            other.parent.mkdir()
+            other.touch()
+            wrong_name = base / "something.exe"
+            wrong_name.touch()
+            with patch.dict(os.environ, {"LOCALAPPDATA": directory, "PATH": str(other.parent)}, clear=True):
+                self.assertIsNone(find_adb())
+                self.assertIsNone(find_adb(str(wrong_name)))
+
+    def test_managed_tools_installed_after_first_scan_are_found_without_restart(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            path = base / "VRization/tools/android-sdk/platform-tools/adb.exe"
+            manager = UsbManager(SimpleNamespace(port=8765, running=False),
+                                 mux=SimpleNamespace(devices=lambda: []))
+            manager.set_enabled(True)
+            fake_adb = SimpleNamespace(owned=None, devices=lambda: [AndroidDevice("USB123", "device", True)],
+                                       ensure=lambda serial, port: True, release=lambda: None)
+            with patch.dict(os.environ, {"LOCALAPPDATA": directory}, clear=True), \
+                 patch("vrization_host.usb.AdbReverse", return_value=fake_adb) as factory:
+                manager.scan()
+                factory.assert_not_called()
+                self.assertFalse(manager.authorized.is_set())
+                path.parent.mkdir(parents=True)
+                path.touch()
+                manager.scan()
+                factory.assert_called_once_with(path.resolve())
+                self.assertTrue(manager.authorized.is_set())
+
+
 class UsbOwnershipTests(unittest.TestCase):
+    def test_adb_background_command_never_inherits_windowed_stdin(self):
+        def runner(command, **kwargs):
+            # Model a windowed launch without a console stdin. Real ADB and
+            # user devices are never opened by this regression fixture.
+            if kwargs.get("stdin") != subprocess.DEVNULL:
+                raise OSError(6, "Invalid inherited standard-input handle")
+            self.assertTrue(kwargs["capture_output"])
+            self.assertEqual(command[1:], ["devices", "-l"])
+            return SimpleNamespace(returncode=0, stdout="USB123 device usb:1-4\n", stderr="")
+        self.assertEqual(AdbReverse(Path("adb.exe"), runner).devices(),
+                         [AndroidDevice("USB123", "device", True)])
+
     def test_adb_ignores_emulator_ip_and_mdns_transports(self):
         text = ("List of devices attached\nUSB123 device usb:1-4 model:HUAWEI\n"
                 "emulator-5554 device\n192.0.2.1:5555 device\n"

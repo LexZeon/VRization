@@ -41,13 +41,15 @@ def safe_relay_error(error) -> str:
 
 
 def find_adb(explicit: str = "") -> Path | None:
-    """Only use an explicitly chosen SDK tool or standard Android SDK locations."""
+    """Use a chosen or known SDK tool, never an arbitrary PATH/CWD executable."""
     candidates = [Path(explicit)] if explicit else []
     for variable in ("ANDROID_HOME", "ANDROID_SDK_ROOT"):
         if os.environ.get(variable):
             candidates.append(Path(os.environ[variable]) / "platform-tools" / "adb.exe")
-    candidates.append(Path(os.environ.get("LOCALAPPDATA", Path.home())) /
-                      "Android" / "Sdk" / "platform-tools" / "adb.exe")
+    local_app_data = Path(os.environ.get("LOCALAPPDATA") or Path.home())
+    candidates.extend((local_app_data / "Android" / "Sdk" / "platform-tools" / "adb.exe",
+                       local_app_data / "VRization" / "tools" / "android-sdk" /
+                       "platform-tools" / "adb.exe"))
     for path in candidates:
         if path.name.lower() in ("adb", "adb.exe") and path.is_file():
             return path.resolve()
@@ -181,7 +183,9 @@ class AdbReverse:
         self.usb_presence = usb_presence or WindowsUsbPresence()
 
     def command(self, *args) -> str:
-        result = self.runner([str(self.path), *args], capture_output=True, text=True,
+        # Windowed frozen applications can have no valid inherited stdin handle.
+        # ADB discovery is noninteractive; never inherit GUI standard handles.
+        result = self.runner([str(self.path), *args], stdin=subprocess.DEVNULL, capture_output=True, text=True,
                              timeout=3, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
         if result.returncode:
             raise OSError(result.stderr.strip() or "Android USB command failed")

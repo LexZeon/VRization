@@ -5,7 +5,13 @@
 <!-- vrization:english -->
 ## English
 
-Download published assets and `SHA256SUMS.txt` from [GitHub Releases](https://github.com/LexZeon/VRization/releases). Keep release versions together when updating the computer and phone. Published alpha builds have the limitations recorded in [release notes](RELEASE_NOTES.md) and [compatibility records](COMPATIBILITY.md).
+Download published assets and `SHA256SUMS.txt` from [GitHub Releases](https://github.com/LexZeon/VRization/releases). Use the application versions listed for that release: a host-only patch can intentionally retain older phone assets. Published alpha builds have the limitations recorded in [release notes](RELEASE_NOTES.md) and [compatibility records](COMPATIBILITY.md).
+
+### v0.3.1-alpha: update Windows, keep the phone app
+
+This release combines **Windows host 0.3.1** with the verified **Android APK / AAR and iOS app 0.3.0** over unchanged protocol v1. The Android APK, AAR and arm64 iOS Simulator ZIP are reused unchanged, with the same SHA-256 values as v0.3.0-alpha. **An existing v0.3.0 Android installation does not need reinstalling, upgrading or clearing its saved profiles.** Close the old host, extract the full new Windows ZIP and run the new EXE.
+
+The iOS source ZIP is regenerated to include updated desktop sources / documentation; its iOS application remains **0.3.0 / build 4**, as does the unchanged Simulator app. It still requires your Apple signing for a physical phone. Match each downloaded asset to this release's `SHA256SUMS.txt`, rather than expecting all application version labels or all ZIP hashes to change. The patch's connection checks and inherited limits are in [current notes](RELEASE_NOTES.md); [v0.3.0 notes](releases/v0.3.0-alpha.md) preserve the earlier acceptance.
 
 | Download | What to do with it |
 | --- | --- |
@@ -52,16 +58,22 @@ Open `OPEN-ME.html` for the local bilingual index. Double-click `latest/Start-Wi
 
 Updating stages a complete new `latest` copy and preserves the old managed copy as `previous-latest-…`. `versions/` retains the historical downloads. An existing `latest` without the script's ownership metadata is left untouched and causes an error; choose another destination rather than deleting an unrelated folder. Keep the full Windows folder when moving an extracted version. Refresh the archive after a new GitHub release is published to obtain that release; unpublished local builds are not downloaded.
 
-### Keep v0.2 and v0.3 separate
+### Preserve historical versions when updating
 
-v0.2.0-alpha was published and archived before the v0.3 editor / reset / profile changes. Keep its verified assets and checksums; refresh the archive only after the next version is actually published. [Release history](releases/README.md) preserves old notes. Reset in an application changes local preferences; it does not delete historical releases or replace archive downloads. See [editor reset scope](EDITING.md).
+v0.2.0-alpha preceded the v0.3 editor / reset / profile release; v0.3.1-alpha is the Windows USB patch. Keep each version's verified assets and checksums, even where phone assets are identical. Refresh the archive only after the next version is actually published. [Release history](releases/README.md) preserves old notes. Reset in an application changes local preferences; it does not delete historical releases or replace archive downloads. See [editor reset scope](EDITING.md).
 
 ---
 
 <!-- vrization:chinese -->
 ## 简体中文
 
-从 [GitHub Releases](https://github.com/LexZeon/VRization/releases) 下载已发布产物及 `SHA256SUMS.txt`。更新时尽量让电脑与手机使用同一发布版本。Alpha 版限制见 [发布说明](RELEASE_NOTES.md) 与 [兼容性记录](COMPATIBILITY.md)。
+从 [GitHub Releases](https://github.com/LexZeon/VRization/releases) 下载已发布产物及 `SHA256SUMS.txt`，使用该次发布明确列出的应用版本；仅修复电脑端的补丁可以有意保留较早手机产物。Alpha 版限制见 [发布说明](RELEASE_NOTES.md) 与 [兼容性记录](COMPATIBILITY.md)。
+
+### v0.3.1-alpha：更新电脑端，保留手机软件
+
+本次发布用 **0.3.1 电脑端**搭配已验证的 **0.3.0 Android APK / AAR 与 iOS 应用**，共用不变的协议 v1。Android APK、AAR 和 arm64 iOS 模拟器 ZIP 原样复用，SHA-256 与 v0.3.0-alpha 相同。**已有 v0.3.0 Android 安装无需重装、升级或清除保存配置。** 关闭旧电脑端，完整解压新的 Windows ZIP，再运行新 EXE。
+
+iOS 源码 ZIP 重新生成，包含更新的桌面源码 / 文档；其中 iOS 应用仍是 **0.3.0 / build 4**，模拟器应用也不变。真实手机仍需自己的 Apple 签名。按本次 `SHA256SUMS.txt` 核对每个产物，不要要求所有应用版本号或全部 ZIP 校验值都变化。补丁连接检查与继承限制见 [当前说明](RELEASE_NOTES.md)，[v0.3.0 原说明](releases/v0.3.0-alpha.md) 保留较早验收。
 
 | 下载文件 | 用法 |
 | --- | --- |
@@ -109,6 +121,6 @@ Documents/VRization-Releases/
 更新时先准备完整的新 `latest`，再把旧的已管理副本保留为 `previous-latest-…`；`versions/` 继续保留历史下载。如果已有 `latest` 不含脚本归属元数据，会保持不动并报错；应选择其他目标目录，不要删除无关文件夹。移动已解压版本时保留整个 Windows 文件夹。GitHub 新版本发布后重新运行才能取得该版本，尚未发布的本机构建不会被下载。
 
 
-### 分开保留 v0.2 与 v0.3
+### 更新时保留历史版本
 
-v0.2.0-alpha 已先发布 / 归档，再推进 v0.3 编辑器 / 重置 / 配置变化；保留它的已校验产物与校验值，下一版实际发布后再刷新归档。[发布历史](releases/README.md) 保留原说明。应用内重置只改变本地偏好，不删除历史版本或替换归档下载，见 [编辑重置范围](EDITING.md)。
+v0.2.0-alpha 先于 v0.3 编辑器 / 重置 / 配置发布，v0.3.1-alpha 则是电脑端 USB 补丁。即使手机产物相同，也保留每版已校验产物与校验值，下一版实际发布后再刷新归档。[发布历史](releases/README.md) 保留原说明。应用内重置只改变本地偏好，不删除历史版本或替换归档下载，见 [编辑重置范围](EDITING.md)。

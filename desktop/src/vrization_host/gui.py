@@ -254,6 +254,8 @@ class HostWindow:
         self.stop_button = ttk.Button(row, text=self.tr("停止"), command=self.stop, state="disabled")
         self.stop_button.pack(side="left", fill="x", expand=True, padx=(0, 6))
         ttk.Button(row, text=self.tr("复制连接"), command=self.copy_link).pack(side="left", fill="x", expand=True)
+        ttk.Button(actions, text=self.tr("USB connection…"),
+                   command=self.show_usb_settings).pack(fill="x", pady=(8, 0))
 
         modes = ttk.Frame(outer, padding=(16, 10))
         modes.pack(fill="x", pady=(0, 12))
@@ -280,7 +282,7 @@ class HostWindow:
         bottom.pack(fill="x", pady=(12, 0))
         self.status = self._label(bottom, self.tr("●  尚未启动  /  READY"), 10, MUTED)
         self.status.pack(side="left")
-        self.stats = self._label(bottom, self.tr("JPEG · 局域网 · v{version}", version=__version__), 9, MUTED)
+        self.stats = self._label(bottom, self.tr("JPEG · USB / LAN · v{version}", version=__version__), 9, MUTED)
         self.stats.pack(side="right")
         self.log = tk.Text(footer, height=3, bg=BG, fg=MUTED, bd=0, highlightthickness=0,
                            font=("Microsoft YaHei UI", 9), state="disabled", wrap="word")
@@ -304,6 +306,7 @@ class HostWindow:
         return interior
 
     def _capture_tab(self, tab):
+        self.usb_settings_canvas = tab.master
         tab.columnconfigure(1, weight=1)
         try:
             self.monitors = MssCaptureSource.monitors()
@@ -378,6 +381,12 @@ class HostWindow:
         for key in ("width", "fps", "quality"):
             self.capture_vars[key].set(str(getattr(config, key)))
         self.apply_capture()
+
+    def show_usb_settings(self):
+        canvas = self.usb_settings_canvas
+        self.notebook.select(canvas.master)
+        self.root.update_idletasks()
+        canvas.yview_moveto(1)
 
     def change_usb(self, event=None):
         selected = self.usb_device.get()
@@ -700,6 +709,7 @@ class HostWindow:
             elif kind == "usb":
                 self.usb_status = (event["message"], event["values"])
                 self.usb_label.configure(text=self.tr(event["message"], **event["values"]))
+                self._log(self.tr(event["message"], **event["values"]))
             elif kind == "usb_devices":
                 self.usb_serials = event["serials"]
                 self.usb_device.configure(values=[self.tr("Automatic (one Android device)")] + list(self.usb_serials))
