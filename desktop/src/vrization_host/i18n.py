@@ -59,6 +59,7 @@ ENGLISH = {
 
 CHINESE = {
     'Headset editor': '画面编辑',
+    'Scale {scale} · Eye spacing {spacing} · X {x} · Y {y}': '缩放 {scale} · 双眼间距 {spacing} · X {x} · Y {y}',
     'Drag one eye sideways to adjust eye spacing: that eye follows your drag and the other moves oppositely. Drag vertically to move both, or drag a corner to resize. Save syncs the fit; Discard keeps your previous fit.': '横向拖动任一眼来调整间距：这一眼跟随拖动，另一眼反方向移动。竖向拖动同时移动双眼，拖动顶点缩放。保存同步适配设置，弃用保留之前的设置。',
     'Drag one eye sideways · The other eye moves oppositely': '横向拖动任一眼 · 另一眼反方向移动',
     'Drag a corner to resize around the center. Drag inside to move: left moves the picture right, and right moves it left. Both eyes change together. Save syncs the fit; Discard keeps your previous fit.': '拖动顶点围绕中心等比例缩放。拖动内部移动：向左拖，画面向右；向右拖，画面向左。双眼同步变化，保存同步适配设置，弃用保留之前的设置。',

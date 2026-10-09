@@ -143,7 +143,9 @@ class HeadsetEditor:
                                     text=self.owner.tr("Left eye" if eye == 0 else "Right eye"),
                                     fill="#94a8c4")
         self.canvas.create_line(x + width / 2, y, x + width / 2, y + height, fill="#94a8c4")
-        self.values.configure(text=f"{self.draft.scale:.0%}  ·  X {self.draft.offsetX:+.3f}  ·  Y {self.draft.offsetY:+.3f}")
+        self.values.configure(text=self.owner.tr("Scale {scale} · Eye spacing {spacing} · X {x} · Y {y}",
+                              scale=f"{self.draft.scale:.0%}", spacing=f"{self.draft.eyeSeparation:.3f}",
+                              x=f"{self.draft.offsetX:+.3f}", y=f"{self.draft.offsetY:+.3f}"))
 
     def begin(self, event):
         x, y, width, height = self.geometry()
