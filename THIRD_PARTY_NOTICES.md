@@ -96,6 +96,12 @@ Record name, author, exact version / commit, original URL, purpose, modification
 
 ---
 
+### Windows capture API references
+
+The original native Windows capture adapter calls system User32 / GDI32 APIs to scale into a smaller top-down bitmap before Python reads pixels. Microsoft references: [StretchBlt](https://learn.microsoft.com/en-us/windows/win32/api/wingdi/nf-wingdi-stretchblt), [CreateDIBSection](https://learn.microsoft.com/en-us/windows/win32/api/wingdi/nf-wingdi-createdibsection), [GdiFlush](https://learn.microsoft.com/en-us/windows/win32/api/wingdi/nf-wingdi-gdiflush), [SetStretchBltMode](https://learn.microsoft.com/en-us/windows/win32/api/wingdi/nf-wingdi-setstretchbltmode), [GetDC](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getdc), [ReleaseDC](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-releasedc) and [GetMonitorInfoW](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getmonitorinfow). No Microsoft sample implementation, SDK or system DLL is copied or bundled. Windows supplies these APIs under its own terms; the adapter is original MIT code. MSS remains the compatibility fallback.
+
+---
+
 <!-- vrization:chinese -->
 ## 简体中文
 
@@ -187,3 +193,7 @@ Apple Devices / Apple Mobile Device 支持需按 Apple 条款另行安装；用�
 ### 来源记录规则
 
 新增依赖、代码片段或素材时记录：名称、作者、精确版本 / commit、原始 URL、用途、是否修改、许可路径与分发要求。任何修改过的第三方文件需明确标注修改，不删除原始版权头。依赖升级后重新收集许可证并对照实际安装 / Gradle 解析结果，避免声明和二进制不一致。
+
+### Windows 采集 API 参考
+
+原创 Windows 原生采集适配器调用系统 User32 / GDI32，先缩小到顶向下位图，再由 Python 读取像素。Microsoft 参考：[StretchBlt](https://learn.microsoft.com/en-us/windows/win32/api/wingdi/nf-wingdi-stretchblt)、[CreateDIBSection](https://learn.microsoft.com/en-us/windows/win32/api/wingdi/nf-wingdi-createdibsection)、[GdiFlush](https://learn.microsoft.com/en-us/windows/win32/api/wingdi/nf-wingdi-gdiflush)、[SetStretchBltMode](https://learn.microsoft.com/en-us/windows/win32/api/wingdi/nf-wingdi-setstretchbltmode)、[GetDC](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getdc)、[ReleaseDC](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-releasedc) 和 [GetMonitorInfoW](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getmonitorinfow)。未复制或随包分发微软示例实现、SDK 或系统 DLL。Windows 按自身条款提供这些 API，适配器为原创 MIT 代码；保留 MSS 兼容回退。

@@ -3,6 +3,7 @@
 import asyncio
 from dataclasses import dataclass
 from io import BytesIO
+import os
 import threading
 import time
 from typing import Protocol, runtime_checkable
@@ -57,9 +58,31 @@ class CaptureSource(Protocol):
     def close(self) -> None: ...
 
 
+def capture_rectangle(config: CaptureConfig, monitors: list[dict]) -> dict:
+    """Resolve one explicit selection before choosing any capture backend."""
+    if config.monitor >= len(monitors):
+        raise ValueError("selected monitor is unavailable")
+    monitor = {key: monitors[config.monitor][key] for key in ("left", "top", "width", "height")}
+    if config.region:
+        left, top, width, height = config.region
+        desktop = monitors[0]
+        if (left < desktop["left"] or top < desktop["top"]
+                or left + width > desktop["left"] + desktop["width"]
+                or top + height > desktop["top"] + desktop["height"]):
+            raise ValueError("capture region falls outside the desktop")
+        monitor = {"left": left, "top": top, "width": width, "height": height}
+    if monitor["width"] <= 0 or monitor["height"] <= 0:
+        raise ValueError("selected monitor is unavailable")
+    return monitor
+
+
 class MssCaptureSource:
-    def __init__(self):
+    def __init__(self, prefer_native: bool = True):
         self._screen = None
+        self._native = None
+        self._layout = None
+        self._prefer_native = prefer_native
+        self._native_failed = False
 
     @staticmethod
     def monitors() -> list[dict]:
@@ -72,27 +95,45 @@ class MssCaptureSource:
         from PIL import Image
         if self._screen is None:
             self._screen = MSS()
-        if config.monitor >= len(self._screen.monitors):
-            raise ValueError("selected monitor is unavailable")
-        monitor = dict(self._screen.monitors[config.monitor])
-        if config.region:
-            left, top, width, height = config.region
-            desktop = self._screen.monitors[0]
-            if (left < desktop["left"] or top < desktop["top"]
-                    or left + width > desktop["left"] + desktop["width"]
-                    or top + height > desktop["top"] + desktop["height"]):
-                raise ValueError("capture region falls outside the desktop")
-            monitor = {"left": left, "top": top, "width": width, "height": height}
-        shot = self._screen.grab(monitor)
-        image = Image.frombytes("RGB", shot.size, shot.bgra, "raw", "BGRX")
-        dimensions = output_size(image.width, image.height, config.width)
-        if dimensions != image.size:
-            image = image.resize(dimensions, Image.Resampling.BILINEAR)
+        if os.name == "nt":
+            if self._layout is None:
+                from .windows_capture import WindowsDisplayLayout
+                self._layout = WindowsDisplayLayout()
+            # MSS caches monitor coordinates. Fail before either backend reads
+            # pixels if a display moves/disconnects or another device replaces it.
+            self._layout.validate(self._screen.monitors)
+        monitor = capture_rectangle(config, self._screen.monitors)
+        dimensions = output_size(monitor["width"], monitor["height"], config.width)
+        image = None
+        if self._prefer_native and os.name == "nt" and not self._native_failed:
+            try:
+                if self._native is None:
+                    from .windows_capture import WindowsGdiCapture
+                    self._native = WindowsGdiCapture()
+                pixels = self._native.grab(monitor, dimensions)
+                image = Image.frombytes("RGB", dimensions, pixels, "raw", "BGRX")
+            except (OSError, AttributeError):
+                # Unsupported display/session/API: keep MSS available, using
+                # precisely the same already-validated rectangle, never monitor 1.
+                if self._native is not None:
+                    self._native.close()
+                    self._native = None
+                self._native_failed = True
+        if image is None:
+            shot = self._screen.grab(monitor)
+            image = Image.frombytes("RGB", shot.size, shot.bgra, "raw", "BGRX")
+            if dimensions != image.size:
+                image = image.resize(dimensions, Image.Resampling.BILINEAR)
         output = BytesIO()
         image.save(output, "JPEG", quality=config.quality, optimize=False)
         return Frame(output.getvalue(), image.width, image.height, time.monotonic())
 
     def close(self):
+        if self._native is not None:
+            self._native.close()
+            self._native = None
+        self._native_failed = False
+        self._layout = None
         if self._screen is not None:
             self._screen.close()
             self._screen = None

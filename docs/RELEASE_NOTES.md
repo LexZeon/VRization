@@ -13,7 +13,7 @@ Windows screen → Android, iPhone or iPad VR viewing, with fixed full screen, a
 - **USB is the default** on the Windows host and both mobile clients. Authorized physical Android devices use official ADB reverse forwarding and local host discovery; iOS uses Apple's Windows USB service and an original framed relay. LAN with manual pairing remains available.
 - Automatic authorized-device detection: one Android phone is selected automatically; multiple Android devices require selection. iOS supports one attached Apple mobile device. Start streaming on the PC and keep the phone app in the foreground. Backgrounding or changing phone language requires explicit reconnecting.
 - Low-latency preset for new configurations: maximum long edge **960**, target **60 FPS**, JPEG quality **60**. Stable, quality and custom settings let you balance load and clarity. The phone reports receive FPS and link round trip; neither measures end-to-end video latency.
-- Windows DPI fallbacks, USB mapping ownership / cleanup, local bootstrap request restrictions, and bounded iOS framing / handshake validation.
+- Windows DPI fallbacks, native capture that scales before pixel readback with an MSS fallback, display-layout validation, USB mapping ownership / cleanup, local bootstrap restrictions, and bounded iOS framing / handshake validation. Capture failure disarms FPS input.
 - Illustrated bilingual USB / iOS guides and a verified local release archive tool that preserves historical versions and a fully extracted latest Windows program. Every project-owned public page remains complete English first, then Chinese below.
 
 ### Verification and limits
@@ -54,7 +54,7 @@ Windows 电脑画面 → Android、iPhone 或 iPad VR 观看，支持固定全�
 - Windows 和两种手机端均**默认 USB**。已授权 Android 真机通过官方 ADB 反向转发与本机服务发现连接；iOS 通过 Apple 的 Windows USB 服务和原创分帧中继连接。保留手动配对的局域网方式。
 - 自动检测授权设备：一台 Android 自动选择，多台需选择；iOS 支持连接一台 Apple 移动设备。电脑需开始串流，手机需保持前台。手机进入后台或切换语言后需显式重连。
 - 新配置默认低延迟预设：最长边 **960**、目标 **60 FPS**、JPEG 质量 **60**。另有稳定、清晰与自定义设置。手机显示接收帧率和链路往返时间，两者都不是端到端视频延迟。
-- Windows DPI 回退、USB 映射归属与清理、本地 bootstrap 请求限制，以及 iOS 分帧大小与握手校验。
+- Windows DPI 回退、读回像素前缩小的原生采集及 MSS 回退、显示布局校验、USB 映射归属与清理、本地 bootstrap 限制，以及 iOS 分帧大小与握手校验。采集失败会解除 FPS 输入授权。
 - 新增双语图文 USB / iOS 教程及校验式本地归档工具，保留历史版本和完整解压的最新版 Windows 程序。所有自有公共页面继续先完整英文、再完整中文。
 
 ### 验证与限制

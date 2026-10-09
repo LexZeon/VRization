@@ -41,6 +41,10 @@ flowchart LR
 
 `CaptureSource` defines `read(config: CaptureConfig) -> Frame` and `close()`. `Frame` contains JPEG bytes, width, height and monotonic `captured_at`. The default source captures and encodes the desktop. An adapter can supply game-rendered images, remote application output or test frames.
 
+On Windows, the original GDI backend scales the selected physical-pixel rectangle into a bounded top-down DIB before copying pixels into Python. It completes GDI writes before reading the bitmap, returns an owned byte copy, and creates / releases resources on the dedicated capture thread. If the native operation is unsupported or fails, MSS captures **the same validated rectangle**. `MssCaptureSource(prefer_native=False)` selects MSS explicitly. Pre-scaling reduces the bytes copied into Python but does not guarantee the target frame rate, especially for a busy high-resolution desktop.
+
+Before either Windows backend reads pixels, a fresh display-layout query checks output names and coordinates against the cached monitor selection. A mismatch or unverifiable layout stops new frames instead of capturing stale coordinates; Stop, reselect the display / region, then Start again. Output names identify Windows display outputs, not physical panel serial numbers. Any capture error immediately disarms FPS mouse control; resuming requires explicit authorization again. See the measured session and its limits in [validation](VALIDATION.md).
+
 Inject adapters with `HostServer(capture_source=..., input_sink=...)`. Capture and input are independent; sending images does not require enabling input.
 
 The runnable [embedded_host.py](../examples/embedded_host.py) provides an original animated calibration card and a logging input sink. It neither captures the user's screen nor sends OS input. After installing the host package, run `python examples/embedded_host.py` from the root, choose **LAN** on the phone, then use the printed port and code plus the PC's LAN IP. This example does not enable automatic USB pairing.
@@ -168,6 +172,10 @@ flowchart LR
 ### 替换电脑画面来源
 
 桌面端 `CaptureSource` 接口定义 `read(config: CaptureConfig) -> Frame` 和 `close()`。`Frame` 包含 `jpeg: bytes`、`width`、`height` 和单调时钟 `captured_at`；默认实现采集并编码桌面。其他软件可以提供自己的 JPEG 帧，例如游戏已渲染的图像、远程应用输出或测试画面，再交给同一主机服务。
+
+Windows 上的原创 GDI 后端先把选定的物理像素矩形缩放到大小受限、从上到下排列的 DIB，再把像素复制进 Python。读取位图前完成 GDI 写入，返回拥有独立内存的字节副本；资源在专用采集线程创建和释放。原生操作不受支持或失败时，MSS 采集**同一个已校验矩形**；`MssCaptureSource(prefer_native=False)` 可显式选择 MSS。预缩放减少复制进 Python 的像素数据量，但不保证达到目标帧率，尤其在忙碌的高分辨率桌面上。
+
+任一 Windows 后端读取像素前，都会重新查询显示布局，把输出名称与坐标同缓存的显示器选择核对。失配或无法确认布局时，停止产生新帧，不继续采集旧坐标；需停止串流、重新选择显示器 / 区域，再启动。输出名称代表 Windows 显示输出，不是物理面板序列号。任何采集错误都会立即解除 FPS 鼠标授权；恢复控制必须重新明确授权。实际测量及其限制见 [验证记录](VALIDATION.md)。
 
 通过 `HostServer(capture_source=..., input_sink=...)` 注入适配器。画面与输入接口分开，集成者可以只发送图像而不启用任何输入。
 

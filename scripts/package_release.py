@@ -15,7 +15,8 @@ ROOT = Path(__file__).resolve().parents[1]
 def add_tree(archive, path, name=None):
     if path.is_dir():
         for file in sorted(path.rglob("*")):
-            if file.is_file():
+            if (file.is_file() and "__pycache__" not in file.parts
+                    and file.suffix not in {".pyc", ".pyo"}):
                 archive.write(file, file.relative_to(ROOT).as_posix())
     else:
         archive.write(path, name or path.relative_to(ROOT).as_posix())
@@ -82,7 +83,7 @@ def package_ios_source(out):
 
 def package_ios(out):
     package_ios_source(out)
-    app = ROOT / "artifacts/ios/simulator/Build/Products/Debug-iphonesimulator/VRization.app"
+    app = ROOT / "artifacts/ios/simulator/Build/Products/Debug-iphonesimulator/VRizationApp.app"
     if not app.is_dir():
         raise FileNotFoundError("Build the iOS Simulator app on macOS before packaging")
     subprocess.run(["ditto", "-c", "-k", "--sequesterRsrc", "--keepParent", str(app),

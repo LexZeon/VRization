@@ -23,7 +23,7 @@ Recorded 2026-10-08. Automated checks, desktop capture and emulator observations
 | Endpoint round trip | Real Android controls sent offsetX 0.3 and separation 0.2; host accepted, echoed and saved them without disconnecting. | Float serialization did not incorrectly reject these boundary values. |
 | No-sensor fallback | Emulator has no usable rotation sensor; full screen works. | Fixed viewing without sensor support. |
 
-Current phone screenshots have been updated to the final v0.1.1 English interface and show the original [calibration example](../examples/embedded_host.py). Receive-FPS readings describe those sessions, **not end-to-end latency measurements or performance benchmarks**. The emulator uses software graphics; readings from actual desktop reception likewise do not predict physical phones, viewers or Wi-Fi. No game-FPS guarantee follows from them. The table above remains the historical first-release record.
+The older emulator screenshot files show the final v0.1.1 English interface and show the original [calibration example](../examples/embedded_host.py). Receive-FPS readings describe those sessions, **not end-to-end latency measurements or performance benchmarks**. The emulator uses software graphics; readings from actual desktop reception likewise do not predict physical phones, viewers or Wi-Fi. No game-FPS guarantee follows from them. The table above remains the historical first-release record.
 
 ### v0.1.1-alpha follow-up checks
 
@@ -51,14 +51,23 @@ No FATAL, native-fatal or out-of-memory errors were observed. One `EGL_BAD_SURFA
 
 ### v0.2.0-alpha checks
 
-- Windows host: **59 automated tests passed**, including USB discovery / mapping ownership, iOS relay framing / pairing checks, loopback bootstrap restrictions, Windows DPI fallback, actual WebSocket wire messages and capture pacing. A new local Windows EXE was built with CPython 3.12.14.
+- Windows host: **69 automated tests passed**, including USB discovery / mapping ownership, iOS relay framing / pairing checks, loopback bootstrap restrictions, Windows DPI fallback, actual WebSocket wire messages and capture pacing. A new local Windows EXE was built with CPython 3.12.14.
 - Android: **27 tests passed** (6 core and 21 app), APK build / lint passed. The same local debug certificate upgraded the attached HUAWEI Pura 70 Ultra from version code 1 to code 3 without uninstalling.
 - Physical phone: HUAWEI Pura 70 Ultra, reporting Android 12 / API 31 compatibility, received the original **960 × 540** calibration card over an actual data cable. USB and English were default. Authorized discovery, fresh-launch automatic connection, both-eye rendering and hidden controls / Back recovery passed. No manual IP or pairing code was entered in USB mode.
 - Chinese persisted after force-stop / reopen; switching language disconnected the host and required an explicit reconnect. A new process launch made its documented one-time USB connection attempt. In FPS mode the host received **877 real sensor pose messages** during the observed interval. No operating-system mouse input was armed; the fake sink remained empty. These observations do not verify physical gyro axes or real-game control.
 - USB detection encountered a real Huawei difference: ADB did not return a usable USB path. The final Windows implementation verifies the physical USB serial through native SetupAPI enumeration. Emulators and network ADB remain excluded.
+- The same phone also received actual ASUS PA279 portrait desktop frames over USB at **540 × 960**. Home / background disconnected the host, and returning to the foreground did not silently reconnect. Full desktop capture performance is measured separately below.
 - New screenshots show this phone and its USB reception; the source is an original calibration card, not a game. The phone's observed ping round trip of **4–7 ms** is a connection diagnostic, **not end-to-end video latency**.
 
-The release retains the previous API 23 / 36 results below as historical evidence; they are not fresh hardware coverage of every v0.2.0 change. iOS builds / UI results and final Windows interface checks are recorded here after their actual completion. Physical iPhone USB remains untested.
+The final calibration USB session, at 960 × 540 / target 60 FPS / JPEG 60, recorded **60 consecutive host-send samples averaging 59.99 FPS (59.74–60.22)** after the Windows pacing fix. The phone UI showed approximately 60 FPS received. This is a synthetic-content diagnostic on the physical USB path, not desktop-capture performance or an end-to-end latency benchmark. The earlier Windows tick-based pacing fluctuated around 32–64 FPS. Different content / capture costs require separate measurement.
+
+The actual ASUS desktop USB session used the native GDI backend and produced **540 × 960** frames. Its **24 host-send FPS samples averaged 11.05, ranging from 8.2 to 12.11**. When the display layout later changed, the layout guard stopped producing new frames; no operating-system mouse input was emitted. This establishes the observed capture / USB path and fail-closed behavior, not a 60 FPS desktop guarantee or end-to-end video latency.
+
+CS2 and Discord remained running as requested. GPU 3D utilization was observed near full load, while Discord used approximately one CPU core. These are concurrent-load observations, not a controlled performance comparison, and do not establish which application caused the capture limit. The local native / MSS timing trials likewise ran on the busy desktop; their results must not be presented as controlled backend benchmarks.
+
+The new EXE started on the actual ASUS display in English with USB discovery. A clean preference profile selected 960 / 60 / 60 automatically; existing capture settings remained Custom. The desktop preview automation tool later failed to capture its window during a changed display-resolution / scaling layout, so further GUI interaction was not counted as passing.
+
+The release retains the previous API 23 / 36 results above as historical evidence; they are not fresh coverage of every v0.2.0 change. The complete iOS validation result remains pending; it is not recorded as passed. Physical iPhone USB remains untested.
 
 ### Still needs physical testing
 
@@ -100,7 +109,7 @@ Microsoft Visual C++ v14 x64 runtime is installed by the system, not shipped ins
 | 设置边界值往返 | 实际 Android 界面把水平位置设为 0.3、双眼间距设为 0.2，主机接受、回传并保存，连接保持。 | 浮点边界值不会因序列化误差被主机误拒绝。 |
 | 无传感器回退 | 模拟器没有可用旋转传感器，客户端可使用全屏模式。 | 无传感器设备的固定画面路径可运行。 |
 
-当前手机截图已更新为最终 v0.1.1 英文界面，对应 [examples/embedded_host.py](../examples/embedded_host.py) 的原创校准卡，未用真实游戏画面冒充实机测试。接收帧率是当次连接状态，**没有测量端到端延迟，也不构成性能基准**；上表仍保留首发的历史记录。
+较早的模拟器截图文件展示最终 v0.1.1 英文界面，对应 [examples/embedded_host.py](../examples/embedded_host.py) 的原创校准卡，未用真实游戏画面冒充实机测试。接收帧率是当次连接状态，**没有测量端到端延迟，也不构成性能基准**；上表仍保留首发的历史记录。
 
 上述模拟器使用软件图形渲染；实际桌面连接测试的接收读数同样不能代表 Android 真机、手机盒子或真实无线网络的性能。没有根据这些读数承诺游戏帧率。
 
@@ -130,14 +139,23 @@ Microsoft Visual C++ v14 x64 runtime is installed by the system, not shipped ins
 
 ### v0.2.0-alpha 检查
 
-- Windows 电脑端 **59 项自动检查通过**，包含 USB 识别 / 映射归属、iOS 中继分帧 / 配对、回环 bootstrap 限制、Windows DPI 回退、实际 WebSocket 报文与采集节奏。本地使用 CPython 3.12.14 重新构建 Windows EXE。
+- Windows 电脑端 **69 项自动检查通过**，包含 USB 识别 / 映射归属、iOS 中继分帧 / 配对、回环 bootstrap 限制、Windows DPI 回退、实际 WebSocket 报文与采集节奏。本地使用 CPython 3.12.14 重新构建 Windows EXE。
 - Android **27 项检查通过**（核心 6、应用 21），APK 构建 / lint 通过。同一本地 debug 证书在接入的 HUAWEI Pura 70 Ultra 从 version code 1 覆盖升级到 code 3，无需卸载。
 - 真机 HUAWEI Pura 70 Ultra 报告 Android 12 / API 31 兼容层，经真实数据线接收 **960 × 540** 原创校准卡。默认 USB 和英文，授权发现、新启动自动连接、双眼渲染、隐藏设置 / 返回恢复通过，USB 未手填 IP 或配对码。
 - 中文在强制停止 / 重开后保留；切换语言会断开并要求显式重连。新进程启动进行了文档约定的一次 USB 自动尝试。FPS 模式的观察区间收到 **877 条真实传感器姿态消息**，未授权操作系统鼠标，假接收器保持为空。这不代表陀螺仪实际轴向或真实游戏控制已经验证。
 - 真机测试发现华为差异：ADB 未提供可用 USB 路径。最终 Windows 实现通过原生 SetupAPI 枚举确认真实 USB 序列号，继续排除模拟器与网络 ADB。
+- 同一手机还经 USB 接收真实 ASUS PA279 竖屏桌面，尺寸 **540 × 960**。Home 进入后台后主机断开，回到前台不会悄悄重连；整屏采集性能另行记录如下。
 - 新截图展示此手机的 USB 接收，来源是原创校准卡而非游戏。手机观察到 **4–7 ms** ping 往返仅作连接诊断，**不是端到端视频延迟**。
 
-以下 API 23 / 36 结果保留为历史证据，不代表重新覆盖了 v0.2.0 的所有改动。iOS 构建 / 界面结果和最终 Windows 界面检查会在实际完成后记入本节。真实 iPhone USB 仍未验证。
+最终 960 × 540 / 目标 60 FPS / JPEG 60 校准 USB 会话在 Windows 节奏修复后，连续 **60 个电脑发送样本均值 59.99 FPS（59.74–60.22）**，手机接收读数约 60 FPS。这是实际 USB 路径上的合成内容诊断，不是桌面采集成绩或端到端延迟基准。此前 Windows tick 等待的读数约在 32–64 FPS 间波动；其他内容 / 采集负担需要分别测量。
+
+实际 ASUS 桌面 USB 会话使用原生 GDI 后端，输出 **540 × 960** 帧；**24 个电脑发送 FPS 样本均值 11.05，范围 8.2–12.11**。随后显示布局改变，布局保护停止产生新帧，没有发出操作系统鼠标输入。这说明当次实际采集 / USB 路径与异常停止行为，不代表桌面可保证 60 FPS，也没有测量端到端视频延迟。
+
+按用户要求，CS2 和 Discord 保持运行。观察到 GPU 3D 利用率接近满载，Discord 约占用一个 CPU 核心。这些只是同时运行负载的观察，不是受控性能对比，也不能确定哪个应用造成采集限制。本地原生后端 / MSS 计时试验同样在忙碌桌面运行，不把读数作为受控后端性能基准。
+
+新 EXE 在实际 ASUS 显示器以英文启动并识别 USB。全新偏好默认选中 960 / 60 / 60，已有采集设置保留为自定义。桌面分辨率 / 缩放布局变化期间，界面预览自动化工具随后无法捕获窗口，因此不把后续 GUI 操作计为通过。
+
+上面的 API 23 / 36 结果保留为历史证据，不代表重新覆盖 v0.2.0 的所有改动。完整 iOS 验证结果仍待定，不记为已经通过。真实 iPhone USB 仍未验证。
 
 ### 仍需实机验证
 

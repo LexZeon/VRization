@@ -20,8 +20,8 @@ There is no universally installable unsigned iPhone IPA. The cloud build checks 
 ### 🛠️ Install on your iPhone with Xcode
 
 1. On a Mac with a compatible [Xcode](https://developer.apple.com/xcode/system-requirements), clone the repository or extract the iOS source archive completely. Open `ios/VRization.xcodeproj`.
-2. In **Xcode → Settings → Accounts**, add your own Apple Account locally. Select the **VRization** target, **Signing & Capabilities**, enable automatic signing, and choose your team. A personal team can be used for personal device testing; TestFlight / App Store distribution needs the applicable Apple Developer Program membership. See [Apple's team instructions](https://help.apple.com/xcode/mac/current/en.lproj/dev23aab79b4.html) and [distribution guide](https://developer.apple.com/documentation/xcode/preparing-your-app-for-distribution).
-3. If Xcode reports that the bundle identifier is unavailable, replace `org.vrization.app` with a unique identifier you control. Do not commit your team, certificate, provisioning profile or account credentials.
+2. In **Xcode → Settings → Accounts**, add your own Apple Account locally. Select the **VRizationApp** target, **Signing & Capabilities**, enable automatic signing, and choose your team. A personal team can be used for personal device testing; TestFlight / App Store distribution needs the applicable Apple Developer Program membership. See [Apple's team instructions](https://help.apple.com/xcode/mac/current/en.lproj/dev23aab79b4.html) and [distribution guide](https://developer.apple.com/documentation/xcode/preparing-your-app-for-distribution).
+3. If Xcode reports that the bundle identifier is unavailable, replace `org.vrization.ios` with a unique identifier you control. Do not commit your team, certificate, provisioning profile or account credentials.
 4. Connect and unlock the iPhone, trust the Mac, select the phone as the run destination and press **Run**. Enable Developer Mode if the device asks. Follow [Apple's device-running guide](https://developer.apple.com/documentation/xcode/running-your-app-on-simulated-or-physical-devices) for device trust / signing errors.
 5. Keep Xcode available for re-signing when your development profile expires. The app does not renew signing by itself.
 
@@ -92,8 +92,8 @@ xcodebuild -project ios/VRization.xcodeproj -scheme VRization \
 ### 🛠️ 用 Xcode 安装到自己的 iPhone
 
 1. 在具备兼容 [Xcode](https://developer.apple.com/xcode/system-requirements) 的 Mac 上克隆仓库，或完整解压 iOS 源码包。打开 `ios/VRization.xcodeproj`。
-2. 在 **Xcode → Settings → Accounts** 中本地添加自己的 Apple 账户。选择 **VRization** target，打开 **Signing & Capabilities**，启用自动签名并选择团队。个人团队可用于自己的设备测试；TestFlight / App Store 分发需要适用的 Apple Developer Program 资格。参见 [Apple 团队设置说明](https://help.apple.com/xcode/mac/current/en.lproj/dev23aab79b4.html) 与 [分发指南](https://developer.apple.com/documentation/xcode/preparing-your-app-for-distribution)。
-3. 若 Xcode 提示 bundle identifier 被占用，把 `org.vrization.app` 改为自己控制的唯一标识。不要把团队、证书、描述文件或账号凭据提交到仓库。
+2. 在 **Xcode → Settings → Accounts** 中本地添加自己的 Apple 账户。选择 **VRizationApp** target，打开 **Signing & Capabilities**，启用自动签名并选择团队。个人团队可用于自己的设备测试；TestFlight / App Store 分发需要适用的 Apple Developer Program 资格。参见 [Apple 团队设置说明](https://help.apple.com/xcode/mac/current/en.lproj/dev23aab79b4.html) 与 [分发指南](https://developer.apple.com/documentation/xcode/preparing-your-app-for-distribution)。
+3. 若 Xcode 提示 bundle identifier 被占用，把 `org.vrization.ios` 改为自己控制的唯一标识。不要把团队、证书、描述文件或账号凭据提交到仓库。
 4. 连接并解锁 iPhone，信任 Mac，在运行目标中选择手机，按 **Run**。设备要求时开启开发者模式。设备信任 / 签名报错可按 [Apple 真机运行说明](https://developer.apple.com/documentation/xcode/running-your-app-on-simulated-or-physical-devices) 处理。
 5. 开发配置文件到期时，需要再次通过 Xcode 签名运行，软件不会自动续签。
 

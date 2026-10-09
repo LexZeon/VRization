@@ -146,12 +146,16 @@ class HostServer:
         return web.json_response({"v": 1, "name": "VRization", "version": __version__,
                                   "port": self.port, "token": self.token}, headers=headers)
 
+    def _capture_error(self, error):
+        self.controller.disarm("capture unavailable")
+        self._emit("error", message=error)
+
     async def _startup(self, app):
         self._loop = asyncio.get_running_loop()
         self._buffer = LatestFrameBuffer()
         self._broadcast_lock = asyncio.Lock()
         self._worker = CaptureWorker(self.capture_source, self.get_capture_config, self._loop,
-                                     self._buffer, lambda error: self._emit("error", message=error))
+                                     self._buffer, self._capture_error)
         self._worker.start()
         self._watchdog = asyncio.create_task(self._watch_input())
 

@@ -23,6 +23,8 @@ jobs:
           python-version: '3.12.10'
       - name: Check language sections and local links / 检查双语分区与本地链接
         run: python scripts/check_docs.py
+      - name: Check verified release archives / 检查版本归档校验
+        run: python -m unittest discover -s scripts -p test_archive_releases.py -v
 
   windows:
     name: Windows host / 电脑端
