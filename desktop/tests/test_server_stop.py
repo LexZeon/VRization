@@ -7,7 +7,7 @@ import threading
 import unittest
 from dataclasses import replace
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from aiohttp import ClientSession
 from aiohttp.test_utils import TestServer
@@ -264,6 +264,7 @@ class GuiStopTests(unittest.TestCase):
         window.tr = lambda value, **kw: value
         window._log = lambda value: None
         window.root = SimpleNamespace(after=lambda *args: None)
+        window._refresh_input_status = Mock()
         for name in ("code_label", "start_button", "stop_button", "status", "stats"):
             setattr(window, name, Widget())
         calls, jobs = [], []

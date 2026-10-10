@@ -5,14 +5,14 @@
 <!-- vrization:english -->
 ## English
 
-The **First-person stabilization** slider controls how much the Windows host smooths phone rotation before producing mouse movement. Its default is **0%**, an exact filter bypass that preserves the previous input behavior. It does not change the video, cinema rendering or sensor sampling, and it never authorizes input.
+The **First-person stabilization** slider controls how much the Windows host smooths phone rotation before producing mouse movement. Its default is **0%**, an exact filter bypass that preserves the previous input behavior. It does not change the video, cinema rendering or sensor sampling, and its value is separate from the default-enabled PC gyro-control preference.
 
-### Adjust it while playing
+### Adjust mouse control
 
 1. Use v0.3.2 or newer host and phone applications, connect, then choose First-person mode.
 2. Find **First-person stabilization strength** in the PC / iOS controls, or **Gyro stabilization (First-person)** in Android settings. Start at 0% and raise it gradually if small involuntary movements make aiming jittery.
 3. Keep **Mouse sensitivity** separate: sensitivity changes movement gain; stabilization smooths movement. Stronger smoothing can increase the feeling of following behind your head. Lower the strength if turns feel slow.
-4. Recenter and explicitly arm input on the PC. **F8** stops input. Changing the slider never arms or resumes input by itself.
+4. Recenter and use the default-enabled PC gyro preference in First-person mode. **F8** latches input paused; use **Resume gyro control** on the PC to resume. Moving the slider cannot clear that latch.
 
 The 0–100% control represents `stabilization` from 0 to 1. A connected update uses normal validated settings, acknowledgments and broadcasts, so the PC and phone show the accepted value and retain their committed profiles. An offline phone change is saved locally and restored once after the next validated connection; if both sides changed offline, the saved phone profile wins on reconnect. **Reset all settings** restores stabilization to 0%, along with the other documented [reset defaults](EDITING.md).
 
@@ -38,7 +38,7 @@ A new USB host can first send a valid ten-field hello while advertising stabiliz
 
 ### What the filter does
 
-Filtering runs **only on the Windows host**. Raw-angle validation, explicit PC authorization, focus checks, capture availability, disconnect handling and the pose watchdog remain in force. The filter adds no timer or background output: receiving no new valid pose cannot cause it to keep moving the mouse. Session changes, recentering and relevant input changes reset accumulated state.
+Filtering runs **only on the Windows host**. Raw-angle/session/sequence validation, the local enabled preference, pause latch, capture checks and pose freshness remain in force. Foreground changes do not stop this policy; short pose gaps rebaseline before new valid poses resume; F8/editor/failure/Stop stays paused until PC Resume. The filter adds no timer or background output: without a new valid pose it cannot keep moving the mouse. Session changes, recentering and relevant input changes reset accumulated state.
 
 VRization's original implementation adapts the One Euro Filter idea: smooth low-speed motion more and increase the cutoff as motion speeds up. For positive strength `s`, the rest cutoff is `3 / s²` Hz, the speed coefficient is `15` and the derivative cutoff is `5` Hz. These are **VRization's choices**, not asserted upstream defaults. There is no dead zone intended to discard deliberate small movements. The strength range balances smoothing against following lag; it is not a measured millisecond delay control.
 
@@ -55,14 +55,14 @@ These are algorithm and settings-flow checks, **not** real-game control acceptan
 <!-- vrization:chinese -->
 ## 简体中文
 
-“**第一人称防抖强度**”滑块控制 Windows 主机将手机转动转换成鼠标移动前的平滑程度。默认 **0%** 完全绕过滤波，保留此前输入行为；它不改变视频、大屏幕渲染或传感器采样，也不会授权鼠标输入。
+“**第一人称防抖强度**”滑块控制 Windows 主机将手机转动转换成鼠标移动前的平滑程度。默认 **0%** 完全绕过滤波，保留此前输入行为；它不改变视频、大屏幕渲染或传感器采样，与电脑默认启用的陀螺仪控制偏好分开。
 
-### 游戏时如何调节
+### 如何调节鼠标控制
 
 1. 使用 v0.3.2 或更新的电脑端与手机端，连接后选择第一人称模式。
 2. 在电脑 / iOS 控件找到“**第一人称防抖强度**”，Android 设置中对应“**陀螺仪防抖（第一人称）**”。从 0% 开始，若细小的不自主移动让瞄准抖动，再逐步提高。
 3. “**鼠标灵敏度**”单独调整：灵敏度改变移动倍率，防抖平滑移动。更强平滑可能让视角跟随头部时稍显迟缓；转头感觉慢时降低防抖。
-4. 回正后仍需在电脑主动授权输入，**F8** 停止控制。滑块变化不会自行授权或恢复控制。
+4. 回正后在第一人称使用电脑默认启用的陀螺仪偏好；**F8** 锁定暂停，须在电脑点“**恢复陀螺仪控制**”。移动滑块不能解除暂停锁。
 
 0–100% 对应 `stabilization` 的 0–1。已连接时经普通设置校验、确认与广播同步，电脑和手机显示接受的值并保存已提交配置。手机离线修改会本地保存，在下次合法连接后恢复一次；双方都离线改过时，重连以手机保存配置优先。“**一键重置所有设置**”会将防抖恢复 0%，其他范围见 [重置说明](EDITING.md)。
 
@@ -88,7 +88,7 @@ These are algorithm and settings-flow checks, **not** real-game control acceptan
 
 ### 滤波如何工作
 
-防抖**只在 Windows 主机执行**。原始角度校验、电脑主动授权、窗口焦点检查、采集可用性、断线和姿态看门狗继续生效。滤波不新增定时或后台输出；没有新的合法姿态时，不会继续移动鼠标。会话变化、回正及相关输入变化会重置累积状态。
+防抖**只在 Windows 主机执行**。原始角度／会话／序号校验、本地启用偏好、暂停锁、采集检查和姿态新鲜度继续生效。前台切换不停止此策略；姿态短暂间断后先重建基准，再由新合法姿态恢复；F8／编辑器／故障／Stop 则保持暂停，须电脑恢复。滤波不新增定时或后台输出；没有新的合法姿态时不会继续移动鼠标，会话变化、回正及相关输入变化重置累积状态。
 
 原创实现参考 One Euro Filter 思路：低速时多平滑，移动变快时提高截止频率。正强度 `s` 的静止截止频率为 `3 / s²` Hz，速度系数为 `15`，导数截止频率为 `5` Hz。这些是 **VRization 自己选择的参数**，不冒称上游默认；没有用来丢弃细小主动移动的死区。强度在平滑与跟随迟滞间取舍，不是以毫秒为单位的实测延迟控制。
 

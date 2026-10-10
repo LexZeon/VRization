@@ -73,3 +73,33 @@ def save_usb_preferences(value: dict, path: Path | None = None):
     finally:
         if os.path.exists(temporary):
             os.unlink(temporary)
+
+
+def load_input_preferences(path: Path | None = None) -> dict:
+    """Persist the chosen gyro policy, never active control or an emergency latch."""
+    defaults = {"gyro_control_enabled": True}
+    try:
+        value = json.loads((path or preference_path().with_name("input.json")).read_text(encoding="utf-8"))
+        if isinstance(value, dict) and type(value.get("gyro_control_enabled")) is bool:
+            defaults["gyro_control_enabled"] = value["gyro_control_enabled"]
+    except (OSError, ValueError):
+        pass
+    return defaults
+
+
+def save_input_preferences(value: dict, path: Path | None = None):
+    enabled = value["gyro_control_enabled"]
+    if type(enabled) is not bool:
+        raise ValueError("gyro control preference must be a boolean")
+    path = path or preference_path().with_name("input.json")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, temporary = tempfile.mkstemp(prefix="input-", suffix=".tmp", dir=path.parent)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as output:
+            json.dump({"gyro_control_enabled": enabled}, output, indent=2)
+            output.flush()
+            os.fsync(output.fileno())
+        os.replace(temporary, path)
+    finally:
+        if os.path.exists(temporary):
+            os.unlink(temporary)

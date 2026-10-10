@@ -13,7 +13,7 @@ This separates existing baseline capabilities from possible future work. Dates a
 - Android APK and reusable Android `vr-core` library.
 - Fixed full screen, rotation-tracked cinema and pose-to-mouse First-person modes.
 - Phone layout and viewing controls.
-- PC input arming, F8 stop, disconnect and mode-change boundaries.
+- PC saved gyro preference, default-enabled First-person, F8/Resume, disconnect and mode-change boundaries.
 - Tutorials, actual UI screenshots, dependency attribution and automated builds.
 
 ### v0.1.1-alpha maintenance
@@ -24,7 +24,7 @@ Selectable English / Simplified Chinese, bilingual public pages, regression chec
 
 Native iOS / iPadOS client with UIKit, Metal, Core Motion, all three modes, English / Chinese selection and a reusable Foundation-based Swift protocol / math package. The same Windows 10 / 11 x64 host remains compatible with Android and iOS through protocol v1; actual local desktop checks use Windows 11.
 
-USB is now the default preference: Android discovers an authorized physical device through official ADB reverse, while iOS uses a native loopback listener and an original Windows relay through Apple's USB service. LAN remains explicitly selectable. The PC still starts streaming and arms first-person input manually. Foreground detection is one initial attempt; backgrounding, phone language changes and disconnects require explicit reconnection. USB discovery protects existing reverse mappings and reads Apple pairing records without creating trust or exposing keys.
+USB is now the default preference: Android discovers an authorized physical device through official ADB reverse, while iOS uses a native loopback listener and an original Windows relay through Apple's USB service. LAN remains explicitly selectable. Either endpoint's explicit Connect can request streaming. Windows defaults First-person gyro control to enabled, with latched F8/editor/failure/Stop pauses and explicit PC Resume. Foreground detection is one initial attempt; backgrounding, phone language changes and disconnects require explicit reconnection. USB discovery protects existing reverse mappings and reads Apple pairing records without creating trust or exposing keys.
 
 New GUI users get the 640 / 60 FPS / Q45 low-latency preset; stable, quality and custom presets are available, and saved capture choices remain effective. Latest-frame work, on-demand Android rendering and received-FPS / ping-RTT diagnostics help inspection; these are not an end-to-end latency benchmark or guaranteed game frame rate.
 
@@ -46,7 +46,7 @@ This is not an OpenXR runtime or SteamVR driver. It does not provide 6DoF tracki
 
 ### v0.3.0-alpha visual fitting and local profiles
 
-The next release follows the separately published / archived v0.2 GPU / latency work. Windows, Android and iOS receive a first-position flat headset editor with synchronized eye movement, proportional corners with contact constraints, explicit Save / Discard, Reset all settings and persistent committed phone VR profiles. Drafts stay local; phones restore their saved profile only after a validated hello, using normal settings synchronization. Mouse arming, explicit reconnects and the selected PC capture output remain protected. See [editor scope](EDITING.md), [release history](releases/README.md) and [actual validation](VALIDATION.md).
+The next release follows the separately published / archived v0.2 GPU / latency work. Windows, Android and iOS receive a first-position flat headset editor with synchronized eye movement, proportional corners with contact constraints, explicit Save / Discard, Reset all settings and persistent committed phone VR profiles. Drafts stay local; phones restore their saved profile only after a validated hello, using normal settings synchronization. Local input preference/pause latch, explicit reconnects and the selected PC capture output remain protected. See [editor scope](EDITING.md), [release history](releases/README.md) and [actual validation](VALIDATION.md).
 
 ---
 
@@ -61,7 +61,7 @@ The next release follows the separately published / archived v0.2 GPU / latency 
 - Android APK 与可复用 Android `vr-core` library。
 - 固定全屏、旋转追踪虚拟大屏幕、姿态到鼠标三种模式。
 - 手机端画面布局与观看参数调节。
-- 电脑授权鼠标控制、F8 停止、断线和模式切换的输入边界。
+- 电脑保存的陀螺仪偏好、默认启用第一人称、F8／恢复、断线和模式切换边界。
 - 中文教程、界面截图、依赖来源与许可记录、自动构建配置。
 
 ### v0.1.1-alpha 维护改进
@@ -72,7 +72,7 @@ The next release follows the separately published / archived v0.2 GPU / latency 
 
 原生 iOS / iPadOS 客户端使用 UIKit、Metal、Core Motion，包含三模式、中英选择及可复用的 Foundation Swift 协议 / 数学包。同一 Windows 10 / 11 x64 主机通过协议 v1 兼容 Android / iOS；本地实际桌面检查使用 Windows 11。
 
-USB 已是默认偏好：Android 经官方 ADB reverse 发现已授权真实设备，iOS 使用原生回环监听及经 Apple USB 服务的原创 Windows 中继；局域网仍可显式选择。电脑仍手动开始串流与授权第一人称。首次前台只尝试一次，进入后台、手机切语言、断线后需显式重连。发现过程保护已有 reverse 映射，只读 Apple 配对记录，不创建信任或暴露密钥。
+USB 已是默认偏好：Android 经官方 ADB reverse 发现已授权真实设备，iOS 使用原生回环监听及经 Apple USB 服务的原创 Windows 中继；局域网仍可显式选择。任一端主动连接可请求串流；Windows 默认启用第一人称陀螺仪控制，F8／编辑器／故障／Stop 锁定暂停，须电脑主动恢复。首次前台只尝试一次，进入后台、手机切语言、断线后需显式重连。发现过程保护已有 reverse 映射，只读 Apple 配对记录，不创建信任或暴露密钥。
 
 新界面用户默认低延迟 640 / 60 FPS / 质量 45，另有稳定、画质和自定义预设；已有捕获配置继续生效。最新帧处理、Android 按需渲染及接收帧率 / ping RTT 便于诊断，不代表端到端延迟基准或保证游戏帧率。
 
@@ -95,4 +95,4 @@ USB 已是默认偏好：Android 经官方 ADB reverse 发现已授权真实设�
 
 ### v0.3.0-alpha 可视适配与本地配置
 
-本版在独立发布 / 归档的 v0.2 GPU / 延迟工作之后推进：Windows、Android 与 iOS 加入设置首位平面编辑器、双眼同步移动、受接触约束的等比角点、主动保存 / 放弃、全部重置和手机已提交 VR 配置持久化。草稿只在本地，合法 hello 后才用普通同步恢复已保存配置；保留鼠标授权、显式重连及选定电脑画面的边界。见 [编辑范围](EDITING.md)、[发布历史](releases/README.md) 与 [实际验证](VALIDATION.md)。
+本版在独立发布 / 归档的 v0.2 GPU / 延迟工作之后推进：Windows、Android 与 iOS 加入设置首位平面编辑器、双眼同步移动、受接触约束的等比角点、主动保存 / 放弃、全部重置和手机已提交 VR 配置持久化。草稿只在本地，合法 hello 后才用普通同步恢复已保存配置；保留本地输入偏好／暂停锁、显式重连及选定电脑画面的边界。见 [编辑范围](EDITING.md)、[发布历史](releases/README.md) 与 [实际验证](VALIDATION.md)。

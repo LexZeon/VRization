@@ -7,7 +7,11 @@
 
 Updated 2026-10-10. Automated checks, desktop capture and emulator observations are distinguished from hardware capabilities that remain untested.
 
-### v0.3.3-alpha — current checks
+### Unreleased v0.3.4-alpha — validation pending
+
+The implementation targets Windows/Android/iOS **0.3.4**, mobile build **7**. The new GUI policy enables gyro mouse control by default in First-person mode across every foreground window. Planned acceptance covers a fake sink for first-pose activation, repeated motion, desktop/app/own-window control, stale-pose rebaseline, F8/editor/failure/Stop latches, PC Resume, disabled preference and persistence. Packaged runtime, Android signing/build and iOS native checks must be recorded after execution. No v0.3.4 hardware/game/latency result is claimed yet; prior passes below retain their versions.
+
+### v0.3.3-alpha — published checks
 
 - Source `76639de380c2b4dd26ce860dada30a24323874e8`: the complete local Windows suite passed **287 tests plus 135 subcases**. Cases include sender cleanup blocked after a real localhost WebSocket disconnect: host status/input are revoked before cleanup, a new session can connect, and old cleanup cannot affect the new owner. Android passed **116 unit tests**, APK / release AAR builds, lint and instrumentation compilation. Signature-gate tests passed six cases; documentation checked 36 complete bilingual pages and local links.
 - The final frozen Windows EXE matches all **21 project modules**, all **38 recorded native hashes**, and includes **44 files under `licenses/` plus the three root notices**. SHA-256: `50d631ab2dfc0f0220b6da4d993fa5b916d8615ff87c19d5fa6773d96d50cf8c`. The public ZIP passed its independent clean-profile runtime check with SDK environment variables removed; no capture/input ran in that check. Official Android tools remain separate.
@@ -147,7 +151,11 @@ Final [GitHub Actions 37897738507](https://github.com/LexZeon/VRization/actions/
 
 更新日期：2026-10-10。这里区分自动检查、电脑采集和模拟器观察；未验证的硬件能力不以截图或单元测试代替。
 
-### v0.3.3-alpha — 当前检查
+### 未发布 v0.3.4-alpha — 验证待完成
+
+实现目标为 Windows／Android／iOS **0.3.4**、手机构建号 **7**。新界面策略默认开启第一人称陀螺仪鼠标，在所有前台窗口可控制。计划用假输入检查首姿态启用、连续移动、桌面／应用／自身窗口控制、姿态超时重建基准、F8／编辑器／故障／Stop 暂停锁、电脑恢复、关闭偏好与持久保存。实际打包运行、Android 签名／构建及 iOS 原生检查须执行后再记录；尚不宣称 v0.3.4 硬件／游戏／延迟结果，以下通过记录仍对应旧版本。
+
+### v0.3.3-alpha — 已发布检查
 
 - 源码 `76639de380c2b4dd26ce860dada30a24323874e8` 的完整本地 Windows 测试通过 **287 项及 135 个子用例**。其中用真实 localhost WebSocket 测试断线后的发送清理阻塞：清理前撤销电脑状态 / 输入，新会话仍可连接，旧清理不能影响新资源归属。Android **116 项单元测试**、APK / release AAR 构建、lint 和测试工具编译通过；签名门槛六项测试通过，文档检查覆盖 36 页完整双语及本地链接。
 - 最终冻结 Windows EXE 匹配全部 **21 个自有模块、38 个已记录原生哈希**，包含 `licenses/` 下 **44 个文件及根目录三份通知**。SHA-256：`50d631ab2dfc0f0220b6da4d993fa5b916d8615ff87c19d5fa6773d96d50cf8c`。公开 ZIP 在清空 SDK 环境变量、新偏好下通过独立运行检查，该检查没有采集 / 输入；Android 官方工具仍独立安装。

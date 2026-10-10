@@ -19,7 +19,7 @@ Include the release version, PC OS / GPU, phone and Android / derivative or iOS 
 4. Update documentation and compatibility records; describe trigger, changed behavior and validation.
 5. Record user-visible changes in [CHANGELOG.md](CHANGELOG.md)'s Unreleased section, in English and Chinese. At release time, group them under the actual version / UTC date, state affected app versions and link the release. Keep previous entries.
 
-Retain explicit PC arming and an emergency stop. Remote clients must not unlock input themselves. Add codecs / adapters through interfaces instead of mixing platform implementations into Android `vr-core` or Swift `VRizationCore`. Preserve v1 WebSocket behavior for old Android clients; new codecs / per-eye formats require explicit negotiation. Default USB detection must not steal existing reverse ports, manage wireless ADB, kill the ADB server, create Apple trust records or start OS input automatically. Keep bootstrap local and browser-origin restrictions intact.
+Retain the host-local input preference and latched emergency stop. The Windows GUI defaults First-person gyro control to enabled; reusable `HostServer`/`PoseController` constructors default `auto_control=False`. Valid First-person poses can activate an enabled policy, but remote messages cannot clear a latched pause; only a PC resume action can. Add codecs / adapters through interfaces instead of mixing platform implementations into Android `vr-core` or Swift `VRizationCore`. Preserve v1 WebSocket behavior for old Android clients; new codecs / per-eye formats require explicit negotiation. Default USB detection must not steal existing reverse ports, manage wireless ADB, kill the ADB server, create Apple trust records or start OS input solely from device discovery. Keep bootstrap local and browser-origin restrictions intact.
 
 Host changes can be checked without a real mouse using `python -m unittest discover -s desktop/tests -v`. Android changes need affected app / core tests; Swift changes need `swift test --package-path ios` on the supported development environment. Run appropriate builds / lint when application code changes. Use fake capture, input sinks, USB mappings and mux services in automation; physical-device tests require separate evidence. The supplied Windows target remains 10 / 11 x64; do not report a Windows 10 or mixed-DPI hardware pass from unit tests alone.
 
@@ -29,7 +29,7 @@ All project-owned public documents, README files, tutorials, release notes, issu
 
 Original license / copyright texts remain verbatim; explanatory bilingual text supplements them rather than replacing them. Do not invent a translated license as the controlling text.
 
-English is the default and primary software language. Windows, Android and iOS applications must retain selectable Simplified Chinese and save language choice locally. Phone language / background transitions must not silently reconnect; desktop language changes must revoke input authorization.
+English is the default and primary software language. Windows, Android and iOS applications must retain selectable Simplified Chinese and save language choice locally. Phone language / background transitions must not silently reconnect; desktop language changes must retain the existing input preference/pause latch.
 
 ### Attribution and licensing
 
@@ -55,7 +55,7 @@ Symptoms, reproduction, measurement method:
 
 ### Editor / profile invariants
 
-Keep the shared y-up per-eye geometry, linked mirrored horizontal spacing with aspect-dependent contact limits, and proportional corner contract in [editing](docs/EDITING.md). Compute drags from their gesture-start snapshot with frozen aspects and preserve actual mode / optical fields in a flat preview. Apply resolved_fit for the signed separation / remaining-gap X constraints; corners keep centers fixed only when the seam constraint is inactive. Negative separation needs v0.3 at both ends. Drafts must not broadcast settings, persist or send poses; the entry hello editing:true is disarm-only control metadata. Save / Discard have explicit transaction boundaries. Persist committed phone settings only, validate hello before restoration with normal clientSeq synchronization, and never store pairing secrets. Reset retains PC capture selection / ADB path, suppresses immediate phone reconnection and never arms input; a fresh phone launch resumes normal initial USB behavior. Use pure geometry / fake storage / fake transport checks, then record actual UI acceptance separately.
+Keep the shared y-up per-eye geometry, linked mirrored horizontal spacing with aspect-dependent contact limits, and proportional corner contract in [editing](docs/EDITING.md). Compute drags from their gesture-start snapshot with frozen aspects and preserve actual mode / optical fields in a flat preview. Apply resolved_fit for the signed separation / remaining-gap X constraints; corners keep centers fixed only when the seam constraint is inactive. Negative separation needs v0.3 at both ends. Drafts must not broadcast settings, persist or send poses; the entry hello editing:true latches input paused without changing the enabled preference. Save / Discard have explicit transaction boundaries. Persist committed phone settings only, validate hello before restoration with normal clientSeq synchronization, and never store pairing secrets. Reset retains PC capture selection / ADB path, restores the PC default-enabled preference with Full screen selected, suppresses immediate phone reconnection and cannot clear a latched input pause; a fresh phone launch resumes normal initial USB behavior. Use pure geometry / fake storage / fake transport checks, then record actual UI acceptance separately.
 
 ---
 
@@ -76,7 +76,7 @@ Keep the shared y-up per-eye geometry, linked mirrored horizontal spacing with a
 4. 更新文档与兼容性记录，PR 描述说明触发条件、行为变化和验证方法。
 5. 将用户可见变化同步写入 [CHANGELOG.md](CHANGELOG.md) 的中英“未发布”段；发布时按实际版本 / UTC 日期归档，注明各端版本并链接发布页，保留旧记录。
 
-保留“电脑主动授权 + 紧急停止”边界，不让远程客户端自行解锁鼠标。编码器 / 适配器通过接口接入，避免把平台实现混入 Android `vr-core` 或 Swift `VRizationCore`。保留旧 Android 的 v1 WebSocket 行为，新编码 / 左右眼格式需显式协商。默认 USB 检测不得抢占已有 reverse 端口、管理无线 ADB、关闭 ADB server、创建 Apple 信任记录或自动启动系统输入；保留 bootstrap 的本机与浏览器来源限制。
+保留电脑本地输入偏好和锁定紧急停止边界。Windows 界面默认开启第一人称陀螺仪控制；可复用 `HostServer`／`PoseController` 构造器默认 `auto_control=False`。合法第一人称姿态可激活已启用策略，但远程消息不能解除暂停锁，只有电脑主动恢复可以。编码器 / 适配器通过接口接入，避免把平台实现混入 Android `vr-core` 或 Swift `VRizationCore`。保留旧 Android 的 v1 WebSocket 行为，新编码 / 左右眼格式需显式协商。默认 USB 检测不得抢占已有 reverse 端口、管理无线 ADB、关闭 ADB server、创建 Apple 信任记录或仅因设备发现就启动系统输入；保留 bootstrap 的本机与浏览器来源限制。
 
 主机改动可用 `python -m unittest discover -s desktop/tests -v` 检查，无需真实鼠标。Android 改动运行受影响 app / core 测试；Swift 改动在支持的开发环境运行 `swift test --package-path ios`；应用代码改动还需适当构建 / lint。自动化使用假采集、输入接收器、USB 映射与 mux 服务，实机测试另记证据。Windows 发行目标仍为 10 / 11 x64，不能仅凭单测报告 Windows 10 或混合 DPI 硬件已通过。
 
@@ -86,7 +86,7 @@ Keep the shared y-up per-eye geometry, linked mirrored horizontal spacing with a
 
 许可证与版权原文保持完整；双语解释作为补充，不制作替代原文的“译版许可证”。
 
-软件以英文为默认和主语言，Windows、Android、iOS 均保留可选简体中文并在本地保存。手机切语言 / 进入后台不得悄悄重连；电脑切语言必须撤销输入授权。
+软件以英文为默认和主语言，Windows、Android、iOS 均保留可选简体中文并在本地保存。手机切语言 / 进入后台不得悄悄重连；电脑切语言必须保留原输入偏好／暂停锁。
 
 ### 来源与许可
 
@@ -113,4 +113,4 @@ VR 盒子型号（可选）：
 
 ### 编辑器 / 配置不变量
 
-保持 [编辑合同](docs/EDITING.md) 的每眼 y 向上坐标、按图像比例限定接触点的水平镜像联动间距与等比角点。从手势起点快照计算拖动，冻结比例，平面预览保留实际模式 / 光学字段。用 resolved_fit 统一有符号间距 / 剩余 gap 对 X 的约束；接缝约束未触发时才保持角点中心固定。负间距需两端均为 v0.3。草稿不得广播设置、持久保存或发送姿态；进入时的 hello editing:true 只是解除授权的控制元数据。保存 / 放弃有明确事务边界；只保存手机已提交设置，合法 hello 后才经普通 clientSeq 恢复，不存配对秘密。重置保留电脑采集选择 / ADB 路径，抑制当前手机界面立即重连，绝不自动授权；全新启动手机应用恢复正常初次 USB 策略。用纯几何 / 假存储 / 假传输检查，再另记真实界面验收。
+保持 [编辑合同](docs/EDITING.md) 的每眼 y 向上坐标、按图像比例限定接触点的水平镜像联动间距与等比角点。从手势起点快照计算拖动，冻结比例，平面预览保留实际模式 / 光学字段。用 resolved_fit 统一有符号间距 / 剩余 gap 对 X 的约束；接缝约束未触发时才保持角点中心固定。负间距需两端均为 v0.3。草稿不得广播设置、持久保存或发送姿态；进入时的 hello editing:true 锁定输入暂停，不修改启用偏好。保存 / 放弃有明确事务边界；只保存手机已提交设置，合法 hello 后才经普通 clientSeq 恢复，不存配对秘密。重置保留电脑采集选择／ADB 路径、恢复默认启用陀螺仪并选择全屏、抑制当前手机界面立即重连，且不能解除输入暂停锁；全新启动手机应用恢复正常初次 USB 策略。用纯几何 / 假存储 / 假传输检查，再另记真实界面验收。

@@ -5,7 +5,7 @@
 <!-- vrization:english -->
 ## English
 
-v0.3.2-alpha separates the image source, transport, rendering and input sink. Reuse includes an embeddable Python host, an Android AAR and the Foundation-based Swift package `VRizationCore`. The Android and iOS apps default to USB, with LAN as an explicit alternative. Alpha APIs may change.
+VRization separates the image source, transport, rendering and input sink. Reuse includes an embeddable Python host, an Android AAR and the Foundation-based Swift package `VRizationCore`. The Android and iOS apps default to USB, with LAN as an explicit alternative. Alpha APIs may change.
 
 ```mermaid
 flowchart LR
@@ -18,7 +18,7 @@ flowchart LR
     G[Android sensors or Core Motion] --> F
     G --> E
     E -->|pose| D
-    D --> H[Local authorization and pose deltas]
+    D --> H[Local input policy, pause latch and pose deltas]
     H --> S[Optional host stabilization / default bypass]
     S --> I[InputSink]
     I --> J[Windows mouse]
@@ -29,12 +29,12 @@ flowchart LR
 | Path | Responsibility |
 | --- | --- |
 | `desktop/src/vrization_host/` | Python capture, protocol, server, input adapter and GUI. |
-| `desktop/src/vrization_host/connection.py` | Candidate pure connection coordination and independent loopback USB control service; explicit Connect can originate on either supported device. |
+| `desktop/src/vrization_host/connection.py` | Pure connection coordination and independent loopback USB control service; explicit Connect can originate on either supported device. |
 | `desktop/src/vrization_host/view_edit.py` | Pure per-eye fit geometry and local draft transactions. |
 | `desktop/src/vrization_host/pose_filter.py` | Original host-only speed-adaptive first-person smoothing; strength 0 bypasses it. |
 | `desktop/tests/` | Core checks without real games. |
 | `android/vr-core/` | Reusable Android settings, pose interfaces and GLES renderer. |
-| `android/vr-core/.../SocketAttempt.java`, `UsbConnectRequest.java`, `UsbConnectionAttempt.java`, `TransportEndpoints.java` | Candidate pure Java socket ownership, one-shot explicit requests, bounded retry policy and shared control/video endpoints. |
+| `android/vr-core/.../SocketAttempt.java`, `UsbConnectRequest.java`, `UsbConnectionAttempt.java`, `TransportEndpoints.java` | Pure Java socket ownership, one-shot explicit requests, bounded retry policy and shared control/video endpoints. |
 | `android/app/` | Connection UI, WebSocket client, JPEG decoding and settings. |
 | `desktop/src/vrization_host/ios_usb.py` | Paired one-shot iOS control and video readiness / relay; injected coordinator callback. |
 | `ios/Sources/VRizationCore/` | Foundation protocol, settings synchronization, rotation math, session gates, USB framing and `USBConnectionControl`. |
@@ -43,7 +43,7 @@ flowchart LR
 
 `vr-core` is written in Java but depends on Android OpenGL ES, Bitmap and sensor APIs. Its AAR embeds in Android software; it is not a platform-independent Java / Unity / Unreal library. Other platforms can implement the protocol and adapt pose / rendering to their engine.
 
-The next connection repair is under development; new module paths do not establish release or hardware acceptance. The coordinator owns connection policy, while USB/OkHttp and UI layers adapt platform I/O and user actions. Explicit Stop invalidates connection/socket identities, cancels owned resources and clears displayed video; late retries and callbacks must not revive it. See [AI handoff and module calls](../AI_HANDOFF.md) for source/build/archive locations, portable seams, signing checks and the acceptance checklist. Historical v0.3.2 evidence remains scoped to that release.
+The coordinator owns connection policy, while USB/OkHttp and UI layers adapt platform I/O and user actions. Explicit Stop invalidates connection/socket identities, cancels owned resources and clears displayed video; late retries and callbacks must not revive it. These connection modules were published in v0.3.3; the v0.3.4 default-enabled gyro policy still requires its own acceptance. See [AI handoff and module calls](../AI_HANDOFF.md) for source/build/archive locations, portable seams, signing checks and acceptance. Older evidence remains scoped to its version.
 
 ### Replace the host image source
 
@@ -53,7 +53,7 @@ The original Windows GPU backend in [windows_gpu.py](https://github.com/LexZeon/
 
 `WindowsGpuCapture.grab(rectangle, size, force_latest=False)` returns owned BGRX bytes or `None` when no new duplication frame is available. `force_latest=True` can re-render the owned GPU image after a same-output crop / size change, including a static desktop. Acquired duplication frames are released before returning; their borrowed textures are never kept as the cache. Creation, use and release stay on the same capture thread.
 
-The source validates the requested output against Windows physical layout, output name, HMONITOR, rotation and panel identity before and after GPU work. Output names identify Windows display outputs rather than panel serial numbers. Layout / identity mismatch, access loss or fatal resource errors close the session and stop new frames; they do not silently choose another output or rebuild a lost session. Stop, reselect the display / region, then Start again. Capture errors disarm first-person mouse control; resuming requires explicit authorization. DXGI `ProtectedContentMaskedOut` means Windows has already blacked out protected regions in the supplied image; the backend continues streaming that masked surface and records the condition once. It does not remove the mask, recover those pixels or change capture backend to read them. See [Microsoft's frame-info contract](https://learn.microsoft.com/en-us/windows/win32/api/dxgi1_2/ns-dxgi1_2-dxgi_outdupl_frame_info).
+The source validates the requested output against Windows physical layout, output name, HMONITOR, rotation and panel identity before and after GPU work. Output names identify Windows display outputs rather than panel serial numbers. Layout / identity mismatch, access loss or fatal resource errors close the session and stop new frames; they do not silently choose another output or rebuild a lost session. Stop, reselect the display / region, then Start again. Capture errors latch First-person mouse input paused; resuming requires the PC Resume action. DXGI `ProtectedContentMaskedOut` means Windows has already blacked out protected regions in the supplied image; the backend continues streaming that masked surface and records the condition once. It does not remove the mask, recover those pixels or change capture backend to read them. See [Microsoft's frame-info contract](https://learn.microsoft.com/en-us/windows/win32/api/dxgi1_2/ns-dxgi1_2-dxgi_outdupl_frame_info).
 
 A verified region spanning multiple outputs, or an explicitly unsupported initial GPU API / session, can use **the same validated rectangle** through GDI, then MSS. A layout / identity error does not permit fallback. The original GDI backend pre-scales into a bounded top-down DIB, flushes writes before reading, and returns an owned byte copy on the capture thread. MSS captures the same rectangle and scales in CPU memory when that path is needed. `MssCaptureSource(prefer_gpu=False, prefer_native=False)` selects MSS explicitly. The default adapter reuses an owned JPEG on a static desktop, retaining its original `captured_at`; refresh packets are not necessarily new captures. Hardware, load and fallback availability still determine the achieved rate. See [performance and measurement boundaries](PERFORMANCE.md) and [validation](VALIDATION.md).
 
@@ -83,7 +83,7 @@ usb.start(enabled=True)
 # On exit: usb.stop(), then server.stop().
 ```
 
-Android uses an owned, non-rebinding official ADB reverse mapping and a guarded loopback bootstrap. Native Windows SetupAPI verifies physical USB instances when ADB omits its USB path. iOS uses Apple's local USB service, an existing pairing record and the app's loopback listener; the relay bridges an authenticated host WebSocket into bounded JSON / JPEG frames. Neither route arms mouse input. See [protocol details](PROTOCOL.md) and [USB prerequisites](USB.md). No ADB, Apple driver or libusbmuxd library is bundled.
+Android uses an owned, non-rebinding official ADB reverse mapping and a guarded loopback bootstrap. Native Windows SetupAPI verifies physical USB instances when ADB omits its USB path. iOS uses Apple's local USB service, an existing pairing record and the app's loopback listener; the relay bridges an authenticated host WebSocket into bounded JSON / JPEG frames. Neither route enables input solely from detection; valid First-person poses follow the host-local policy and cannot clear a pause latch. See [protocol details](PROTOCOL.md) and [USB prerequisites](USB.md). No ADB, Apple driver or libusbmuxd library is bundled.
 
 Capture profiles alter only maximum long edge, target FPS and JPEG quality: low latency `640 / 60 / 45` for new GUI users, stable `640 / 30 / 50`, quality `960 / 30 / 60`, or custom. Existing saved capture settings and monitor / region selection are retained. Embedding `CaptureConfig()` now also defaults to `640 / 60 / 45`. Latest-frame handoff bounds stale work; it does not eliminate capture, JPEG, USB / network, decoder or presentation latency. Received FPS and link RTT are separate diagnostics, not end-to-end measurements. See [profile selection](PERFORMANCE.md).
 
@@ -141,7 +141,7 @@ Hardware Huawei Android checks and the iOS simulated-usbmux / Simulator checks a
 1. Implement [protocol v1](PROTOCOL.md), JPEG reception and settings.
 2. Render one 2D frame in both eye regions and validate full screen first.
 3. Integrate pose and calibrate axes, radians and landscape orientation.
-4. If using remote mouse input, retain local authorization, sequence / number checks, disconnect stop and an emergency stop.
+4. If using remote mouse input, retain local input policy, sequence/number checks, disconnect output stop and latched emergency stop.
 5. True stereo requires engine-side per-eye rendering and a new protocol; current desktop duplication cannot create it.
 
 Swift protocol / math reuse is available now; engine adapters and a stable SDK remain possible future work. Alpha interfaces carry no long-term compatibility promise.
@@ -150,13 +150,13 @@ Swift protocol / math reuse is available now; engine adapters and a stable SDK r
 
 The original host `view_edit.py` is a pure geometry / draft-transaction module. `fit_size` computes aspect fit; `resolved_fit` clamps signed separation to [fit.x × scale − 1, 0.2] and shared X to the remaining gap; `eye_bounds` returns these resolved y-up left / bottom / right / top bounds; `dragged` uses gesture-start deltas for eye_pan (selected-eye horizontal spacing and shared vertical movement), proportional resize and reusable ordinary pan. Resize keeps centers fixed when contact constraints permit it; enlargement at contact resolves spacing outward to avoid overlap. Rendering resolution is pure and does not rewrite raw saved preferences. `EditTransaction` exposes an immutable entry snapshot, local draft and one commit / discard action without storage or network side effects. Android / Swift cores use the same geometry contract; see [editor integration](EDITING.md).
 
-App editors preview full-screen flat geometry with distortion disabled, while retaining actual mode / optical values in the draft. Phone poses pause during editing; entry sends one existing hello with editing:true to disarm on receipt, and desktop entry disarms locally. Phone Save commits the whole draft once; PC Save patches only the four fit fields (scale, offsetX, offsetY and eyeSeparation) into the latest state, preserving other concurrent changes. Discard restores the local entry preview, and phone lifecycle / disconnection ends an uncommitted draft. Phones persist committed complete VR profiles. A validated host hello opens the session first, then a saved local profile is sent once via normal settings / clientSeq; subsequent revision synchronization remains authoritative. Pairing secrets are excluded.
+App editors preview full-screen flat geometry with distortion disabled, while retaining actual mode / optical values in the draft. Phone poses pause during editing; entry sends one existing hello with editing:true to latch input paused on receipt, and desktop entry latches it locally. Phone Save commits the whole draft once; PC Save patches only the four fit fields (scale, offsetX, offsetY and eyeSeparation) into the latest state, preserving other concurrent changes. Discard restores the local entry preview, and phone lifecycle / disconnection ends an uncommitted draft. Phones persist committed complete VR profiles. A validated host hello opens the session first, then a saved local profile is sent once via normal settings / clientSeq; subsequent revision synchronization remains authoritative. Pairing secrets are excluded.
 
-Reset restores VR / English / USB and low capture defaults. The host preserves explicit capture monitor / rectangle and ADB path to avoid selecting unintended content or deleting tools; phone reset disconnects and suppresses the immediate rebuilt page's initial attempt. A fresh Android launch can wait for an existing stream; iOS restores only foreground control until explicit Connect. These user-preference changes do not change protocol v1, the bounded JPEG pipeline or explicit mouse authorization.
+Reset restores VR / English / USB and low capture defaults. The host preserves explicit capture monitor / rectangle and ADB path to avoid selecting unintended content or deleting tools; phone reset disconnects and suppresses the immediate rebuilt page's initial attempt. A fresh Android launch can wait for an existing stream; iOS restores only foreground control until explicit Connect. These user-preference changes do not change protocol v1, the bounded JPEG pipeline or the host-local input preference and pause latch.
 
 ### Host-only stabilization and compatible profiles
 
-`PoseStabilizer` in `pose_filter.py` is original pure filtering without a mouse API, timer or thread. `PoseController` retains authorization / sequence / raw-input validation, then applies optional angular smoothing before the existing sensitivity and mouse-output path. Zero bypasses it exactly; session, recenter and relevant input changes reset it, and silence cannot produce queued movement. The high-resolution elapsed-time clock is separate from wire pose values.
+`PoseStabilizer` in `pose_filter.py` is original pure filtering without a mouse API, timer or thread. `PoseController` retains local policy/pause-latch, sequence and raw-input validation, then applies optional angular smoothing before the existing sensitivity and mouse-output path. Zero bypasses it exactly; session, recenter and relevant input changes reset it, and silence cannot produce queued movement. The high-resolution elapsed-time clock is separate from wire pose values.
 
 Clients persist eleven fields and migrate exact legacy ten with stabilization zero. Schema 2 stays inside protocol v1; old hosts get ten-field network settings while local stabilization survives replies. Initial legacy USB hello plus capability does not create a profile before the full snapshot. Phones do not filter again. See [protocol](PROTOCOL.md), [tuning](STABILIZATION.md) and [provenance](../licenses/references/README.md).
 
@@ -166,10 +166,18 @@ Android GLES and iOS Metal resolve the same fit rectangle and apply it as a phys
 
 ---
 
+### Default-enabled GUI input policy (v0.3.4)
+
+Windows enables First-person gyro mouse control by default. A validated connection, First-person mode, available capture and fresh valid rotation data are required; the first pose sets a baseline before movement. Control works on the desktop, ordinary applications, games and VRization's own window regardless of foreground-window changes, with no five-second target-window deadline. A temporary sensor gap stops output and rebaselines on fresh poses before continuing. **F8**, the PC emergency stop, editor entry, PC Reset all settings, capture-region selection, capture/input failure and stream Stop latch a pause: late poses, settings and reconnecting cannot clear it. Click **Resume gyro control** on the PC, or explicitly turn the control checkbox off and on, to resume. Full screen and Cinema stop mouse output. The PC saves only the enabled preference, never the live armed state or pause latch.
+
+`HostServer(..., auto_control=False)` and `PoseController(..., auto_control=False)` retain the manual embedding default, including legacy manual focus checks. The GUI passes the validated `input.json` preference to the server; `HostServer.set_auto_control()` / `PoseController.configure_auto_control()` change local policy and `resume_control()` clears a pause only for a PC action. The preference is separate from wire Settings and phone profiles. The first valid pose after activation/pause establishes a new baseline; no pose means no mouse output.
+
+---
+
 <!-- vrization:chinese -->
 ## 简体中文
 
-v0.3.2-alpha 把画面来源、传输、渲染与输入接收拆为相邻组件。现在可复用 Python 主机、Android AAR 与基于 Foundation 的 Swift 包 `VRizationCore`。Android / iOS 应用默认 USB，局域网为显式可选项；公共接口仍处于 Alpha，可能调整。
+VRization 把画面来源、传输、渲染与输入接收拆为相邻组件。现在可复用 Python 主机、Android AAR 与基于 Foundation 的 Swift 包 `VRizationCore`。Android / iOS 应用默认 USB，局域网为显式可选项；公共接口仍处于 Alpha，可能调整。
 
 ```mermaid
 flowchart LR
@@ -182,7 +190,7 @@ flowchart LR
     G[Android 传感器或 Core Motion] --> F
     G --> E
     E -->|pose| D
-    D --> H[授权门与姿态增量]
+    D --> H[本地输入策略、暂停锁与姿态增量]
     H --> S[可选主机防抖 / 默认绕过]
     S --> I[InputSink]
     I --> J[Windows 鼠标]
@@ -193,12 +201,12 @@ flowchart LR
 | 路径 | 职责 |
 | --- | --- |
 | `desktop/src/vrization_host/` | Python 采集、协议、服务器、鼠标适配器与桌面界面。 |
-| `desktop/src/vrization_host/connection.py` | 候选纯连接协调与独立本机 USB 控制服务；受支持设备任一端可以发起主动连接。 |
+| `desktop/src/vrization_host/connection.py` | 纯连接协调与独立本机 USB 控制服务；受支持设备任一端可以发起主动连接。 |
 | `desktop/src/vrization_host/view_edit.py` | 纯单眼适配几何与本地草稿事务。 |
 | `desktop/src/vrization_host/pose_filter.py` | 原创主机速度自适应第一人称平滑，强度 0 绕过。 |
 | `desktop/tests/` | 不依赖真实游戏的核心检查。 |
 | `android/vr-core/` | 可复用 Android library：设置、旋转传感器接口与 OpenGL ES 双眼渲染。 |
-| `android/vr-core/.../SocketAttempt.java`、`UsbConnectRequest.java`、`UsbConnectionAttempt.java`、`TransportEndpoints.java` | 候选纯 Java socket 所有权、一次显式请求、有限重试策略及共用控制／视频端点。 |
+| `android/vr-core/.../SocketAttempt.java`、`UsbConnectRequest.java`、`UsbConnectionAttempt.java`、`TransportEndpoints.java` | 纯 Java socket 所有权、一次显式请求、有限重试策略及共用控制／视频端点。 |
 | `android/app/` | 连接界面、WebSocket 客户端、JPEG 解码和设置交互。 |
 | `desktop/src/vrization_host/ios_usb.py` | 已配对 iOS 一次控制与视频就绪／中继，注入协调器回调。 |
 | `ios/Sources/VRizationCore/` | Foundation 协议、设置同步、旋转数学、会话门、USB 分帧和 `USBConnectionControl`。 |
@@ -207,7 +215,7 @@ flowchart LR
 
 `vr-core` 使用 Java 编写，但依赖 Android 的 OpenGL ES、Bitmap 与传感器 API。它可生成 AAR 并嵌入其他 Android 软件；不能直接作为无平台依赖的 Java / Unity / Unreal 库使用。跨平台客户端可以独立实现协议，将姿态与显示逻辑适配到目标引擎。
 
-下一版连接修复仍在开发，新模块路径不代表发行或硬件验收已经完成。协调器拥有连接策略，USB／OkHttp 和界面层适配平台 I/O 与用户动作；主动停止使连接／socket 身份失效，取消自有资源并清掉显示画面，晚到重试和回调不能恢复会话。[AI 接手与模块调用](../AI_HANDOFF.md) 说明源码／构建／归档位置、移植切口、签名门槛与验收清单。历史 v0.3.2 证据只证明该版。
+协调器拥有连接策略，USB／OkHttp 和界面层适配平台 I/O 与用户动作；主动停止使连接／socket 身份失效，取消自有资源并清掉显示画面，晚到重试和回调不能恢复。连接模块已随 v0.3.3 发布，v0.3.4 默认启用陀螺仪策略仍需独立验收。[AI 接手与模块调用](../AI_HANDOFF.md) 说明源码／构建／归档位置、移植切口、签名门槛与验收清单；旧证据仍对应旧版。
 
 ### 替换电脑画面来源
 
@@ -217,7 +225,7 @@ flowchart LR
 
 `WindowsGpuCapture.grab(rectangle, size, force_latest=False)` 返回独立 BGRX 字节，没有新的 duplication 帧时返回 `None`。`force_latest=True` 能在同一输出改变选区 / 尺寸后重新渲染自有 GPU 图像，静止桌面也适用。取得的 duplication 帧会在返回前释放，不把借用的纹理保留作缓存；创建、使用与释放均在同一采集线程。
 
-GPU 操作前后核对 Windows 物理布局、输出名称、HMONITOR、旋转和面板身份；输出名称不是面板序列号。布局／身份不匹配、访问丢失或致命资源错误关闭会话并停帧，不悄悄换输出或重建失效会话；须停止、重选显示器／选区再启动。采集错误解除第一人称鼠标授权，恢复需主动批准。DXGI `ProtectedContentMaskedOut` 表示 Windows 已把输出图像内受保护区域置黑，后端继续串流该已遮罩 surface、仅记录一次此状态；不解除遮罩、不恢复这些像素、不切换后端重新读取。见 [Microsoft 帧信息约定](https://learn.microsoft.com/en-us/windows/win32/api/dxgi1_2/ns-dxgi1_2-dxgi_outdupl_frame_info)。
+GPU 操作前后核对 Windows 物理布局、输出名称、HMONITOR、旋转和面板身份；输出名称不是面板序列号。布局／身份不匹配、访问丢失或致命资源错误关闭会话并停帧，不悄悄换输出或重建失效会话；须停止、重选显示器／选区再启动。采集错误锁定第一人称鼠标暂停，恢复须电脑主动点恢复。DXGI `ProtectedContentMaskedOut` 表示 Windows 已把输出图像内受保护区域置黑，后端继续串流该已遮罩 surface、仅记录一次此状态；不解除遮罩、不恢复这些像素、不切换后端重新读取。见 [Microsoft 帧信息约定](https://learn.microsoft.com/en-us/windows/win32/api/dxgi1_2/ns-dxgi1_2-dxgi_outdupl_frame_info)。
 
 已确认跨越多个输出的合法区域，或初始化时明确不支持 GPU 的 API / 会话，可对**同一个已校验矩形**依次采用 GDI、MSS。布局 / 身份错误不允许回退。原创 GDI 后端先缩放到有尺寸上限的顶向下 DIB，读取前完成写入，在采集线程返回独立字节副本；需要 MSS 时，仍采集同一区域并在 CPU 内存缩放。`MssCaptureSource(prefer_gpu=False, prefer_native=False)` 显式选择 MSS。默认适配器在静止桌面复用自有 JPEG，保留原始 `captured_at`，刷新传输包不一定是新采集。实际速度仍取决于硬件、负载与可用后端，见 [性能与测量边界](PERFORMANCE.md) 和 [验证记录](VALIDATION.md)。
 
@@ -249,7 +257,7 @@ usb.start(enabled=True)
 # 退出时先 usb.stop()，再 server.stop()。
 ```
 
-Android 使用自己拥有且不重新绑定他人端口的官方 ADB reverse，再经受保护的回环 bootstrap 配对；ADB 不提供 USB 路径时，用 Windows 原生 SetupAPI 验证物理 USB 实例。iOS 使用 Apple 本地 USB 服务、已有配对记录及手机回环监听；中继把已认证主机 WebSocket 桥接成有限长 JSON / JPEG 帧。两条路线都不自动授权鼠标。详见 [协议](PROTOCOL.md)、[USB 前提](USB.md)。软件不附带 ADB、Apple 驱动或 libusbmuxd 库。
+Android 使用自己拥有且不重新绑定他人端口的官方 ADB reverse，再经受保护的回环 bootstrap 配对；ADB 不提供 USB 路径时，用 Windows 原生 SetupAPI 验证物理 USB 实例。iOS 使用 Apple 本地 USB 服务、已有配对记录及手机回环监听；中继把已认证主机 WebSocket 桥接成有限长 JSON / JPEG 帧。两条路线都不会仅因检测设备就启动鼠标；合法第一人称姿态遵循电脑本地策略，不能解除暂停锁。详见 [协议](PROTOCOL.md)、[USB 前提](USB.md)。软件不附带 ADB、Apple 驱动或 libusbmuxd 库。
 
 捕获预设只改变最长边、目标帧率和 JPEG 质量：新界面用户默认低延迟 `640 / 60 / 45`，稳定 `640 / 30 / 50`，画质 `960 / 30 / 60`，或自定义。已有保存配置以及显示器 / 选区均保留。嵌入 `CaptureConfig()` 现在也默认 `640 / 60 / 45`。最新帧交接限制旧任务积累，但不消除采集、JPEG、USB / 网络、解码与显示延迟；接收帧率和链路 RTT 是独立诊断，不是端到端测量。见 [预设选择](PERFORMANCE.md)。
 
@@ -308,7 +316,7 @@ let usbFrame = try USBFraming.encode(USBFrame(kind: .json, payload: poseJSON))
 1. 按 [协议 v1](PROTOCOL.md) 实现连接、JPEG 帧接收和设置消息。
 2. 把一张二维图像绘制到左右眼区域，先验证固定全屏。
 3. 接入目标平台姿态，把坐标轴、角度单位和横屏方向校准清楚。
-4. 如需要鼠标控制，在电脑端保留主动授权、序号 / 数值校验、断线停止与紧急停止。
+4. 如需要鼠标控制，保留电脑本地输入策略、序号／数值校验、断线停止输出与锁定紧急停止。
 5. 如需要真正立体游戏画面，在游戏 / 引擎侧为左右眼分别渲染，并定义新协议。这超出当前二维桌面复制能力。
 
 Swift 协议 / 数学已经可以复用；引擎适配器和稳定 SDK 仍是未来方向。现阶段不要把 Alpha 接口作为长期兼容承诺。
@@ -318,16 +326,22 @@ Swift 协议 / 数学已经可以复用；引擎适配器和稳定 SDK 仍是未
 
 原创主机 `view_edit.py` 是纯几何 / 草稿事务模块：`fit_size` 计算比例适配，`resolved_fit` 将有符号间距限制为 [fit.x × scale − 1, 0.2]、共用 X 限制在剩余间隙内，`eye_bounds` 返回解析后的 y 向上左 / 下 / 右 / 上边界，`dragged` 按手势起点总位移计算 eye_pan（选中眼水平间距与共用竖向移动）、等比缩放，另保留普通 pan；接触约束允许时中心固定，接触后放大必要时向外解析间距，避免重叠。渲染解析无副作用，不改写原始已存偏好；`EditTransaction` 提供不可变进入快照、本地草稿及一次提交 / 放弃，不带存储或网络副作用。Android / Swift 核心使用相同合同，见 [编辑器集成](EDITING.md)。
 
-应用编辑器预览无畸变全屏平面，草稿仍保留实际模式 / 光学值。手机编辑时暂停姿态，进入时用已有 hello 的 editing:true 一次通知主机，收到后解除授权；电脑进入则本地解除。手机一次提交完整草稿，电脑只把四个适配字段（scale、offsetX、offsetY、eyeSeparation）合并进最新状态以保留其他并发变化；放弃恢复本地进入预览，手机生命周期变化 / 断线结束未提交草稿。手机保存完整已提交 VR 配置：先合法主机 hello 建立会话，再通过普通 settings / clientSeq 一次恢复本地配置，之后继续 revision 同步；排除配对秘密。
+应用编辑器预览无畸变全屏平面，草稿仍保留实际模式 / 光学值。手机编辑时暂停姿态，进入时用已有 hello 的 editing:true 一次通知主机，收到后锁定输入暂停；电脑进入则本地锁定。手机一次提交完整草稿，电脑只把四个适配字段（scale、offsetX、offsetY、eyeSeparation）合并进最新状态以保留其他并发变化；放弃恢复本地进入预览，手机生命周期变化 / 断线结束未提交草稿。手机保存完整已提交 VR 配置：先合法主机 hello 建立会话，再通过普通 settings / clientSeq 一次恢复本地配置，之后继续 revision 同步；排除配对秘密。
 
-重置恢复 VR / 英文 / USB 与低延迟采集默认；主机保留明确的显示器 / 选区和 ADB 路径，避免切到非预期内容或删除工具。手机重置断线，抑制当前重建界面的初次尝试；之后全新 Android 启动可等待已有串流，iOS 仅恢复前台控制，需显式连接。这些用户偏好变化不改变协议 v1、有限 JPEG 队列或电脑主动授权边界。
+重置恢复 VR / 英文 / USB 与低延迟采集默认；主机保留明确的显示器 / 选区和 ADB 路径，避免切到非预期内容或删除工具。手机重置断线，抑制当前重建界面的初次尝试；之后全新 Android 启动可等待已有串流，iOS 仅恢复前台控制，需显式连接。这些用户偏好变化不改变协议 v1、有限 JPEG 队列或电脑本地输入偏好与暂停锁。
 
 ### 主机单次防抖与兼容配置
 
-`pose_filter.py` 的 `PoseStabilizer` 为原创纯滤波，不含鼠标 API、定时或线程。`PoseController` 保留授权 / 序号 / 原始输入校验，再处理可选角度平滑，沿用灵敏度与鼠标输出。零精确绕过，会话、回正及相关输入变化重置状态，静默不会产生排队移动；高精度间隔时钟不新增线上姿态值。
+`pose_filter.py` 的 `PoseStabilizer` 为原创纯滤波，不含鼠标 API、定时或线程。`PoseController` 保留本地策略／暂停锁、序号与原始输入校验，再处理可选角度平滑，沿用灵敏度与鼠标输出。零精确绕过，会话、回正及相关输入变化重置状态，静默不会产生排队移动；高精度间隔时钟不新增线上姿态值。
 
 客户端保存十一字段，恰好十字段旧配置迁移防抖为零。在协议 v1 内协商 schema 2，旧主机网络用十字段，本地防抖不被回复清空；初始旧格式 USB hello 加能力时，先有完整快照才创建配置，手机不重复滤波。见 [协议](PROTOCOL.md)、[调节](STABILIZATION.md)、[来源](../licenses/references/README.md)。
 
 ### 共用单眼显示边界
 
 Android GLES 与 iOS Metal 解析相同适配矩形，并在全屏、大屏幕、第一人称模式及镜片畸变后作物理单眼输出遮罩，限定显示范围，不改虚拟屏幕投影或传感器数学；这与证明投影内容填到中缝不同。编辑几何保持纯函数，渲染不改写原始已提交配置。
+
+### 默认启用的界面输入策略（v0.3.4）
+
+Windows 默认开启第一人称陀螺仪鼠标控制。必须有通过校验的连接、第一人称模式、可用采集与新的合法旋转姿态；首条姿态先建立基准，再产生移动。桌面、普通应用、游戏和 VRization 自身窗口均可控制，不受前台窗口切换影响，也不要求五秒内切到目标窗口。传感器短暂间断时停止输出，新姿态先重建基准再继续。**F8**、电脑紧急停止、进入编辑器、电脑重置全部设置、选择采集区域、采集／输入故障和停止串流会锁定暂停；迟到姿态、设置与重连都不能解除。需要在电脑点“**恢复陀螺仪控制**”，或主动关闭再开启控制复选框。全屏和大屏幕停止鼠标输出。电脑只保存启用偏好，不保存实时授权状态或暂停锁。
+
+`HostServer(..., auto_control=False)` 与 `PoseController(..., auto_control=False)` 保留手动嵌入默认，包括旧手动模式的焦点检查。界面把合法 `input.json` 偏好交给服务器；`HostServer.set_auto_control()`／`PoseController.configure_auto_control()` 修改本地策略，只有电脑主动操作才用 `resume_control()` 解除暂停。该偏好独立于线上 Settings 与手机配置；启用／暂停后的首条合法姿态重建基准，没有姿态就没有鼠标输出。

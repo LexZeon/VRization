@@ -5,7 +5,7 @@
 <!-- vrization:english -->
 ## English
 
-v0.3.0-alpha defaults to authorized USB connections, with a trusted-LAN alternative. The host sends its selected display / region to one connected viewer, and First-person mode can move the PC mouse only after local authorization. USB pairing does not start PC streaming or grant mouse control.
+VRization defaults to authorized USB connections, with a trusted-LAN alternative. The host sends its selected display / region to one connected viewer. The Windows GUI's First-person gyro preference defaults to enabled; validated session/mode/pose and local stop gates still control every output. Pairing or discovery alone does not start capture or mouse input.
 
 ### Connection boundaries
 
@@ -23,7 +23,7 @@ Do not publish authenticated WebSocket URLs, pairing codes, device serials, Appl
 
 ### Input control
 
-The phone cannot arm mouse input. First-person mode, a valid connection, live pose and explicit PC authorization are required together. After arming, switch to the game within five seconds. **F8** stops control. Mode changes, disconnects, host stop and desktop language changes require fresh authorization; stale pose or a foreground-window change also disarms. Phone backgrounding / language changes end the session and require explicit reconnection. Test directions, sensitivity and the stop key on a desktop / offline application first. Games may reject system mouse input; VRization does not bypass game protection.
+Windows enables First-person gyro mouse control by default. A validated connection, First-person mode, available capture and fresh valid rotation data are required; the first pose sets a baseline before movement. Control works on the desktop, ordinary applications, games and VRization's own window regardless of foreground-window changes, with no five-second target-window deadline. A temporary sensor gap stops output and rebaselines on fresh poses before continuing. **F8**, the PC emergency stop, editor entry, PC Reset all settings, capture-region selection, capture/input failure and stream Stop latch a pause: late poses, settings and reconnecting cannot clear it. Click **Resume gyro control** on the PC, or explicitly turn the control checkbox off and on, to resume. Full screen and Cinema stop mouse output. The PC saves only the enabled preference, never the live armed state or pause latch. There is no remote arm/resume message. Phone backgrounding or language changes end its session and require explicit reconnection. Games may reject system mouse input; VRization does not bypass game protection.
 
 The Windows target is 10 / 11 x64. Recorded local tests use Windows 11. Huawei Android hardware evidence and the iOS fake-usbmux / Simulator evidence are separate; no physical iPhone, real FPS game or viewer-optics security / compatibility pass is implied.
 
@@ -35,14 +35,14 @@ This alpha has no formal security-maintenance SLA. Include version, OS, minimal 
 
 ### Editor / reset and local preference boundaries
 
-Editor dragging sends no settings and writes no preferences. Phone poses pause; editor entry stops new poses and drops application-pending pose work (already submitted transport bytes cannot be recalled) and sends one disarm-only hello with `editing: true`, while video / ping may continue. Desktop entry also disarms input. Leaving / saving never re-arms it. Discard restores the entry snapshot. Committed local phone profiles are restored only after a validated hello through ordinary bounded settings messages; pairing secrets remain excluded. Reset does not grant control or platform trust. The PC preserves the explicitly selected capture display / region and configured ADB path to avoid sharing an unintended output or changing installed tools. Phone reset disconnects without automatic reconnection. See [editor scope](docs/EDITING.md).
+Editor dragging sends no settings and writes no preferences. Phone poses pause; entry drops application-pending pose work (already submitted transport bytes cannot be recalled) and sends `editing: true`. Both phone and PC editor entry latch host input off, while video/ping may continue. Leaving, Save, Discard, recenter, settings and reconnect do not clear that latch; use **Resume gyro control** on the PC. Committed profiles restore only after validated hello; pairing secrets remain excluded. PC Reset latches input paused and restores the default-enabled preference and Full screen, without granting platform trust. Capture display/region and ADB path remain selected; phone reset disconnects without immediately reconnecting. See [editor scope](docs/EDITING.md).
 
 ---
 
 <!-- vrization:chinese -->
 ## 简体中文
 
-v0.3.0-alpha 默认已授权 USB 连接，也可选择可信局域网。服务器把电脑选定显示器 / 区域发给一个观看端；第一人称鼠标功能须电脑主动授权。USB 配对不自动开始电脑串流，也不授予鼠标控制。
+VRization 默认已授权 USB 连接，也可选择可信局域网；电脑把所选显示器／区域发给一个观看端。Windows 界面第一人称陀螺仪偏好默认启用，每次输出仍受合法会话、模式、姿态与本地停止门控。单纯配对或发现设备不启动采集或鼠标。
 
 ### 连接边界
 
@@ -60,7 +60,7 @@ v0.3.0-alpha 默认已授权 USB 连接，也可选择可信局域网。服务�
 
 ### 输入控制
 
-手机不能自行授权电脑鼠标。必须同时满足 第一人称模式、有效连接、实时姿态和电脑主动授权；授权后五秒内切到游戏，按 **F8** 停止。切换模式、断线、停止主机、电脑切换语言后均需重新授权；姿态超时或前台窗口改变也会解除。手机进入后台 / 切换语言会结束会话，需显式重连。先用桌面或离线应用检查方向、灵敏度与停止键，再进入游戏。游戏可能拒绝系统鼠标输入，VRization 不绕过游戏保护。
+Windows 默认开启第一人称陀螺仪鼠标控制。必须有通过校验的连接、第一人称模式、可用采集与新的合法旋转姿态；首条姿态先建立基准，再产生移动。桌面、普通应用、游戏和 VRization 自身窗口均可控制，不受前台窗口切换影响，也不要求五秒内切到目标窗口。传感器短暂间断时停止输出，新姿态先重建基准再继续。**F8**、电脑紧急停止、进入编辑器、电脑重置全部设置、选择采集区域、采集／输入故障和停止串流会锁定暂停；迟到姿态、设置与重连都不能解除。需要在电脑点“**恢复陀螺仪控制**”，或主动关闭再开启控制复选框。全屏和大屏幕停止鼠标输出。电脑只保存启用偏好，不保存实时授权状态或暂停锁。 没有远程授权／恢复消息。手机进入后台或切换语言会结束会话，需主动重新连接；游戏可能拒绝系统鼠标输入，VRization 不绕过游戏保护。
 
 Windows 目标为 10 / 11 x64，本地已记录测试来自 Windows 11。华为 Android 硬件证据与 iOS 假 usbmux / 模拟器证据分开记录，不表示真实 iPhone、真实 FPS 游戏或盒子镜片的安全 / 兼容性已经通过。
 
@@ -73,4 +73,4 @@ Windows 目标为 10 / 11 x64，本地已记录测试来自 Windows 11。华为 
 
 ### 编辑 / 重置与本地偏好边界
 
-编辑拖动不发设置、不写偏好。手机暂停姿态，进入时丢弃应用层待发姿态（已提交传输层字节无法撤回）并用 hello 一次发送仅解除授权的 `editing: true`；视频 / ping 可继续，电脑进入也解除授权。退出 / 保存不重新授权；放弃恢复进入快照。手机已提交本地配置只在合法 hello 后通过普通有界设置消息恢复，排除配对秘密。重置不授予控制或平台信任；电脑保留明确的采集显示器 / 选区与 ADB 路径，避免分享非预期画面或改变工具。手机重置断线、不自动重连，见 [编辑范围](docs/EDITING.md)。
+编辑拖动不发设置、不写偏好。手机暂停姿态并丢弃应用层待发姿态（已提交传输层字节无法撤回），进入时发送 `editing: true`。手机与电脑进入编辑器均锁定暂停主机输入，视频／ping 可继续；退出、保存、放弃、回正、设置和重连不解除锁，须在电脑点“**恢复陀螺仪控制**”。已提交配置只在合法 hello 后恢复，排除配对秘密；电脑重置锁定输入暂停，恢复默认启用偏好和全屏，不授予平台信任。保留采集显示器／选区及 ADB 路径；手机重置断线且不立即重连，见 [编辑范围](docs/EDITING.md)。

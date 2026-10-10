@@ -7,6 +7,14 @@
 
 User-visible changes are listed newest first. Dates are GitHub publication dates in **UTC**. Each version links to its detailed release notes, downloads and verification limits. An FPS target or a successful build is not a hardware-performance guarantee.
 
+### Unreleased — v0.3.4-alpha
+
+Windows, Android and iOS applications: **0.3.4**, mobile build **7**. Validation and publication are pending.
+
+- **Changed default:** Windows enables First-person gyro mouse control by default and saves `gyro_control_enabled` separately from VR settings. Phone v0.3.3 protocol messages remain compatible; v0.3.4 mobile wording explains the new default.
+- **Improved:** Fresh valid First-person poses start control automatically. The desktop, ordinary applications, games and VRization's own window remain controllable across foreground changes. Short sensor gaps stop output/rebaseline, then resume; this GUI policy has no five-second target-window deadline.
+- **Kept:** F8, PC emergency stop, editor entry, PC Reset, capture-region selection, capture/input failure and stream Stop latch input paused. Late poses, settings and reconnect cannot resume it; use PC Resume or explicitly re-enable the checkbox. Full screen/Cinema never drive the mouse. Live armed/pause state is not saved; reusable constructors retain `auto_control=False`.
+
 ### [v0.3.3-alpha](https://github.com/LexZeon/VRization/releases/tag/v0.3.3-alpha) — 2026-10-10
 
 Windows, Android and iOS applications: **0.3.3**, mobile build **6**.
@@ -83,6 +91,14 @@ First Windows / Android preview.
 ## 简体中文
 
 按从新到旧记录用户能感受到的变化。日期使用 GitHub 发布日期，时区为 **UTC**。每个版本都链接到详细发布说明、下载与验证范围。目标帧率或构建成功不等于硬件性能保证。
+
+### 未发布 — v0.3.4-alpha
+
+Windows、Android 与 iOS 应用：**0.3.4**，手机构建号 **7**。验证与发布尚待完成。
+
+- **默认变化：** Windows 默认开启第一人称陀螺仪鼠标，`gyro_control_enabled` 与 VR 设置分开保存。手机 v0.3.3 的协议消息继续兼容，v0.3.4 手机说明同步解释新默认。
+- **优化：** 新的合法第一人称姿态自动开始控制；桌面、普通应用、游戏和 VRization 自身窗口都可控制，切换前台不解除。传感器短暂间断时停止／重建基准再恢复，此界面策略没有五秒目标窗口限制。
+- **保留：** F8、电脑紧急停止、进入编辑器、电脑重置／选区、采集／输入故障和 Stop 锁定暂停。迟到姿态、设置或重连不能恢复，须在电脑恢复或主动重新开启复选框；全屏／大屏幕不输出鼠标。不保存实时授权／暂停状态，可复用构造器保留 `auto_control=False`。
 
 ### [v0.3.3-alpha](https://github.com/LexZeon/VRization/releases/tag/v0.3.3-alpha) — 2026-10-10
 

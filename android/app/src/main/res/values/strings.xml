@@ -16,7 +16,7 @@
     <string name="usb_not_authorized">USB access is not ready. Approve USB debugging on this phone, then check that the PC app detects this authorized USB device and start streaming.</string>
     <string name="usb_host_stopped">The PC app is reachable but streaming is stopped. Connect here, or start streaming on the PC and retry.</string>
     <string name="usb_invalid_response">USB discovery failed. Update both apps to the same version, start PC streaming and retry.</string>
-    <string name="usb_notice">USB uses the authorized data-cable connection. First-person mouse control still requires permission on the computer.</string>
+    <string name="usb_notice">USB uses the authorized data-cable connection. First-person gyro mouse control uses the PC setting, enabled by default. Press F8 on the PC to stop control; Resume on the PC restores it.</string>
     <string name="check_usb_connection">Check the USB data cable, debugging authorization and PC streaming</string>
     <string name="connect_usb">Connect through USB</string>
     <string name="cancel_connect">Cancel connection</string>
@@ -30,7 +30,7 @@
     <string name="code_hint">Six-digit pairing code</string>
     <string name="connect">Connect</string>
     <string name="disconnect">Disconnect</string>
-    <string name="network_notice">Video and controls are unencrypted. Use a trusted LAN. First-person mouse control must be enabled on the computer.</string>
+    <string name="network_notice">Video and controls are unencrypted. Use a trusted LAN. First-person gyro mouse control uses the PC setting, enabled by default. Press F8 on the PC to stop control; Resume on the PC restores it.</string>
     <string name="sensor_unavailable">No rotation sensor detected. Full mode remains available; Cinema and First-person are disabled.</string>
     <string name="watch_mode">Viewing mode</string>
     <string name="headset_fit">Headset fit</string>

@@ -5,7 +5,7 @@
 <!-- vrization:english -->
 ## English
 
-The v0.3.3 candidate retains integration **protocol v1**: 2D JPEG frames and JSON control messages. Android and iOS use the same messages over LAN or their USB adapters. This is not OpenXR or a stereoscopic video format. For installation and device authorization, read [USB setup](USB.md).
+The v0.3.4 retains integration **protocol v1**: 2D JPEG frames and JSON control messages. Android and iOS use the same messages over LAN or their USB adapters. This is not OpenXR or a stereoscopic video format. For installation and device authorization, read [USB setup](USB.md).
 
 ### LAN WebSocket connection
 
@@ -31,7 +31,7 @@ The phone requests `GET http://127.0.0.1:18765/usb-bootstrap`:
 
 `port` describes the PC listener; it does **not** change the phone destination. The phone then uses `ws://127.0.0.1:18765/ws?token=001234&settingsSchema=2` with the ordinary v1 WebSocket protocol. The example token is fictitious. Responses use `Cache-Control: no-store` and `X-Content-Type-Options: nosniff`. Access requires a loopback peer, one `Host` header naming `127.0.0.1`, `localhost` or `[::1]` with the PC port or reverse port `18765`, no `Origin` header, and an authorized physical USB mapping owned by this manager. Refusal is `403`; a reachable but stopped host returns `503`, while a stopped listener usually refuses the TCP connection. Ordinary `HostServer` embedding disables bootstrap unless explicitly supplied an authorization callback. No CORS permission is granted.
 
-### Explicit Android USB control (v0.3.3 candidate)
+### Explicit Android USB control (v0.3.3+)
 
 `ConnectionCoordinator` owns request identities independently of capture. The PC binds `UsbConnectService` only to `127.0.0.1:18764`; an owned non-rebinding reverse mapping connects phone `18764` to it. Explicit phone Connect makes one empty-body `POST http://127.0.0.1:18764/connect`, then uses ordinary video bootstrap at `18765`. Automatic waiting, bootstrap polling and socket retries do not repeat this request. The route requires a loopback peer, one literal loopback Host with the control port, no Origin and independently authorized physical USB control mapping. No token or target is supplied. On 200 the response is `{"v":1,"name":"VRization","ready":true}`; refusal is 403, unavailable / eight-second failed startup is 503. GUI acceptance rejects stopped / expired identities. Video bootstrap remains independently authorized.
 
@@ -39,11 +39,11 @@ PC Connect starts the host under the same coordinator and makes one explicit sel
 
 ### iOS USB envelope
 
-The foreground iOS app keeps control at phone loopback `127.0.0.1:18767`; explicit Connect opens video at `127.0.0.1:18766`. Windows enumerates USB devices through local usbmux (`127.0.0.1:27015`) and requires a read-only existing `ReadPairRecord` before either connection. PC Connect sends exactly one framed kind-1 `{"v":1,"type":"connect"}` to `18767`. Control accepts only these two fields, integer v1 and type connect or stop; it cannot authorize input or choose a capture target. Active sessions ignore repeated control. The control listener persists during video Disconnect and stops in background / destruction. Windows cannot launch a background viewer.
+The foreground iOS app keeps control at phone loopback `127.0.0.1:18767`; explicit Connect opens video at `127.0.0.1:18766`. Windows enumerates USB devices through local usbmux (`127.0.0.1:27015`) and requires a read-only existing `ReadPairRecord` before either connection. PC Connect sends exactly one framed kind-1 `{"v":1,"type":"connect"}` to `18767`. Control accepts only these two fields, integer v1 and type connect or stop; it cannot clear an input pause latch or choose a capture target. Active sessions ignore repeated control. The control listener persists during video Disconnect and stops in background / destruction. Windows cannot launch a background viewer.
 
 PC Stop first gates pending relay startup and closes its existing video. It sends one paired control `{"v":1,"type":"stop"}`. The native main queue closes video/socket, invalidates decoder state and clears the renderer before replying `{"v":1,"type":"stopped"}`; foreground control remains available. `request_ios_stop` requires that bounded acknowledgment within two seconds. Only acknowledgment or an independently paired explicit video-port refusal can clear the stop gate; a trust/service failure cannot prove listener absence. Old notifications / absence results are checked against the stop epoch. Notification is bounded and a new explicit PC Connect can replace the stopped request; detection does not unlock it after a timeout. This also closes an explicitly opened video listener that had never accepted a peer.
 
-The unique accepted video peer sends the same readiness frame before receiving host hello. `IosRelay` requires it within two seconds, consumes it even for running hosts and never forwards it as a host message. Only valid readiness can request a stopped host through the injected coordinator; the relay waits up to eight seconds for the same request identity and startup. Cancellation / timeout fails pending identities and closes the paired peer; a later different action cannot satisfy an old request. An occupied old listener rejects the new peer without readiness, so TCP acceptance alone never starts capture. This candidate pre-handshake requires the matching native viewer; legacy iOS USB viewers without readiness are not compatible with the new relay. LAN v1 message compatibility is unaffected.
+The unique accepted video peer sends the same readiness frame before receiving host hello. `IosRelay` requires it within two seconds, consumes it even for running hosts and never forwards it as a host message. Only valid readiness can request a stopped host through the injected coordinator; the relay waits up to eight seconds for the same request identity and startup. Cancellation / timeout fails pending identities and closes the paired peer; a later different action cannot satisfy an old request. An occupied old listener rejects the new peer without readiness, so TCP acceptance alone never starts capture. This v0.3.3+ pre-handshake requires the matching native viewer; legacy iOS USB viewers without readiness are not compatible with the new relay. LAN v1 message compatibility is unaffected.
 
 The relay then authenticates to the local host WebSocket with its current token and bridges ordinary messages. No code is entered on iOS; automatic selection requires one attached Apple device. VRization sends no Pair / Trust / SavePairRecord and never logs or saves record keys.
 
@@ -55,7 +55,7 @@ Inside this tunnel, each VRization frame is:
 
 The length includes the kind and excludes the four-byte prefix; valid length is `1…8 MiB`. Kind `1` carries UTF-8 v1 JSON and kind `2` carries one JPEG. JSON payloads are limited to 16 KiB. Phone → host accepts JSON only. Reject invalid lengths / kinds before allocating a payload; handle partial headers, fragmented payloads and multiple frames in one read. The first host JSON is the normal `hello`; the app requires it before treating the session as connected. Closing either side closes the relay's WebSocket and revokes host input authorization. This envelope is separate from usbmux's own little-endian plist service protocol; it does not change WebSocket v1.
 
-Fresh Android startup can wait for an existing stream; fresh iOS startup opens only foreground control. An explicit Connect on either supported device can establish USB. Backgrounding, language changes and Disconnect invalidate video and require another explicit action. New candidate native checks are pending. Historical iOS evidence covers simulated usbmux and the native Simulator, not a physical iPhone / Apple driver. See version-scoped [validation](VALIDATION.md).
+Fresh Android startup can wait for an existing stream; fresh iOS startup opens only foreground control. An explicit Connect on either supported device can establish USB. Backgrounding, language changes and Disconnect invalidate video and require another explicit action. The v0.3.3 native acceptance is recorded; v0.3.4 policy checks are pending. iOS evidence covers simulated usbmux and the native Simulator, not a physical iPhone / Apple driver. See version-scoped [validation](VALIDATION.md).
 
 ### Message directions
 
@@ -132,9 +132,9 @@ Yaw / pitch are landscape-remapped angles in **radians**: positive yaw turns rig
 {"v":1,"type":"recenter"}
 ```
 
-The phone resets its local camera center and sends this message so the next pose establishes a new host mouse baseline. It never arms input.
+The phone resets its local camera center and sends this message so the next pose establishes a new host mouse baseline. Recenter alone produces no mouse movement and cannot clear a pause latch; a fresh valid pose follows the local enabled policy.
 
-First-person mode needs a valid session, `mode: fps`, recent pose and explicit PC arming. Pose timeout is 0.5 seconds. After arming, select the target window within five seconds; later focus changes disarm. Mouse displacement is also limited. There is no remote `arm` message; preserve this boundary in integrations.
+Windows enables First-person gyro mouse control by default. A validated connection, First-person mode, available capture and fresh valid rotation data are required; the first pose sets a baseline before movement. Control works on the desktop, ordinary applications, games and VRization's own window regardless of foreground-window changes, with no five-second target-window deadline. A temporary sensor gap stops output and rebaselines on fresh poses before continuing. **F8**, the PC emergency stop, editor entry, PC Reset all settings, capture-region selection, capture/input failure and stream Stop latch a pause: late poses, settings and reconnecting cannot clear it. Click **Resume gyro control** on the PC, or explicitly turn the control checkbox off and on, to resume. Full screen and Cinema stop mouse output. The PC saves only the enabled preference, never the live armed state or pause latch. Pose freshness remains bounded to 0.5 seconds; the policy never emits timer-driven movement. There is no remote `arm`/`resume` message. Embeddable `HostServer` and `PoseController` default `auto_control=False`; manual callers retain explicit arming behavior. The Windows GUI opts into its local preference. Wire v1 and settings schema 2 are unchanged.
 
 ### Heartbeat, errors and close
 
@@ -150,13 +150,13 @@ New codecs, native per-eye frames, timestamps or stronger authentication require
 
 ### Editor drafts and saved local profiles (v0.3)
 
-These are client / GUI policies, not new wire types. Preview pan / resize is local: no `settings`, `pose` or preference writes occur while editing. A flat / undistorted preview retains the saved mode and other optical values. Phone Save commits the complete draft and sends one normal settings update when connected. PC Save patches only scale / offsetX / offsetY / eyeSeparation against the latest host state, preserving concurrent changes to other fields. Discard restores the local entry preview and sends none. Editor exit never arms input. Phone backgrounding / disconnecting discards an open draft.
+These are client / GUI policies, not new wire types. Preview pan / resize is local: no `settings`, `pose` or preference writes occur while editing. A flat / undistorted preview retains the saved mode and other optical values. Phone Save commits the complete draft and sends one normal settings update when connected. PC Save patches only scale / offsetX / offsetY / eyeSeparation against the latest host state, preserving concurrent changes to other fields. Discard restores the local entry preview and sends none. Editor exit cannot clear the host's latched input pause. Phone backgrounding / disconnecting discards an open draft.
 
 Phones persist all committed VR fields, including offline changes; pairing secrets are not stored. After each validated host hello, a saved profile is restored once via normal complete settings with a fresh clientSeq. Do not replay old socket work, bypass validation or reset revisions to accommodate it. Accepted subsequent complete snapshots update the local profile normally. This explicit user-requested persistence replaces the earlier host-initial-settings preference for v0.3 clients; old v1 clients retain their behavior.
 
 Connected Save from the PC or phone uses settings / acknowledgments / broadcasts and retains the accepted state on both sides. Offline changes stay local. If both sides have conflicting offline changes, the saved phone profile takes precedence on reconnect; the PC can Save again afterward. No timestamp / clock comparison, automatic merge or new conflict wire type is introduced. Editor horizontal dragging updates the existing eyeSeparation field with selected-eye sign (left −1, right +1), mirrored around shared X while the remaining gap permits it; vertical motion updates shared offsetY. Left-eye left / right-eye right widens, the opposite directions narrow. Flat-fit resolution uses h=fit.x×scale, separation=clamp(raw,h−1,.2), gap=max(0,1+separation−h), X=clamp(rawX,±min(.3,gap)). Contact recenters X and enlargement may adjust spacing outward; normal corner motion and first-person mapping stay unchanged. These pure render constraints do not rewrite raw saved settings. Both endpoints must be v0.3 for negative values; v0.2 accepted only 0…0.2. Existing nonnegative profiles remain valid. Only undistorted flat preview / full / first-person guarantees this seam geometry, not cinema or distorted views.
 
-Reset restores standard Settings defaults, English and USB; phone reset clears connection preferences and disconnects without immediate auto-reconnect. A fresh Android launch can wait for an existing stream; iOS opens foreground control only; a valid hello restores the committed defaults. Host reset also restores capture 640 / 60 / Q45 but preserves explicit monitor / region and ADB tool path. Connected updates use ordinary settings validation. No remote reset / arm message is introduced. See [editor geometry and reset scope](EDITING.md).
+Reset restores standard Settings defaults, English and USB; phone reset clears connection preferences and disconnects without immediate auto-reconnect. A fresh Android launch can wait for an existing stream; iOS opens foreground control only; a valid hello restores the committed defaults. Host reset latches input paused and restores its default-enabled gyro preference with Full screen selected, and also restores capture 640 / 60 / Q45 but preserves explicit monitor / region and ADB tool path. Connected updates use ordinary settings validation. No remote reset / arm message is introduced. See [editor geometry and reset scope](EDITING.md).
 
 ### Disarm-only editor metadata (v0.3)
 
@@ -164,7 +164,7 @@ Reset restores standard Settings defaults, English and USB; phone reset clears c
 {"v":1,"type":"hello","editing":true}
 ```
 
-On editor entry, the phone stops new poses and drops application-pending pose work (already submitted transport bytes cannot be recalled) and sends this once on an already validated connection. Optional `editing` must be a JSON boolean; true disarms the current host immediately on receipt. False or omission never arms input. It is metadata on the existing v1 hello, not a draft settings update or a fourth mode. Older hosts can ignore the field; withholding poses still triggers their watchdog. Video / ping can continue during editing, and normal exit recentering remains allowed. Save or Discard never sends an arm request; the user must authorize again on the PC.
+On editor entry, the phone stops new poses and drops application-pending pose work (already submitted transport bytes cannot be recalled) and sends this once on an already validated connection. Optional `editing` must be a JSON boolean; true latches the current host input paused immediately on receipt. False or omission never clears a pause latch. A new valid First-person pose may activate the locally enabled policy only when no latch is set. It is metadata on the existing v1 hello, not a draft settings update or a fourth mode. Older hosts can ignore the field; withholding poses still triggers their watchdog. Video / ping can continue during editing, and normal exit recentering remains allowed. Save or Discard sends no arm/resume request; the user must click Resume gyro control on the PC. Fresh poses cannot clear an editor pause latch.
 
 ### Compatible settings negotiation (v0.3.2)
 
@@ -174,14 +174,14 @@ A valid host hello can declare `capabilities:["stabilization"]`, or contain the 
 
 Without either support signal, clients strip stabilization only from outbound network settings and preserve the full local profile. Legacy full / partial replies merge into the local base without zeroing an omitted stabilization value. Legacy clients get ten fields unless opting in. Complete persisted / handshake profiles accept exactly legacy ten or new eleven fields; legacy migration adds zero. Partial settings stay nonempty, known-key and range validated. See [stabilization](STABILIZATION.md).
 
-Positive smoothing runs only in the host's first-person pose-to-mouse path. Phones keep the same pose format without duplicate filtering. The host measures its own high-resolution elapsed time; no timestamp is added to v1. Zero bypass, raw-jump rejection, stale-pose stop, editor disarm, F8 and explicit authorization remain. Settings messages cannot arm input.
+Positive smoothing runs only in the host's first-person pose-to-mouse path. Phones keep the same pose format without duplicate filtering. The host measures its own high-resolution elapsed time; no timestamp is added to v1. Zero bypass, raw-jump rejection, stale-pose stop, editor pause latch, F8 and the local enabled preference remain. Settings alone produce no mouse movement and cannot clear a pause latch.
 
 ---
 
 <!-- vrization:chinese -->
 ## 简体中文
 
-v0.3.3 候选保留集成**协议 v1**：传输二维 JPEG 帧和 JSON 控制消息。Android 与 iOS 经局域网或各自 USB 适配器使用相同消息。它不是 OpenXR 或立体视频协议；安装和设备授权见 [USB 教程](USB.md)。
+v0.3.4 保留集成**协议 v1**：传输二维 JPEG 帧和 JSON 控制消息。Android 与 iOS 经局域网或各自 USB 适配器使用相同消息。它不是 OpenXR 或立体视频协议；安装和设备授权见 [USB 教程](USB.md)。
 
 ### 局域网 WebSocket 连接
 
@@ -207,7 +207,7 @@ Windows 界面可启用 `UsbManager`，检测已授权的真实 Android USB 设�
 
 `port` 说明电脑监听端口，**不改变**手机目的端口；手机随后以普通 v1 协议连接 `ws://127.0.0.1:18765/ws?token=001234&settingsSchema=2`。示例 token 为虚构。响应含 `Cache-Control: no-store`、`X-Content-Type-Options: nosniff`。请求必须来自回环地址，仅含一个 `Host`，主机为 `127.0.0.1`、`localhost` 或 `[::1]`，端口为电脑端口或反向端口 `18765`，不能含 `Origin`，并且 manager 必须拥有已授权的真实 USB 映射。拒绝返回 `403`；服务可达但已停止返回 `503`，监听停止时通常直接拒绝 TCP 连接。普通 `HostServer` 嵌入默认关闭 bootstrap，须显式提供授权回调；接口不授予 CORS 访问。
 
-### Android 主动 USB 控制（v0.3.3 候选）
+### Android 主动 USB 控制（v0.3.3+）
 
 `ConnectionCoordinator` 独立于采集管理请求身份。电脑仅在 `127.0.0.1:18764` 监听 `UsbConnectService`，自有不重新绑定的 reverse 将手机 `18764` 映射到它。手机主动连接发送一次空 body `POST http://127.0.0.1:18764/connect`，再走普通 `18765` 视频 bootstrap；自动等待、bootstrap 轮询、socket 重试不重复请求。路由要求回环 peer、仅一个带控制端口的字面回环 Host、无 Origin 和独立验证的真实 USB 控制映射；不传 token 或目标。200 返回 `{"v":1,"name":"VRization","ready":true}`，拒绝 403，不可用／八秒启动失败 503；GUI 拒绝已停止或过期身份，视频 bootstrap 独立鉴权。
 
@@ -219,7 +219,7 @@ iOS 前台在手机回环 `127.0.0.1:18767` 保留控制，主动连接才开放
 
 电脑停止先限制待处理中继启动、关闭已有视频，并发送一次已配对控制 `{"v":1,"type":"stop"}`。原生主队列关闭视频／socket，使解码状态失效并清渲染器，再回复 `{"v":1,"type":"stopped"}`；前台控制仍保留。`request_ios_stop` 要求两秒内收到有限长确认。只有确认或独立已配对的视频端口明确拒绝可解除停止门控；信任／服务错误不能证明监听消失。旧通知／端口结果核对停止代际。通知有限等待，新电脑主动连接可替代停止请求，检测不因超时自行解除；这也能关闭已开放但从未接受 peer 的视频监听。
 
-视频接受唯一 peer 后，手机在收到 host hello 前发送同样就绪帧。`IosRelay` 两秒内要求就绪，主机已运行也消费它，不将其转成 host 消息；合法就绪才可经注入协调器请求已停止主机，最多八秒等待同一请求身份和启动。取消／超时使待处理身份失败、关闭已配对 peer，后续其他动作不能满足旧请求。旧监听已占用时拒第二 peer、没有就绪，仅 TCP 接受不能开始采集。候选预握手需要匹配原生观看端，无就绪的旧 iOS USB 端不兼容新中继；LAN v1 消息兼容不变。
+视频接受唯一 peer 后，手机在收到 host hello 前发送同样就绪帧。`IosRelay` 两秒内要求就绪，主机已运行也消费它，不将其转成 host 消息；合法就绪才可经注入协调器请求已停止主机，最多八秒等待同一请求身份和启动。取消／超时使待处理身份失败、关闭已配对 peer，后续其他动作不能满足旧请求。旧监听已占用时拒第二 peer、没有就绪，仅 TCP 接受不能开始采集。v0.3.3+ 预握手需要匹配原生观看端，无就绪的旧 iOS USB 端不兼容新中继；LAN v1 消息兼容不变。
 
 随后中继使用当前 token 鉴权主机本机 WebSocket、桥接普通消息。iOS 不输入码，自动选择只接一台 Apple 设备。VRization 不发 Pair／Trust／SavePairRecord，不记录／保存其中密钥。
 
@@ -231,7 +231,7 @@ iOS 前台在手机回环 `127.0.0.1:18767` 保留控制，主动连接才开放
 
 长度包含类型字节、不包含四字节头，有效范围 `1…8 MiB`。类型 `1` 为 UTF-8 v1 JSON，类型 `2` 为一个 JPEG；JSON 内容最多 16 KiB，手机向主机只发 JSON。分配内容前先拒绝非法长度 / 类型；支持分段头、分段内容及一次读取多个帧。首条主机 JSON 为普通 `hello`，应用收到合法握手才认为连接成功。任意一侧关闭会关闭中继 WebSocket，并撤销主机输入授权。此分帧独立于 usbmux 自身的小端 plist 服务协议，不改变 WebSocket v1。
 
-全新 Android 启动可等待已有串流，全新 iOS 仅开放前台控制；受支持任一端主动连接可建立 USB，后台、切换语言和断线使视频失效，需再次主动连接。新增候选原生检查待完成，历史 iOS 证据只包含模拟 usbmux 和原生模拟器，不代表真实 iPhone／Apple 驱动。见按版本记录的[验证](VALIDATION.md)。
+全新 Android 启动可等待已有串流，全新 iOS 仅开放前台控制；受支持任一端主动连接可建立 USB，后台、切换语言和断线使视频失效，需再次主动连接。v0.3.3 原生验收已有记录，v0.3.4 策略检查仍待完成；iOS 证据只包含模拟 usbmux 和原生模拟器，不代表真实 iPhone／Apple 驱动。见按版本记录的[验证](VALIDATION.md)。
 
 ### 消息方向
 
@@ -313,9 +313,9 @@ v0.1.1 起，主机 `hello` 与 `settings` 含非负、单调增加的 `revision
 {"v":1,"type":"recenter"}
 ```
 
-手机回正同时重设本地虚拟相机基准，并向主机发送 `recenter`，让下一条姿态建立新鼠标基准。主机收到该消息不会自动授权鼠标。
+手机回正同时重设本地虚拟相机基准，并向主机发送 `recenter`，让下一条姿态建立新鼠标基准。回正自身不产生鼠标移动或解除暂停锁；新的合法姿态遵循本地已启用策略。
 
-第一人称控制需要有效会话、`mode: fps`、近期姿态和电脑端主动授权。当前姿态心跳超时为 0.5 秒；授权后需在五秒内切到目标窗口，之后切换焦点会解除授权。输出还限制单次鼠标位移。没有远程 `arm` 消息；集成时应保留此边界。
+Windows 默认开启第一人称陀螺仪鼠标控制。必须有通过校验的连接、第一人称模式、可用采集与新的合法旋转姿态；首条姿态先建立基准，再产生移动。桌面、普通应用、游戏和 VRization 自身窗口均可控制，不受前台窗口切换影响，也不要求五秒内切到目标窗口。传感器短暂间断时停止输出，新姿态先重建基准再继续。**F8**、电脑紧急停止、进入编辑器、电脑重置全部设置、选择采集区域、采集／输入故障和停止串流会锁定暂停；迟到姿态、设置与重连都不能解除。需要在电脑点“**恢复陀螺仪控制**”，或主动关闭再开启控制复选框。全屏和大屏幕停止鼠标输出。电脑只保存启用偏好，不保存实时授权状态或暂停锁。 姿态新鲜度仍为 0.5 秒，不产生定时驱动鼠标移动。没有远程 `arm`／`resume` 消息；嵌入式 `HostServer` 与 `PoseController` 默认 `auto_control=False`，手动调用方保留显式启用行为；Windows 界面采用本地偏好。线上 v1 和配置 schema 2 不变。
 
 ### 心跳、错误与关闭
 
@@ -338,13 +338,13 @@ v0.1.1 起，主机 `hello` 与 `settings` 含非负、单调增加的 `revision
 
 ### 编辑草稿与本地保存配置（v0.3）
 
-这是客户端 / 界面策略，不新增协议类型。预览平移 / 缩放只在本地，编辑期间不发 `settings`、`pose`，不写偏好；无畸变平面预览保留原模式与其他光学值。手机保存提交完整草稿，已连接时发送一次普通设置更新；电脑只对最新主机状态更新 scale / offsetX / offsetY / eyeSeparation，保留其他字段并发变化。放弃恢复本地进入预览，不发送。退出编辑不授权鼠标，手机后台 / 断线会放弃草稿。
+这是客户端 / 界面策略，不新增协议类型。预览平移 / 缩放只在本地，编辑期间不发 `settings`、`pose`，不写偏好；无畸变平面预览保留原模式与其他光学值。手机保存提交完整草稿，已连接时发送一次普通设置更新；电脑只对最新主机状态更新 scale / offsetX / offsetY / eyeSeparation，保留其他字段并发变化。放弃恢复本地进入预览，不发送。退出编辑不能解除主机输入暂停锁，手机后台 / 断线会放弃草稿。
 
 手机保存全部已提交 VR 字段，包括离线更改，不保存配对秘密。每次合法主机 hello 后，通过带新 clientSeq 的普通完整 settings 一次恢复本地配置；不得重放旧 socket 任务、跳过校验或为此重置 revision。后续接受的完整快照正常更新本地配置。此用户明确要求的持久化策略，在 v0.3 客户端替代先前优先主机初始设置的策略；旧 v1 客户端保持原行为。
 
 电脑或手机已连接的保存经设置 / 确认 / 广播传播，两端保留接受状态；离线变化只在本地。若两边离线冲突，重连时已保存手机配置优先，电脑可随后再保存；不比较时间戳 / 时钟、不自动合并、不新增冲突协议类型。编辑器横向拖动根据选中眼符号（左 −1、右 +1）更新已有 eyeSeparation，在剩余间隙允许时围绕共用 X 镜像联动；竖向更新共用 offsetY。左眼向左 / 右眼向右拉开，反向收拢；平面解析采用 h=fit.x×scale、间距=clamp(raw,h−1,.2)、gap=max(0,1+间距−h)、X=clamp(rawX,±min(.3,gap))；接触时 X 居中，放大时可能向外调整间距，普通角点方向与 第一人称映射不变。纯渲染约束不改写原始已存设置。负值需两端均为 v0.3，v0.2 只接受 0…0.2；已有非负配置仍有效。接缝几何只保证无畸变平面预览 / 全屏 / 第一人称，不含大屏幕或畸变视图。
 
-重置恢复标准 Settings 默认、英文与 USB；手机清除连接偏好并断线，当前界面不自动重连；全新 Android 可等待已有串流，iOS 仅开放前台控制，合法 hello 后恢复已提交默认值。主机还恢复采集 640 / 60 / Q45，但保留明确显示器 / 选区和 ADB 工具路径；已连接更新仍经过普通设置校验，不新增远程 reset / arm 消息。见 [几何与重置范围](EDITING.md)。
+重置恢复标准 Settings 默认、英文与 USB；手机清除连接偏好并断线，当前界面不自动重连；全新 Android 可等待已有串流，iOS 仅开放前台控制，合法 hello 后恢复已提交默认值。主机重置锁定输入暂停，恢复默认启用陀螺仪并选择全屏，还恢复采集 640 / 60 / Q45，但保留明确显示器 / 选区和 ADB 工具路径；已连接更新仍经过普通设置校验，不新增远程 reset / arm 消息。见 [几何与重置范围](EDITING.md)。
 
 
 ### 只解除授权的编辑元数据（v0.3）
@@ -353,7 +353,7 @@ v0.1.1 起，主机 `hello` 与 `settings` 含非负、单调增加的 `revision
 {"v":1,"type":"hello","editing":true}
 ```
 
-手机进入编辑器时停止新姿态、丢弃应用层待发姿态（已提交传输层字节无法撤回），在已校验连接上一次发送。可选 `editing` 必须为 JSON 布尔值，true 让当前主机收到后立即解除授权；false 或省略均不授权。这是已有 v1 hello 的元数据，不是草稿设置更新或第四模式；旧主机可忽略，暂停姿态仍触发其看门狗。编辑期间可继续视频 / ping，正常退出仍可回正；保存或放弃不发送授权请求，用户须重新在电脑主动授权。
+手机进入编辑器时停止新姿态、丢弃应用层待发姿态（已提交传输层字节无法撤回），在已校验连接上一次发送。可选 `editing` 必须为 JSON 布尔值，true 让当前主机收到后立即锁定输入暂停；false 或省略不解除暂停锁；仅在未锁定时，新的合法第一人称姿态可激活本地已启用策略。这是已有 v1 hello 的元数据，不是草稿设置更新或第四模式；旧主机可忽略，暂停姿态仍触发其看门狗。编辑期间可继续视频 / ping，正常退出仍可回正；保存或放弃不发送授权／恢复请求，用户须在电脑点“恢复陀螺仪控制”；新的姿态不能解除编辑暂停锁。
 
 ### 兼容配置协商（v0.3.2）
 
@@ -363,4 +363,4 @@ v0.1.1 起，主机 `hello` 与 `settings` 含非负、单调增加的 `revision
 
 都没有支持信号时，客户端只从出站网络设置去掉防抖，本地完整值保留；旧完整 / 部分回复基于当前本地值合并，不因缺字段而清零。旧客户端未主动选择时收到十字段。完整保存 / 握手只接受恰好十字段旧格式或十一字段新格式，旧迁移防抖添加零；部分设置仍须非空、字段已知并校验范围。见 [防抖](STABILIZATION.md)。
 
-正防抖只在主机第一人称姿态转鼠标路径执行，手机不改姿态格式、不重复滤波；主机计自身高精度间隔，v1 不加时间戳。零绕过、原始跳变拒绝、姿态超时、编辑解除、F8、主动授权保留，设置消息不能授权输入。
+正防抖只在主机第一人称姿态转鼠标路径执行，手机不改姿态格式、不重复滤波；主机计自身高精度间隔，v1 不加时间戳。零绕过、原始跳变拒绝、姿态超时、编辑暂停锁、F8 与本地启用偏好保留；设置自身不产生鼠标移动，也不能解除暂停锁。

@@ -142,6 +142,7 @@ class UsbConnectTests(unittest.TestCase):
         window._stop_generation = 0
         window.events = queue.SimpleQueue()
         window.root = SimpleNamespace(after=lambda *args: None)
+        window._refresh_input_status = Mock()
         window.connection = ConnectionCoordinator(window.events.put, lambda: False)
         calls = []
         def start(**kwargs):

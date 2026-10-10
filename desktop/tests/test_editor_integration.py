@@ -12,7 +12,8 @@ from vrization_host.gui import HostWindow
 from vrization_host.protocol import Settings
 from vrization_host.server import HostServer
 from vrization_host.storage import (default_preferences, load_preferences, save_preferences,
-                                    load_usb_preferences, save_usb_preferences)
+                                    load_usb_preferences, save_usb_preferences,
+                                    load_input_preferences, save_input_preferences)
 from vrization_host.view_edit import EditTransaction
 from vrization_host.view_editor import HeadsetEditor
 
@@ -108,23 +109,30 @@ class EditorIntegrationTests(unittest.TestCase):
         owner.usb_preferences = {"enabled": False, "preferred_serial": "test-device", "adb_path": "custom/adb.exe"}
         owner.usb = SimpleNamespace(preferred_serial="test-device", set_enabled=Mock())
         owner._rebuild = Mock(); owner._log = Mock(); owner.language = "zh"
+        owner.hotkey_available = True
         with tempfile.TemporaryDirectory() as directory:
             path, usb_path = Path(directory) / "prefs.json", Path(directory) / "usb.json"
+            input_path = Path(directory) / "input.json"
             with patch("vrization_host.gui.save_preferences",
                        side_effect=lambda settings, config: save_preferences(settings, config, path)), \
                  patch("vrization_host.gui.save_usb_preferences",
                        side_effect=lambda preferences: save_usb_preferences(preferences, usb_path)), \
+                 patch("vrization_host.gui.save_input_preferences",
+                       side_effect=lambda preferences: save_input_preferences(preferences, input_path)), \
                  patch("vrization_host.gui.save_language") as language:
                 owner.reset_all()
                 language.assert_called_once_with("en")
             self.assertEqual(load_preferences(path), default_preferences(old))
             self.assertEqual(load_usb_preferences(usb_path),
                              {"enabled": True, "preferred_serial": "", "adb_path": "custom/adb.exe"})
+            self.assertEqual(load_input_preferences(input_path), {"gyro_control_enabled": True})
         self.assertEqual(owner.language, "en")
         owner.editor.discard.assert_called_once()
         owner.usb.set_enabled.assert_called_once_with(True)
         owner._rebuild.assert_called_once_with(0)
         self.assertFalse(owner.server.controller.armed)
+        self.assertTrue(owner.server.controller.suspended)
+        self.assertTrue(owner.server.controller.auto_control)
 
     def test_editor_entry_stops_existing_authorization_and_blocks_arm_button(self):
         owner = HostWindow.__new__(HostWindow)
@@ -135,6 +143,10 @@ class EditorIntegrationTests(unittest.TestCase):
         self.assertTrue(owner.server.arm()[0])
         owner.editor = None
         owner.arm_var = Mock()
+        owner.input_preferences = {"gyro_control_enabled": False}
+        owner.language = "en"
+        owner._refresh_input_status = Mock()
+        owner._log = Mock()
         with patch("vrization_host.gui.HeadsetEditor") as editor:
             owner.open_editor()
             editor.assert_called_once_with(owner, owner.server.settings)

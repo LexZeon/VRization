@@ -7,7 +7,7 @@
 
 USB is the default connection preference in the Windows host, Android app and iOS app. A data cable and the platform's authorization are required. Native USB transport does not require a hotspot, USB tethering or a shared Wi-Fi network. Use one phone at a time; the host accepts one viewer.
 
-**v0.3.3 candidate behavior:** Automatic detection finds authorized devices and never starts capture by itself. After setup, select the screen / region, then press **Connect / Start streaming** on the PC or **Detect USB and connect** on Android / **Connect** in a foreground iOS app. Either explicit action can request host startup; an existing active session is retained. Fresh Android startup can wait for an existing stream, while iOS startup opens control only. Returning from the background or changing language requires explicit connection. This candidate awaits final native / device validation; historical behavior is recorded in [validation](VALIDATION.md). USB never arms first-person mouse control: explicitly allow it on the PC and use **F8** to stop.
+**Current connection behavior:** Automatic detection finds authorized devices without starting capture. Select the screen/region, then use **Connect / Start streaming** on the PC or **Detect USB and connect** on Android / **Connect** in a foreground iOS app. Either explicit action can request host startup while retaining an active session. Fresh Android startup can wait for an existing stream; iOS opens control only. Returning from background or changing phone language requires explicit connection. Windows defaults First-person gyro mouse control to enabled once a valid session and fresh First-person poses exist; **F8** latches a pause until **Resume gyro control** on the PC. See [current verification limits](VALIDATION.md).
 
 ### Find the PC's USB controls and status
 
@@ -21,7 +21,7 @@ Read the USB status in the top connection card, below the PC address and connect
 2. Open **USB connection… → Download official Android USB tools…**, read / accept Google's terms and download the official [Windows Platform Tools](https://developer.android.com/tools/releases/platform-tools). Use **Import downloaded USB tools ZIP…** to choose the downloaded verified **37.0.1** ZIP and a separate installation folder. Import verifies the package, keeps its complete NOTICE and preserves existing installations; it does not download or accept terms for you. Alternatively, extract official tools yourself and use **Choose official SDK adb.exe…**. Keep the whole tools folder. VRization bundles no `adb.exe`, SDK or USB driver; the packaged app itself needs no Python / development environment.
 3. Enable the phone's Developer options and **USB debugging**, connect a data cable, unlock the phone and approve USB debugging for this computer. OEM menu names and driver requirements vary; use the manufacturer's USB driver if Windows does not recognize its debugging interface. Google's [ADB setup guide](https://developer.android.com/tools/adb#Enabling) explains device authorization.
 4. Keep **Detect authorized USB phones automatically (recommended)** enabled on the PC. With one authorized Android USB device it is selected automatically. With several, choose the intended serial number in the USB device list. Emulators and wireless ADB are excluded from this USB discovery.
-5. Select the screen / region and open Android with **USB cable · default** selected. Press **Connect / Start streaming** on the PC, or tap **Detect USB and connect** on Android. The candidate connects either way without entering an IP address or six-digit code.
+5. Select the screen / region and open Android with **USB cable · default** selected. Press **Connect / Start streaming** on the PC, or tap **Detect USB and connect** on Android. The supported connection flow works either way without entering an IP address or six-digit code.
 
 For later sessions, connect and unlock the phone, then use either side’s explicit Connect with the cable left in place. Disconnect must clear the phone image and stop live frames; button text alone is insufficient. Conflicts on phone video `18765` or control `18764` are reported and existing mappings are preserved. VRization removes only mappings it created and still owns.
 
@@ -39,7 +39,7 @@ A bounded phone-first test on the Huawei succeeded when PC streaming started 6.0
 
 1. Build and sign the iOS app for your device using Xcode on a Mac, following [the iOS guide](IOS.md). The source ZIP needs your Apple signing. A Simulator ZIP runs in the matching Mac Simulator and cannot be installed on an iPhone. The app requires iOS / iPadOS 15 or newer.
 2. On Windows, install Apple's **Apple Devices** app and its Apple Mobile Device support. Connect one iPhone / iPad with a data cable, unlock it, approve **Trust This Computer**, and confirm that Apple Devices recognizes it. See Apple's [Windows device guide](https://support.apple.com/guide/devices-windows/welcome/windows) and [USB recognition / Trust instructions](https://support.apple.com/en-us/108643).
-3. Keep automatic USB detection enabled and open the matching signed iOS app in the foreground. Select the screen / region, then press **Connect / Start streaming** on the PC or **Connect** on iOS. Startup opens foreground control only; an explicit action opens video and sends readiness through the paired Apple USB tunnel before host startup. Use the matching candidate viewer and PC relay, which add this pre-handshake. No IP / six-digit code is entered.
+3. Keep automatic USB detection enabled and open the matching signed iOS app in the foreground. Select the screen / region, then press **Connect / Start streaming** on the PC or **Connect** on iOS. Startup opens foreground control only; an explicit action opens video and sends readiness through the paired Apple USB tunnel before host startup. Use the matching v0.3.3-or-newer viewer and PC relay, which add this pre-handshake. No IP / six-digit code is entered.
 4. Keep the app visible and unlocked. Disconnect stops video and clears its texture; foreground control remains for a later PC Connect. Backgrounding stops both listeners. Return and connect explicitly; Windows cannot launch a background iOS app. Automatic selection supports **one attached iPhone / iPad**.
 
 VRization reads an existing local Apple pairing record to check that trust was established. It does not create pairing records or display / save their keys. Apple software and signing services remain separately supplied under Apple's terms.
@@ -69,7 +69,7 @@ iOS separates foreground control at phone loopback `127.0.0.1:18767` from explic
 
 ### Saved view profiles and Reset (v0.3)
 
-A saved phone VR profile applies only after valid host hello through normal synchronization; it neither starts capture nor arms input. Drafts stay local. Reset returns English / USB and disconnects; connect explicitly. Android fresh startup can wait for an existing stream, while iOS fresh startup opens foreground control only. PC reset preserves the screen / region and ADB path, returns USB selection to automatic and preserves platform authorization / tools. See [editing](EDITING.md).
+A saved phone VR profile applies only after valid host hello through normal synchronization. It does not start capture or clear a latched input pause; restoring First-person mode follows the PC's saved enabled preference when fresh poses arrive. Drafts stay local. Reset returns English/USB and disconnects; connect explicitly. Fresh Android startup can wait for an existing stream; iOS opens foreground control only. PC reset preserves the screen/region and ADB path and restores automatic USB plus default-enabled gyro control with Full screen selected. It preserves platform authorization/tools. See [editing](EDITING.md).
 
 ---
 
@@ -78,7 +78,7 @@ A saved phone VR profile applies only after valid host hello through normal sync
 
 Windows 电脑端、Android 端和 iOS 端都默认优先 USB。需要支持数据传输的线缆以及相应平台授权。原生 USB 传输不要求开启热点、USB 网络共享或连接同一 Wi-Fi。每次使用一部手机，电脑端同时接受一个观看端。
 
-**v0.3.3 候选行为：** 自动检测只寻找已授权设备，不主动开始采集。完成设置后先选屏幕／选区，再在电脑点“**连接 / 开始串流**”，或 Android 点“**检测 USB 并连接**”／前台 iOS 点“**连接**”；任一明确动作都可请求主机启动，已有活动会话保持。全新 Android 启动可等待已有串流，iOS 初次仅开放控制。后台返回或切换语言后需主动连接。候选仍待最终原生／设备验证，旧版行为见[验证记录](VALIDATION.md)。USB 不自动授权第一人称鼠标，仍需电脑主动允许，并可按 **F8** 停止。
+**当前连接行为：** 自动检测寻找已授权设备，不主动采集。先选屏幕／选区，再在电脑点“**连接／开始串流**”，或 Android 点“**检测 USB 并连接**”／前台 iOS 点“**连接**”；任一主动操作可请求主机启动，保留已活动会话。全新 Android 可等待已有串流，iOS 初次仅开放控制；后台返回或切手机语言后需主动连接。Windows 默认启用第一人称陀螺仪鼠标，合法会话和新第一人称姿态到达后才输出；**F8** 锁定暂停，须电脑“**恢复陀螺仪控制**”。见 [当前验证范围](VALIDATION.md)。
 
 ### 找到电脑端 USB 控件与状态
 
@@ -141,4 +141,4 @@ iOS 在手机回环 `127.0.0.1:18767` 监听前台控制，在 `127.0.0.1:18766`
 
 ### 保存观看配置与重置（v0.3）
 
-保存 VR 配置仅在合法 host hello 后正常同步，不启动采集或授权输入；草稿仅本地。重置恢复英文／USB 并断线，随后主动连接。全新 Android 可等待已有串流，iOS 全新启动仅开放控制。电脑重置保留屏幕／选区和 ADB 路径，设备选择恢复自动并保留平台授权／工具。见[编辑](EDITING.md)。
+保存 VR 配置仅在合法 host hello 后正常同步，不启动采集或解除输入暂停锁；恢复第一人称时，新的姿态仍遵循电脑保存的启用偏好。草稿仅本地。重置恢复英文／USB 并断线，随后主动连接；全新 Android 可等待已有串流，iOS 仅开放前台控制。电脑重置保留屏幕／选区和 ADB 路径，恢复自动 USB、默认启用陀螺仪并选择全屏，保留平台授权／工具。见 [编辑](EDITING.md)。

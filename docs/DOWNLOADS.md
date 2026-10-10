@@ -7,9 +7,9 @@
 
 Download published assets and `SHA256SUMS.txt` from [GitHub Releases](https://github.com/LexZeon/VRization/releases). Use the application versions listed for that release: a host-only patch can intentionally retain older phone assets. Published alpha builds have the limitations recorded in [release notes](RELEASE_NOTES.md) and [compatibility records](COMPATIBILITY.md).
 
-### v0.3.3-alpha: update the host and phone
+### v0.3.4-alpha: default-enabled First-person control
 
-Windows, Android / AAR and iOS applications use **0.3.3** for the connection lifecycle repair and explicit Connect on either USB endpoint. Update both ends, preserve matching-signer Android data, and verify this release's manifest. Existing profiles and default-off stabilization remain. Source and Mac Simulator output are supplied for iOS, not a signed iPhone installer. Final acceptance is recorded in [current notes](RELEASE_NOTES.md). The Windows ZIP also includes the bilingual [AI handoff](../AI_HANDOFF.md).
+Windows, Android/AAR and iOS applications target **0.3.4**, mobile build **7**, with unchanged protocol v1/settings schema 2. Windows saves a default-enabled gyro mouse preference, works across desktop/application/game windows in First-person mode, and retains a latched F8/editor/failure/Stop pause plus explicit PC Resume. Phone 0.3.3 remains protocol-compatible; update mobile wording/version labels with 0.3.4. Validation and publication are pending in [current notes](RELEASE_NOTES.md). Keep matching-signer Android data, the complete Windows ZIP, checksums and separate USB tools. iOS downloads remain source/Mac Simulator output, not a signed iPhone installer. The Windows ZIP includes the bilingual [AI handoff](../AI_HANDOFF.md).
 
 The earlier [v0.3.1-alpha patch](releases/v0.3.1-alpha.md) combined Windows 0.3.1 with unchanged mobile 0.3.0 assets. That historical mixed-version policy does not mean the new phone slider is available without updating.
 
@@ -76,9 +76,9 @@ v0.2.0-alpha preceded the v0.3 editor / reset / profile release; v0.3.1-alpha is
 
 从 [GitHub Releases](https://github.com/LexZeon/VRization/releases) 下载已发布产物及 `SHA256SUMS.txt`，使用该次发布明确列出的应用版本；仅修复电脑端的补丁可以有意保留较早手机产物。Alpha 版限制见 [发布说明](RELEASE_NOTES.md) 与 [兼容性记录](COMPATIBILITY.md)。
 
-### v0.3.3-alpha：更新电脑与手机
+### v0.3.4-alpha：默认开启第一人称控制
 
-Windows、Android / AAR 与 iOS 应用均为 **0.3.3**，修复连接生命周期并支持 USB 两端主动连接。更新两端，保留同签名 Android 数据，按本版清单校验。原配置和默认关闭防抖继续保留。iOS 提供源码与 Mac 模拟器产物，不是签名 iPhone 安装器。最终验收见 [当前说明](RELEASE_NOTES.md)，Windows ZIP 也包含双语 [AI 接手指南](../AI_HANDOFF.md)。
+Windows、Android／AAR 与 iOS 应用目标为 **0.3.4**、手机构建号 **7**，协议 v1／配置 schema 2 不变。电脑保存默认开启的陀螺仪鼠标偏好，第一人称在桌面／应用／游戏窗口都能控制；F8／编辑器／故障／Stop 锁定暂停，须电脑主动恢复。手机 0.3.3 协议仍兼容，0.3.4 更新手机说明与版本。验证和发布尚待完成，见 [当前说明](RELEASE_NOTES.md)。保留同签名 Android 数据、完整 Windows ZIP、校验值与独立 USB 工具；iOS 仍是源码／Mac 模拟器产物，不是签名 iPhone 安装器。Windows 包含双语 [AI 接手指南](../AI_HANDOFF.md)。
 
 此前 [v0.3.1-alpha 补丁](releases/v0.3.1-alpha.md) 用 Windows 0.3.1 搭配未变的 0.3.0 手机产物。该历史混合版本策略不表示不升级手机就能使用新滑块。
 

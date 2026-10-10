@@ -21,7 +21,7 @@
 "hide" = "Hide settings";
 "recenter" = "Recenter";
 "gestures" = "Long press for settings. Double tap to recenter.";
-"networkNotice" = "Video and controls are unencrypted. Use a trusted LAN. first-person mouse control must be enabled on the computer.";
+"networkNotice" = "Video and controls are unencrypted. Use a trusted LAN. First-person gyro mouse control uses the PC setting, enabled by default. Press F8 on the PC to stop control; Resume on the PC restores it.";
 "noSensor" = "No device-motion sensor. Full mode remains available; Cinema and first-person are disabled.";
 "sensorFallback" = "Device motion unavailable. Switched to Full mode.";
 "full" = "Full";
@@ -60,6 +60,6 @@
 "usbWaiting" = "Waiting for USB computer. Unlock the phone and trust the computer when iOS asks.";
 "usbStop" = "Stop waiting";
 "usbFailed" = "USB disconnected or unavailable. Check the cable, Apple Devices driver and Trust prompt, then tap Connect.";
-"usbNotice" = "USB is the default. Install Apple Devices on Windows, unlock this iPhone, connect a data cable and tap Trust. Keep this app in the foreground, then tap Connect on either device. Backgrounding stops video and control; return and connect explicitly. First-person control needs computer approval. FPS and link RTT are not end-to-end latency.";
+"usbNotice" = "USB is the default. Install Apple Devices on Windows, unlock this iPhone, connect a data cable and tap Trust. Keep this app in the foreground, then tap Connect on either device. Backgrounding stops video and control; return and connect explicitly. First-person gyro mouse control uses the PC setting, enabled by default. Press F8 on the PC to stop control; Resume on the PC restores it. FPS and link RTT are not end-to-end latency.";
 "help" = "Full and first-person show the same 2D image to both eyes. Cinema places it in virtual space; this is not native stereoscopic game rendering. Audio stays on the computer. Entering the background disconnects video and stops control.";
 "versionInfo" = "Version %@ · build %@";

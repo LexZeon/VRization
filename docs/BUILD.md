@@ -93,7 +93,7 @@ For USB prerequisites and default profiles, see [USB setup](USB.md). After publi
 
 ### Physical-device validation
 
-Before a release, check connection, all modes, layout, recentering, PC arming / F8, input stopping on disconnect, and no-sensor fallback. Check optics, heat, delay and sensor directions on an actual phone and viewer. Do not describe emulator screenshots or synthetic frames as hardware validation.
+Before a release, check connection, all modes, layout, recentering, default-enabled First-person input, F8 latched pause / PC Resume, all-window control and sensor-gap rebaselining, input stopping on disconnect, and no-sensor fallback. Check optics, heat, delay and sensor directions on an actual phone and viewer. Do not describe emulator screenshots or synthetic frames as hardware validation.
 
 ### v0.3 geometry / preference changes
 
@@ -195,7 +195,7 @@ USB 前提与默认预设见 [USB 教程](USB.md)。发布后可按 [本地归�
 
 构建两端与 `:vr-core:assembleRelease` 后运行 `python scripts/package_release.py`，产物在 `artifacts/release/`；打包器检查附带 Markdown 文件链接，CI 使用相同打包逻辑。
 
-发布前至少检查：两端连接、三种模式、缩放偏移、回正、FPS 电脑授权与 F8 停止、断线后停止输入、无传感器设备的全屏回退。还应在实际手机与盒子上检查对齐、发热、延迟和传感器方向。不要把模拟器截图或局域网合成帧测试写成实机验证结果。
+发布前至少检查：两端连接、三种模式、缩放偏移、回正、默认启用第一人称、F8 锁定暂停／电脑恢复、所有窗口控制与传感器间断重建基准、断线后停止输入、无传感器设备的全屏回退。还应在实际手机与盒子上检查对齐、发热、延迟和传感器方向。不要把模拟器截图或局域网合成帧测试写成实机验证结果。
 
 
 ### v0.3 几何 / 偏好变化

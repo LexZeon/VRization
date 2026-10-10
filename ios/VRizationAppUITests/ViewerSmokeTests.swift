@@ -24,8 +24,8 @@ final class ViewerSmokeTests: XCTestCase {
         XCTAssertTrue(app.buttons["settings.hide"].waitForExistence(timeout: 10))
         let version = app.staticTexts["version.info"]
         XCTAssertTrue(version.waitForExistence(timeout: 5))
-        XCTAssertTrue(version.label.contains("0.3.3"))
-        XCTAssertTrue(version.label.contains("build 6") || version.label.contains("构建 6"))
+        XCTAssertTrue(version.label.contains("0.3.4"))
+        XCTAssertTrue(version.label.contains("build 7") || version.label.contains("构建 7"))
     }
     private func screenshot(_ name: String) {
         // The physical screen avoids app-region crop/rotation ambiguity.

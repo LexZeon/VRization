@@ -1,4 +1,4 @@
-"""Relative input adapters; only an explicitly armed, live FPS session can move."""
+"""Relative input adapters for live first-person sessions and embedded cameras."""
 
 import ctypes
 from ctypes import wintypes
@@ -69,18 +69,28 @@ class WindowsMouseSink:
 
 
 class PoseController:
+    """Apply poses only while connected, in first-person mode, and permitted.
+
+    Embedded users retain explicit ``arm()`` by default. A desktop host can opt
+    into ``auto_control``: fresh poses start control in any foreground window,
+    and heartbeat pauses resume with a new baseline. Explicit stops latch until
+    an explicit resume.
+    Neither the latch nor the active state is a persisted preference.
+    """
     HEARTBEAT_TIMEOUT = 0.5
     MAX_ANGLE_STEP = 0.4
     MAX_PIXEL_STEP = 120
 
     def __init__(self, sink: InputSink, on_state: Callable[[bool, str], None] | None = None,
                  focus_provider: Callable[[], int | None] | None = None,
-                 clock: Callable[[], float] = time.perf_counter):
+                 clock: Callable[[], float] = time.perf_counter, *, auto_control: bool = False):
         self.sink, self.on_state, self.focus_provider, self.clock = sink, on_state, focus_provider, clock
         self.lock = threading.RLock()
         self.settings = Settings()
         self.connected = False
         self.armed = False
+        self.auto_control = bool(auto_control)
+        self.suspended = False
         self.last_pose_time = 0.0
         self.last_seq = -1
         self.baseline = None
@@ -101,7 +111,22 @@ class PoseController:
 
     def disarm(self, reason: str = "emergency stop"):
         with self.lock:
+            self.suspended = True
             self._disarm(reason)
+
+    def configure_auto_control(self, enabled: bool):
+        """Change the policy without reviving an explicit emergency stop."""
+        with self.lock:
+            enabled = bool(enabled)
+            if self.auto_control != enabled:
+                self.auto_control = enabled
+                self._disarm("gyro mouse policy changed")
+
+    def resume_control(self):
+        """Clear an explicit stop; a subsequent valid pose establishes baseline."""
+        with self.lock:
+            self.suspended = False
+            self._disarm("waiting for fresh headset pose")
 
     def set_connected(self, connected: bool):
         with self.lock:
@@ -127,9 +152,10 @@ class PoseController:
             if not self.connected:
                 return False, "先连接手机 / Connect a headset first"
             if self.settings.mode != "fps":
-                return False, "先选择 FPS 模式 / Select FPS mode first"
-            if self.clock() - self.last_pose_time > self.HEARTBEAT_TIMEOUT:
+                return False, "先选择第一人称模式 / Select First-person mode first"
+            if self.last_seq < 0 or self.clock() - self.last_pose_time > self.HEARTBEAT_TIMEOUT:
                 return False, "手机陀螺仪未就绪 / No live headset pose"
+            self.suspended = False
             self.armed = True
             self.armed_at = self.clock()
             self.target_window = None
@@ -137,7 +163,10 @@ class PoseController:
             self.remainder = (0.0, 0.0)
             self.stabilizer.reset()
             if self.on_state:
-                self.on_state(True, "mouse armed; switch to your game within 5 seconds")
+                self.on_state(True, "gyro mouse control active; F8 stops" if self.auto_control else
+                              "mouse armed; switch to your game within 5 seconds")
+            if self.auto_control:
+                return True, "已启用；F8 停止 / Enabled; F8 stops"
             return True, "已启用，5 秒内切换到游戏；F8 停止 / Armed; switch to game, F8 stops"
 
     def recenter(self):
@@ -165,12 +194,25 @@ class PoseController:
             if self.armed and now - self.last_pose_time > self.HEARTBEAT_TIMEOUT:
                 self._disarm("pose heartbeat expired")
             self.last_seq, self.last_pose_time = seq, now
+            if self.auto_control:
+                if self.suspended or self.settings.mode != "fps":
+                    return
+                if not self.armed:
+                    self.armed = True
+                    self.armed_at = now
+                    self.target_window = None
+                    self.baseline = (yaw, pitch)
+                    self.remainder = (0.0, 0.0)
+                    self.stabilizer.reset(now)
+                    if self.on_state:
+                        self.on_state(True, "gyro mouse control active; F8 stops")
+                    return  # Never replay motion accumulated during a pause.
             previous, self.baseline = self.baseline, (yaw, pitch)
             if not self.armed or self.settings.mode != "fps" or previous is None:
                 if self.settings.stabilization > 0:
                     self.stabilizer.reset(now)
                 return
-            if self.focus_provider:
+            if self.focus_provider and not self.auto_control:
                 foreground = self.focus_provider()
                 if self.target_window is None:
                     if foreground is None:
@@ -210,7 +252,7 @@ class PoseController:
             try:
                 self.sink.move(ix, iy)
             except Exception as exc:
-                self._disarm(str(exc))
+                self.disarm(str(exc))
 
 
 class EmergencyHotkey:

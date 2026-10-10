@@ -13,7 +13,7 @@ Credit the source of optimization ideas as well as reused code: record the upstr
 
 Preserve original license and copyright texts verbatim. Project-written bilingual explanation must not replace the controlling upstream text. Document concrete tests and limitations accurately; do not claim untested hardware or Android derivatives passed.
 
-English is the default and primary software language. Both desktop and phone applications must offer selectable English and Simplified Chinese. Keep language choice local to each application, and preserve the host's explicit input authorization / emergency stop boundaries.
+English is the default and primary software language. Both desktop and phone applications must offer selectable English and Simplified Chinese. Keep language choice local to each application, and preserve the host's local input preference, validated-session checks and latched emergency-stop boundaries; the current Windows GUI defaults First-person gyro control to enabled, while reusable constructors retain their manual default.
 
 USB is the default connection preference on the host and both phone platforms. Keep LAN available explicitly. Distinguish a tested USB transport from a simulated bridge or a merely connected charging cable. Keep low-latency defaults adjustable and report measured FPS / round-trip time without calling them end-to-end latency.
 
@@ -34,7 +34,7 @@ Keep [CHANGELOG.md](CHANGELOG.md) updated for every user-visible feature, fix, o
 
 许可证与版权原文必须保持完整。项目编写的双语解释不能替代上游控制文本。准确记录实际检查与限制，不把未验证硬件或 Android 衍生系统说成已经通过。
 
-软件以英文为默认和主语言。电脑端和手机端都必须支持用户选择 English / 简体中文。两端语言独立保存，并保留电脑主动输入授权与紧急停止边界。
+软件以英文为默认和主语言。电脑端和手机端都必须支持用户选择 English / 简体中文。两端语言独立保存，并保留电脑本地输入偏好、合法会话校验与锁定紧急停止边界；当前 Windows 界面默认启用第一人称陀螺仪控制，可复用构造器仍默认手动启用。
 
 电脑端与两类手机都默认优先 USB 连接，并保留显式局域网选项。区分真实 USB 测试、模拟桥接及仅接入充电线。低延迟默认参数允许调整，记录实际 FPS / 往返时间，不冒充端到端延迟。
 

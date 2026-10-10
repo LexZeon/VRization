@@ -20,7 +20,7 @@ from .protocol import ProtocolError, Settings, TokenLimiter, parse_message
 class HostServer:
     def __init__(self, capture_source=None, input_sink=None, settings: Settings | None = None,
                  capture_config: CaptureConfig | None = None, on_event=None,
-                 host: str = "0.0.0.0", port: int = 8765, usb_authorized=None):
+                 host: str = "0.0.0.0", port: int = 8765, usb_authorized=None, *, auto_control: bool = False):
         self.capture_source = capture_source if capture_source is not None else MssCaptureSource()
         sink = input_sink if input_sink is not None else WindowsMouseSink()
         self.settings = settings or Settings()
@@ -33,8 +33,9 @@ class HostServer:
         self.token = f"{secrets.randbelow(1_000_000):06d}"
         self.lock = threading.RLock()
         self.controller = PoseController(sink, self._input_state,
-                                         getattr(sink, "external_foreground", None))
+                                         getattr(sink, "external_foreground", None), auto_control=auto_control)
         self.controller.set_settings(self.settings)
+        self._capture_failed = False
         self._thread = None
         self._loop = None
         self._stop_signal = None
@@ -117,7 +118,28 @@ class HostServer:
                 await asyncio.wait_for(ws.send_json(message), 2)
 
     def arm(self) -> tuple[bool, str]:
-        return self.controller.arm()
+        with self.lock:
+            if self._capture_failed or self._stopping.is_set():
+                return False, "Restart streaming before resuming gyro control"
+            return self.controller.arm()
+
+    def set_auto_control(self, enabled: bool):
+        self.controller.configure_auto_control(enabled)
+        self._emit("input_policy")
+
+    def resume_control(self) -> tuple[bool, str]:
+        with self.lock:
+            if self._capture_failed or self._stopping.is_set():
+                return False, "Restart streaming before resuming gyro control"
+            self.controller.resume_control()
+        self._emit("input_policy")
+        return True, "Gyro control ready; select First-person and connect your phone"
+
+    def get_control_state(self) -> dict:
+        with self.controller.lock:
+            return {"enabled": self.controller.auto_control, "armed": self.controller.armed,
+                    "paused": self.controller.suspended, "connected": self.controller.connected,
+                    "mode": self.controller.settings.mode}
 
     def disarm(self, reason="emergency stop"):
         self.controller.disarm(reason)
@@ -168,10 +190,14 @@ class HostServer:
                                   "port": self.port, "token": self.token}, headers=headers)
 
     def _capture_error(self, error):
-        self.controller.disarm("capture unavailable")
+        with self.lock:
+            self._capture_failed = True
+            self.controller.disarm("capture unavailable")
         self._emit("error", message=error)
 
     async def _startup(self, app):
+        with self.lock:
+            self._capture_failed = False
         self._loop = asyncio.get_running_loop()
         self._buffer = LatestFrameBuffer()
         self._broadcast_lock = asyncio.Lock()
@@ -405,6 +431,7 @@ class HostServer:
         with self.lock:
             self._stopping.set()
             self.running = False
+            self.controller.disarm("streaming stopped")
             self.controller.set_connected(False)
         if self._worker:
             self._worker.active.clear()

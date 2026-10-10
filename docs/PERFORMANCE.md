@@ -98,7 +98,7 @@ This was a short experiment on one Windows 11 system, one selected display and a
 - **Phone processing mean** measures complete JPEG reception to return of the texture-submission call on one phone clock. It does not wait for GPU completion or physical display.
 - **End-to-end latency** needs a shared visible event and a method such as high-speed video covering the source and phone together.
 
-For a useful report, record the release, backend, Windows / GPU, selected display and refresh / rotation, region, output dimensions, FPS / JPEG quality, phone, transport, load, duration, distinct-frame method and metric stage. Keep screen geometry fixed for comparisons. Report background-app load as an observation; a changed layout or uncontrolled workload prevents attributing an FPS change to one application. If a capture error occurs, stop and reselect before retrying; preserve explicit PC mouse arming and F8 emergency stop.
+For a useful report, record the release, backend, Windows / GPU, selected display and refresh / rotation, region, output dimensions, FPS / JPEG quality, phone, transport, load, duration, distinct-frame method and metric stage. Keep screen geometry fixed for comparisons. Report background-app load as an observation; a changed layout or uncontrolled workload prevents attributing an FPS change to one application. If a capture error occurs, stop and reselect before retrying; preserve the PC gyro preference, F8 pause latch and explicit PC Resume.
 
 ### Editor and measurement versions
 
@@ -206,7 +206,7 @@ flowchart LR
 - **手机处理均值** 使用手机同一时钟，测量完整 JPEG 接收到纹理提交调用返回，不等待 GPU 完成或物理显示。
 - **端到端延迟** 需要共同可见事件和测量方法，例如同时拍摄来源屏幕与手机的高速视频。
 
-有效反馈应记录版本、后端、Windows / 显卡、选定显示器及刷新 / 旋转、选区、输出尺寸、FPS / JPEG 质量、手机、传输、负载、时长、不同帧判断方法与指标所属阶段。对比时保持屏幕几何不变；后台应用负载仅作为观察，布局变化或未控制的工作负载不能把帧率变化归因于某个应用。发生采集错误时停止并重新选区再试，保留电脑明确鼠标授权和 F8 紧急停止。
+有效反馈应记录版本、后端、Windows / 显卡、选定显示器及刷新 / 旋转、选区、输出尺寸、FPS / JPEG 质量、手机、传输、负载、时长、不同帧判断方法与指标所属阶段。对比时保持屏幕几何不变；后台应用负载仅作为观察，布局变化或未控制的工作负载不能把帧率变化归因于某个应用。发生采集错误时停止并重新选区再试，保留电脑陀螺仪偏好、F8 暂停锁和电脑主动恢复。
 
 
 ### 编辑器与测量版本

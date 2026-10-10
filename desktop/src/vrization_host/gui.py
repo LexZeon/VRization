@@ -21,7 +21,8 @@ from .protocol import Settings
 from .profiles import PROFILES, CUSTOM, apply_profile, capture_profile, initial_capture
 from .server import HostServer
 from .storage import (load_preferences, save_preferences, preference_path,
-                      load_usb_preferences, save_usb_preferences, default_preferences)
+                      load_usb_preferences, save_usb_preferences, default_preferences,
+                      load_input_preferences, save_input_preferences)
 from .usb import UsbManager
 from .usb_tools import (OFFICIAL_DOWNLOAD_PAGE, UsbToolsError, default_tools_directory,
                         import_platform_tools)
@@ -104,6 +105,7 @@ class HostWindow:
         self.settings, self.config = load_preferences()
         self.config = initial_capture(self.config, preference_path().exists())
         self.usb_preferences = load_usb_preferences()
+        self.input_preferences = load_input_preferences()
         self.usb_status = ("USB waiting: install Android Platform Tools or Apple Devices; LAN is available", {})
         self.usb_serials = ()
         self.usb_import_active = False
@@ -145,6 +147,8 @@ class HostWindow:
         self.hotkey = EmergencyHotkey(lambda: self.server.disarm("F8 emergency stop"),
                                       lambda error: self.events.put({"event": "hotkey_error", "message": error}))
         self.hotkey_available = self.hotkey.start()
+        self.server.set_auto_control(self.input_preferences["gyro_control_enabled"] and self.hotkey_available)
+        self._refresh_input_status()
         self.root.after(100, self._pump)
         self.usb.start(self.usb_preferences["enabled"])
         try:
@@ -159,7 +163,6 @@ class HostWindow:
         language = "zh" if self.language_choice.get() == "简体中文" else "en"
         if language == self.language:
             return
-        self.server.disarm("language changed")
         self.language = language
         try:
             save_language(language)
@@ -312,7 +315,7 @@ class HostWindow:
                            font=("Microsoft YaHei UI", 9), state="disabled", wrap="word")
         self.log.pack(fill="x", pady=(6, 0))
         self.notebook.pack(fill="both", expand=True)
-        self._log(self.tr("Ready. Full screen stays fixed; Cinema places a screen in VR; First-person controls the mouse after you enable it here."))
+        self._log(self.tr("Ready. First-person gyro mouse control is on by default for the desktop and games; F8 pauses it."))
 
     def _scroll_tab(self, title):
         wrapper = ttk.Frame(self.notebook)
@@ -577,7 +580,7 @@ class HostWindow:
                    command=self.open_editor).pack(fill="x", pady=(0, 14))
         ttk.Button(tab, text=self.tr("Reset all settings to defaults"),
                    command=self.reset_all).pack(anchor="w", pady=(0, 8))
-        self._paragraph(tab, self.tr("Reset restores the default picture, low latency, English and automatic USB. Your selected display/region and installed ADB path stay selected."),
+        self._paragraph(tab, self.tr("Reset restores the default picture, low latency, English, automatic USB and enabled gyro mouse. Your selected display/region and installed ADB path stay selected."),
                         style="Muted.TLabel").pack(fill="x")
 
     def open_editor(self):
@@ -609,6 +612,9 @@ class HostWindow:
         self.usb.preferred_serial = ""
         self.usb.set_enabled(True)
         self._save_usb()
+        self.input_preferences = {"gyro_control_enabled": True}
+        self.server.set_auto_control(bool(getattr(self, "hotkey_available", False)))
+        self._save_input()
         self.language = "en"
         try:
             save_language("en")
@@ -620,11 +626,11 @@ class HostWindow:
 
     def _game_tab(self, tab):
         tab.columnconfigure(1, weight=1)
-        ttk.Label(tab, text=self.tr("手机转头 → 游戏视角"), font=("Microsoft YaHei UI", 17, "bold")).grid(
+        ttk.Label(tab, text=self.tr("Gyro mouse · desktop and games"), font=("Microsoft YaHei UI", 17, "bold")).grid(
             row=0, column=0, columnspan=3, sticky="w", pady=(0, 10))
-        self._paragraph(tab, text=self.tr("1  Select First-person mode on your phone and keep its sensors running.\n"
-                                         "2  Enable control below, then switch to your game within 5 seconds.\n"
-                                         "3  F8 stops control. Focus changes, disconnects and sensor timeouts also stop it."),
+        self._paragraph(tab, text=self.tr("1  Connect your phone and select First-person. Gyro mouse is enabled by default.\n"
+                                         "2  Move the mouse on the desktop, in apps or games; no game window is required.\n"
+                                         "3  F8 pauses control. Click Resume gyro control to continue."),
                   style="Muted.TLabel").grid(row=1, column=0, columnspan=3, sticky="w", pady=10)
         self._slider(tab, "sensitivity", self.tr("转头灵敏度 · 像素 / 弧度"), 100, 3000, 2)
         self._slider(tab, "stabilization", self.tr("First-person stabilization strength"), 0, 1, 3,
@@ -635,13 +641,16 @@ class HostWindow:
         ttk.Checkbutton(tab, text=self.tr("反转垂直方向"), variable=self.invert,
                         command=lambda: self.change_setting("invertY", self.invert.get())).grid(
             row=5, column=0, columnspan=3, sticky="w", pady=7)
-        self.arm_var = tk.BooleanVar(value=False)
-        self.arm_check = ttk.Checkbutton(tab, text=self.tr("允许手机陀螺仪控制当前游戏鼠标"), variable=self.arm_var,
+        self.arm_var = tk.BooleanVar(value=self.input_preferences["gyro_control_enabled"])
+        self.arm_check = ttk.Checkbutton(tab, text=self.tr("Gyro mouse control in First-person (default on)"), variable=self.arm_var,
                                         command=self.toggle_arm)
         self.arm_check.grid(row=6, column=0, columnspan=3, sticky="w", pady=15)
         self.arm_status = ttk.Label(tab, text=self.tr("控制已停止 / DISARMED"), foreground=ACCENT)
         self.arm_status.grid(row=7, column=0, columnspan=3, sticky="w", pady=(0, 12))
         ttk.Button(tab, text=self.tr("重新居中 / RECENTER"), command=self.server.recenter).grid(row=8, column=0, sticky="w")
+        self.resume_button = ttk.Button(tab, text=self.tr("Resume gyro control"), command=self.resume_gyro_control)
+        self.resume_button.grid(row=8, column=1, columnspan=2, sticky="w")
+        self._refresh_input_status()
         self._paragraph(tab, text=self.tr("仅在可信局域网使用。部分使用原始输入、管理员权限或反作弊保护的游戏\n"
                            "可能忽略系统鼠标输入。此软件不绕过游戏保护。"),
                   style="Muted.TLabel").grid(row=9, column=0, columnspan=3, sticky="w", pady=18)
@@ -793,21 +802,65 @@ class HostWindow:
         self._log(self.tr("连接地址已复制，请只分享给自己的手机。"))
 
     def toggle_arm(self):
-        if self.editor is not None:
-            self.arm_var.set(False)
+        enabled = bool(self.arm_var.get())
+        if enabled and self.editor is not None:
+            self.arm_var.set(self.input_preferences["gyro_control_enabled"])
             self.server.disarm("headset editor opened")
+            self._log(self.tr("Close the headset editor before resuming gyro control"))
+            self._refresh_input_status()
             return
-        if self.arm_var.get():
-            if not self.hotkey_available:
-                self.arm_var.set(False)
-                self._log(self.tr("F8 热键不可用，暂不能启用游戏控制。"))
-                return
-            success, reason = self.server.arm()
-            self.arm_var.set(success)
-            self.arm_status.configure(text=self.tr(reason))
+        self.input_preferences["gyro_control_enabled"] = enabled
+        self.server.set_auto_control(enabled and self.hotkey_available)
+        if enabled and self.hotkey_available:
+            _, reason = self.server.resume_control()
             self._log(reason)
+        elif enabled:
+            self._log(self.tr("F8 is unavailable; gyro mouse is paused"))
+        self._save_input()
+        self._refresh_input_status()
+
+    def resume_gyro_control(self):
+        if self.editor is not None:
+            self._log(self.tr("Close the headset editor before resuming gyro control"))
+            return False
+        if not self.hotkey_available:
+            self._log(self.tr("F8 is unavailable; gyro mouse is paused"))
+            return False
+        self.input_preferences["gyro_control_enabled"] = True
+        self.arm_var.set(True)
+        self.server.set_auto_control(True)
+        success, reason = self.server.resume_control()
+        self._save_input()
+        self._log(reason)
+        self._refresh_input_status()
+        return success
+
+    def _save_input(self):
+        try:
+            save_input_preferences(self.input_preferences)
+        except OSError as exc:
+            self._log(self.tr("设置未保存: {error}", error=exc))
+
+    def _refresh_input_status(self):
+        state = self.server.get_control_state()
+        enabled = self.input_preferences["gyro_control_enabled"]
+        available = getattr(self, "hotkey_available", True)
+        if not enabled:
+            text = "Gyro mouse disabled"
+        elif not available:
+            text = "F8 is unavailable; gyro mouse is paused"
+        elif state["paused"]:
+            text = "Gyro mouse paused · click Resume gyro control"
+        elif state["armed"]:
+            text = "Gyro mouse active · F8 pauses"
+        elif not state["connected"]:
+            text = "Gyro mouse enabled · waiting for phone"
+        elif state["mode"] != "fps":
+            text = "Gyro mouse enabled · select First-person"
         else:
-            self.server.disarm("desktop control disabled")
+            text = "Gyro mouse enabled · waiting for fresh sensor data"
+        self.arm_status.configure(text=self.tr(text))
+        self.resume_button.configure(state="normal" if available and self.editor is None else "disabled")
 
     def _save_later(self):
         if self.save_job:
@@ -871,8 +924,6 @@ class HostWindow:
                     self.status.configure(text=self.tr("●  手机已连接  /  LIVE") if event["connected"] else self.tr("●  等待手机连接  /  WAITING"), fg=ACCENT)
                 self._log(self.tr("手机已连接。") if event["connected"] else self.tr("手机已断开，控制已停止。"))
             elif kind == "input":
-                self.arm_var.set(event["armed"])
-                self.arm_status.configure(text=self.tr("控制已启用 / ARMED") if event["armed"] else self.tr("控制已停止 / DISARMED"))
                 self._log(event["reason"])
             elif kind == "stats":
                 if (self.server.running and not self._stop_in_progress and self.server.controller.connected
@@ -894,6 +945,7 @@ class HostWindow:
             elif kind in ("error", "hotkey_error"):
                 if kind == "hotkey_error":
                     self.hotkey_available = False
+                    self.server.set_auto_control(False)
                     self.server.disarm("global F8 unavailable")
                 if event["message"] != self.last_error:
                     self.last_error = event["message"]
@@ -907,6 +959,7 @@ class HostWindow:
                 self.stop_button.configure(state="disabled")
                 self.status.configure(text=self.tr("●  已停止  /  STOPPED"), fg=MUTED)
                 self.stats.configure(text="—")
+        self._refresh_input_status()
         self.root.after(100, self._pump)
 
     def close(self):

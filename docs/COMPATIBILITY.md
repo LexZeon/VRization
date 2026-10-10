@@ -17,11 +17,11 @@ Support targets and observed tests are separate. Passing an emulator test does n
 | Google services | Not required | First-release API 23 emulator uses no Google services. |
 | Full screen | Network and graphics support | No rotation sensor required; verified on the sensor-less API 23 emulator. |
 | Cinema / First person | Compatible Android rotation sensor or iOS Core Motion | Real gyro axes, drift and headset tracking still need a physical phone. |
-| First-person game input | Game accepts ordinary relative mouse input; PC authorization and F8 | Real FPS games and anti-cheat / raw-input combinations remain unverified. |
+| First-person mouse input | Desktop/apps/games accept ordinary relative mouse input; enabled PC gyro preference, validated poses and F8/Resume | Real FPS games and anti-cheat / raw-input combinations remain unverified. |
 
 ### Interface language
 
-All applications offer **English / 简体中文**; English is the default and the choice is saved locally. The PC stores language in `language.json` independently of `preferences.json`. Changing the PC language keeps streaming active but disarms mouse control. Changing the phone language disconnects the stream and requires reconnecting (Android recreates its Activity; iOS rebuilds its controls). Language choice is independent on each device.
+All applications offer **English / 简体中文**; English is the default and the choice is saved locally. The PC stores language in `language.json` independently of `preferences.json`. Changing the PC language keeps streaming active and retains the input preference/pause latch. Changing the phone language disconnects the stream and requires reconnecting (Android recreates its Activity; iOS rebuilds its controls). Language choice is independent on each device.
 
 ### What has actually been checked
 
@@ -72,11 +72,11 @@ The final packaged Windows EXE found one authorized physical device using a sepa
 | Google 服务 | 不需要 | 首版 API 23 模拟器不含 Google 服务。 |
 | 全屏模式 | 网络与图形支持 | 无需旋转传感器，已在无传感器 API 23 模拟器检查。 |
 | 大屏幕 / 第一人称 | 兼容 Android 旋转传感器或 iOS Core Motion | 真实轴向、漂移与头部追踪仍需手机实测。 |
-| 第一人称游戏输入 | 游戏接受普通相对鼠标；电脑主动授权与 F8 | 真实 FPS、反作弊与原始输入组合尚未验证。 |
+| 第一人称鼠标输入 | 桌面／应用／游戏接受普通相对鼠标；电脑启用偏好、合法姿态与 F8／恢复 | 真实 FPS、反作弊与原始输入组合尚未验证。 |
 
 ### 界面语言
 
-所有客户端可选 **English / 简体中文**，默认英文，分别在本地保存。电脑语言存于 `language.json`，独立于 `preferences.json`。电脑切换语言保持串流但解除鼠标授权；手机切换语言断开串流，需要重新连接（Android 重建 Activity，iOS 重建控件）。各设备语言独立选择。
+所有客户端可选 **English / 简体中文**，默认英文，分别在本地保存。电脑语言存于 `language.json`，独立于 `preferences.json`。电脑切换语言保持串流和输入偏好／暂停锁；手机切换语言断开串流，需要重新连接（Android 重建 Activity，iOS 重建控件）。各设备语言独立选择。
 
 ### 实际检查范围
 

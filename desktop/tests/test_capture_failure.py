@@ -37,7 +37,7 @@ class CaptureFailureTests(unittest.IsolatedAsyncioTestCase):
         try:
             host.update_settings({"mode": "fps"})
             host.controller.set_connected(True)
-            host.controller.last_pose_time = host.controller.clock()
+            host.controller.pose(0, 0, 0)
             self.assertTrue(host.arm()[0])
             host._worker.active.set()
             for _ in range(40):

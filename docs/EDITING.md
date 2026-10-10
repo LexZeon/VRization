@@ -19,7 +19,7 @@ v0.3.0-alpha places visual headset fitting first in the settings on Windows, And
 2. Drag inside either image to adjust **linked, mirrored eye spacing** on all three applications. Left-eye left or right-eye right widens the spacing; left-eye right or right-eye left narrows it. A smaller image can continue inward until the inner edges meet at the middle seam. Shared horizontal offset is retained while space allows, then constrained toward zero as the seam closes. Vertical dragging moves both normally. Corners preserve aspect ratio and normally keep centers fixed; enlargement at contact moves centers outward as needed to prevent overlap. Scale is limited to 50–100%, signed separation to −1…0.2 with an aspect-dependent inward stop, and vertical offset to −0.3…+0.3.
 3. **Save** on a phone commits the complete draft through normal settings synchronization when connected. On Windows it updates only scale / offsetX / offsetY / eyeSeparation once against the current host snapshot, preserving other settings changed during editing, then saves that complete committed state. **Discard** restores the local entry preview and sends no update. Dragging the preview never writes host settings or saved preferences.
 
-The preview temporarily suppresses motion-driven viewing and outgoing phone poses. A connected phone stops new poses and drops application-pending pose work (already submitted transport bytes cannot be recalled) and sends one normal hello with `editing: true` on entry; the current host disarms input immediately on receipt. Desktop entry also disarms it. Video, ping and normal exit recentering may continue; no draft settings or preferences are written. Older hosts still stop on the pose timeout. Saving or leaving the editor never grants new authorization. Use the normal PC authorization flow again before first-person control.
+The preview temporarily suppresses motion-driven viewing and outgoing phone poses. A connected phone stops new poses, drops application-pending pose work (submitted transport bytes cannot be recalled) and sends `editing: true` once; the host latches input paused on receipt. Desktop editor entry does the same. Video/ping and exit recentering may continue; drafts send no settings or preferences. Save, Discard, leaving, recenter and restored profiles cannot clear the pause: click **Resume gyro control** on the PC before using First-person input again. Older hosts retain their own watchdog/manual policy.
 
 Phone backgrounding, disconnecting or changing language discards an open draft; iOS also cancels it when the viewport changes during rotation. Saved values remain separate from a temporary drag. The editor is a visual fit aid, not a measurement of physical lens alignment, interpupillary distance or headset comfort. A valid offset / eye separation can place an image partly outside an eye viewport; the viewport clips it.
 
@@ -53,7 +53,7 @@ These unmodified v0.3 originals come from the final native Simulator UI run, usi
 
 Both phones keep the complete **committed VR settings** locally, including mode, scale, offsets, eye separation, field of view, distance, distortion, sensitivity and invert Y. Changes made offline are retained; drafts are not. A restart restores the saved profile before connecting. An accepted complete settings snapshot from normal connected synchronization updates the committed profile.
 
-After a valid host `hello`, a phone with a saved profile sends that complete profile once as a normal v1 `settings` update with a new `clientSeq`. This is an intentional user preference: it takes precedence over the host's initial settings for that connection. It does not skip session validation or input authorization. A phone without a saved profile starts from the validated host snapshot. Later PC changes and acknowledgments use the existing revision / sequence rules. See [protocol v1](PROTOCOL.md).
+After a valid host `hello`, a phone with a saved profile sends that complete profile once as a normal v1 `settings` update with a new `clientSeq`. This is an intentional user preference: it takes precedence over the host's initial settings for that connection. It does not skip session validation or the PC's enabled preference/pause latch. Restoring First-person mode can use the already enabled policy only when a fresh valid pose arrives; it cannot resume a latched pause. A phone without a saved profile starts from the validated host snapshot. Later PC changes and acknowledgments use the existing revision / sequence rules. See [protocol v1](PROTOCOL.md).
 
 When connected, Save from either side propagates through normal validated settings, acknowledgments and broadcasts, and both sides retain the accepted committed state. Offline Save can only change that application's local preferences. **If both sides changed offline, the saved phone profile wins on the next validated connection**; Save again from the PC afterward to apply its chosen fit to both sides. This version does not compare unsynchronized clocks or merge conflicting complete offline profiles.
 
@@ -69,10 +69,11 @@ Reset is explicit and separate from Discard. It removes a pending edit and retur
 | Eye separation / field of view / distance | 0.03 / 80° / 3 |
 | Distortion / sensitivity / stabilization / invert Y | 0 / 1000 / 0 / false |
 | Language / preferred connection | English / USB |
+| Windows gyro mouse preference | Enabled; actual armed state and pause latch are never saved |
 | Windows capture preset | Low latency: long edge 640, target 60 FPS, JPEG Q45 |
 | Phone LAN fields | Empty address, port 8765, empty pairing field |
 
-The PC **preserves the explicitly selected capture display / rectangle and configured ADB executable path**. These identify the intended output and installed tools; resetting viewing preferences must not switch to another screen or remove the user's development environment. USB device choice returns to automatic selection. Reset does not uninstall drivers / SDKs, change platform authorization, start streaming or arm mouse input.
+The PC **preserves the explicitly selected capture display / rectangle and configured ADB executable path**. These identify the intended output and installed tools; resetting viewing preferences must not switch to another screen or remove the user's development environment. USB device choice returns to automatic selection. Reset does not uninstall drivers/SDKs, change platform authorization or start streaming. Windows Reset latches input paused and restores the default-enabled gyro preference with Full screen selected; select First person and click PC Resume when ready to control again.
 
 Phone reset clears local view and connection preferences, selects English / USB and ends the current connection; the current rebuilt reset page does not reconnect automatically. A later fresh app launch resumes the normal first-foreground USB detection / listener policy, and a valid hello restores the committed default profile. Any settings update on an already connected host uses the normal validated protocol. A saved reset profile can be restored on the next explicitly established session.
 
@@ -135,7 +136,7 @@ v0.3.0-alpha 将可视盒子适配放在 Windows、Android 与 iOS 设置首位�
 2. 三端拖画面内部都调整**左右眼镜像联动间距**：左眼向左或右眼向右拉开，左眼向右或右眼向左收拢。缩小后仍可继续向内拖，直到两眼内边在中缝相接。空间允许时保留整体水平偏移，接近中缝时会限位并逐渐归零；竖向仍同步正常移动。角点保持图像比例，通常中心固定；在接触状态放大时，必要时向外调整中心以避免重叠。缩放范围为 50–100%，有符号间距为 −1…0.2、向内终点按画面比例计算，竖向偏移为 −0.3…+0.3。
 3. 手机**保存**提交完整草稿，已连接时通过正常设置同步发送；Windows 保存时只向当前主机快照一次更新 scale / offsetX / offsetY / eyeSeparation，保留编辑期间其他设置改动，再保存完整已提交状态。**放弃**恢复本地进入预览，不发送更新。预览拖动不会写主机设置或保存偏好。
 
-预览暂时停用姿态控制画面，并暂停手机发送姿态。已连接手机停止新姿态、丢弃应用层待发姿态（已提交传输层字节无法撤回），进入时用普通 hello 一次发送 `editing: true`，当前主机收到后立即解除输入授权；电脑进入也解除授权。视频、ping 和正常退出回正可以继续，但不写草稿设置或偏好。旧主机仍由姿态超时停止输入。保存或退出不会重新授予权限；继续 第一人称控制前，重新走电脑正常授权流程。
+预览暂时停用姿态控制画面，并暂停手机姿态。已连接手机停止新姿态、丢弃应用层待发工作（已提交传输字节无法撤回），一次发送 `editing: true`，主机收到后锁定输入暂停；电脑进入编辑器也如此。视频／ping 和退出回正可继续，草稿不发设置或偏好。保存、放弃、退出、回正与配置恢复都不能解除暂停，继续第一人称前须在电脑点“**恢复陀螺仪控制**”。旧电脑端沿用自身看门狗／手动策略。
 
 手机进入后台、断线或切语言会放弃尚未保存的草稿；iOS 在旋转导致显示区域改变时也取消编辑。已保存值与临时拖动分开。编辑器帮助肉眼适配，不测量实际镜片对齐、瞳距或舒适度。合法偏移 / 眼间距也可能使部分画面越出单眼区域，超出部分会被裁切。
 
@@ -169,7 +170,7 @@ v0.3.0-alpha 将可视盒子适配放在 Windows、Android 与 iOS 设置首位�
 
 两种手机都在本地保存完整的**已提交 VR 设置**，包括模式、缩放、偏移、眼间距、视场角、距离、畸变、灵敏度与 Y 反转。离线修改也会保留，草稿不保存；重启后先恢复已保存配置。正常连接同步接受的完整设置快照也更新已提交配置。
 
-收到合法主机 `hello` 后，有已保存配置的手机会用新的 `clientSeq`，通过普通 v1 `settings` 一次发送完整配置。这是用户明确选择的偏好，优先于本次连接的主机初始设置，但不跳过会话校验或输入授权。没有已保存配置时先采用合法主机快照。后续电脑更改与确认继续遵循原有 revision / 序号规则，见 [协议 v1](PROTOCOL.md)。
+收到合法主机 `hello` 后，有已保存配置的手机会用新的 `clientSeq`，通过普通 v1 `settings` 一次发送完整配置。这是用户明确选择的偏好，优先于本次连接的主机初始设置，但不跳过会话校验、电脑启用偏好或暂停锁。恢复第一人称后，已启用策略仍需新的合法姿态才输出，不能恢复已锁定暂停。没有已保存配置时先采用合法主机快照。后续电脑更改与确认继续遵循原有 revision / 序号规则，见 [协议 v1](PROTOCOL.md)。
 
 已连接时，任一端保存都经普通合法设置、确认与广播传播，两端保留接受的已提交状态；离线保存只能改本应用的本地偏好。**若两边离线都改过，下次合法连接由已保存手机配置优先**；之后再从电脑保存，就能把电脑选择的适配应用到两端。本版不比较未同步的时钟，也不合并冲突的完整离线配置。
 
@@ -185,10 +186,11 @@ v0.3.0-alpha 将可视盒子适配放在 Windows、Android 与 iOS 设置首位�
 | 眼间距 / 视场角 / 距离 | 0.03 / 80° / 3 |
 | 畸变 / 灵敏度 / 防抖 / Y 反转 | 0 / 1000 / 0 / false |
 | 语言 / 优先连接 | English / USB |
+| Windows 陀螺仪鼠标偏好 | 启用；实时授权状态和暂停锁从不保存 |
 | Windows 采集预设 | 低延迟：最长边 640、目标 60 FPS、JPEG Q45 |
 | 手机局域网字段 | 空地址、端口 8765、空配对码 |
 
-电脑**保留明确选择的采集显示器 / 选区及配置的 ADB 程序路径**，因为它们标识用户要分享的画面与已安装工具；重置观看偏好不应偷偷切到其他屏幕或删除开发环境。USB 设备选择恢复自动。重置不会卸载驱动 / SDK、改变平台授权、开始串流或授权鼠标。
+电脑**保留明确选择的采集显示器 / 选区及配置的 ADB 程序路径**，因为它们标识用户要分享的画面与已安装工具；重置观看偏好不应偷偷切到其他屏幕或删除开发环境。USB 设备选择恢复自动。重置不会卸载驱动／SDK、改变平台授权或开始串流；Windows 重置锁定输入暂停并恢复默认启用陀螺仪偏好，同时选择全屏；准备继续控制时，选择第一人称并在电脑点恢复。
 
 手机重置清除本地观看与连接偏好，选择英文 / USB 并结束当前连接，当前重建的重置界面不自动重连。之后全新启动应用，会恢复正常首前台 USB 检测 / 监听策略，合法 hello 后恢复已提交默认配置。已经连接的主机设置更新仍用正常校验协议。保存后的默认配置可在下次明确建立会话后恢复。
 
