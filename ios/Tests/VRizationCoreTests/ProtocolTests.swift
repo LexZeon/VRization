@@ -4,8 +4,9 @@ import XCTest
 final class ProtocolTests: XCTestCase {
     func testEditorHelloNegotiatesSchemaAndCarriesOnlyDisarmControl() throws {
         let object = try XCTUnwrap(JSONSerialization.jsonObject(with: VRProtocol.editorHello()) as? [String: Any])
-        XCTAssertEqual(Set(object.keys), Set(["v", "type", "editing", "settingsSchema"]))
+        XCTAssertEqual(Set(object.keys), Set(["v", "type", "editing", "settingsSchema", "capabilities"]))
         XCTAssertEqual(object["settingsSchema"] as? Int, 2)
+        XCTAssertEqual(object["capabilities"] as? [String], ["enhanced-first-person"])
         XCTAssertEqual(object["type"] as? String, "hello")
         XCTAssertEqual(object["editing"] as? Bool, true)
         XCTAssertEqual(object["v"] as? Int, 1)
@@ -97,7 +98,9 @@ final class ProtocolTests: XCTestCase {
     }
     func testClientHelloAdvertisesSchemaWithoutGrantingInput() throws {
         let hello = try XCTUnwrap(JSONSerialization.jsonObject(with: VRProtocol.hello()) as? [String: Any])
+        XCTAssertEqual(Set(hello.keys), Set(["v", "type", "settingsSchema", "capabilities"]))
         XCTAssertEqual(hello["settingsSchema"] as? Int, 2)
+        XCTAssertEqual(hello["capabilities"] as? [String], ["enhanced-first-person"])
         XCTAssertNil(hello["settings"]); XCTAssertNil(hello["arm"]); XCTAssertNil(hello["editing"])
     }
 }

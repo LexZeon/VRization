@@ -43,6 +43,8 @@ Run core checks and build the executable:
 
 The script installs the specified build tools, runs checks and produces `desktop/dist/VRization-Host.exe`. Use an absolute custom Python path because the script changes directories. PyInstaller builds on the target OS. The single-file EXE contains Python and application dependencies; distribute it with `LICENSE`, `NOTICE`, `THIRD_PARTY_NOTICES.md` and `licenses/`.
 
+The spec explicitly excludes optional developer packages `numpy`, `dxcam` and `comtypes`. Their presence on the builder must not silently add packages to the portable runtime. GPU capture uses VRization's own DXGI implementation, which remains included; audit the frozen package against the declared dependency and license inventory before publishing.
+
 The EXE excludes `VCRUNTIME140*.dll`. Microsoft Visual C++ v14 x64 runtime is installed separately. For missing DLL / error 126, use [Microsoft's guide](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist/) and the [current x64 installer](https://aka.ms/vc14/vc_redist.x64.exe). The runtime must be at least as recent as the build toolchain requires; the first local Python build used MSVC 14.44.
 
 ### Android APK
@@ -146,6 +148,8 @@ py -3.12 -m venv .venv
 ```
 
 该脚本安装固定版本的构建工具、运行检查并打包，输出为 `desktop/dist/VRization-Host.exe`。如果传入自定义 Python 路径，建议使用绝对路径，因为脚本会切换工作目录。PyInstaller 需要在目标操作系统上构建；当前生成包含 Python 与应用依赖的单文件程序，分发包仍须附上仓库的 `LICENSE`、`NOTICE`、`THIRD_PARTY_NOTICES.md` 和 `licenses/`。
+
+打包配置显式排除可选开发工具 `numpy`、`dxcam` 与 `comtypes`，避免它们在构建电脑上的存在悄悄增加便携运行依赖。GPU 采集使用 VRization 自身 DXGI 实现，仍会打包；发布前须按声明的依赖和许可清单审计冻结包。
 
 程序不附带 `VCRUNTIME140*.dll`，Microsoft Visual C++ v14 x64 运行库作为系统前提由微软安装器提供。遇到启动缺少 DLL 或错误 126 时，按 [微软说明](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist/) 使用 [当前 x64 安装器](https://aka.ms/vc14/vc_redist.x64.exe)。运行库版本应不早于构建工具所需版本；首发本机 Python 使用 MSVC 14.44。
 

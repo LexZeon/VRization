@@ -14,6 +14,7 @@ v0.4.0 development, applications **0.4.0**, mobile build **8**. Verification/pub
 - **Added:** Fourth **Enhanced first person** mode (`fps_enhanced`), fixed physical 1:1 square per eye, original Android GLES/iOS Metal inverse angular warp and pure reusable projection helpers. Existing FOV controls the warp span; black border samples remain explicit.
 - **Added:** Proportional square editor/viewer fit with existing scale, offsets, mirrored spacing, Save/Discard, local committed profiles and connected synchronization. Enhanced preview keeps the warp; Windows uses an approximate mesh over the existing latest frame, without additional capture.
 - **Compatibility:** Explicit `enhanced-first-person` negotiation, per-message `enhancedFirstPerson` confirmation and old-version ordinary `fps` fallback, with protocol v1/settings schema 2 unchanged. Enhanced viewing remains available without a rotation sensor; gyro control still needs valid poses. Both first-person modes share the saved default-enabled gyro policy and latched F8/PC Resume boundaries.
+- **Packaging:** The Windows freeze explicitly excludes optional developer packages `numpy`, `dxcam` and `comtypes`, keeping their incidental presence on a build machine from changing the portable runtime. VRization's own DXGI capture remains included; this does not remove GPU capture or add a performance claim.
 - **Documentation only:** Added the bilingual projection tutorial, exact OpenCV 4.12.0 mathematics-only credit, module/handoff updates and archived v0.3.4 release notes. No OpenCV code/runtime or user reference image is incorporated; existing files/releases are retained.
 
 Separate planned work: a SteamVR experimental version after preserving existing files; no SteamVR driver/package is implemented by this entry. See [current notes](docs/RELEASE_NOTES.md), [verification](docs/VALIDATION.md) and [roadmap](docs/ROADMAP.md).
@@ -111,6 +112,7 @@ v0.4.0 开发中，应用 **0.4.0**、手机构建号 **8**；验证／发布待
 - **新增：** 第四种“**加强第一人称**”（`fps_enhanced`），每眼固定物理 1:1 正方形，原创 Android GLES／iOS Metal 逆角度变形及纯数学可复用辅助；已有 FOV 控制变形范围，明确处理黑边采样。
 - **新增：** 正方形编辑器／观看器等比适配，沿用缩放、偏移、镜像间距、保存／放弃、本地已提交配置及连接同步；加强预览保留变形，电脑在已有最新帧作近似网格，不额外采集。
 - **兼容性：** 显式 `enhanced-first-person` 协商、每条消息的 `enhancedFirstPerson` 确认及旧版本普通 `fps` 回退，协议 v1／配置 schema 2 不变。无旋转传感器仍可加强观看，陀螺仪仍需合法姿态；两种第一人称共用已保存的默认启用策略与锁定 F8／电脑恢复边界。
+- **打包：** Windows 冻结打包显式排除可选开发工具 `numpy`、`dxcam` 与 `comtypes`，避免构建电脑偶然安装的软件改变便携运行依赖；仍包含 VRization 自身 DXGI 采集，不移除 GPU 采集，也不据此增加性能结论。
 - **纯文档：** 新增双语投影教程、准确 OpenCV 4.12.0 仅数学参考鸣谢、模块／接手更新及 v0.3.4 说明归档；不采用 OpenCV 代码／运行库或用户参考图片，保留已有文件／发布。
 
 单独计划：保留现有文件后另做 SteamVR 实验版本；本条不实现 SteamVR 驱动／安装包，见 [当前说明](docs/RELEASE_NOTES.md)、[验证](docs/VALIDATION.md) 与 [路线](docs/ROADMAP.md)。

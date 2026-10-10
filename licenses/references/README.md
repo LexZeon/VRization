@@ -19,7 +19,7 @@ No upstream implementation source or OneEuroFilter package is bundled. VRization
 
 Angular-projection background was consulted in the [OpenCV 4.12.0 fisheye documentation](https://docs.opencv.org/4.12.0/db/d58/group__calib3d__fisheye.html), with the exact [4.12.0 source tag](https://github.com/opencv/opencv/tree/4.12.0). Credit: OpenCV contributors; the consulted [`fisheye.cpp` header](https://github.com/opencv/opencv/blob/4.12.0/modules/calib3d/src/fisheye.cpp) credits Intel Corporation (2000–2008), Willow Garage Inc. (2009–2011) and respective third-party copyright holders. The tagged [root LICENSE](https://github.com/opencv/opencv/blob/4.12.0/LICENSE) is Apache-2.0; that historical source file retains its own permissive BSD-style header, which must not be relabeled as Apache-only.
 
-Consulted 2026-10-10. This is a mathematical reference only: no OpenCV code, samples, library or binaries are copied, modified, linked or bundled. VRization independently implements inverse equidistant sampling in Android GLES/iOS Metal and pure reference helpers, with its own square-fit, finite-input and black-border choices. It does not implement OpenCV calibration or its coefficient-fitting routines. Upstream controlling texts stay at the exact links above; the original VRization implementation remains MIT. See [projection behavior](../../docs/ENHANCED_FIRST_PERSON.md).
+Consulted 2026-10-10. This is a mathematical reference only: no OpenCV code, samples, library or binaries are copied, modified, linked or bundled. VRization independently implements inverse equidistant sampling in Android GLES/iOS Metal and pure reference helpers, with its own square-fit, finite-input and black-border choices. It does not implement OpenCV calibration or its coefficient-fitting routines. Upstream controlling texts stay at the exact links above; the original VRization implementation remains MIT. See [projection behavior](https://github.com/LexZeon/VRization/blob/main/docs/ENHANCED_FIRST_PERSON.md).
 
 ### Separately obtained Android USB tools
 
@@ -44,7 +44,7 @@ The source index also pins Google's separately downloaded Windows Platform Tools
 
 角度投影数学背景参考 [OpenCV 4.12.0 鱼眼文档](https://docs.opencv.org/4.12.0/db/d58/group__calib3d__fisheye.html) 与准确 [4.12.0 源码标签](https://github.com/opencv/opencv/tree/4.12.0)。鸣谢 OpenCV 贡献者；所查阅的 [`fisheye.cpp` 文件头](https://github.com/opencv/opencv/blob/4.12.0/modules/calib3d/src/fisheye.cpp) 标注 Intel Corporation（2000–2008）、Willow Garage Inc.（2009–2011）及各第三方版权持有人。该标签的 [根 LICENSE](https://github.com/opencv/opencv/blob/4.12.0/LICENSE) 为 Apache-2.0，而这个历史源文件仍保留自身宽松 BSD 风格声明，不能一概重新标为仅 Apache。
 
-查阅日期为 2026-10-10。只参考数学背景，没有复制、修改、链接或附带 OpenCV 源码、示例、库或二进制；VRization 在 Android GLES／iOS Metal 及纯数学参考辅助中独立实现逆等距采样，正方形适配、有限输入校验与黑边规则均为自己的选择，不实现 OpenCV 标定或系数拟合。上游控制文本保留在上述准确链接，VRization 原创实现仍采用 MIT，见 [投影行为](../../docs/ENHANCED_FIRST_PERSON.md)。
+查阅日期为 2026-10-10。只参考数学背景，没有复制、修改、链接或附带 OpenCV 源码、示例、库或二进制；VRization 在 Android GLES／iOS Metal 及纯数学参考辅助中独立实现逆等距采样，正方形适配、有限输入校验与黑边规则均为自己的选择，不实现 OpenCV 标定或系数拟合。上游控制文本保留在上述准确链接，VRization 原创实现仍采用 MIT，见 [投影行为](https://github.com/LexZeon/VRization/blob/main/docs/ENHANCED_FIRST_PERSON.md)。
 
 ### 另行获取的 Android USB 工具
 
