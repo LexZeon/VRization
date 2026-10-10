@@ -266,7 +266,7 @@ def main():
                 "-derivedDataPath", OUT / "simulator", "-parallel-testing-enabled", "NO",
                 "-test-timeouts-enabled", "YES", "-default-test-execution-time-allowance", "300",
                 "-maximum-test-execution-time-allowance", "300", "-destination-timeout", "120",
-                "-resultBundlePath", OUT / "UI.xcresult", "test", timeout=900)
+                "-resultBundlePath", OUT / "UI.xcresult", "test", timeout=1200)
         finally:
             fixture.terminate()
             try:
