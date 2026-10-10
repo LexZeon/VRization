@@ -54,9 +54,9 @@ final class StereoRenderer: NSObject, MTKViewDelegate {
     func setPose(_ pose: Pose) { lock.lock(); self.pose = pose; lock.unlock() }
     func submit(_ image: CGImage) throws {
 #if STEAMVR_PREVIEW
-        lock.lock(); let descriptor = streamSession; lock.unlock()
-        guard let descriptor = descriptor, descriptor.accepted,
-              descriptor.streamLayout != .sbs || image.width % 2 == 0 else { throw RendererError.invalidRaster }
+        lock.lock(); let sessionDescriptor = streamSession; lock.unlock()
+        guard let sessionDescriptor = sessionDescriptor, sessionDescriptor.accepted,
+              sessionDescriptor.streamLayout != .sbs || image.width % 2 == 0 else { throw RendererError.invalidRaster }
 #endif
         guard image.width > 0, image.height > 0, image.width <= 2048, image.height <= 2048,
               image.bitsPerComponent == 8, image.bitsPerPixel == 32, image.alphaInfo == .premultipliedLast,

@@ -5,6 +5,8 @@
 <!-- vrization:english -->
 ## English
 
+**🧪 SteamVR experimental branch:** [Choose direct phone, Phone HMD or an existing SteamVR headset](experimental/steamvr/README.md). This separate preview keeps the published [v0.4.0-alpha](https://github.com/LexZeon/VRization/releases/tag/v0.4.0-alpha) and local stable `latest` unchanged. Phone HMD supports stereo compositor frames and gyro rotation; physical phone/PCVR testing is deferred. Read the [experimental module handoff](experimental/steamvr/docs/AI_HANDOFF.md) before changing this branch.
+
 **Put your PC screen inside a phone VR viewer.**
 
 ![Alpha](https://img.shields.io/badge/version-0.4.0--alpha-orange)
@@ -122,6 +124,8 @@ The [v0.3.0-alpha notes](docs/releases/v0.3.0-alpha.md) preserve editor / profil
 
 <!-- vrization:chinese -->
 ## 简体中文
+
+**🧪 SteamVR 实验分支：** [选择直接连手机、手机头显或现有 SteamVR 头显](experimental/steamvr/README.md)。独立实验版保留已发布的 [v0.4.0-alpha](https://github.com/LexZeon/VRization/releases/tag/v0.4.0-alpha) 及本地正式 `latest`。手机头显路线支持双眼合成画面和陀螺仪旋转；手机与 PCVR 实机测试留到下次。修改本分支前请阅读 [实验模块接手说明](experimental/steamvr/docs/AI_HANDOFF.md)。
 
 **把电脑画面装进手机 VR 盒子。**
 

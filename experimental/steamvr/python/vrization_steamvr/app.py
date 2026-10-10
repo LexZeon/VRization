@@ -102,6 +102,7 @@ class PhoneWindow(HostWindow):
             "Full gyro orientation drives the virtual SteamVR headset. F8, editing, Stop and disconnect invalidate tracking. Resume here to release an emergency pause. Rotation does not move the Windows mouse.",
             "完整陀螺仪姿态控制 SteamVR 虚拟头显。F8、编辑、停止及断开会停用追踪；紧急暂停后在此恢复。此路线不会移动 Windows 鼠标。"),style="Muted.TLabel").grid(row=1,column=0,columnspan=3,sticky="w",pady=15)
         self.arm_var=tk.BooleanVar(value=self.input_preferences["gyro_control_enabled"])
+        self.invert=tk.BooleanVar(value=self.settings.invertY)
         self.arm_check=ttk.Checkbutton(tab,text=self.words("Enable HMD tracking","开启头显追踪"),variable=self.arm_var,command=self.toggle_arm)
         self.arm_check.grid(row=2,column=0,columnspan=3,sticky="w")
         self.arm_status=ttk.Label(tab,foreground=ACCENT);self.arm_status.grid(row=3,column=0,columnspan=3,sticky="w",pady=15)
@@ -183,7 +184,7 @@ class OverlayWindow:
             try:
                 name=frame_name();writer=FrameWriter(name)
                 child=OwnedProcess(helper,["--frame-map",name],log=Path(os.environ["VRIZATION_PROFILE_DIRECTORY"])/"overlay.log")
-                deadline=time.perf_counter()
+                deadline=time.perf_counter();announced=False
                 while not self.stop_event.is_set():
                     if child.poll() is not None:raise OSError("SteamVR overlay exited; check the connected headset and runtime.")
                     frame=source.read(config)
@@ -191,14 +192,16 @@ class OverlayWindow:
                         with Image.open(BytesIO(frame.jpeg)) as image:
                             if image.width>1920 or image.height>1080:raise ValueError("Overlay image exceeds the preview limits")
                             writer.publish(image.width,image.height,image.convert("RGB").tobytes("raw","BGRX"))
-                        self.events.put(("live",None))
+                        if not announced:self.events.put(("live",None));announced=True
                     deadline=max(deadline+1/config.fps,time.perf_counter())
                     self.stop_event.wait(max(0,deadline-time.perf_counter()))
             except Exception as error:self.events.put(("error",str(error)))
             finally:
-                if writer:writer.close()
-                if child:child.close()
-                source.close();self.events.put(("stopped",None))
+                for resource in (writer,child,source):
+                    if resource:
+                        try:resource.close()
+                        except Exception as error:self.events.put(("error",str(error)))
+                self.events.put(("stopped",None))
         self.thread=threading.Thread(target=work,daemon=True,name="steamvr-overlay-capture");self.thread.start()
 
     def stop(self):
@@ -228,7 +231,8 @@ class OverlayWindow:
 class Launcher:
     def __init__(self,root,monitor=None):
         self.root,self.monitor=root,monitor;self.child=None
-        self.profile=Path(os.environ.get("LOCALAPPDATA",str(Path.home())))/"VRizationSteamVR/Windows"
+        self.profile=Path(os.environ.get("VRIZATION_PROFILE_DIRECTORY") or
+            str(Path(os.environ.get("LOCALAPPDATA",str(Path.home())))/"VRizationSteamVR/Windows"))
         os.environ["VRIZATION_PROFILE_DIRECTORY"]=str(self.profile)
         self.language=load_language();self.root.configure(bg=BG)
         self.root.title(f"VRization SteamVR · {__version__}");self.root.geometry("850x690")
@@ -291,7 +295,13 @@ def main():
     parser=argparse.ArgumentParser(description="VRization isolated SteamVR preview")
     parser.add_argument("--monitor",type=int)
     parser.add_argument("--diagnostics",action="store_true")
+    parser.add_argument("--diagnostics-output",type=Path)
     args=parser.parse_args()
-    if args.diagnostics:print(json.dumps(diagnostics(),indent=2));return
+    if args.diagnostics or args.diagnostics_output:
+        report=json.dumps(diagnostics(),indent=2)
+        if args.diagnostics_output:args.diagnostics_output.write_text(report,encoding="utf-8")
+        elif __import__("sys").stdout is not None:print(report)
+        return
     if os.name!="nt":raise SystemExit("The SteamVR desktop preview requires Windows 10/11 x64.")
-    configure_dpi_awareness();root=tk.Tk();Launcher(root,args.monitor);root.mainloop()
+    configure_dpi_awareness();root=tk.Tk();root.withdraw();Launcher(root,args.monitor)
+    root.update_idletasks();root.deiconify();root.mainloop()

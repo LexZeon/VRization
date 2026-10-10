@@ -28,6 +28,6 @@
     <key>UIStatusBarHidden</key><true/>
     <key>UIViewControllerBasedStatusBarAppearance</key><true/>
     <key>NSLocalNetworkUsageDescription</key><string>Connect to your computer on the same trusted network to receive VR video and send head movement.</string>
-    <key>NSMotionUsageDescription</key><string>Use device motion to turn the virtual screen and control FPS view while the app is open.</string>
+    <key>NSMotionUsageDescription</key><string>Use device motion to send head orientation to the SteamVR virtual headset, or control the direct computer view, while this app is open.</string>
     <key>NSAppTransportSecurity</key><dict><key>NSAllowsLocalNetworking</key><true/></dict>
 </dict></plist>

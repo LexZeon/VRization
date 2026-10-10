@@ -40,6 +40,12 @@ def check_document_links(path):
                     raise ValueError(f"{path.name}: {name} links to missing {destination}")
 
 
+def add_experiment(archive):
+    path = ROOT / "experimental"
+    if path.is_dir():
+        add_tree(archive, path)
+
+
 def package_windows(out):
     path = out / "VRization-Windows-x64.zip"
     with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as archive:
@@ -55,6 +61,7 @@ def package_windows(out):
             add_tree(archive, page)
         for name in ("LICENSE", "NOTICE", "docs", "licenses", "examples", "desktop/requirements-lock.txt"):
             add_tree(archive, ROOT / name)
+        add_experiment(archive)
     check_document_links(path)
 
 
@@ -65,6 +72,7 @@ def package_android(out, core_variant):
     with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as archive:
         for name in ("LICENSE", "NOTICE", "THIRD_PARTY_NOTICES.md", "licenses", "desktop/requirements-lock.txt"):
             add_tree(archive, ROOT / name)
+        add_experiment(archive)
     check_document_links(path)
 
 
@@ -85,6 +93,7 @@ def package_ios_source(out):
         for name in ("scripts/build_ios.py", "scripts/ios_test_host.py", "scripts/ios_usb_fixture.py",
                      "scripts/test_ios_fixture_readiness.py", "scripts/package_release.py"):
             add_tree(archive, ROOT / name)
+        add_experiment(archive)
     check_document_links(path)
 
 

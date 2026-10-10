@@ -34,7 +34,7 @@
         B00000000000000000000006 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StereoRenderer.swift; sourceTree = "<group>"; };
         B00000000000000000000007 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewerController.swift; sourceTree = "<group>"; };
         B00000000000000000000008 = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = StereoShaders.metal; sourceTree = "<group>"; };
-        B00000000000000000000009 = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+        B00000000000000000000009 = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = ../SteamVR/Info.plist; sourceTree = "<group>"; };
         B0000000000000000000000A = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE.txt; sourceTree = "<group>"; };
         B0000000000000000000000B = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SteamVRViewerTests.swift; sourceTree = "<group>"; };
         B0000000000000000000000C = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = VRizationSteamVRApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -43,8 +43,8 @@
         B00000000000000000000010 = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
         E00000000000000000000001 = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
         E00000000000000000000002 = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "zh-Hans.lproj/Localizable.strings"; sourceTree = "<group>"; };
-        E00000000000000000000003 = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
-        E00000000000000000000004 = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "zh-Hans.lproj/InfoPlist.strings"; sourceTree = "<group>"; };
+        E00000000000000000000003 = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = ../SteamVR/en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+        E00000000000000000000004 = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "../SteamVR/zh-Hans.lproj/InfoPlist.strings"; sourceTree = "<group>"; };
         D00000000000000000000001 = {isa = PBXVariantGroup; children = (E00000000000000000000001,E00000000000000000000002,); name = Localizable.strings; sourceTree = "<group>"; };
         D00000000000000000000002 = {isa = PBXVariantGroup; children = (E00000000000000000000003,E00000000000000000000004,); name = InfoPlist.strings; sourceTree = "<group>"; };
 

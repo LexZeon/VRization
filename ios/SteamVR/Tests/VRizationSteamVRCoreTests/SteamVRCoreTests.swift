@@ -111,6 +111,13 @@ final class SteamVRCoreTests: XCTestCase {
         gate.reset()
         XCTAssertFalse(gate.acceptsFrame(generation: 6, activeGeneration: 6, captured: old))
     }
+    func testMalformedJPEGInvalidatesAcceptedDescriptorAndLateFrames() throws {
+        var gate = try acceptedGate(); let old = gate.descriptor
+        XCTAssertThrowsError(try gate.receiveJPEG(byteCount: HostSessionGate.maximumJPEGBytes + 1))
+        XCTAssertNil(gate.descriptor); XCTAssertFalse(gate.isEstablished)
+        XCTAssertFalse(gate.acceptsFrame(generation: 6, activeGeneration: 6, captured: old))
+        XCTAssertThrowsError(try gate.receiveText(snapshot()))
+    }
     func testStereoHalfAspectAndHalfTexelClampNeverCrossEyes() throws {
         let left = try StereoEyeSampling.resolve(width: 1920, height: 1080, eye: 0, layout: .sbs)
         let right = try StereoEyeSampling.resolve(width: 1920, height: 1080, eye: 1, layout: .sbs)
@@ -190,7 +197,12 @@ final class SteamVRCoreTests: XCTestCase {
         let object = try JSONSerialization.jsonObject(with: SteamVRProtocol.hmdPose(session: accepted,
             sequence: 7, timeUs: 123456, quaternion: q)) as! [String: Any]
         XCTAssertEqual(Set(object.keys), ["v","type","epoch","seq","timeUs","trackingValid","q"])
-        XCTAssertEqual(object["type"] as? String, "hmdPose"); XCTAssertEqual(object["q"] as? [Double], q.xyzw)
+        XCTAssertEqual(object["type"] as? String, "hmdPose")
+        // JSONSerialization may round a Double by a few ULPs in decimal text.
+        let decodedQ = try XCTUnwrap(object["q"] as? [Double])
+        XCTAssertEqual(decodedQ.count, 4)
+        for (actual, expected) in zip(decodedQ, q.xyzw) { XCTAssertEqual(actual, expected, accuracy: 1e-12) }
+        XCTAssertEqual(decodedQ.reduce(0) { $0 + $1*$1 }, 1, accuracy: 1e-12)
         XCTAssertNil(object["yaw"]); XCTAssertNil(object["pitch"])
         let lost = try JSONSerialization.jsonObject(with: SteamVRProtocol.hmdPose(session: accepted,
             sequence: 8, timeUs: 123457, quaternion: nil)) as! [String: Any]
@@ -223,5 +235,26 @@ final class SteamVRCoreTests: XCTestCase {
         let object = try JSONSerialization.jsonObject(with: raw) as! [String: Any]
         XCTAssertNil(object["streamSession"]); XCTAssertNil(object["code"]); XCTAssertNil(object["token"])
         try preview.reset(); XCTAssertEqual(preview.load().port, "8766"); XCTAssertEqual(stable.load(), stableProfile)
+    }
+    func testExactStereoRasterRejectsThumbnailOrRotatedPackedInputs() throws {
+        XCTAssertNoThrow(try StereoRaster.validate(width: 1280, height: 480))
+        XCTAssertNoThrow(try StereoRaster.validate(width: 2048, height: 2048))
+        for (width,height,orientation) in [(1281,480,1),(4096,1024,1),(1280,4096,1),(1280,480,6),(0,480,1)] {
+            XCTAssertThrowsError(try StereoRaster.validate(width: width, height: height, orientation: orientation))
+        }
+    }
+    func testProductionHMDSequencerStaysContinuousAcrossLocalRecenterAndInvalidSamples() throws {
+        let accepted = try StreamSession.decode(session, capabilities: caps)
+        var sequencer = HMDPoseSequencer()
+        let first = try sequencer.encode(session: accepted, timeUs: 10, quaternion: .identity)
+        XCTAssertEqual(try (JSONSerialization.jsonObject(with: first) as! [String: Any])["seq"] as? Int, 1)
+        _ = try sequencer.recenter(session: accepted)
+        XCTAssertEqual(sequencer.lastSequence, 1)
+        let second = try sequencer.encode(session: accepted, timeUs: 11, quaternion: nil)
+        XCTAssertEqual(try (JSONSerialization.jsonObject(with: second) as! [String: Any])["seq"] as? Int, 2)
+        XCTAssertThrowsError(try sequencer.encode(session: accepted, timeUs: 12, quaternion: HMDQuaternion(x: 0,y: 0,z: 0,w: 0)))
+        XCTAssertEqual(sequencer.lastSequence, 2)
+        XCTAssertThrowsError(try sequencer.encode(session: .legacy, timeUs: 13, quaternion: .identity))
+        XCTAssertEqual(sequencer.lastSequence, 2)
     }
 }

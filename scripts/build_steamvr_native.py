@@ -98,7 +98,7 @@ def main(argv: list[str] | None = None) -> int:
         run([ctest, "--test-dir", str(build), "-C", args.configuration, "--output-on-failure"])
     run([cmake, "--install", str(build), "--config", args.configuration, "--prefix", str(output)])
     expected = (
-        "native/VRization-SteamVR-Mirror.exe", "native/VRization-SteamVR-Overlay.exe", "native/openvr_api.dll",
+        "native/VRization-SteamVR-Mirror.exe", "native/VRization-SteamVR-Overlay.exe", "native/VRization-SteamVR-IPC.dll", "native/openvr_api.dll",
         "drivers/vrization_phone/bin/win64/driver_vrization_phone.dll", "drivers/vrization_phone/driver.vrdrivermanifest",
         "drivers/vrization_phone/resources/settings/default.vrsettings", "native/licenses/OpenVR-LICENSE.txt",
         "native/licenses/VRization-MIT.txt", "native/README.md", "native/licenses/README.md",

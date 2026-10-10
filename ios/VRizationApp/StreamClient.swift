@@ -30,6 +30,7 @@ final class StreamClient: NSObject, URLSessionWebSocketDelegate {
     var onStreamSession: ((StreamSession?) -> Void)?
     private var submittedDescriptor: StreamSession?
     private var pendingTrackingLost: Data?
+    private var hmdSequencer = HMDPoseSequencer()
 #else
     private var protocolGate = HostSessionGate()
 #endif
@@ -160,21 +161,18 @@ final class StreamClient: NSObject, URLSessionWebSocketDelegate {
 #if STEAMVR_PREVIEW
     func sendHMDPose(_ quaternion: HMDQuaternion?) {
         guard state == .connected, !posesPaused, protocolGate.acceptsHMDPose,
-              let descriptor = streamSession, poseSequence < VRProtocol.maximumSequence else { return }
-        let next = poseSequence + 1
+              let descriptor = streamSession else { return }
         let timeUs = Int64(ProcessInfo.processInfo.systemUptime * 1_000_000)
-        guard let data = try? SteamVRProtocol.hmdPose(session: descriptor, sequence: next,
-                                                    timeUs: timeUs, quaternion: quaternion) else { return }
-        poseSequence = next; pendingPose = data; drain()
+        guard let data = try? hmdSequencer.encode(session: descriptor, timeUs: timeUs, quaternion: quaternion) else { return }
+        pendingPose = data; drain()
     }
     func invalidateTracking() {
         pendingPose = nil
         guard state == .connected, protocolGate.acceptsHMDPose,
-              let descriptor = streamSession, poseSequence < VRProtocol.maximumSequence else { return }
-        let next = poseSequence + 1
-        guard let data = try? SteamVRProtocol.hmdPose(session: descriptor, sequence: next,
+              let descriptor = streamSession else { return }
+        guard let data = try? hmdSequencer.encode(session: descriptor,
             timeUs: Int64(ProcessInfo.processInfo.systemUptime * 1_000_000), quaternion: nil) else { return }
-        poseSequence = next; pendingTrackingLost = data; drain()
+        pendingTrackingLost = data; drain()
     }
 #endif
     func pauseForEditor() {
@@ -210,7 +208,7 @@ final class StreamClient: NSObject, URLSessionWebSocketDelegate {
         else if pendingRecenter {
 #if STEAMVR_PREVIEW
             if let descriptor = streamSession, descriptor.virtualHMD,
-               let control = try? SteamVRProtocol.recenter(epoch: descriptor.epoch) { data = control }
+               let control = try? hmdSequencer.recenter(session: descriptor) { data = control }
             else { data = VRProtocol.recenter() }
 #else
             data = VRProtocol.recenter()

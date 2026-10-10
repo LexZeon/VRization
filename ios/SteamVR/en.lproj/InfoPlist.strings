@@ -1,0 +1,2 @@
+"NSLocalNetworkUsageDescription" = "Connect to your computer on the same trusted network to receive VR video and send head orientation.";
+"NSMotionUsageDescription" = "Use device motion to send head orientation to the SteamVR virtual headset, or control the direct computer view, while this app is open.";

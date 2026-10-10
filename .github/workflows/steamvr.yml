@@ -21,10 +21,25 @@ jobs:
           python-version: '3.12.10'
       - name: Build pinned SDK and exercise IPC / 构建固定 SDK 并检查 IPC
         run: python scripts/build_steamvr_native.py --configuration Release --test
+      - name: Check documentation and build separate Windows host / 检查文档并构建独立电脑端
+        shell: pwsh
+        run: |
+          python scripts/check_docs.py
+          if ($LASTEXITCODE -ne 0) { throw 'Bilingual documentation failed' }
+          ./scripts/build_steamvr_windows.ps1 -Python (Get-Command python).Source
+          python -m unittest discover -s scripts -p 'test_*.py' -q
+          if ($LASTEXITCODE -ne 0) { throw 'Build and package helper tests failed' }
+          python scripts/package_steamvr.py --windows-only
+          if ($LASTEXITCODE -ne 0) { throw 'Preview Windows packaging failed' }
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: SteamVR-native
           path: artifacts/steamvr/native-bundle/
+          if-no-files-found: error
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: SteamVR-Windows
+          path: artifacts/steamvr/release/VRization-SteamVR-Windows-x64.zip
           if-no-files-found: error
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: always()
@@ -32,6 +47,33 @@ jobs:
           name: SteamVR-native-reports
           path: artifacts/steamvr/native-build/
           if-no-files-found: ignore
+  android:
+    name: Android variants / Android 两个版本
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install build platform / 安装构建平台
+        run: '"$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$ANDROID_HOME" "platforms;android-35" "build-tools;35.0.0"'
+      - name: Test and compile both clients / 测试并编译两个客户端
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon :vr-core:testDebugUnitTest :app:testDebugUnitTest :steamvr-app:testSteamvrDebugUnitTest :app:assembleDebug :steamvr-app:assembleSteamvrDebug :vr-core:assembleDebug :app:lintDebug :steamvr-app:lintSteamvrDebug :app:assembleDebugAndroidTest :steamvr-app:assembleSteamvrDebugAndroidTest
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
+        with:
+          name: SteamVR-Android-reports
+          path: |
+            android/app/build/reports/
+            android/steamvr-app/build/reports/
+            android/vr-core/build/reports/
+          if-no-files-found: error
   ios:
     name: Separate iOS client / 独立 iOS 客户端
     runs-on: macos-15

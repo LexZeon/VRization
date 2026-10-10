@@ -64,7 +64,9 @@ def check_stereo_pixels(report):
             scale = settings["scale"]
             sep = max(fx*scale-1, settings["eyeSeparation"])
             ox = min(max(settings["offsetX"], -(1+sep-fx*scale)), 1+sep-fx*scale)
-            oy = min(max(settings["offsetY"], -(1-fy*scale)), 1-fy*scale)
+            # Shared HeadsetFit bounds horizontal offset at the seam; vertical
+            # placement retains its validated profile value and may be clipped.
+            oy = settings["offsetY"]
             def point(u, v):
                 return (round(origin+ew*(.5+((2*u-1)*fx*scale+ox+sign*sep)/2)),
                         round(height*(.5-((1-2*v)*fy*scale+oy)/2)))
@@ -112,6 +114,8 @@ def package_simulator():
         for name in ("LICENSE","CHANGELOG.md","THIRD_PARTY_NOTICES.md"):
             path=ROOT/name
             if path.is_file(): target.write(path,name)
+        guide = ROOT / "experimental/steamvr/docs/IOS.md"
+        if guide.is_file(): target.write(guide, guide.relative_to(ROOT))
     print(f"Unsigned Simulator and source packages created: {archive.name}, {source.name}",flush=True)
 
 
@@ -128,6 +132,7 @@ def main():
     # VRization editable in the Python environment.
     os.environ["PYTHONPATH"] = os.pathsep.join((str(ROOT/"desktop/src"),str(ROOT/"experimental/steamvr/python")))
     run("xcodebuild","-version")
+    run(sys.executable, "scripts/test_build_ios_steamvr.py")
     run("swift","test","--package-path","ios")
     run("swift","test","--package-path","ios/SteamVR")
     common=["xcodebuild","-project","ios/VRizationSteamVR.xcodeproj","-scheme","VRizationSteamVR",

@@ -70,6 +70,8 @@
 "steamDirect" = "Experimental client · direct mono desktop; no SteamVR layout accepted.";
 "steamSBS" = "SteamVR stereo accepted · independent left/right eyes; source projection is preserved.";
 "steamHMD" = "SteamVR virtual headset accepted · full orientation controls the HMD, without mouse input.";
+"steamProjectionHelp" = "The selected mode is saved for direct desktop streams. This stereo session preserves each source eye's projection; no extra Cinema projection or square warp is applied. Scale, position, eye spacing and lens correction still apply.";
+"steamHMDSettings" = "Mouse sensitivity, invert Y and stabilization are saved for direct mouse sessions. Virtual HMD tracking sends full orientation and does not use those mouse settings.";
 "steamNoTracking" = "No device motion tracking: stereo video remains available; HMD tracking is invalid.";
 "steamSessionChanged" = "The host changed the stream route. Reconnect to accept its new session.";
 "steamRasterUnsupported" = "Stereo raster is unsupported. Use an even packed width and at most 2048 pixels per edge on the computer, then reconnect.";

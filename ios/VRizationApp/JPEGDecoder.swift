@@ -1,6 +1,9 @@
 import Foundation
 import ImageIO
 import CoreGraphics
+#if STEAMVR_PREVIEW
+import VRizationSteamVRCore
+#endif
 
 /// One active decode, one waiting JPEG and one waiting decoded image, across all sessions.
 final class JPEGDecoder {
@@ -53,7 +56,7 @@ final class JPEGDecoder {
                     // whole-image thumbnail here could mix their shared border
                     // or produce an odd packed width. Decode this raster exactly.
                     let orientation = metadata[kCGImagePropertyOrientation] as? Int ?? 1
-                    guard width <= 2048, height <= 2048, width % 2 == 0, orientation == 1 else {
+                    guard (try? StereoRaster.validate(width: width, height: height, orientation: orientation)) != nil else {
                         DispatchQueue.main.async { [weak self] in
                             guard let self = self else { return }
                             self.lock.lock(); let current = self.generation; self.lock.unlock()

@@ -5,6 +5,8 @@
 <!-- vrization:english -->
 ## English
 
+This branch also contains a separate SteamVR preview. Start its work from [the experimental module map and handoff prompt](experimental/steamvr/docs/AI_HANDOFF.md); its ports, mobile app IDs, preferences, Windows entry point, native driver and packaging are deliberately separate. Preserve stable releases and never replace stable `latest` with an experimental package.
+
 This is a technical handoff for continuing VRization or integrating its components into another application or game. It does not grant new permissions. Follow the user's latest instructions and preserve existing work. Start with [architecture](docs/ARCHITECTURE.md), [protocol](docs/PROTOCOL.md), [build instructions](docs/BUILD.md), [validation](docs/VALIDATION.md) and [change history](CHANGELOG.md). For a file-by-file production module map, entry points and reuse boundaries, see [Module catalogue](docs/MODULES.md).
 
 ### Status and source of truth
@@ -165,6 +167,8 @@ validation records before handing the result back.
 
 <!-- vrization:chinese -->
 ## 简体中文
+
+本分支还包含独立 SteamVR 实验版。该部分从 [实验模块图及接手提示词](experimental/steamvr/docs/AI_HANDOFF.md) 开始；端口、手机应用 ID、设置目录、Windows 入口、原生驱动及打包独立。保留正式历史版本，禁止用实验包覆盖正式 `latest`。
 
 本指南用于继续开发 VRization，或把模块集成到其他软件和游戏，不新增任何操作权限。遵循用户最新指示，保留已有工作。先阅读 [架构](docs/ARCHITECTURE.md)、[协议](docs/PROTOCOL.md)、[构建说明](docs/BUILD.md)、[验证记录](docs/VALIDATION.md) 与 [版本日志](CHANGELOG.md)。
 

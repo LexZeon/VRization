@@ -53,7 +53,13 @@ class WindowsMap:
         k.OpenFileMappingW.argtypes=[wintypes.DWORD,wintypes.BOOL,wintypes.LPCWSTR];k.OpenFileMappingW.restype=wintypes.HANDLE
         k.MapViewOfFile.argtypes=[wintypes.HANDLE,wintypes.DWORD,wintypes.DWORD,wintypes.DWORD,ctypes.c_size_t];k.MapViewOfFile.restype=ctypes.c_void_p
         k.UnmapViewOfFile.argtypes=[ctypes.c_void_p];k.CloseHandle.argtypes=[wintypes.HANDLE]
-        k.InterlockedIncrement.argtypes=[ctypes.POINTER(ctypes.c_long)];k.InterlockedIncrement.restype=ctypes.c_long
+        # On Windows x64 these are compiler intrinsics, not kernel32 exports.
+        # The bundled original C shim supplies real interlocked fences.
+        from .runtime import bundle_root
+        self.atomic=ctypes.WinDLL(str(bundle_root()/"native/VRization-SteamVR-IPC.dll"))
+        self.atomic.VRizationSequenceIncrement.argtypes=[ctypes.POINTER(ctypes.c_long)]
+        self.atomic.VRizationSequenceIncrement.restype=ctypes.c_long
+        self.atomic.VRizationMemoryBarrier.argtypes=[];self.atomic.VRizationMemoryBarrier.restype=None
         access=2 if writer else 4
         if writer:
             self.handle=k.CreateFileMappingW(ctypes.c_void_p(-1),None,4,0,size,name)
@@ -71,9 +77,11 @@ class WindowsMap:
 
     def snapshot(self, payload_size):
         for _ in range(4):
+            self.atomic.VRizationMemoryBarrier()
             before=ctypes.string_at(self.address+12,4)
             if int.from_bytes(before,"little")&1:continue
             data=ctypes.string_at(self.address,payload_size)
+            self.atomic.VRizationMemoryBarrier()
             if before==ctypes.string_at(self.address+12,4):return data
         return None
 
@@ -81,11 +89,11 @@ class WindowsMap:
         if not self.writer or len(header)+len(pixels)>self.size:raise ValueError("Invalid owned write")
         with self.lock:
             seq=ctypes.cast(self.address+12,ctypes.POINTER(ctypes.c_long))
-            self.kernel.InterlockedIncrement(seq)
+            self.atomic.VRizationSequenceIncrement(seq)
             ctypes.memmove(self.address,header[:12],12)
             ctypes.memmove(self.address+16,header[16:],len(header)-16)
             if pixels:ctypes.memmove(self.address+len(header),pixels,len(pixels))
-            self.kernel.InterlockedIncrement(seq)
+            self.atomic.VRizationSequenceIncrement(seq)
 
     def close(self):
         if self.address:

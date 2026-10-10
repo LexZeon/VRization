@@ -35,6 +35,7 @@ def enhanced_preview(image, size, fov):
 
 
 class HeadsetEditor:
+    stereo = False
     def __init__(self, owner, entry, *, stereo=False):
         self.owner = owner
         self.stereo = stereo

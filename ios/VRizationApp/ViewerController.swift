@@ -371,6 +371,8 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
         sensorNotice.isHidden = motion.available
 #if STEAMVR_PREVIEW
         sensorNotice.text = L.text(sourceIsStereo ? "steamNoTracking" : "noSensor")
+        if sourceIsStereo { enhancedNotice.text = L.text("steamProjectionHelp") }
+        if client.streamSession?.virtualHMD == true { stabilizationNotice.text = L.text("steamHMDSettings") }
         steamNotice.text = L.text(sourceIsStereo ? (client.streamSession?.virtualHMD == true ? "steamHMD" : "steamSBS") : "steamDirect")
         if let descriptor = client.streamSession {
             steamNotice.accessibilityValue = "epoch=\(descriptor.epoch);accepted=\(descriptor.accepted);layout=\(descriptor.streamLayout.rawValue);target=\(descriptor.inputTarget.rawValue)"

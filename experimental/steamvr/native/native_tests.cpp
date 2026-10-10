@@ -158,11 +158,29 @@ void factory_tests(const wchar_t* dll) {
     require(!factory(nullptr,nullptr),"null factory arguments fail safely");
     // Deliberately do NOT call provider.Init with a fake context or treat runtime failure as a pass.
 }
+void ipc_bridge_tests(const wchar_t* dll) {
+    HMODULE module=LoadLibraryExW(dll,nullptr,LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR|LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
+    require(module!=nullptr,"IPC bridge DLL loads without OpenVR");
+    struct Close { HMODULE module;~Close(){FreeLibrary(module);} } close{module};
+    using Increment=LONG (*)(volatile LONG*);using Barrier=void (*)();
+    const auto increment=reinterpret_cast<Increment>(GetProcAddress(module,"VRizationSequenceIncrement"));
+    const auto barrier=reinterpret_cast<Barrier>(GetProcAddress(module,"VRizationMemoryBarrier"));
+    require(increment && barrier,"ctypes intrinsic bridge exports exact undecorated x64 ABI");
+    vrization::Mapping fixture;fixture.create(unique_map(L"ctypes-bridge"),vrization::kFrameMapBytes);
+    auto memory=static_cast<std::uint8_t*>(fixture.data());auto lock=reinterpret_cast<volatile LONG*>(memory+12);
+    require(increment(lock)==1,"bridge starts odd seqlock in mapped memory");
+    vrization::FrameHeader header{};std::memcpy(header.magic,"VRF1",4);header.version=1;header.headerSize=64;
+    std::memcpy(memory,&header,12);std::memcpy(memory+16,reinterpret_cast<std::uint8_t*>(&header)+16,48);barrier();
+    vrization::FrameHeader snapshot{};require(!vrization::snapshot_header(memory,snapshot),"reader cannot accept bridge write in progress");
+    require(increment(lock)==2,"bridge publishes even completed seqlock");barrier();
+    require(vrization::snapshot_header(memory,snapshot) && snapshot.seqlock==2 && vrization::frame_header(snapshot),"bridge publish matches readonly native snapshot ABI");
+    require(increment(nullptr)==0 && GetLastError()==ERROR_INVALID_PARAMETER,"bridge rejects invalid pointer before intrinsic access");
+}
 }
 int wmain(int argc,wchar_t** argv) {
     try {
-        if(argc!=2) throw std::runtime_error("Pass driver DLL path");
-        pose_tests();ipc_tests();stop_tests();gpu_tests();factory_tests(argv[1]);
-        std::cout<<"PASS: "<<checks<<" native fixture checks (IPC, pose, owned Stop, WARP pixels, factory ABI); no SteamVR/hardware test"<<std::endl;return 0;
+        if(argc!=3) throw std::runtime_error("Pass driver and IPC bridge DLL paths");
+        pose_tests();ipc_tests();stop_tests();gpu_tests();factory_tests(argv[1]);ipc_bridge_tests(argv[2]);
+        std::cout<<"PASS: "<<checks<<" native fixture checks (IPC + ctypes bridge, pose, owned Stop, WARP pixels, factory ABI); no SteamVR/hardware test"<<std::endl;return 0;
     }catch(const std::exception& error){std::cerr<<"FAIL after "<<checks<<" checks: "<<error.what()<<std::endl;return 1;}
 }

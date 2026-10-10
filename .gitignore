@@ -24,6 +24,7 @@ captures/
 /build/
 /.tools/
 *.spec
+!experimental/steamvr/VRization-SteamVR.spec
 !desktop/VRization.spec
 *.apk
 *.aab

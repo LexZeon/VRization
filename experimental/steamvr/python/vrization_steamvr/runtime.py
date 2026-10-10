@@ -91,6 +91,7 @@ def diagnostics():
             "nativeHelpersPresent":all((root/"native"/f"VRization-SteamVR-{name}.exe").is_file()
                                         for name in ("Mirror","Overlay")),
             "driverPresent":(root/"drivers/vrization_phone/bin/win64/driver_vrization_phone.dll").is_file(),
+            "atomicIPCPresent":(root/"native/VRization-SteamVR-IPC.dll").is_file(),
             "routes":["direct-phone","steamvr-phone","steamvr-headset"],
             "hostPort":8766,"androidPorts":[18774,18775],"iosPorts":[18776,18777],
             "hardwareVerified":False,"startsCapture":False,"injectsMouse":False,"registersDriver":False}

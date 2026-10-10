@@ -24,3 +24,21 @@ public enum SteamVRProtocol {
         return try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])
     }
 }
+
+/// Recenter controls do not reset the monotonic pose sequence; skipped queued
+/// samples may leave gaps but can never reuse an earlier accepted sequence.
+public struct HMDPoseSequencer {
+    public private(set) var lastSequence: Int64 = 0
+    public init() {}
+    public mutating func encode(session: StreamSession, timeUs: Int64, quaternion: HMDQuaternion?) throws -> Data {
+        guard lastSequence < VRProtocol.maximumSequence else { throw SteamVRSessionError.invalid("Pose sequence exhausted") }
+        let next = lastSequence + 1
+        let data = try SteamVRProtocol.hmdPose(session: session, sequence: next, timeUs: timeUs, quaternion: quaternion)
+        lastSequence = next
+        return data
+    }
+    public func recenter(session: StreamSession) throws -> Data {
+        guard session.virtualHMD else { throw SteamVRSessionError.invalid("Recenter requires an accepted virtual HMD") }
+        return try SteamVRProtocol.recenter(epoch: session.epoch)
+    }
+}

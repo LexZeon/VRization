@@ -126,8 +126,13 @@ public struct SteamVRSessionGate {
         }
     }
     public mutating func receiveJPEG(byteCount: Int) throws {
-        guard !failed else { throw SteamVRSessionError.invalid("Session failed") }
-        try stable.receiveJPEG(byteCount: byteCount)
+        do {
+            guard !failed else { throw SteamVRSessionError.invalid("Session failed") }
+            try stable.receiveJPEG(byteCount: byteCount)
+        } catch {
+            failed = true; descriptor = nil
+            throw error
+        }
     }
     /// Late decoded callbacks are bound to both transport generation and layout epoch.
     public func acceptsFrame(generation: UInt64, activeGeneration: UInt64, captured: StreamSession?) -> Bool {

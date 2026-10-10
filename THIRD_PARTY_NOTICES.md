@@ -5,6 +5,12 @@
 <!-- vrization:english -->
 ## English
 
+### Separate SteamVR experiment
+
+The experimental native helpers use Valve Corporation/OpenVR contributors' **OpenVR v2.15.6**, commit `0924064316de3effbcd1acf1e309182a2deb1c05`, under **BSD-3-Clause**. `openvr_api.dll` is redistributed unmodified with its exact [upstream license](experimental/steamvr/native/licenses/OpenVR-LICENSE.txt). Headers and import library are pinned build inputs. Driver lifecycle, mirror ownership and overlay lifecycle ideas reference Valve's documentation/samples; the driver, bounded IPC, GPU pack shaders and Python/mobile session logic are original implementations. Full source links, contributions, exact hashes and excluded alternatives are recorded in the [native attribution ledger](experimental/steamvr/native/licenses/README.md). SteamVR and third-party headset drivers are separately installed and are not bundled or relicensed.
+
+The original atomic IPC shim uses Microsoft's documented [InterlockedIncrement intrinsic](https://learn.microsoft.com/en-us/cpp/intrinsics/interlockedincrement-intrinsic-functions?view=msvc-170) and [memory barriers](https://learn.microsoft.com/en-us/windows/win32/api/winnt/nf-winnt-memorybarrier); no Microsoft source implementation is copied. These references informed the shared-memory ordering design.
+
 Original VRization implementation is MIT. Independently maintained dependencies retain their own terms; this index records versions, purposes and sources without relicensing them. No implementation was copied from another VR application. No external photo, font package or app icon asset is included; screenshots show this project running.
 
 The listed runtime terms permit commercial use when their conditions are met. Redistributors must preserve full applicable licenses, copyrights and NOTICE files in [licenses/](licenses/). This summary does not replace upstream texts.
@@ -141,6 +147,12 @@ The original GDI adapter scales into a smaller top-down bitmap before Python rea
 
 <!-- vrization:chinese -->
 ## 简体中文
+
+### 独立 SteamVR 实验版
+
+实验原生工具使用 Valve Corporation／OpenVR 贡献者的 **OpenVR v2.15.6**、commit `0924064316de3effbcd1acf1e309182a2deb1c05`，许可证为 **BSD-3-Clause**。`openvr_api.dll` 原样再分发并保留完整 [上游许可证](experimental/steamvr/native/licenses/OpenVR-LICENSE.txt)；头文件及导入库是固定构建输入。驱动生命周期、镜像资源所有权及悬浮层生命周期参考 Valve 文档／样例；驱动、有界 IPC、GPU 合成着色器和 Python／手机会话逻辑为原创实现。[原生鸣谢清单](experimental/steamvr/native/licenses/README.md) 记录完整来源、贡献、哈希及未采用方案。SteamVR 和第三方头显驱动另外安装，不打包或变更许可。
+
+原创原子 IPC 桥接使用微软文档中的 [InterlockedIncrement 编译器内建函数](https://learn.microsoft.com/en-us/cpp/intrinsics/interlockedincrement-intrinsic-functions?view=msvc-170) 和 [内存屏障](https://learn.microsoft.com/en-us/windows/win32/api/winnt/nf-winnt-memorybarrier)，未复制微软源代码。这些文档用于设计共享内存读写顺序。
 
 VRization 的原创实现使用 MIT 许可。以下依赖独立维护并保留各自许可；本文件记录版本、用途和来源，不会把依赖重新授权为 MIT。当前没有从其他 VR 应用复制实现源码，也没有引入外部照片、字体包或应用图标素材；界面截图来自本项目运行界面。
 

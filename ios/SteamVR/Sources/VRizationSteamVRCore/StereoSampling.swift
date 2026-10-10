@@ -1,6 +1,15 @@
 import Foundation
 import VRizationCore
 
+public enum StereoRaster {
+    /// Exact decode only: whole-packed-image resampling could cross the eye seam.
+    public static func validate(width: Int, height: Int, orientation: Int = 1) throws {
+        guard (2...2048).contains(width), (1...2048).contains(height), width % 2 == 0, orientation == 1 else {
+            throw SteamVRSessionError.invalid("Stereo raster requires even width, unrotated metadata and edges <=2048")
+        }
+    }
+}
+
 public struct StereoEyeSampling: Equatable {
     public let contentAspect: Double
     public let uvMinimum: FitPoint
