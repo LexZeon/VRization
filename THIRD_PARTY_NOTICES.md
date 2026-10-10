@@ -82,7 +82,7 @@ The v0.3.3 connection lifecycle work consulted the Android Open Source Project's
 
 ### Enhanced first-person projection reference
 
-OpenCV contributors are acknowledged for the [4.12.0 fisheye-model documentation](https://docs.opencv.org/4.12.0/db/d58/group__calib3d__fisheye.html) consulted as angular-projection background on 2026-10-10. This is a mathematical reference, with **no copied OpenCV implementation or bundled library**. The [exact tag, credited source-header holders and Apache/BSD distinction](licenses/references/README.md#enhanced-first-person-projection) are recorded separately. VRization independently implements GPU inverse equidistant sampling, square fitting and black-border handling under MIT. The user reference image is neither copied nor redistributed. See [the projection guide](docs/ENHANCED_FIRST_PERSON.md).
+OpenCV contributors are acknowledged for the [4.12.0 fisheye-model documentation](https://docs.opencv.org/4.12.0/db/d58/group__calib3d__fisheye.html) consulted as angular-projection background on 2026-10-10. This is a mathematical reference, with **no copied OpenCV implementation or bundled library**. The [exact tag, credited source-header holders and Apache/BSD distinction](licenses/references/README.md#enhanced-first-person-projection) are recorded separately. VRization independently implements GPU inverse equidistant sampling, square fitting and black-border handling under MIT. The user reference image is neither copied nor redistributed. See [the projection guide](https://github.com/LexZeon/VRization/blob/main/docs/ENHANCED_FIRST_PERSON.md).
 
 ### Build tools and documentation services
 
@@ -218,7 +218,7 @@ v0.3.3 连接生命周期改进参考 Android Open Source Project 的 [ADB 启�
 
 ### 加强第一人称投影参考
 
-鸣谢 OpenCV 贡献者的 [4.12.0 鱼眼模型文档](https://docs.opencv.org/4.12.0/db/d58/group__calib3d__fisheye.html)，于 2026-10-10 作为角度投影背景查阅；仅参考数学，**没有复制 OpenCV 实现或附带运行库**。[准确标签、文件头版权持有人与 Apache／BSD 区别](licenses/references/README.md#enhanced-first-person-projection) 已独立记录。VRization 以 MIT 原创实现 GPU 逆等距采样、正方形适配和黑边处理；用户参考图片不复制或再发布，见 [投影教程](docs/ENHANCED_FIRST_PERSON.md)。
+鸣谢 OpenCV 贡献者的 [4.12.0 鱼眼模型文档](https://docs.opencv.org/4.12.0/db/d58/group__calib3d__fisheye.html)，于 2026-10-10 作为角度投影背景查阅；仅参考数学，**没有复制 OpenCV 实现或附带运行库**。[准确标签、文件头版权持有人与 Apache／BSD 区别](licenses/references/README.md#enhanced-first-person-projection) 已独立记录。VRization 以 MIT 原创实现 GPU 逆等距采样、正方形适配和黑边处理；用户参考图片不复制或再发布，见 [投影教程](https://github.com/LexZeon/VRization/blob/main/docs/ENHANCED_FIRST_PERSON.md)。
 
 ### 构建工具与文档服务
 
