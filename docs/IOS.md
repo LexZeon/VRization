@@ -110,9 +110,9 @@ The unmodified originals below are from that final **native iOS Simulator** run.
 
 The native client adds a 0–100% First-person stabilization slider, default 0%, with normal profile persistence, PC broadcasts and reset. It sends the setting only to a host advertising support and preserves its local value with older hosts. URLSession uses `settingsSchema=2`; USB requests schema 2 through client hello. A capable host's initial legacy hello is followed by a complete eleven-field snapshot before profile adoption / sensor fallback. The phone performs no duplicate filter. Final [Actions 37991498159](https://github.com/LexZeon/VRization/actions/runs/37991498159) passed **77 Swift core tests and five genuine native UI cases**, with zero failures / skips, on the arm64 iPhone 17 Pro Max Simulator running iOS 26.2 (Xcode 26.3.0 / macOS 15.7.9). Both Simulator and unsigned device-target builds passed. LAN / simulated USB Metal color and row-orientation checks passed for both eyes, as did exact viewport seam-boundary pixel checks. The downloaded Simulator app identifies as **0.3.2 / build 5 / minimum iOS 15.0 / arm64**, and its original MIT license matched. All 65 compared actual source / fixture files in the CI-produced source ZIP matched the tested checkout; generated egg-info metadata was excluded. These are Simulator / software-bridge results, not a physical iPhone, real Apple USB service or signed IPA. See [the actual slider screenshot](STABILIZATION.md#native-ios-simulator-example), [stabilization](STABILIZATION.md) and [protocol](PROTOCOL.md).
 
-### v0.4.0 development
+### v0.4.0 native checks
 
-Application 0.4.0/build 8 adds the enhanced Metal shader, fixed-square core/editor math and separate capability negotiation. Native builds/UI/pixel checks for this revision are pending; the completed v0.3.4 results below remain historical. [Current validation](VALIDATION.md).
+Application **0.4.0/build 8** adds the enhanced Metal shader, fixed-square core/editor math and separate capability negotiation. Independent CI review confirmed **95 Swift core tests, seven genuine native UI cases with zero failures/skips, both SDK builds, 38 enhanced pixel checks and 16 older-mode color/orientation plus two seam checks**; all 15 host checkpoints had zero mouse output. The arm64 iPhone 17 Pro Max Simulator ran iOS 26.2 with Xcode 26.3.0/macOS 15.7.9. See the [unaltered native Metal example](ENHANCED_FIRST_PERSON.md#actual-native-metal-example) and [exact validation](VALIDATION.md). USB remains simulated, and the earlier v0.3.4 results below remain historical; no physical iPhone USB, gyro axis, achieved FPS or end-to-end latency is claimed.
 
 ### v0.3.4 application and native checks
 
@@ -229,9 +229,9 @@ xcodebuild -project ios/VRization.xcodeproj -scheme VRization \
 
 原生客户端新增 0–100% 第一人称防抖滑块，默认 0%，正常保存配置、接受电脑广播并支持重置。仅向声明支持的主机发送字段，连接旧主机时保留本地值。URLSession 使用 `settingsSchema=2`，USB 经客户端 hello 请求 schema 2；支持防抖的主机最初若发旧格式 hello，先取得完整十一字段快照，再接纳配置 / 缺传感器回退。手机不重复滤波。最终 [Actions 37991498159](https://github.com/LexZeon/VRization/actions/runs/37991498159) 在 arm64 iPhone 17 Pro Max 模拟器、iOS 26.2（Xcode 26.3.0 / macOS 15.7.9）通过 **77 项 Swift 核心与五项真实原生界面用例**，零失败 / 跳过；模拟器与未签名真机目标构建都通过。局域网 / 模拟 USB 的 Metal 双眼颜色与行方向，以及准确视口中缝边界像素检查通过。下载的模拟器应用为 **0.3.2 / build 5 / 最低 iOS 15.0 / arm64**，原创 MIT 许可匹配；CI 源码 ZIP 中比较的 65 个真实源码 / fixture 文件全部匹配已测试仓库，生成的 egg-info 元数据未纳入比较。这是模拟器 / 软件桥接结果，不是 iPhone 真机、真实 Apple USB 服务或已签名 IPA。见 [真实滑块截图](STABILIZATION.md#原生-ios-模拟器示例)、[防抖](STABILIZATION.md) 与 [协议](PROTOCOL.md)。
 
-### v0.4.0 开发中
+### v0.4.0 原生检查
 
-应用 0.4.0／构建 8 新增加强 Metal 着色器、正方形核心／编辑数学与单独能力协商；此修订原生构建／界面／像素检查待完成，以下 v0.3.4 已完成结果仍是历史，见 [当前验证](VALIDATION.md)。
+应用 **0.4.0／构建 8** 新增加强 Metal、正方形核心／编辑数学与单独能力协商；CI 独立审核确认 **95 项 Swift 核心、七项真实原生界面零失败／跳过、两种 SDK、38 项加强像素和 16 项旧模式颜色／方向及两项接缝**，15 个主机检查点鼠标输出为零。arm64 iPhone 17 Pro Max 模拟器运行 iOS 26.2，使用 Xcode 26.3.0／macOS 15.7.9，见 [未修改的原生 Metal 例子](ENHANCED_FIRST_PERSON.md#实际原生-metal-示例) 与 [准确验证](VALIDATION.md)。USB 仍为模拟，以下 v0.3.4 结果仍是历史；不宣称真实 iPhone USB、陀螺仪轴向、实际帧率或端到端延迟。
 
 ### v0.3.4 应用与原生检查
 

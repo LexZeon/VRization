@@ -9,7 +9,15 @@ User-visible changes are listed newest first. Dates are GitHub publication dates
 
 ### Unreleased
 
-No additional implemented changes.
+- **Release management:** The ordinary-channel archive now selects only public releases containing the exact `VRization-Windows-x64.zip` asset. Separate SteamVR preview releases are excluded from automatic and explicit ordinary `latest` selection. This changes release tooling; no application runtime behavior is changed.
+
+### [v0.5.0-steamvr-preview](https://github.com/LexZeon/VRization/releases/tag/v0.5.0-steamvr-preview) — 2026-10-10
+
+**Separate preview; documentation-only discovery entry on `main`.** Windows and Android preview applications use **0.5.0-steamvr-preview**, mobile build **1**; iOS uses **0.5.0**, build **1**, with its own preview identity. Stable **v0.4.0-alpha**, all existing files and historical downloads are preserved.
+
+- **Independent routes:** Original direct-phone streaming with the four existing modes; a phone as a rotation-only **3DOF SteamVR HMD** receiving independent compositor eye images; a desktop overlay on an already connected SteamVR headset. The preview uses separate mobile installs, settings and USB endpoints.
+- **Verification limits:** Software/build evidence is recorded on the experimental branch. Real phone/PCVR acceptance, achieved hardware FPS and physical latency remain deferred to the next hardware session. This documentation entry adds no experimental implementation to `main`.
+- **Guides:** [Illustrated tutorial](https://github.com/LexZeon/VRization/blob/codex/steamvr-experimental/experimental/steamvr/docs/TUTORIAL.md), [verification record](https://github.com/LexZeon/VRization/blob/codex/steamvr-experimental/experimental/steamvr/docs/VALIDATION.md) and [AI handoff](https://github.com/LexZeon/VRization/blob/codex/steamvr-experimental/experimental/steamvr/docs/AI_HANDOFF.md).
 
 ### [v0.4.0-alpha](https://github.com/LexZeon/VRization/releases/tag/v0.4.0-alpha) — 2026-10-10
 
@@ -113,7 +121,15 @@ First Windows / Android preview.
 
 ### 未发布
 
-暂无其他已实现改动。
+- **发布管理：** 原版通道归档现仅选择包含准确资产名 `VRization-Windows-x64.zip` 的公开发布；独立 SteamVR 实验发布不会被自动或显式选为原版 `latest`。这是发布工具改动，应用运行行为没有变化。
+
+### [v0.5.0-steamvr-preview](https://github.com/LexZeon/VRization/releases/tag/v0.5.0-steamvr-preview) — 2026-10-10
+
+**独立实验版；`main` 仅新增说明入口。** Windows 与 Android 实验应用版本为 **0.5.0-steamvr-preview**、手机构建号 **1**；iOS 为 **0.5.0**、构建号 **1**，使用独立实验版标识。原版通道的 **v0.4.0-alpha**、所有现有文件与历史下载继续保留。
+
+- **独立入口：** 保留原有四种模式的手机直连串流；手机作为只有旋转的 **3DOF SteamVR 头显**，接收合成器独立双眼画面；已有 SteamVR 头显观看桌面悬浮层。实验版使用独立手机安装、设置与 USB 端点。
+- **验证范围：** 实验分支记录软件／构建证据；真实手机／PCVR 验收、实际硬件帧率及物理延迟留到下次硬件会话。本条文档不会将实验实现加入 `main`。
+- **指南：** [图文教程](https://github.com/LexZeon/VRization/blob/codex/steamvr-experimental/experimental/steamvr/docs/TUTORIAL.md)、[验证记录](https://github.com/LexZeon/VRization/blob/codex/steamvr-experimental/experimental/steamvr/docs/VALIDATION.md)及 [AI 接手指南](https://github.com/LexZeon/VRization/blob/codex/steamvr-experimental/experimental/steamvr/docs/AI_HANDOFF.md)。
 
 ### [v0.4.0-alpha](https://github.com/LexZeon/VRization/releases/tag/v0.4.0-alpha) — 2026-10-10
 

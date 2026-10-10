@@ -189,7 +189,7 @@ def main():
     root = args.destination.expanduser().resolve()
     root.mkdir(parents=True, exist_ok=True)
     with fetch(f"https://api.github.com/repos/{REPO}/releases?per_page=100") as response:
-        releases = [release for release in json.load(response) if not release["draft"]]
+        releases = stable_public_releases(json.load(response))
     if not releases:
         raise ValueError("No public releases available")
     latest_tag = args.latest_tag or releases[0]["tag_name"]
@@ -202,6 +202,12 @@ def main():
         raise ValueError("Requested latest tag is not a public release")
     publish_latest(root, selected)
     print(f"Runnable Windows latest and historical downloads: {root}", flush=True)
+
+
+def stable_public_releases(releases):
+    """A newer separate-channel release must never replace stable latest."""
+    return [release for release in releases if not release["draft"]
+            and "VRization-Windows-x64.zip" in {asset["name"] for asset in release["assets"]}]
 
 
 if __name__ == "__main__":
