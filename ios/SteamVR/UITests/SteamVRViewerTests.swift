@@ -76,6 +76,22 @@ final class SteamVRViewerTests: XCTestCase {
         let summary = app.staticTexts["editor.summary"].value as? String ?? ""
         XCTAssertTrue(summary.contains("fps_enhanced"))
     }
+    private func editorSettings() throws -> Settings {
+        let value = app.staticTexts["editor.summary"].value as? String
+        return try JSONDecoder().decode(Settings.self, from: XCTUnwrap(value?.data(using: .utf8)))
+    }
+    private func waitEditorScaleLessThan(_ scale: Double) throws {
+        let summary = app.staticTexts["editor.summary"]
+        let predicate = NSPredicate { element, _ in
+            guard let element = element as? XCUIElement,
+                  let value = element.value as? String, let data = value.data(using: .utf8),
+                  let draft = try? JSONDecoder().decode(Settings.self, from: data) else { return false }
+            return draft.scale < scale && draft.mode == "fps_enhanced"
+        }
+        let expectation = XCTNSPredicateExpectation(predicate: predicate, object: summary)
+        XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 5), .completed)
+        XCTAssertLessThan(try editorSettings().scale, scale)
+    }
     private func waitHost(_ predicate: (Snapshot) -> Bool) throws -> Snapshot {
         let deadline = Date().addingTimeInterval(5)
         repeat {
@@ -102,9 +118,18 @@ final class SteamVRViewerTests: XCTestCase {
         app.buttons["editor.discard"].tap()
         XCTAssertTrue(try observe("steamvr-editor-discarded").mouseMoves.isEmpty)
         reveal(editor); editor.tap()
+        XCTAssertTrue(app.buttons["editor.save"].waitForExistence(timeout: 5))
+        try assertEditorHalfImageAspect()
         let corner = app.otherElements["editor.eye0.bottomRight"]
+        XCTAssertTrue(corner.waitForExistence(timeout: 5)); XCTAssertTrue(corner.isHittable)
+        let draftBeforeDrag = try editorSettings()
         let start = corner.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
-        start.press(forDuration: 0.1, thenDragTo: start.withOffset(CGVector(dx: -35, dy: -25)))
+        // A very short default-velocity drag can miss the pan recognizer on a
+        // busy Simulator. Use the real handle with enough native move/hold time,
+        // then require the actual draft to change before Save is exercised.
+        start.press(forDuration: 0.2, thenDragTo: start.withOffset(CGVector(dx: -35, dy: -25)),
+                    withVelocity: .slow, thenHoldForDuration: 0.2)
+        try waitEditorScaleLessThan(draftBeforeDrag.scale)
         try assertEditorHalfImageAspect(); app.buttons["editor.save"].tap()
         _ = try waitHost { $0.settings.scale < before.settings.scale && $0.settings.mode == "fps_enhanced" }
         let saved = try observe("steamvr-editor-saved")
