@@ -1,6 +1,9 @@
 import Foundation
 import CoreGraphics
 import VRizationCore
+#if STEAMVR_PREVIEW
+import VRizationSteamVRCore
+#endif
 
 /// All connection transitions and callbacks belong to the main queue.
 /// URLSession callbacks recheck task identity and generation after dispatching there.
@@ -21,7 +24,15 @@ final class StreamClient: NSObject, URLSessionWebSocketDelegate {
     private var generation: UInt64 { sessions.current }
     private let decoder = JPEGDecoder()
     private let usb = USBListener()
+#if STEAMVR_PREVIEW
+    private var protocolGate = SteamVRSessionGate()
+    var streamSession: StreamSession? { protocolGate.descriptor }
+    var onStreamSession: ((StreamSession?) -> Void)?
+    private var submittedDescriptor: StreamSession?
+    private var pendingTrackingLost: Data?
+#else
     private var protocolGate = HostSessionGate()
+#endif
     private var settingsBase = VRSettings()
     var supportsStabilization: Bool { protocolGate.supportsStabilization }
     var supportsEnhancedFirstPerson: Bool { protocolGate.supportsEnhancedFirstPerson }
@@ -39,8 +50,18 @@ final class StreamClient: NSObject, URLSessionWebSocketDelegate {
 
     override init() {
         super.init()
+#if STEAMVR_PREVIEW
+        decoder.onUnsupportedStereo = { [weak self] epoch in
+            guard let self = self, self.generation == epoch, self.state == .connected else { return }
+            self.disconnect(reason: "steamRasterUnsupported")
+        }
+#endif
         decoder.onImage = { [weak self] image, epoch in
             guard let self = self, epoch == self.generation, self.state == .connected else { return }
+#if STEAMVR_PREVIEW
+            guard self.protocolGate.acceptsFrame(generation: epoch, activeGeneration: self.generation,
+                                                 captured: self.submittedDescriptor) else { return }
+#endif
             self.onFrame?(image)
         }
         usb.onFrame = { [weak self] frame in
@@ -73,8 +94,13 @@ final class StreamClient: NSObject, URLSessionWebSocketDelegate {
         precondition(Thread.isMainThread)
         disconnect(notify: false)
         transport = .lan
-        guard let url = try? ConnectionInput.url(host: host, port: String(port), token: code,
+        guard var url = try? ConnectionInput.url(host: host, port: String(port), token: code,
                                                 settingsSchema: VRProtocol.settingsSchema, enhancedFirstPerson: true) else { return false }
+#if STEAMVR_PREVIEW
+        guard var parts = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return false }
+        parts.queryItems = (parts.queryItems ?? []) + [URLQueryItem(name: "streamSession", value: "1")]
+        guard let previewURL = parts.url else { return false }; url = previewURL
+#endif
         let config = URLSessionConfiguration.ephemeral
         config.timeoutIntervalForRequest = 15
         config.httpCookieStorage = nil
@@ -97,6 +123,9 @@ final class StreamClient: NSObject, URLSessionWebSocketDelegate {
         state = .disconnected
         handshakeTimeout?.invalidate(); handshakeTimeout = nil
         protocolGate.reset()
+#if STEAMVR_PREVIEW
+        submittedDescriptor = nil; pendingTrackingLost = nil; onStreamSession?(nil)
+#endif
         heartbeat?.invalidate(); heartbeat = nil
         usb.stop()
         socket?.cancel(with: .normalClosure, reason: nil); socket = nil
@@ -120,14 +149,47 @@ final class StreamClient: NSObject, URLSessionWebSocketDelegate {
         if (try? settings.validated()) != nil { settingsBase = settings }
     }
     func sendPose(yaw: Double, pitch: Double) {
+#if STEAMVR_PREVIEW
+        guard protocolGate.canReceiveFrames, streamSession?.inputTarget == .mouse else { return }
+#endif
         guard state == .connected, !posesPaused, yaw.isFinite, pitch.isFinite, poseSequence < 9_007_199_254_740_991 else { return }
         poseSequence += 1
         pendingPose = try? VRProtocol.encodePose(sequence: poseSequence, yaw: yaw, pitch: pitch)
         drain()
     }
+#if STEAMVR_PREVIEW
+    func sendHMDPose(_ quaternion: HMDQuaternion?) {
+        guard state == .connected, !posesPaused, protocolGate.acceptsHMDPose,
+              let descriptor = streamSession, poseSequence < VRProtocol.maximumSequence else { return }
+        let next = poseSequence + 1
+        let timeUs = Int64(ProcessInfo.processInfo.systemUptime * 1_000_000)
+        guard let data = try? SteamVRProtocol.hmdPose(session: descriptor, sequence: next,
+                                                    timeUs: timeUs, quaternion: quaternion) else { return }
+        poseSequence = next; pendingPose = data; drain()
+    }
+    func invalidateTracking() {
+        pendingPose = nil
+        guard state == .connected, protocolGate.acceptsHMDPose,
+              let descriptor = streamSession, poseSequence < VRProtocol.maximumSequence else { return }
+        let next = poseSequence + 1
+        guard let data = try? SteamVRProtocol.hmdPose(session: descriptor, sequence: next,
+            timeUs: Int64(ProcessInfo.processInfo.systemUptime * 1_000_000), quaternion: nil) else { return }
+        poseSequence = next; pendingTrackingLost = data; drain()
+    }
+#endif
     func pauseForEditor() {
+#if STEAMVR_PREVIEW
+        invalidateTracking()
+#endif
         posesPaused = true; pendingPose = nil
-        if state == .connected { pendingHello = VRProtocol.editorHello(); drain() }
+        if state == .connected {
+#if STEAMVR_PREVIEW
+            pendingHello = SteamVRProtocol.hello(editing: true)
+#else
+            pendingHello = VRProtocol.editorHello()
+#endif
+            drain()
+        }
     }
     func resumePose() {
         // A new origin control is queued before subsequent pose samples. An
@@ -144,7 +206,17 @@ final class StreamClient: NSObject, URLSessionWebSocketDelegate {
         guard !sending, state == .connected else { return }
         let data: Data
         if let hello = pendingHello { data = hello; pendingHello = nil }
-        else if pendingRecenter { data = VRProtocol.recenter(); pendingRecenter = false }
+        else if let lost = takeTrackingLost() { data = lost }
+        else if pendingRecenter {
+#if STEAMVR_PREVIEW
+            if let descriptor = streamSession, descriptor.virtualHMD,
+               let control = try? SteamVRProtocol.recenter(epoch: descriptor.epoch) { data = control }
+            else { data = VRProtocol.recenter() }
+#else
+            data = VRProtocol.recenter()
+#endif
+            pendingRecenter = false
+        }
         else if let settings = pendingSettings { data = settings; pendingSettings = nil }
         else if pendingPing { data = VRProtocol.ping(); pendingPing = false; pingSentAt = ProcessInfo.processInfo.systemUptime }
         else if let pose = pendingPose { data = pose; pendingPose = nil }
@@ -199,7 +271,13 @@ final class StreamClient: NSObject, URLSessionWebSocketDelegate {
             let hadSupport = supportsStabilization
             let hadEnhanced = supportsEnhancedFirstPerson
             let wasAwaitingSnapshot = protocolGate.awaitingSettingsSnapshot
+#if STEAMVR_PREVIEW
+            let previousDescriptor = streamSession
+#endif
             let event = try protocolGate.receiveText(data, settingsBase: settingsBase)
+#if STEAMVR_PREVIEW
+            if previousDescriptor != streamSession { onStreamSession?(streamSession) }
+#endif
             if hadSupport != supportsStabilization || hadEnhanced != supportsEnhancedFirstPerson { onCapabilitiesChanged?() }
             switch event {
             case .established(let hello):
@@ -225,14 +303,31 @@ final class StreamClient: NSObject, URLSessionWebSocketDelegate {
                     deliverSettings(update.settings, revision: update.revision, sequence: update.clientSeq)
                 } else { handleMessage(message) }
             }
-        } catch { disconnect(reason: "protocolError") }
+        } catch {
+#if STEAMVR_PREVIEW
+            if let failure = error as? SteamVRSessionError, failure == .changed {
+                disconnect(reason: "steamSessionChanged"); return
+            }
+#endif
+            disconnect(reason: "protocolError")
+        }
     }
     private func handleJPEG(_ data: Data) {
         do {
             try protocolGate.receiveJPEG(byteCount: data.count)
+#if STEAMVR_PREVIEW
+            // Unlabelled binary frames cannot be attached to a pending or
+            // changed descriptor, even after the transport itself is open.
+            guard protocolGate.canReceiveFrames else { return }
+            submittedDescriptor = streamSession
+#endif
             if state == .connecting, protocolGate.awaitingSettingsSnapshot { return }
             guard state == .connected else { disconnect(reason: "protocolError"); return }
+#if STEAMVR_PREVIEW
+            decoder.submit(data, generation: generation, stereo: streamSession?.stereo == true)
+#else
             decoder.submit(data, generation: generation)
+#endif
         } catch { disconnect(reason: "protocolError") }
     }
     private func handleMessage(_ message: HostMessage) {
@@ -258,7 +353,7 @@ final class StreamClient: NSObject, URLSessionWebSocketDelegate {
             self.disconnect(reason: "handshakeTimeout")
         }
         handshakeTimeout = timer; RunLoop.main.add(timer, forMode: .common)
-        let data = VRProtocol.hello()
+        let data = clientHello()
         let complete: (Bool) -> Void = { [weak self] ok in
             guard let self = self, self.generation == epoch, self.state == .connecting else { return }
             if !ok { self.disconnect(reason: "failed") }
@@ -278,7 +373,7 @@ final class StreamClient: NSObject, URLSessionWebSocketDelegate {
         posesPaused = false
         // Schema negotiation must precede any callback-triggered profile send.
         // Its capability was already established by the validated host hello.
-        pendingHello = schemaAlreadyRequested ? nil : VRProtocol.hello()
+        pendingHello = schemaAlreadyRequested ? nil : clientHello()
         state = .connected; onSessionStarted?()
         guard generation == epoch, state == .connected else { return }
         drain(); onState?(state, "connected")
@@ -292,6 +387,21 @@ final class StreamClient: NSObject, URLSessionWebSocketDelegate {
             self.pendingPing = true; self.drain()
         }
         heartbeat = timer; RunLoop.main.add(timer, forMode: .common)
+    }
+
+    private func clientHello() -> Data {
+#if STEAMVR_PREVIEW
+        return SteamVRProtocol.hello()
+#else
+        return VRProtocol.hello()
+#endif
+    }
+    private func takeTrackingLost() -> Data? {
+#if STEAMVR_PREVIEW
+        let result = pendingTrackingLost; pendingTrackingLost = nil; return result
+#else
+        return nil
+#endif
     }
 
     func urlSession(_ session: URLSession, webSocketTask: URLSessionWebSocketTask, didOpenWithProtocol selectedProtocol: String?) {

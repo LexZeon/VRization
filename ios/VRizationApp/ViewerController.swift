@@ -1,6 +1,9 @@
 import UIKit
 import MetalKit
 import VRizationCore
+#if STEAMVR_PREVIEW
+import VRizationSteamVRCore
+#endif
 
 final class ViewerController: UIViewController, UIScrollViewDelegate {
     private let client = StreamClient()
@@ -8,7 +11,7 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
     private let motion = MotionSource()
     private var settings = VRSettings()
     private var sync = LocalProfileSync()
-    private let preferenceStore = PhonePreferencesStore()
+    private let preferenceStore = AppPreferencesStore()
     private var preferences = PhonePreferences()
     private var editor: HeadsetEditorView?
     private var editorEntry: VRSettings?
@@ -21,6 +24,9 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
     private var status = UILabel(), frameStatus = UILabel()
     private var stabilizationNotice = UILabel()
     private var enhancedNotice = UILabel()
+#if STEAMVR_PREVIEW
+    private var steamNotice = UILabel()
+#endif
     private var sensorNotice = UILabel()
     private var hostField = UITextField(), portField = UITextField(), codeField = UITextField()
     private var connectButton = UIButton(type: .system)
@@ -36,6 +42,13 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
     private var receiveFPS: Double = 0
     private var rtt: Double?
     private var frameWidth = 0, frameHeight = 0
+    private var sourceIsStereo: Bool {
+#if STEAMVR_PREVIEW
+        return client.streamSession?.stereo == true
+#else
+        return false
+#endif
+    }
     private var selectedTransport: StreamClient.Transport {
         let choice = preferences.transport
         return choice == "lan" ? .lan : .usb
@@ -53,7 +66,9 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
         preferences = preferenceStore.load()
         if let route = argument("--transport"), ["usb", "lan"].contains(route) { preferences.transport = route }
         settings = preferences.settings
+#if !STEAMVR_PREVIEW
         if !motion.available && settings.requiresMotion { settings.mode = "full" }
+#endif
         client.setSettingsBase(settings)
         metalView = MTKView(frame: .zero, device: MTLCreateSystemDefaultDevice())
         metalView.translatesAutoresizingMaskIntoConstraints = false
@@ -125,7 +140,7 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
             guard value != self.settings || value != self.preferences.settings || !self.preferences.hasCommittedProfile else { return }
             let oldMode = self.settings.mode
             self.settings = value
-            let fallback = !self.motion.available && value.requiresMotion
+            let fallback = !self.motion.available && value.requiresMotion && !self.sourceIsStereo
             if fallback { self.settings.mode = "full" }
             self.saveSettings(); self.refreshControls(); self.renderer?.setSettings(self.settings)
             if oldMode != self.settings.mode { self.recenter() }
@@ -150,15 +165,40 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
         }
         client.onRTT = { [weak self] value in self?.rtt = value; if self?.client.state == .connected { self?.updateFrameStatus() } }
         client.onCapabilitiesChanged = { [weak self] in self?.updateStabilizationNotice() }
+#if STEAMVR_PREVIEW
+        client.onStreamSession = { [weak self] descriptor in
+            guard let self = self else { return }
+            self.closeEditor(save: false, resumeMotion: false)
+            self.motion.stop(); self.motion.recenter()
+            self.renderer?.setStreamSession(descriptor)
+            self.frameWidth = 0; self.frameHeight = 0
+            self.refreshControls(); self.updateTracking()
+        }
+        motion.onQuaternion = { [weak self] quaternion in
+            guard let self = self, self.active, self.editor == nil,
+                  self.client.streamSession?.virtualHMD == true else { return }
+            self.client.sendHMDPose(quaternion)
+        }
+#endif
         motion.orientation = { [weak self] in self?.view.window?.windowScene?.interfaceOrientation ?? .landscapeRight }
         motion.onPose = { [weak self] pose in
             guard let self = self, self.active, self.editor == nil else { return }
+#if STEAMVR_PREVIEW
+            guard self.client.streamSession?.inputTarget != .virtualHMD else { return }
+#endif
+            guard !self.sourceIsStereo else { return }
             if self.settings.mode == "cinema" { self.renderer?.setPose(pose) }
             else if self.settings.isFirstPerson { self.client.sendPose(yaw: pose.yaw, pitch: pose.pitch) }
         }
         motion.onUnavailable = { [weak self] in
             guard let self = self else { return }
             self.closeEditor(save: false, resumeMotion: false)
+#if STEAMVR_PREVIEW
+            if self.sourceIsStereo {
+                self.client.invalidateTracking(); self.statusKey = "steamNoTracking"
+                self.refreshControls(); self.updateStatus(); return
+            }
+#endif
             if self.settings.mode != "fps_enhanced" { self.settings.mode = "full" }
             self.statusKey = self.settings.mode == "fps_enhanced" ? "enhancedSensorFallback" : "sensorFallback"
             self.refreshControls(); self.updateStatus(); self.recenter(); self.changed(sendNow: true)
@@ -191,13 +231,23 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
             content.trailingAnchor.constraint(equalTo: scroll.contentLayoutGuide.trailingAnchor, constant: -12),
             content.widthAnchor.constraint(equalTo: scroll.frameLayoutGuide.widthAnchor, constant: -24)
         ])
-        let title = label("VRization", size: 25); title.textColor = .systemTeal; content.addArrangedSubview(title)
+#if STEAMVR_PREVIEW
+        let title = label("VRization SteamVR Experimental", size: 23)
+#else
+        let title = label("VRization", size: 25)
+#endif
+        title.textColor = .systemTeal; content.addArrangedSubview(title)
         let info = Bundle.main.infoDictionary ?? [:]
         let version = info["CFBundleShortVersionString"] as? String ?? "?"
         let build = info["CFBundleVersion"] as? String ?? "?"
         let versionInfo = label(String(format: L.text("versionInfo"), version, build), size: 13)
         versionInfo.accessibilityIdentifier = "version.info"
         content.addArrangedSubview(versionInfo)
+#if STEAMVR_PREVIEW
+        steamNotice = label(L.text("steamDirect"), size: 13)
+        steamNotice.accessibilityIdentifier = "stream.session"
+        steamNotice.textColor = .systemTeal; content.addArrangedSubview(steamNotice)
+#endif
         content.addArrangedSubview(button("editorOpen", id: "view.editor", action: #selector(openEditor)))
         content.addArrangedSubview(label(L.text("editorHelp"), size: 12))
         let languages = UISegmentedControl(items: ["English", "中文"])
@@ -225,14 +275,18 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
         content.addArrangedSubview(codeField)
         connectButton = button("connect", id: "connection.toggle", action: #selector(toggleConnection))
         content.addArrangedSubview(connectButton)
+#if STEAMVR_PREVIEW
+        content.addArrangedSubview(label(L.text(selectedTransport == .usb ? "steamUSBNotice" : "networkNotice"), size: 12))
+#else
         content.addArrangedSubview(label(L.text(selectedTransport == .usb ? "usbNotice" : "networkNotice"), size: 12))
+#endif
         sensorNotice = label(L.text("noSensor"), size: 13); sensorNotice.accessibilityIdentifier = "motion.status"
         sensorNotice.isHidden = motion.available; sensorNotice.textColor = .systemTeal; content.addArrangedSubview(sensorNotice)
         modes = UISegmentedControl(items: [L.text("full"), L.text("cinema"), L.text("fps"), L.text("fps_enhanced")])
         modes.apportionsSegmentWidthsByContent = true
         modes.setTitleTextAttributes([.font: UIFont.systemFont(ofSize: 12)], for: .normal)
         modes.accessibilityIdentifier = "view.mode"
-        modes.setEnabled(motion.available, forSegmentAt: 1); modes.setEnabled(motion.available, forSegmentAt: 2)
+        modes.setEnabled(motion.available || sourceIsStereo, forSegmentAt: 1); modes.setEnabled(motion.available || sourceIsStereo, forSegmentAt: 2)
         modes.addTarget(self, action: #selector(modeChanged), for: .valueChanged); content.addArrangedSubview(modes)
         enhancedNotice = label(L.text("enhancedHelp"), size: 12)
         enhancedNotice.accessibilityIdentifier = "view.enhanced.notice"
@@ -257,7 +311,11 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
         content.addArrangedSubview(invertRow)
         content.addArrangedSubview(button("reset", id: "view.reset", action: #selector(resetSettings)))
         content.addArrangedSubview(button("licenses", id: "about.licenses", action: #selector(showLicense)))
+#if STEAMVR_PREVIEW
+        content.addArrangedSubview(label(L.text("steamHelp"), size: 12))
+#else
         content.addArrangedSubview(label(L.text("help"), size: 12))
+#endif
         refreshControls(); updateStatus()
         metalView.accessibilityHint = L.text("gestures")
     }
@@ -299,7 +357,7 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
     }
     private func refreshControls() {
         modes.selectedSegmentIndex = settings.mode == "cinema" ? 1 : settings.mode == "fps" ? 2 : settings.mode == "fps_enhanced" ? 3 : 0
-        modes.setEnabled(motion.available, forSegmentAt: 1); modes.setEnabled(motion.available, forSegmentAt: 2)
+        modes.setEnabled(motion.available || sourceIsStereo, forSegmentAt: 1); modes.setEnabled(motion.available || sourceIsStereo, forSegmentAt: 2)
         for slider in sliders { slider.refresh(settings) }
         invert.isOn = settings.invertY
         updateStabilizationNotice()
@@ -311,6 +369,13 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
         let legacy = client.state == .connected && !client.supportsEnhancedFirstPerson
         enhancedNotice.text = L.text(legacy ? "enhancedLegacyHost" : "enhancedHelp")
         sensorNotice.isHidden = motion.available
+#if STEAMVR_PREVIEW
+        sensorNotice.text = L.text(sourceIsStereo ? "steamNoTracking" : "noSensor")
+        steamNotice.text = L.text(sourceIsStereo ? (client.streamSession?.virtualHMD == true ? "steamHMD" : "steamSBS") : "steamDirect")
+        if let descriptor = client.streamSession {
+            steamNotice.accessibilityValue = "epoch=\(descriptor.epoch);accepted=\(descriptor.accepted);layout=\(descriptor.streamLayout.rawValue);target=\(descriptor.inputTarget.rawValue)"
+        } else { steamNotice.accessibilityValue = "unnegotiated" }
+#endif
     }
     private func updateStatus() {
         status.text = L.text(statusKey)
@@ -376,7 +441,7 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
     }
     @objc private func modeChanged() {
         settings.mode = ["full", "cinema", "fps", "fps_enhanced"][modes.selectedSegmentIndex]
-        if !motion.available && settings.requiresMotion { settings.mode = "full"; modes.selectedSegmentIndex = 0 }
+        if !motion.available && settings.requiresMotion && !sourceIsStereo { settings.mode = "full"; modes.selectedSegmentIndex = 0 }
         recenter(); changed(sendNow: true); updateTracking(); updateStabilizationNotice()
     }
     @objc private func invertChanged() { settings.invertY = invert.isOn; changed(sendNow: true) }
@@ -400,8 +465,8 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
         editorEntry = settings; sync.beginPreview()
         let editing = HeadsetEditorView(entry: settings, imageAspect: { [weak self] in
             guard let self = self, self.frameWidth > 0, self.frameHeight > 0 else { return 16.0 / 9 }
-            return Double(self.frameWidth) / Double(self.frameHeight)
-        })
+            return Double(self.frameWidth) / Double(self.frameHeight) / (self.sourceIsStereo ? 2 : 1)
+        }, projectionAlreadyApplied: sourceIsStereo)
         editing.translatesAutoresizingMaskIntoConstraints = false
         editor = editing; overlay.isHidden = true; view.addSubview(editing)
         NSLayoutConstraint.activate([
@@ -415,7 +480,7 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
     }
     private func preview(_ draft: VRSettings) {
         var flat = draft
-        if flat.mode != "fps_enhanced" { flat.mode = "full"; flat.distortion = 0 }
+        if !sourceIsStereo && flat.mode != "fps_enhanced" { flat.mode = "full"; flat.distortion = 0 }
         renderer?.setSettings(flat); renderer?.setPose(Pose())
     }
     private func closeEditor(save: Bool, resumeMotion: Bool = true) {
@@ -448,8 +513,17 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
         do { try usbControl.start() } catch { usbControl.onFailure?() }
     }
     private func updateTracking() {
-        if active && editor == nil && client.state == .connected && settings.mode != "full" && motion.available { motion.start() }
+        var needsMotion = settings.mode != "full"
+#if STEAMVR_PREVIEW
+        if client.streamSession?.virtualHMD == true { needsMotion = true }
+#endif
+        if active && editor == nil && client.state == .connected && needsMotion && motion.available { motion.start() }
         else { motion.stop() }
+#if STEAMVR_PREVIEW
+        if active && editor == nil && client.state == .connected && !motion.available && client.streamSession?.virtualHMD == true {
+            client.invalidateTracking()
+        }
+#endif
     }
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated); UIApplication.shared.isIdleTimerDisabled = true

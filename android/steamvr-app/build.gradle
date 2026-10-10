@@ -1,0 +1,45 @@
+plugins { id 'com.android.application' }
+
+android {
+    namespace 'org.vrization.app'
+    compileSdk 35
+    defaultConfig {
+        applicationId 'org.vrization.steamvr'
+        minSdk 23
+        targetSdk 35
+        testInstrumentationRunner 'org.vrization.app.RenderMaskProbe'
+        versionCode 1
+        versionName '0.5.0-steamvr-preview'
+        buildConfigField 'boolean', 'STEAMVR_EXPERIMENT', 'true'
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    buildFeatures { buildConfig true }
+    // Keep both offline-selectable languages if downstream users build an AAB.
+    bundle { language { enableSplit = false } }
+    flavorDimensions += 'distribution'
+    productFlavors { steamvr { dimension 'distribution' } }
+    sourceSets {
+        main {
+            manifest.srcFile '../app/src/main/AndroidManifest.xml'
+            java.srcDirs = ['../app/src/main/java']
+            res.srcDirs = ['../app/src/main/res']
+            assets.srcDirs = ['../app/src/main/assets', '../../licenses']
+        }
+        androidTest { java.srcDirs = ['../app/src/androidTest/java'] }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+dependencies {
+    testImplementation 'junit:junit:4.13.2'
+    implementation project(':vr-core')
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+    implementation 'com.squareup.okio:okio:3.6.0'
+}

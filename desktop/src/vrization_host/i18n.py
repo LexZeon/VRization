@@ -10,6 +10,7 @@ ENGLISH = {
     '把桌面带入你的视野  /  DESKTOP → POCKET VR': 'DESKTOP → POCKET VR',
     'F8  紧急停止控制': 'F8  Stop control',
     '01   连接手机': '01   Connect your phone',
+    '电脑地址  {ip} : {port}': 'PC address  {ip} : {port}',
     '电脑地址  {ip} : 8765': 'PC address  {ip} : 8765',
     '手机与电脑连接同一个可信 Wi-Fi，输入地址和六位配对码。': 'Use the same trusted Wi-Fi. Enter the PC address and six-digit pairing code.',
     '开始串流  /  START': 'Start streaming', '停止': 'Stop', '复制连接': 'Copy connection',
@@ -196,7 +197,7 @@ def translate(text: str, language: str = 'en', **values) -> str:
 
 
 def language_path() -> Path:
-    return Path(os.environ.get('LOCALAPPDATA', Path.home())) / 'VRization' / 'language.json'
+    return Path(os.environ.get('VRIZATION_PROFILE_DIRECTORY') or Path(os.environ.get('LOCALAPPDATA', Path.home())) / 'VRization') / 'language.json'
 
 
 def load_language(path: Path | None = None) -> str:

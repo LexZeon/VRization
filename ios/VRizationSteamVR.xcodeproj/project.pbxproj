@@ -1,0 +1,82 @@
+// !$*UTF8*$!
+{
+    archiveVersion = 1;
+    classes = {};
+    objectVersion = 56;
+    objects = {
+        C00000000000000000000012 = {isa = PBXBuildFile; productRef = G00000000000000000000004; };
+        G00000000000000000000003 = {isa = XCLocalSwiftPackageReference; relativePath = SteamVR; };
+        G00000000000000000000004 = {isa = XCSwiftPackageProductDependency; package = G00000000000000000000003; productName = VRizationSteamVRCore; };
+        C00000000000000000000001 = {isa = PBXBuildFile; fileRef = B00000000000000000000001; };
+        C00000000000000000000002 = {isa = PBXBuildFile; fileRef = B00000000000000000000002; };
+        C00000000000000000000003 = {isa = PBXBuildFile; fileRef = B00000000000000000000003; };
+        C00000000000000000000004 = {isa = PBXBuildFile; fileRef = B00000000000000000000004; };
+        C00000000000000000000005 = {isa = PBXBuildFile; fileRef = B00000000000000000000005; };
+        C00000000000000000000006 = {isa = PBXBuildFile; fileRef = B00000000000000000000006; };
+        C00000000000000000000007 = {isa = PBXBuildFile; fileRef = B00000000000000000000007; };
+        C00000000000000000000008 = {isa = PBXBuildFile; fileRef = B00000000000000000000008; };
+        C00000000000000000000009 = {isa = PBXBuildFile; fileRef = B0000000000000000000000A; };
+        C0000000000000000000000A = {isa = PBXBuildFile; fileRef = D00000000000000000000001; };
+        C0000000000000000000000B = {isa = PBXBuildFile; fileRef = D00000000000000000000002; };
+        C0000000000000000000000C = {isa = PBXBuildFile; productRef = G00000000000000000000002; };
+        C0000000000000000000000D = {isa = PBXBuildFile; fileRef = B0000000000000000000000B; };
+        C0000000000000000000000E = {isa = PBXBuildFile; fileRef = B0000000000000000000000E; };
+
+        C0000000000000000000000F = {isa = PBXBuildFile; fileRef = B0000000000000000000000F; };
+        C00000000000000000000011 = {isa = PBXBuildFile; fileRef = B00000000000000000000011; };
+        B00000000000000000000011 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = USBControlListener.swift; sourceTree = "<group>"; };
+        B0000000000000000000000F = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeadsetEditorView.swift; sourceTree = "<group>"; };
+        B00000000000000000000001 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+        B00000000000000000000002 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Localization.swift; sourceTree = "<group>"; };
+        B00000000000000000000003 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JPEGDecoder.swift; sourceTree = "<group>"; };
+        B00000000000000000000004 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamClient.swift; sourceTree = "<group>"; };
+        B00000000000000000000005 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MotionSource.swift; sourceTree = "<group>"; };
+        B00000000000000000000006 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StereoRenderer.swift; sourceTree = "<group>"; };
+        B00000000000000000000007 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewerController.swift; sourceTree = "<group>"; };
+        B00000000000000000000008 = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = StereoShaders.metal; sourceTree = "<group>"; };
+        B00000000000000000000009 = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+        B0000000000000000000000A = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE.txt; sourceTree = "<group>"; };
+        B0000000000000000000000B = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SteamVRViewerTests.swift; sourceTree = "<group>"; };
+        B0000000000000000000000C = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = VRizationSteamVRApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
+        B0000000000000000000000D = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = VRizationSteamVRAppUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+        B0000000000000000000000E = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = USBListener.swift; sourceTree = "<group>"; };
+        B00000000000000000000010 = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+        E00000000000000000000001 = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
+        E00000000000000000000002 = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "zh-Hans.lproj/Localizable.strings"; sourceTree = "<group>"; };
+        E00000000000000000000003 = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+        E00000000000000000000004 = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "zh-Hans.lproj/InfoPlist.strings"; sourceTree = "<group>"; };
+        D00000000000000000000001 = {isa = PBXVariantGroup; children = (E00000000000000000000001,E00000000000000000000002,); name = Localizable.strings; sourceTree = "<group>"; };
+        D00000000000000000000002 = {isa = PBXVariantGroup; children = (E00000000000000000000003,E00000000000000000000004,); name = InfoPlist.strings; sourceTree = "<group>"; };
+
+        A00000000000000000000002 = {isa = PBXGroup; children = (A00000000000000000000004,A00000000000000000000005,A00000000000000000000003,); sourceTree = "<group>"; };
+        A00000000000000000000003 = {isa = PBXGroup; children = (B0000000000000000000000C,B0000000000000000000000D,); name = Products; sourceTree = "<group>"; };
+        A00000000000000000000004 = {isa = PBXGroup; children = (B00000000000000000000001,B00000000000000000000002,B00000000000000000000003,B00000000000000000000004,B00000000000000000000005,B00000000000000000000006,B00000000000000000000007,B00000000000000000000008,B00000000000000000000009,B0000000000000000000000A,B0000000000000000000000E,B0000000000000000000000F,B00000000000000000000011,D00000000000000000000001,D00000000000000000000002,); path = VRizationApp; sourceTree = "<group>"; };
+        A00000000000000000000005 = {isa = PBXGroup; children = (B0000000000000000000000B,B00000000000000000000010,); path = SteamVR/UITests; sourceTree = "<group>"; };
+
+        F00000000000000000000003 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (C00000000000000000000001,C00000000000000000000002,C00000000000000000000003,C00000000000000000000004,C00000000000000000000005,C00000000000000000000006,C00000000000000000000007,C00000000000000000000008,C0000000000000000000000E,C0000000000000000000000F,C00000000000000000000011,); runOnlyForDeploymentPostprocessing = 0; };
+        F00000000000000000000004 = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (C0000000000000000000000C,C00000000000000000000012,); runOnlyForDeploymentPostprocessing = 0; };
+        F00000000000000000000005 = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (C00000000000000000000009,C0000000000000000000000A,C0000000000000000000000B,); runOnlyForDeploymentPostprocessing = 0; };
+        F00000000000000000000006 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (C0000000000000000000000D,); runOnlyForDeploymentPostprocessing = 0; };
+        F00000000000000000000007 = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+        F00000000000000000000008 = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+        F00000000000000000000001 = {isa = PBXNativeTarget; buildConfigurationList = H00000000000000000000002; buildPhases = (F00000000000000000000003,F00000000000000000000004,F00000000000000000000005,); buildRules = (); dependencies = (); name = VRizationSteamVRApp; packageProductDependencies = (G00000000000000000000002,G00000000000000000000004,); productName = VRizationSteamVRApp; productReference = B0000000000000000000000C; productType = "com.apple.product-type.application"; };
+        F00000000000000000000002 = {isa = PBXNativeTarget; buildConfigurationList = H00000000000000000000003; buildPhases = (F00000000000000000000006,F00000000000000000000007,F00000000000000000000008,); buildRules = (); dependencies = (J00000000000000000000001,); name = VRizationSteamVRAppUITests; productName = VRizationSteamVRAppUITests; productReference = B0000000000000000000000D; productType = "com.apple.product-type.bundle.ui-testing"; };
+        J00000000000000000000001 = {isa = PBXTargetDependency; target = F00000000000000000000001; targetProxy = J00000000000000000000002; };
+        J00000000000000000000002 = {isa = PBXContainerItemProxy; containerPortal = A00000000000000000000001; proxyType = 1; remoteGlobalIDString = F00000000000000000000001; remoteInfo = VRizationSteamVRApp; };
+
+        A00000000000000000000001 = {isa = PBXProject; attributes = {BuildIndependentTargetsInParallel = YES; LastSwiftUpdateCheck = 1600; LastUpgradeCheck = 1600; TargetAttributes = {F00000000000000000000001 = {CreatedOnToolsVersion = 16.0; }; F00000000000000000000002 = {CreatedOnToolsVersion = 16.0; TestTargetID = F00000000000000000000001; }; }; }; buildConfigurationList = H00000000000000000000001; compatibilityVersion = "Xcode 14.0"; developmentRegion = en; hasScannedForEncodings = 0; knownRegions = (en,"zh-Hans",Base,); mainGroup = A00000000000000000000002; packageReferences = (G00000000000000000000001,G00000000000000000000003,); productRefGroup = A00000000000000000000003; projectDirPath = ""; projectRoot = ""; targets = (F00000000000000000000001,F00000000000000000000002,); };
+        G00000000000000000000001 = {isa = XCLocalSwiftPackageReference; relativePath = .; };
+        G00000000000000000000002 = {isa = XCSwiftPackageProductDependency; package = G00000000000000000000001; productName = VRizationCore; };
+
+        H00000000000000000000001 = {isa = XCConfigurationList; buildConfigurations = (I00000000000000000000001,I00000000000000000000002,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+        H00000000000000000000002 = {isa = XCConfigurationList; buildConfigurations = (I00000000000000000000003,I00000000000000000000004,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+        H00000000000000000000003 = {isa = XCConfigurationList; buildConfigurations = (I00000000000000000000005,I00000000000000000000006,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+        I00000000000000000000001 = {isa = XCBuildConfiguration; buildSettings = {CLANG_ENABLE_MODULES = YES; CLANG_ENABLE_OBJC_ARC = YES; GCC_C_LANGUAGE_STANDARD = gnu17; IPHONEOS_DEPLOYMENT_TARGET = 15.0; SDKROOT = iphoneos; SWIFT_VERSION = 5.0; SWIFT_OPTIMIZATION_LEVEL = "-Onone"; DEBUG_INFORMATION_FORMAT = dwarf; ENABLE_TESTABILITY = YES; SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG STEAMVR_PREVIEW"; }; name = Debug; };
+        I00000000000000000000002 = {isa = XCBuildConfiguration; buildSettings = {CLANG_ENABLE_MODULES = YES; CLANG_ENABLE_OBJC_ARC = YES; GCC_C_LANGUAGE_STANDARD = gnu17; IPHONEOS_DEPLOYMENT_TARGET = 15.0; SDKROOT = iphoneos; SWIFT_VERSION = 5.0; SWIFT_COMPILATION_MODE = wholemodule; SWIFT_ACTIVE_COMPILATION_CONDITIONS = STEAMVR_PREVIEW; SWIFT_OPTIMIZATION_LEVEL = "-O"; DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym"; }; name = Release; };
+        I00000000000000000000003 = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 1; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = SteamVR/Info.plist; LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks"; MARKETING_VERSION = 0.5.0; PRODUCT_BUNDLE_IDENTIFIER = org.vrization.ios.steamvr; PRODUCT_NAME = "$(TARGET_NAME)"; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; SUPPORTS_MACCATALYST = NO; TARGETED_DEVICE_FAMILY = "1,2"; }; name = Debug; };
+        I00000000000000000000004 = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 1; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = SteamVR/Info.plist; LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks"; MARKETING_VERSION = 0.5.0; PRODUCT_BUNDLE_IDENTIFIER = org.vrization.ios.steamvr; PRODUCT_NAME = "$(TARGET_NAME)"; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; SUPPORTS_MACCATALYST = NO; TARGETED_DEVICE_FAMILY = "1,2"; }; name = Release; };
+        I00000000000000000000005 = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_STYLE = Automatic; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = SteamVR/UITests/Info.plist; PRODUCT_BUNDLE_IDENTIFIER = org.vrization.ios.steamvr.uitests; PRODUCT_NAME = "$(TARGET_NAME)"; TARGETED_DEVICE_FAMILY = "1,2"; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; TEST_TARGET_NAME = VRizationSteamVRApp; }; name = Debug; };
+        I00000000000000000000006 = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_STYLE = Automatic; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = SteamVR/UITests/Info.plist; PRODUCT_BUNDLE_IDENTIFIER = org.vrization.ios.steamvr.uitests; PRODUCT_NAME = "$(TARGET_NAME)"; TARGETED_DEVICE_FAMILY = "1,2"; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; TEST_TARGET_NAME = VRizationSteamVRApp; }; name = Release; };
+    };
+    rootObject = A00000000000000000000001;
+}

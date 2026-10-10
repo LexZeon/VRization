@@ -18,7 +18,11 @@ final class USBListener {
         let epoch = generation
         let parameters = NWParameters.tcp
         parameters.allowLocalEndpointReuse = true
+#if STEAMVR_PREVIEW
+        parameters.requiredLocalEndpoint = .hostPort(host: "127.0.0.1", port: 18776)
+#else
         parameters.requiredLocalEndpoint = .hostPort(host: "127.0.0.1", port: 18766)
+#endif
         let listener = try NWListener(using: parameters)
         self.listener = listener
         listener.stateUpdateHandler = { [weak self] state in

@@ -10,11 +10,13 @@ android {
         testInstrumentationRunner 'org.vrization.app.RenderMaskProbe'
         versionCode 8
         versionName '0.4.0'
+        buildConfigField 'boolean', 'STEAMVR_EXPERIMENT', 'false'
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
+    buildFeatures { buildConfig true }
     // Keep both offline-selectable languages if downstream users build an AAB.
     bundle { language { enableSplit = false } }
     sourceSets { main { assets.srcDirs += ['../../licenses'] } }

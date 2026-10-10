@@ -2,6 +2,9 @@ import MetalKit
 import CoreFoundation
 import CoreGraphics
 import VRizationCore
+#if STEAMVR_PREVIEW
+import VRizationSteamVRCore
+#endif
 
 /// Metal resources are bounded: one current texture and at most two GPU submissions.
 final class StereoRenderer: NSObject, MTKViewDelegate {
@@ -14,11 +17,19 @@ final class StereoRenderer: NSObject, MTKViewDelegate {
     private var settings = VRSettings()
     private var pose = Pose()
     private var textureInfo = "no texture"
+#if STEAMVR_PREVIEW
+    private var streamSession: StreamSession?
+    func setStreamSession(_ session: StreamSession?) {
+        lock.lock(); streamSession = session; texture = nil; pose = Pose(); textureInfo = "no texture"; lock.unlock()
+    }
+#endif
     private struct Uniforms {
         var optics: SIMD4<Float>
         var placement: SIMD4<Float>
         var scene: SIMD4<Float>
         var flags: SIMD4<Float>
+        var sampling: SIMD4<Float>
+        var uvBounds: SIMD4<Float>
     }
 
     init(view: MTKView) throws {
@@ -42,6 +53,11 @@ final class StereoRenderer: NSObject, MTKViewDelegate {
     }
     func setPose(_ pose: Pose) { lock.lock(); self.pose = pose; lock.unlock() }
     func submit(_ image: CGImage) throws {
+#if STEAMVR_PREVIEW
+        lock.lock(); let descriptor = streamSession; lock.unlock()
+        guard let descriptor = descriptor, descriptor.accepted,
+              descriptor.streamLayout != .sbs || image.width % 2 == 0 else { throw RendererError.invalidRaster }
+#endif
         guard image.width > 0, image.height > 0, image.width <= 2048, image.height <= 2048,
               image.bitsPerComponent == 8, image.bitsPerPixel == 32, image.alphaInfo == .premultipliedLast,
               (image.bitmapInfo.rawValue & CGBitmapInfo.byteOrderMask.rawValue) == CGBitmapInfo.byteOrder32Big.rawValue,
@@ -75,7 +91,17 @@ final class StereoRenderer: NSObject, MTKViewDelegate {
         defer { if !submitted { inFlight.signal() } }
         guard let pass = view.currentRenderPassDescriptor, let drawable = view.currentDrawable,
               let command = commands.makeCommandBuffer(), let encoder = command.makeRenderCommandEncoder(descriptor: pass) else { return }
-        lock.lock(); let currentTexture = texture, s = settings, p = pose; lock.unlock()
+        lock.lock(); let currentTexture = texture, profile = settings, p = pose
+#if STEAMVR_PREVIEW
+        let descriptor = streamSession
+#endif
+        lock.unlock()
+#if STEAMVR_PREVIEW
+        let layout = descriptor?.streamLayout ?? .mono
+        let s = SteamVRGeometry.renderSettings(profile, layout: layout)
+#else
+        let s = profile
+#endif
         if let currentTexture = currentTexture {
             encoder.setRenderPipelineState(pipeline)
             encoder.setFragmentTexture(currentTexture, index: 0)
@@ -84,14 +110,26 @@ final class StereoRenderer: NSObject, MTKViewDelegate {
                 for eye in 0..<2 {
                     let eyeWidth = eye == 0 ? leftWidth : width - leftWidth
                     let sign: Float = eye == 0 ? -1 : 1
+                    var contentAspect = Double(currentTexture.width) / Double(currentTexture.height)
+                    var sampling = SIMD4<Float>(0, 1, 0, 0)
+                    var uvBounds = SIMD4<Float>(0, 0, 1, 1)
+#if STEAMVR_PREVIEW
+                    guard let eyeSampling = try? StereoEyeSampling.resolve(width: currentTexture.width,
+                        height: currentTexture.height, eye: eye, layout: layout) else { continue }
+                    contentAspect = eyeSampling.contentAspect
+                    sampling = SIMD4(Float(eyeSampling.uvOriginX), Float(eyeSampling.uvScaleX), 0, 0)
+                    uvBounds = SIMD4(Float(eyeSampling.uvMinimum.x), Float(eyeSampling.uvMinimum.y),
+                                     Float(eyeSampling.uvMaximum.x), Float(eyeSampling.uvMaximum.y))
+#endif
                     let resolved = (try? HeadsetFit.resolvedFit(settings: s,
-                        imageAspect: Double(currentTexture.width) / Double(currentTexture.height),
+                        imageAspect: contentAspect,
                         eyeAspect: Double(eyeWidth) / Double(height))) ?? s
                     var u = Uniforms(
-                        optics: SIMD4(Float(eyeWidth) / Float(height), s.mode == "fps_enhanced" ? 1 : Float(currentTexture.width) / Float(currentTexture.height), Float(resolved.scale), Float(resolved.offsetX)),
+                        optics: SIMD4(Float(eyeWidth) / Float(height), s.mode == "fps_enhanced" ? 1 : Float(contentAspect), Float(resolved.scale), Float(resolved.offsetX)),
                         placement: SIMD4(Float(resolved.offsetY), Float(resolved.eyeSeparation) * sign, Float(s.distortion), Float(s.fov)),
                         scene: SIMD4(Float(s.distance), Float(p.yaw), Float(p.pitch), Float(p.roll)),
-                        flags: SIMD4(s.mode == "cinema" ? 1 : 0, sign, s.mode == "fps_enhanced" ? 1 : 0, 0))
+                        flags: SIMD4(s.mode == "cinema" ? 1 : 0, sign, s.mode == "fps_enhanced" ? 1 : 0, 0),
+                        sampling: sampling, uvBounds: uvBounds)
                     encoder.setViewport(MTLViewport(originX: eye == 0 ? 0 : Double(leftWidth), originY: 0,
                         width: Double(eyeWidth), height: Double(height), znear: 0, zfar: 1))
                     encoder.setFragmentBytes(&u, length: MemoryLayout<Uniforms>.stride, index: 0)

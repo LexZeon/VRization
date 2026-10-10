@@ -67,3 +67,11 @@
 "usbNotice" = "USB is the default. Install Apple Devices on Windows, unlock this iPhone, connect a data cable and tap Trust. Keep this app in the foreground, then tap Connect on either device. Backgrounding stops video and control; return and connect explicitly. First-person gyro mouse control uses the PC setting, enabled by default. Press F8 on the PC to stop control; Resume on the PC restores it. FPS and link RTT are not end-to-end latency.";
 "help" = "Full and both first-person modes show the same 2D image to both eyes; enhanced first-person curves it into fixed squares. Cinema places it in virtual space. Audio stays on the computer. Entering the background disconnects video and stops control.";
 "versionInfo" = "Version %@ · build %@";
+"steamDirect" = "Experimental client · direct mono desktop; no SteamVR layout accepted.";
+"steamSBS" = "SteamVR stereo accepted · independent left/right eyes; source projection is preserved.";
+"steamHMD" = "SteamVR virtual headset accepted · full orientation controls the HMD, without mouse input.";
+"steamNoTracking" = "No device motion tracking: stereo video remains available; HMD tracking is invalid.";
+"steamSessionChanged" = "The host changed the stream route. Reconnect to accept its new session.";
+"steamRasterUnsupported" = "Stereo raster is unsupported. Use an even packed width and at most 2048 pixels per edge on the computer, then reconnect.";
+"steamHelp" = "Accepted stereo streams use independent left/right eye images and preserve the source projection in every display mode. Headset fitting and one lens correction remain adjustable. Direct mono streams retain the ordinary four modes. Audio stays on the computer. Backgrounding disconnects video and tracking.";
+"steamUSBNotice" = "Preview USB uses its own app and ports. Install Apple Devices on Windows, unlock this iPhone, connect a data cable and tap Trust. Keep this app in the foreground, then Connect on either device. F8 on the computer pauses HMD tracking; only the computer's Resume restores it. FPS and RTT are not end-to-end latency.";

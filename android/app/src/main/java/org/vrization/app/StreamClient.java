@@ -36,12 +36,12 @@ import org.json.JSONArray;
 import org.vrization.core.VrSettings;
 import org.vrization.core.SocketAttempt;
 import org.vrization.core.UsbConnectionAttempt;
-import org.vrization.core.TransportEndpoints;
 
 /** Latest-only JPEG transport. At most one compressed frame waits behind the active decode. */
 final class StreamClient {
     interface Listener {
         void onSessionStarted();
+        void onStreamSession(StreamSession session);
         void onSessionStopped();
         void onStatus(String text, boolean connected);
         void onSettings(JSONObject json, Long revision, Long clientSeq);
@@ -70,6 +70,8 @@ final class StreamClient {
     private final AtomicLong poseSequence = new AtomicLong();
     private final AtomicLong deliveredFrames = new AtomicLong();
     private volatile WebSocket socket;
+    private volatile StreamSession streamSession = StreamSession.legacy();
+    StreamSession streamSession() { return streamSession; }
     private volatile boolean connected;
     private volatile boolean connecting;
     private volatile boolean stabilizationSupported;
@@ -132,7 +134,7 @@ final class StreamClient {
     }
 
     private void wakeUsbHost(long connectionEpoch) {
-        discovery = discoveryHttp.newCall(new Request.Builder().url(TransportEndpoints.USB_CONNECT)
+        discovery = discoveryHttp.newCall(new Request.Builder().url(ClientVariant.USB_CONNECT)
             .post(RequestBody.create(new byte[0], null)).build());
         discovery.enqueue(new Callback() {
             @Override public void onFailure(Call call, IOException failure) { continueUsbDiscovery(connectionEpoch); }
@@ -256,6 +258,7 @@ final class StreamClient {
                     try {
                         JSONObject hello = message("hello").put("client", "android").put("device", Build.MODEL)
                             .put("settingsSchema", 2).put("capabilities", new JSONArray().put("enhanced-first-person"));
+                        if (ClientVariant.EXPERIMENTAL) hello.getJSONArray("capabilities").put("stereo-sbs").put("hmd-orientation");
                         webSocket.send(hello.toString());
                     } catch (JSONException ignored) { }
                 });
@@ -269,6 +272,7 @@ final class StreamClient {
                     final boolean supportsStabilization = handshake.supportsStabilization();
                     final boolean supportsEnhanced = handshake.supportsEnhancedFirstPerson();
                     final boolean waitsForEnhanced = handshake.waitsForEnhancedSnapshot();
+                    final StreamSession descriptor = handshake.streamSession();
                     String type = json.optString("type");
                     if (established) {
                         dispatchSocket(connectionEpoch, socketEpoch, () -> {
@@ -285,6 +289,7 @@ final class StreamClient {
                             pendingEnhancedSnapshot = waitsForEnhanced;
                             frameStats.newSession(connectionEpoch);
                             ping.reset(); main.removeCallbacks(pingTick); main.post(pingTick);
+                            streamSession = descriptor; listener.onStreamSession(descriptor);
                             listener.onSessionStarted();
                             listener.onSettings(json.optJSONObject("settings"), optionalSequence(json, "revision"), null);
                             listener.onStatus(context.getString(R.string.connected), true);
@@ -294,6 +299,7 @@ final class StreamClient {
                         dispatchSocket(connectionEpoch, socketEpoch, () -> {
                             stabilizationSupported |= supportsStabilization;
                             pendingEnhancedSnapshot = waitsForEnhanced;
+                            streamSession = descriptor; listener.onStreamSession(descriptor);
                             listener.onSettings(incoming, optionalSequence(json, "revision"), optionalSequence(json, "clientSeq"));
                         });
                     } else if ("error".equals(type)) {
@@ -401,10 +407,12 @@ final class StreamClient {
             options.inJustDecodeBounds = true;
             BitmapFactory.decodeByteArray(jpeg, 0, jpeg.length, options);
             if (options.outWidth <= 0 || options.outHeight <= 0) continue;
+            boolean stereo = streamSession.stereo;
+            if (stereo && !org.vrization.core.StereoProjection.validDimensions(options.outWidth, options.outHeight, 2048)) continue;
             options.inJustDecodeBounds = false; options.inSampleSize = 1;
             // A malicious or accidental giant JPEG must not exhaust a phone's memory.
-            while (options.outWidth / options.inSampleSize > 4096 || options.outHeight / options.inSampleSize > 4096
-                || (long)(options.outWidth / options.inSampleSize) * (options.outHeight / options.inSampleSize) > 8_000_000L) {
+            while (!stereo && (options.outWidth / options.inSampleSize > 4096 || options.outHeight / options.inSampleSize > 4096
+                || (long)(options.outWidth / options.inSampleSize) * (options.outHeight / options.inSampleSize) > 8_000_000L)) {
                 options.inSampleSize *= 2;
             }
             options.inPreferredConfig = Bitmap.Config.RGB_565;
@@ -452,13 +460,22 @@ final class StreamClient {
     }
     void sendPose(float yaw, float pitch) {
         WebSocket current = socket;
-        if (current == null || !poseGate.maySend(connected, current.queueSize())) return;
+        if (streamSession.hmd || !streamSession.accepted || current == null || !poseGate.maySend(connected, current.queueSize())) return;
         if (Float.isNaN(yaw) || Float.isInfinite(yaw) || Float.isNaN(pitch) || Float.isInfinite(pitch)) return;
         try { send(message("pose").put("seq", poseSequence.incrementAndGet()).put("yaw", yaw).put("pitch", pitch)); }
         catch (JSONException ignored) { }
     }
+    void sendHmdPose(float[] q, long timestampNanos, boolean valid) {
+        StreamSession s=streamSession; WebSocket current=socket;
+        if (!s.hmd || !s.accepted || current == null || timestampNanos < 0
+            || (valid && !poseGate.maySend(connected,current.queueSize()))) return;
+        try {
+            send(new JSONObject(HmdPoseValues.encode(s, poseSequence.incrementAndGet(), timestampNanos / 1000, q, valid)));
+        } catch (IllegalArgumentException ignored) { }
+    }
     void setPoseEnabled(boolean enabled) { poseGate.setEnabled(enabled); }
     boolean pauseForEditor() {
+        sendHmdPose(null,SystemClock.elapsedRealtimeNanos(),false);
         poseGate.setEnabled(false);
         if (!connected) return true;
         try {
@@ -480,7 +497,9 @@ final class StreamClient {
         return connected && current != null && current.queueSize() < 65536 && current.send(json.toString());
     }
     void disconnect(boolean report) {
+        sendHmdPose(null,SystemClock.elapsedRealtimeNanos(),false);
         sessions.invalidate(); connected = false; connecting = false;
+        streamSession = StreamSession.legacy();
         stabilizationSupported = false;
         enhancedSupported = false;
         pendingEnhancedSnapshot = false;

@@ -12,19 +12,19 @@ from aiohttp import ClientError, ClientSession, ClientTimeout, WSMsgType
 IOS_CONTROL_PORT = 18767
 
 
-def request_ios_connect(mux, device):
+def request_ios_connect(mux, device, *, port=IOS_CONTROL_PORT):
     """Send one explicit PC request to a foreground, paired iOS app; never poll."""
     from .usb import pack_frame
-    with mux.connect(device, port=IOS_CONTROL_PORT) as sock:
+    with mux.connect(device, port=port) as sock:
         sock.setblocking(True)
         sock.settimeout(2)
         sock.sendall(pack_frame(1, b'{"v":1,"type":"connect"}'))
 
 
-def request_ios_stop(mux, device):
+def request_ios_stop(mux, device, *, port=IOS_CONTROL_PORT):
     """One paired Stop, acknowledged only after native video/renderer cleanup."""
     from .usb import _receive_exact, pack_frame
-    with mux.connect(device, port=IOS_CONTROL_PORT) as sock:
+    with mux.connect(device, port=port) as sock:
         sock.setblocking(True)
         sock.settimeout(2)
         sock.sendall(pack_frame(1, b'{"v":1,"type":"stop"}'))
@@ -51,11 +51,12 @@ def validate_ios_connect(kind, payload):
 
 class IosRelay:
     def __init__(self, server, mux=None, on_status=None, *, mux_address=("127.0.0.1", 27015),
-                 start_request=None, on_video_absent=None):
+                 start_request=None, on_video_absent=None, video_port=18766):
         if mux is None:
             from .usb import AppleMux
             mux = AppleMux(address=mux_address)
         self.server, self.mux = server, mux
+        self.video_port = video_port
         self.on_status = on_status or (lambda *args, **kwargs: None)
         self.start_request = start_request
         self.on_video_absent = on_video_absent
@@ -95,7 +96,8 @@ class IosRelay:
         sock = writer = pending_start = peer_wait = None
         try:
             try:
-                sock = self.mux.connect(device)
+                sock = (self.mux.connect(device) if self.video_port == 18766 else
+                        self.mux.connect(device, port=self.video_port))
             except AppleEndpointUnavailable:
                 if absence_callback is not None and not self._stop.is_set():
                     absence_callback()

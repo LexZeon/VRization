@@ -95,4 +95,6 @@
     </string-array>
     <string-array name="languages"><item>English</item><item>中文</item></string-array>
     <string-array name="connection_methods"><item>USB cable · default</item><item>LAN / Wi-Fi · manual pairing</item></string-array>
+    <string name="steamvr_notice">SteamVR experimental: independent left/right eye images and 3DoF orientation tracking. No position tracking. No rotation sensor means tracking unavailable. PC F8 pauses; only PC Resume clears the pause.</string>
+    <string name="steamvr_sensor_unavailable">Rotation sensor unavailable: SteamVR orientation tracking will be unavailable. Native stereo video may still display; direct streaming keeps its existing sensor fallback.</string>
 </resources>

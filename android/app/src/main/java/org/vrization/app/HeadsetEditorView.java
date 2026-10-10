@@ -35,7 +35,7 @@ final class HeadsetEditorView extends View {
     private int eyeLeft(int index) { return index == 0 ? 0 : getWidth() / 2; }
     private RectF rectangle(int index) {
         float width = eyeWidth(index);
-        float[] b = HeadsetGeometry.bounds(edit.draft(), imageAspect.get(), width / getHeight(), index == 0 ? -1 : 1);
+        float[] b = HeadsetGeometry.bounds(edit.preview(), imageAspect.get(), width / getHeight(), index == 0 ? -1 : 1);
         float centerX = eyeLeft(index) + width * (1 + b[0]) / 2;
         float centerY = getHeight() * (1 - b[1]) / 2;
         return new RectF(centerX - width * b[2] / 2, centerY - getHeight() * b[3] / 2,
@@ -75,7 +75,7 @@ final class HeadsetEditorView extends View {
                 if (dx * dx + dy * dy <= hitRadius * hitRadius) { corner = handle; break; }
             }
             if (corner < 0 && !rect.contains(event.getX(), event.getY())) return false;
-            gestureStart = edit.draft(); downX = event.getX(); downY = event.getY(); pointer = event.getPointerId(0);
+            gestureStart = edit.preview(); downX = event.getX(); downY = event.getY(); pointer = event.getPointerId(0);
             gestureImageAspect = imageAspect.get(); gestureEyeAspect = (float) eyeWidth(eye) / getHeight();
             return true;
         }

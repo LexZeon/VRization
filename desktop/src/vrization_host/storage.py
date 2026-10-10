@@ -11,7 +11,7 @@ from .protocol import Settings
 
 
 def preference_path() -> Path:
-    return Path(os.environ.get("LOCALAPPDATA", Path.home())) / "VRization" / "preferences.json"
+    return Path(os.environ.get("VRIZATION_PROFILE_DIRECTORY") or Path(os.environ.get("LOCALAPPDATA", Path.home())) / "VRization") / "preferences.json"
 
 
 def default_preferences(selection: CaptureConfig) -> tuple[Settings, CaptureConfig]:

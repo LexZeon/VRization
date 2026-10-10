@@ -444,8 +444,12 @@ class AppleMux:
 class UsbManager:
     def __init__(self, server, on_event=None, *, adb_path=None, preferred_serial="", adb=None, mux=None,
                  mux_address=("127.0.0.1", 27015), control_adb=None, start_request=None, ios_notify=None,
-                 ios_stop_notify=None):
+                 ios_stop_notify=None, android_video_port=ANDROID_PORT, android_control_port=ANDROID_CONTROL_PORT,
+                 android_component="org.vrization.app/.MainActivity", ios_video_port=18766, ios_control_port=18767):
         self.server, self.on_event = server, on_event
+        self.android_video_port, self.android_control_port = android_video_port, android_control_port
+        self.android_component = android_component
+        self.ios_video_port = ios_video_port
         self.adb_path, self.preferred_serial = adb_path or "", preferred_serial
         self._configured_path = self.adb_path
         self.adb, self.mux = adb, mux or AppleMux(address=mux_address)
@@ -471,10 +475,10 @@ class UsbManager:
         self._scan_failed = False
         self._failed_scans = 0
         from .ios_usb import IosRelay, request_ios_connect, request_ios_stop
-        self.relay = IosRelay(server, self.mux, self.status,
+        self.relay = IosRelay(server, self.mux, self.status, video_port=ios_video_port,
                               start_request=self._ios_request_start if start_request is not None else None)
-        self.ios_notify = ios_notify or request_ios_connect
-        self.ios_stop_notify = ios_stop_notify or request_ios_stop
+        self.ios_notify = ios_notify or (lambda mux, device: request_ios_connect(mux, device, port=ios_control_port))
+        self.ios_stop_notify = ios_stop_notify or (lambda mux, device: request_ios_stop(mux, device, port=ios_control_port))
 
     def status(self, message, **values):
         state = (message, values)
@@ -587,7 +591,8 @@ class UsbManager:
         # A refused *paired* endpoint proves that no old video listener remains.
         # If it still accepts, close the owned probe without readiness/host WS.
         try:
-            sock = self.mux.connect(device)
+            sock = (self.mux.connect(device) if self.ios_video_port == 18766 else
+                    self.mux.connect(device, port=self.ios_video_port))
         except AppleEndpointUnavailable:
             self._ios_stop_confirmed(generation, device)
         except (OSError, ValueError):
@@ -624,9 +629,9 @@ class UsbManager:
             path = getattr(self.adb, "path", None)
             if path is not None:
                 self.control_adb = AdbReverse(path, self.adb.runner, self.adb.usb_presence,
-                                              remote_port=ANDROID_CONTROL_PORT)
+                                              remote_port=self.android_control_port)
             self._control_source = self.adb
-        return self.control_adb is not None and self.control_adb.ensure(selected.serial, ANDROID_CONTROL_PORT)
+        return self.control_adb is not None and self.control_adb.ensure(selected.serial, self.android_control_port)
 
     def _run(self):
         while not self._stop.is_set():
@@ -669,7 +674,8 @@ class UsbManager:
         if self.adb is None:
             path = find_adb(self.adb_path)
             if path:
-                self.adb = AdbReverse(path)
+                self.adb = AdbReverse(path, **({"remote_port": self.android_video_port}
+                                           if self.android_video_port != ANDROID_PORT else {}))
         devices, adb_error, adb_timeout = [], False, False
         if self.adb:
             try:
@@ -701,7 +707,7 @@ class UsbManager:
                         self.status("Android USB ready: {serial}", serial=selected.serial)
                         if self.server.running and self._take_connect():
                             self.adb.command("-s", selected.serial, "shell", "am", "start", "--activity-single-top",
-                                             "--activity-clear-top", "-n", "org.vrization.app/.MainActivity",
+                                             "--activity-clear-top", "-n", self.android_component,
                                              "--ez", "vrization_connect_usb", "true")
                     else:
                         self.control_authorized.clear()

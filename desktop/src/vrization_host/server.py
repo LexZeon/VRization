@@ -113,14 +113,17 @@ class HostServer:
         async with self._broadcast_lock:
             ws = self._ws
             if ws is not owner or ws.closed:
-                return  # A queued acknowledgement belongs to its original session.
+                return False  # A queued acknowledgement belongs to its original session.
             settings, revision = self.get_settings_snapshot()
             message = {"v": 1, "type": "settings", "settings": self._wire_settings(settings), "revision": revision,
-                       "enhancedFirstPerson": self._enhanced_first_person}
+                       "enhancedFirstPerson": self._enhanced_first_person, **self._outgoing_session_fields()}
             if client_seq is not None:
                 message["clientSeq"] = client_seq
-            with suppress(ConnectionError, RuntimeError, asyncio.TimeoutError):
+            try:
                 await asyncio.wait_for(ws.send_json(message), 2)
+                return True
+            except (ConnectionError, RuntimeError, asyncio.TimeoutError):
+                return False
 
     def arm(self) -> tuple[bool, str]:
         with self.lock:
@@ -197,7 +200,7 @@ class HostServer:
     def _capture_error(self, error):
         with self.lock:
             self._capture_failed = True
-            self.controller.disarm("capture unavailable")
+            self.disarm("capture unavailable")
         self._emit("error", message=error)
 
     async def _startup(self, app):
@@ -244,6 +247,31 @@ class HostServer:
             await asyncio.sleep(0.1)
             self.controller.tick()
 
+    def _outgoing_session_fields(self):
+        """Optional transport metadata for a separately negotiated embedder."""
+        return {}
+
+    def _host_capabilities(self):
+        return ["stabilization", ENHANCED_FIRST_PERSON_CAPABILITY]
+
+    def _parse_client_message(self, data):
+        return parse_message(data)
+
+    def _session_opened(self, generation):
+        pass
+
+    def _session_closed(self, generation):
+        pass
+
+    async def _on_client_hello(self, message, ws):
+        pass
+
+    async def _handle_custom_message(self, message, ws):
+        return False
+
+    def _frames_allowed(self):
+        return True
+
     async def _connect(self, request):
         if self._stopping.is_set():
             return web.Response(status=503, text="Streaming is stopping")
@@ -266,6 +294,7 @@ class HostServer:
         self._enhanced_first_person = request.query.get("enhancedFirstPerson") == "1"
         sender = None
         try:
+            self._session_opened(session_generation)
             await ws.prepare(request)
             with self.lock:
                 stopping = self._stopping.is_set()
@@ -278,11 +307,11 @@ class HostServer:
             settings, revision = self.get_settings_snapshot()
             await ws.send_json({"v": 1, "type": "hello", "name": "VRization",
                                 "version": __version__, "settings": self._wire_settings(settings), "revision": revision,
-                                "capabilities": ["stabilization", ENHANCED_FIRST_PERSON_CAPABILITY],
+                                "capabilities": self._host_capabilities(),
                                 "enhancedFirstPerson": self._enhanced_first_person,
                                 "stream": {"codec": "jpeg", "fps": self.capture_config.fps,
                                            "maxWidth": self.capture_config.width},
-                                "mouseArmed": False})
+                                "mouseArmed": False, **self._outgoing_session_fields()})
             sender = asyncio.create_task(self._send_frames(ws))
             self._sender = sender
             self._worker.active.set()
@@ -299,8 +328,10 @@ class HostServer:
                         break
                     tokens -= 1
                     try:
-                        msg = parse_message(message.data)
+                        msg = self._parse_client_message(message.data)
                         kind = msg["type"]
+                        if await self._handle_custom_message(msg, ws):
+                            continue
                         if kind == "settings":
                             if msg["settings"].get("mode") == "fps_enhanced" and not self._enhanced_first_person:
                                 raise ProtocolError("Enhanced first person requires capability negotiation")
@@ -314,7 +345,7 @@ class HostServer:
                         elif kind == "hello":
                             if msg.get("editing") is True:
                                 # A control pause only: false/exit can never authorize input.
-                                self.controller.disarm("headset editor opened")
+                                self.disarm("headset editor opened")
                             upgraded = False
                             if (ENHANCED_FIRST_PERSON_CAPABILITY in msg.get("capabilities", [])
                                     and not self._enhanced_first_person):
@@ -327,6 +358,7 @@ class HostServer:
                                 upgraded = True
                             if upgraded:
                                 await self._broadcast_settings(ws)
+                            await self._on_client_hello(msg, ws)
                     except (ProtocolError, TypeError, ValueError) as exc:
                         errors += 1
                         await ws.send_json({"v": 1, "type": "error", "message": str(exc)[:200]})
@@ -344,6 +376,10 @@ class HostServer:
             # later clear an independently established replacement session.
             if self._ws is ws:
                 self._ws = None
+                try:
+                    self._session_closed(session_generation)
+                except Exception as error:
+                    self._emit("error", message=f"Session cleanup: {error}")
                 if self._sender is sender:
                     self._sender = None
                 self._settings_schema2 = False
@@ -367,6 +403,9 @@ class HostServer:
         masked_notice_sent = False
         try:
             while not ws.closed and not self._stopping.is_set():
+                if not self._frames_allowed():
+                    await asyncio.sleep(0.01)
+                    continue
                 after, frame = await self._buffer.next(after)
                 if self._stopping.is_set() or self._ws is not ws:
                     break
@@ -399,7 +438,7 @@ class HostServer:
                     fresh_count = 0
         except (asyncio.TimeoutError, ConnectionError, RuntimeError):
             if self._ws is ws:
-                self.controller.disarm("stream connection stalled")
+                self.disarm("stream connection stalled")
             await ws.close(code=1001, message=b"stream stalled")
 
     def start(self):
@@ -448,7 +487,7 @@ class HostServer:
         with self.lock:
             self._stopping.set()
             self.running = False
-            self.controller.disarm("streaming stopped")
+            self.disarm("streaming stopped")
             self.controller.set_connected(False)
         if self._worker:
             self._worker.active.clear()

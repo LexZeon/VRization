@@ -95,4 +95,6 @@
     </string-array>
     <string-array name="languages"><item>English</item><item>中文</item></string-array>
     <string-array name="connection_methods"><item>USB 数据线 · 默认</item><item>局域网 / Wi-Fi · 手动配对</item></string-array>
+    <string name="steamvr_notice">SteamVR 实验：独立左右眼画面和三自由度方向追踪，不追踪位置。无旋转传感器时追踪不可用。电脑 F8 暂停，仅电脑“恢复”可解除暂停。</string>
+    <string name="steamvr_sensor_unavailable">没有可用的旋转传感器：SteamVR 方向跟踪不可用。原生双眼视频仍可显示；直接串流仍使用原有的无传感器回退。</string>
 </resources>

@@ -2,7 +2,7 @@
 using namespace metal;
 
 struct Raster { float4 position [[position]]; float2 uv; };
-struct Uniforms { float4 optics; float4 placement; float4 scene; float4 flags; };
+struct Uniforms { float4 optics; float4 placement; float4 scene; float4 flags; float4 sampling; float4 uvBounds; };
 vertex Raster stereoVertex(uint id [[vertex_id]]) {
     const float2 positions[] = {float2(-1,-1),float2(1,-1),float2(-1,1),float2(1,1)};
     Raster out; out.position=float4(positions[id],0,1); out.uv=(positions[id]+1)*0.5; return out;
@@ -42,5 +42,10 @@ fragment float4 stereoFragment(Raster in [[stage_in]], constant Uniforms &u [[bu
         if(abs(q.x)>1 || abs(q.y)>1) return float4(0,0,0,1);
     }
     constexpr sampler linearSampler(coord::normalized,address::clamp_to_edge,filter::linear);
-    return video.sample(linearSampler,float2(q.x*0.5+0.5,0.5-q.y*0.5));
+    float2 uv=float2(q.x*0.5+0.5,0.5-q.y*0.5);
+    // A packed SBS texture has two independent eye subrectangles. Half-texel
+    // clamping prevents linear filtering from crossing into the other eye.
+    uv.x=u.sampling.x+uv.x*u.sampling.y;
+    uv=clamp(uv,u.uvBounds.xy,u.uvBounds.zw);
+    return video.sample(linearSampler,uv);
 }

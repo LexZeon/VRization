@@ -9,6 +9,9 @@ final class HostSessionGate {
     private boolean established, failed;
     private boolean stabilization, enhanced;
     private boolean pendingEnhancedSnapshot;
+    private StreamSession session = StreamSession.legacy();
+    private List<?> sessionCapabilities = java.util.Collections.emptyList();
+    StreamSession streamSession() { return session; }
     boolean isEstablished() { return established && !failed; }
     boolean supportsStabilization() { return isEstablished() && stabilization; }
     boolean supportsEnhancedFirstPerson() { return isEstablished() && enhanced; }
@@ -27,6 +30,11 @@ final class HostSessionGate {
     }
     static Long sequence(Map<String, Object> message, String key) {
         return message.containsKey(key) ? integer(message.get(key), 0, 9007199254740991L) : null;
+    }
+    private StreamSession descriptor(Map<String, Object> message) {
+        if (message.containsKey("streamSession") && message.get("streamSession") == null)
+            throw new IllegalArgumentException("Null stream session");
+        return StreamSession.parse(message.get("streamSession"), sessionCapabilities);
     }
     /** Returns true exactly once, when a complete valid host hello establishes the session. */
     boolean receive(Map<String, Object> message) {
@@ -52,6 +60,7 @@ final class HostSessionGate {
                 Object capabilities = message.get("capabilities");
                 if (message.containsKey("capabilities")) {
                     if (!(capabilities instanceof List)) throw new IllegalArgumentException("Expected capabilities array");
+                    if (((List<?>) capabilities).size() > 32) throw new IllegalArgumentException("Too many capabilities");
                     for (Object capability : (List<?>) capabilities)
                         if (!(capability instanceof String)) throw new IllegalArgumentException("Expected capability string");
                 }
@@ -61,9 +70,12 @@ final class HostSessionGate {
                 pendingEnhancedSnapshot = enhanced && !Boolean.TRUE.equals(negotiated);
                 if (VrSettings.ENHANCED_FIRST_PERSON.equals(settings.get("mode")) && !enhanced)
                     throw new IllegalArgumentException("Enhanced mode without host capability");
+                sessionCapabilities = capabilities instanceof List ? (List<?>)capabilities : java.util.Collections.emptyList();
+                session = descriptor(message);
                 established = true; return true;
             }
             if ("settings".equals(type)) {
+                session = session.update(descriptor(message));
                 Map<String, Object> settings = object(message.get("settings"));
                 SettingsValues.decode(settings, new VrSettings(), false);
                 if (VrSettings.ENHANCED_FIRST_PERSON.equals(settings.get("mode")) && !enhanced)
@@ -78,7 +90,7 @@ final class HostSessionGate {
         } catch (IllegalArgumentException error) { failed = true; throw error; }
     }
     void receiveJpeg(int size) {
-        if (!isEstablished() || size < 4 || size > 8 * 1024 * 1024) {
+        if (!isEstablished() || !session.accepted || size < 4 || size > 8 * 1024 * 1024) {
             failed = true; throw new IllegalArgumentException("Unexpected video frame");
         }
     }

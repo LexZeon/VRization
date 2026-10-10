@@ -108,11 +108,20 @@ async def test_ui_timeout_rejects_late_start_without_retrying_itself():
 async def test_control_coalesces_http_requests_and_rejects_revoked_trust_before_response():
     events, authorized = [], [True]
     coordinator = ConnectionCoordinator(events.append, lambda: False)
+    arrivals, both_arrived = [], asyncio.Event()
+    request_connect = coordinator.request
+    def observed_request():
+        result = request_connect()
+        arrivals.append(result)
+        if len(arrivals) == 2:
+            both_arrived.set()
+        return result
+    coordinator.request = observed_request
     control = UsbConnectService(coordinator, lambda: authorized[0])
     async with TestClient(TestServer(control.make_app())) as client:
         requests = [asyncio.create_task(client.post('/connect', headers={'Host': 'localhost:18764'})) for _ in range(2)]
-        await asyncio.sleep(.03)
-        assert len(events) == 1
+        await asyncio.wait_for(both_arrived.wait(), 2)
+        assert len(events) == 1 and arrivals[0] is arrivals[1]
         authorized[0] = False
         coordinator.complete(events[0]['request'], True)
         responses = await asyncio.gather(*requests)

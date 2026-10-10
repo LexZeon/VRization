@@ -98,7 +98,7 @@ def monitor_display_name(index: int, monitor: dict, language: str = "en") -> str
 
 
 class HostWindow:
-    def __init__(self, root: tk.Tk, initial_monitor: int | None = None):
+    def __init__(self, root: tk.Tk, initial_monitor: int | None = None, *, server_factory=None, usb_factory=None, control_port=None):
         self.root = root
         self.language = load_language()
         self.events = queue.SimpleQueue()
@@ -113,16 +113,17 @@ class HostWindow:
         self.settings_revision = 0
         if initial_monitor is not None:
             self.config = replace(self.config, monitor=initial_monitor, region=None)
-        self.server = HostServer(settings=self.settings, capture_config=self.config,
+        self.server = (server_factory or HostServer)(settings=self.settings, capture_config=self.config,
                                  on_event=self.events.put)
         self._stop_in_progress = False
         self._stop_generation = 0
         self.connection = ConnectionCoordinator(self.events.put, lambda: self.server.running,
                                                  lambda: self._stop_in_progress)
-        self.usb = UsbManager(self.server, self.events.put, adb_path=self.usb_preferences["adb_path"],
+        self.usb = (usb_factory or UsbManager)(self.server, self.events.put, adb_path=self.usb_preferences["adb_path"],
                               preferred_serial=self.usb_preferences["preferred_serial"],
                               start_request=self.connection.request)
-        self.control = UsbConnectService(self.connection, self.usb.control_authorized.is_set)
+        self.control = UsbConnectService(self.connection, self.usb.control_authorized.is_set,
+                                         **({"port": control_port} if control_port is not None else {}))
         self.server.usb_authorized = self.usb.authorized.is_set
         self.root.title(self.tr("VRization · 桌面 VR 串流"))
         self.root.configure(bg=BG)
@@ -259,7 +260,7 @@ class HostWindow:
         self._label(left, self.tr("01   连接手机"), 11, MUTED).pack(anchor="w")
         self.code_label = self._label(left, "— — — — — —", 32, ACCENT)
         self.code_label.pack(anchor="w", pady=(4, 0))
-        self.address_label = self._label(left, self.tr("电脑地址  {ip} : 8765", ip=self.ip), 11)
+        self.address_label = self._label(left, self.tr("电脑地址  {ip} : {port}", ip=self.ip, port=self.server.port), 11)
         self.address_label.pack(anchor="w")
         hint = self._label(left, self.tr("USB: tap Connect on either device. Automatic detection does not start streaming. LAN: start on this PC, then use the address and code above."),
                            9, MUTED, justify="left", anchor="w", wraplength=550)
@@ -801,7 +802,7 @@ class HostWindow:
             self._log(self.tr("请先开始串流，再复制连接地址。"))
             return
         self.root.clipboard_clear()
-        self.root.clipboard_append(f"ws://{self.ip}:8765/ws?token={self.server.token}")
+        self.root.clipboard_append(f"ws://{self.ip}:{self.server.port}/ws?token={self.server.token}")
         self._log(self.tr("连接地址已复制，请只分享给自己的手机。"))
 
     def toggle_arm(self):

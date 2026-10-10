@@ -93,7 +93,7 @@ public final class MainActivity extends Activity {
     private volatile float imageAspect = 16f / 9f;
 
     @Override protected void attachBaseContext(Context base) {
-        String language = base.getSharedPreferences("vrization", MODE_PRIVATE).getString("language", "en");
+        String language = base.getSharedPreferences(ClientVariant.PREFERENCES, MODE_PRIVATE).getString("language", "en");
         Locale locale = new Locale("zh".equals(language) ? "zh" : "en");
         Configuration configuration = new Configuration(base.getResources().getConfiguration());
         configuration.setLocale(locale);
@@ -108,7 +108,7 @@ public final class MainActivity extends Activity {
             attributes.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
             getWindow().setAttributes(attributes);
         }
-        preferences = getSharedPreferences("vrization", MODE_PRIVATE);
+        preferences = getSharedPreferences(ClientVariant.PREFERENCES, MODE_PRIVATE);
         connectionMode = ConnectionMode.fromPreference(preferences.getString("transport", "usb"));
         initialUsb = new InitialUsbDetection(state == null && !getIntent().getBooleanExtra("suppress_usb_auto", false));
         if (state != null && state.getBoolean(STATE_USB_CONNECT_PENDING, false)) explicitUsb.request();
@@ -121,9 +121,18 @@ public final class MainActivity extends Activity {
         settings = profile.snapshot();
         renderer = new VrRenderer();
         pose = new AndroidPoseSource(this, getWindowManager().getDefaultDisplay());
-        if (!pose.isAvailable() && VrSettings.requiresRotationSensor(settings.mode)) settings.mode = "full";
+        // The experimental route is learned from hello: preserve the local mode until then.
+        if (!ClientVariant.EXPERIMENTAL && !pose.isAvailable() && VrSettings.requiresRotationSensor(settings.mode)) settings.mode = "full";
         renderer.setSettings(settings);
         client = new StreamClient(this, new StreamClient.Listener() {
+            @Override public void onStreamSession(StreamSession descriptor) {
+                renderer.setStreamLayout(descriptor.stereo,descriptor.accepted);
+                if(descriptor.hmd) {
+                    connectionNotice.setText(R.string.steamvr_notice);
+                    if(!pose.isAvailable())client.sendHmdPose(null,android.os.SystemClock.elapsedRealtimeNanos(),false);
+                }
+                surface.requestRender();updateTracking();
+            }
             @Override public void onSessionStarted() {
                 finishHeadsetEdit(false, false);
                 settingsSync.newSession();
@@ -134,11 +143,12 @@ public final class MainActivity extends Activity {
             }
             @Override public void onSessionStopped() {
                 if (destroyed) return;
-                renderer.clearFrames();
+                renderer.clearFrames();renderer.setStreamLayout(false,true);
                 if (surface != null) surface.requestRender();
                 if (frameStatus != null) frameStatus.setText(R.string.waiting_frame);
                 if (linkStatus != null) linkStatus.setText(R.string.waiting_ping);
                 if (processingStatus != null) processingStatus.setText(R.string.waiting_processing);
+                if (connectionNotice != null) connectionNotice.setText(connectionMode == ConnectionMode.USB ? R.string.usb_notice : R.string.network_notice);
                 updateTracking();
             }
             @Override public void onStatus(String text, boolean connected) {
@@ -152,13 +162,14 @@ public final class MainActivity extends Activity {
                 runOnUiThread(() -> {
                     if (destroyed) return;
                     String oldMode = settings.mode;
+                    if (!client.streamSession().accepted) return;
                     updateStabilizationHelp();
                     if (profile.waitForExtendedSnapshot(client.supportsStabilization(), json.has("stabilization"))) return;
                     if (profile.waitForEnhancedSnapshot(client.waitsForEnhancedSnapshot())) return;
                     VrSettings incoming = SettingsJson.decodeFromHost(json, settings, client.supportsEnhancedFirstPerson());
                     if (!settingsSync.accept(incoming, revision, clientSeq)) return;
                     settings = incoming;
-                    boolean unavailable = !pose.isAvailable() && VrSettings.requiresRotationSensor(settings.mode);
+                    boolean unavailable = !client.streamSession().hmd && !pose.isAvailable() && VrSettings.requiresRotationSensor(settings.mode);
                     if (unavailable) settings.mode = "full";
                     renderer.setSettings(settings); surface.requestRender(); saveSettings(); refreshControls();
                     if (!oldMode.equals(settings.mode)) { recenter(); updateTracking(); }
@@ -169,7 +180,7 @@ public final class MainActivity extends Activity {
                 });
             }
             @Override public void onFrame(android.graphics.Bitmap bitmap, long session, long receivedAtNanos) {
-                imageAspect = (float) bitmap.getWidth() / bitmap.getHeight();
+                imageAspect = (float) bitmap.getWidth() / (bitmap.getHeight() * (client.streamSession().stereo ? 2 : 1));
                 renderer.submitFrame(bitmap, session, receivedAtNanos);
                 surface.requestRender();
             }
@@ -295,7 +306,7 @@ public final class MainActivity extends Activity {
         linkStatus = text(getString(R.string.waiting_ping), 12, MUTED, false); content.addView(linkStatus);
         processingStatus = text(getString(R.string.waiting_processing), 12, MUTED, false); content.addView(processingStatus);
         hostInput = input(getString(R.string.host_hint), preferences.getString("host", ""), InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
-        portInput = input(getString(R.string.port_hint), preferences.getString("port", "8765"), InputType.TYPE_CLASS_NUMBER);
+        portInput = input(getString(R.string.port_hint), preferences.getString("port", ClientVariant.DEFAULT_PORT), InputType.TYPE_CLASS_NUMBER);
         codeInput = input(getString(R.string.code_hint), "", InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_VARIATION_PASSWORD);
         LinearLayout address = row();
         address.addView(hostInput, new LinearLayout.LayoutParams(0, dp(52), 3));
@@ -307,12 +318,13 @@ public final class MainActivity extends Activity {
         content.addView(connectButton, new LinearLayout.LayoutParams(-1, dp(48)));
         connectionNotice = text("", 12, MUTED, false); content.addView(connectionNotice);
         updateTransportUi();
-        if (!pose.isAvailable()) content.addView(text(getString(R.string.sensor_unavailable), 14, ACCENT, false));
+        if (!pose.isAvailable()) content.addView(text(getString(ClientVariant.EXPERIMENTAL
+            ? R.string.steamvr_sensor_unavailable : R.string.sensor_unavailable), 14, ACCENT, false));
         content.addView(text(getString(R.string.watch_mode), 16, INK, true));
         modeInput = new Spinner(this);
         String[] modes = getResources().getStringArray(R.array.watch_modes);
         ArrayAdapter<String> modeAdapter = new ArrayAdapter<String>(this, android.R.layout.simple_spinner_item, modes) {
-            @Override public boolean isEnabled(int position) { return position == 0 || position == 3 || pose.isAvailable(); }
+            @Override public boolean isEnabled(int position) { return position == 0 || position == 3 || pose.isAvailable() || client.streamSession().hmd; }
             @Override public View getDropDownView(int position, View convertView, ViewGroup parent) {
                 TextView view = (TextView) super.getDropDownView(position, convertView, parent);
                 view.setTextColor(isEnabled(position) ? INK : MUTED); return view;
@@ -325,7 +337,7 @@ public final class MainActivity extends Activity {
             @Override public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 if (refreshing) return;
                 String selected = new String[]{"full", "cinema", "fps", VrSettings.ENHANCED_FIRST_PERSON}[position];
-                if (VrSettings.requiresRotationSensor(selected) && !pose.isAvailable()) { modeInput.setSelection(0); return; }
+                if (!selected.equals(settings.mode) && !client.streamSession().hmd && VrSettings.requiresRotationSensor(selected) && !pose.isAvailable()) { modeInput.setSelection(0); return; }
                 if (!selected.equals(settings.mode)) { settings.mode = selected; recenter(); updateTracking(); settingsChanged(true); }
                 updateStabilizationHelp();
             }
@@ -410,7 +422,8 @@ public final class MainActivity extends Activity {
     private void updateStabilizationHelp() {
         if (stabilizationHelp != null) stabilizationHelp.setText(client.isConnected() && !client.supportsStabilization()
             ? R.string.stabilization_legacy : R.string.stabilization_help);
-        if (enhancedHelp != null) enhancedHelp.setText(client.isConnected() && !client.supportsEnhancedFirstPerson()
+        if (enhancedHelp != null) enhancedHelp.setText(client.isConnected() && client.streamSession().hmd ? R.string.steamvr_notice
+            : client.isConnected() && !client.supportsEnhancedFirstPerson()
             && VrSettings.ENHANCED_FIRST_PERSON.equals(settings.mode) ? R.string.enhanced_legacy : R.string.enhanced_help);
     }
     private void requestFastDisplay() {
@@ -443,7 +456,7 @@ public final class MainActivity extends Activity {
     private void startHeadsetEdit() {
         if (headsetEdit != null) return;
         if (!client.pauseForEditor()) { client.setPoseEnabled(true); return; }
-        headsetEdit = new HeadsetEdit(settings); settingsSync.beginGesture(); updateTracking();
+        headsetEdit = new HeadsetEdit(settings,client.streamSession().stereo); settingsSync.beginGesture(); updateTracking();
         overlay.setVisibility(View.GONE);
         editorView = new HeadsetEditorView(this, headsetEdit, () -> imageAspect, this::previewHeadsetEdit);
         screenRoot.addView(editorView, new FrameLayout.LayoutParams(-1, -1));
@@ -487,7 +500,7 @@ public final class MainActivity extends Activity {
         settings = profile.reset();
         preferences.edit().clear().putString("settings", SettingsJson.encode(settings).toString())
             .putString("language", PhoneProfile.DEFAULT_LANGUAGE).putString("transport", PhoneProfile.DEFAULT_TRANSPORT)
-            .putString("host", PhoneProfile.DEFAULT_HOST).putString("port", PhoneProfile.DEFAULT_PORT).apply();
+            .putString("host", PhoneProfile.DEFAULT_HOST).putString("port", ClientVariant.DEFAULT_PORT).apply();
         codeInput.setText(""); getIntent().putExtra("suppress_usb_auto", true);
         Toast.makeText(this, getString(R.string.reset_all_done), Toast.LENGTH_LONG).show(); recreate();
     }
@@ -590,10 +603,14 @@ public final class MainActivity extends Activity {
         if (!connectFromExplicitUsbRequest() && initialUsb.onForeground(connectionMode) && !client.isActive()) client.connectUsb();
     }
     private void updateTracking() {
-        boolean needed = resumed && client.isConnected() && headsetEdit == null && !"full".equals(settings.mode) && pose.isAvailable();
+        boolean needed = resumed && client.isConnected() && client.streamSession().accepted && headsetEdit == null
+            && (client.streamSession().hmd || !"full".equals(settings.mode)) && pose.isAvailable();
         if (!needed) { if (trackingActive) pose.stop(); trackingActive = false; return; }
         if (trackingActive) return;
         trackingActive = true;
+        if(client.streamSession().hmd) {
+            pose.startOrientation((q,timestamp)->{if(resumed&&headsetEdit==null)client.sendHmdPose(q,timestamp,true);});return;
+        }
         pose.start((yaw, pitch, roll, timestamp) -> {
             if (!resumed || headsetEdit != null) return;
             if ("cinema".equals(settings.mode)) { renderer.setPose(yaw, pitch, roll); surface.requestRender(); }
@@ -601,6 +618,7 @@ public final class MainActivity extends Activity {
         });
     }
     @Override protected void onPause() {
+        client.sendHmdPose(null,android.os.SystemClock.elapsedRealtimeNanos(),false);
         resumed = false; finishHeadsetEdit(false, false); initialUsb.stop(); trackingActive = false; pose.stop();
         finishPauseDisconnect();
         pauseDisconnect = this::finishPauseDisconnect;

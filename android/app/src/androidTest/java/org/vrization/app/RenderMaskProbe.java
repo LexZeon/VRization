@@ -17,6 +17,7 @@ import org.vrization.core.HeadsetGeometry;
 import org.vrization.core.VrRenderer;
 import org.vrization.core.VrSettings;
 import org.vrization.core.EnhancedProjection;
+import org.vrization.core.StereoProjection;
 
 /** Default: offscreen GLES2 probe with synthetic pixels and no Activity/network/device input.
  * Optional -e connectionProbe true exercises real USB buttons and streaming, without mouse output.
@@ -40,8 +41,11 @@ public final class RenderMaskProbe extends Instrumentation {
             }
             int[] cases = renderCases();
             result.putInt("renderCases", cases[0]); result.putInt("enhancedProjectionSamples", cases[1]);
+            result.putInt("nativeStereoColorSamples", cases[2]); result.putInt("nativeStereoLifecycleCases", cases[3]);
+            result.putInt("orientationRemapGoldens", cases[4]);
             result.putString("stream", "\nOK (" + cases[0] + " offscreen GLES mask cases, both eyes; "
-                + cases[1] + " enhanced projection color samples)\n");
+                + cases[1] + " enhanced projection color samples; " + cases[2] + " native stereo color samples; "
+                + cases[3] + " native stereo lifecycle cases; " + cases[4] + " Android orientation remap goldens)\n");
             finish(Activity.RESULT_OK, result);
         } catch (Throwable error) {
             result.putString("stream", "\nFAIL: " + Log.getStackTraceString(error));
@@ -108,7 +112,10 @@ public final class RenderMaskProbe extends Instrumentation {
                 require(image.isRecycled(), "Renderer did not release transferred Bitmap");
             }
             int enhancedSamples = assertEnhancedProjection(renderer, pixels);
-            return new int[]{cases, enhancedSamples};
+            int stereoSamples = ClientVariant.EXPERIMENTAL ? assertNativeStereo(renderer, pixels) : 0;
+            int stereoLifecycle = ClientVariant.EXPERIMENTAL ? assertStereoLifecycle(renderer, pixels) : 0;
+            int orientationGoldens = ClientVariant.EXPERIMENTAL ? OrientationProbe.run() : 0;
+            return new int[]{cases, enhancedSamples, stereoSamples, stereoLifecycle, orientationGoldens};
         } finally {
             renderer.pauseFrames();
             if (initialized) {
@@ -191,6 +198,86 @@ public final class RenderMaskProbe extends Instrumentation {
             require(outside > 20, label + " did not sample outside the saved viewport");
             require(whiteInside > 8, label + " eye=" + eye + " has no genuine white video pixels inside");
         }
+    }
+
+    /** Distinct eye gradients reveal swapped halves, seam bleed, aspect errors and double projection. */
+    private static int assertNativeStereo(VrRenderer renderer, ByteBuffer pixels) {
+        renderer.setStreamLayout(true, true);
+        float[][] probes = {{0,0},{-.8f,0},{.8f,0},{0,.8f},{0,-.8f},{.8f,.8f},{-.99f,0},{.99f,0}};
+        int samples = 0;
+        for (int imageHeight : new int[]{32,64}) {
+            Bitmap image = Bitmap.createBitmap(128,imageHeight,Bitmap.Config.ARGB_8888);
+            for(int y=0;y<imageHeight;y++)for(int x=0;x<128;x++) {
+                int ramp=Math.round(40+180f*(x%64)/63), green=Math.round(30+180f*y/(imageHeight-1));
+                image.setPixel(x,y,x<64?Color.rgb(ramp,green,10):Color.rgb(10,green,ramp));
+            }
+            renderer.submitFrame(image);
+            for(String mode:new String[]{"full","fps","cinema",VrSettings.ENHANCED_FIRST_PERSON})
+                for(float scale:new float[]{.5f,.85f})for(float distortion:new float[]{0,.15f}) {
+                    VrSettings saved=new VrSettings(); saved.mode=mode; saved.scale=scale; saved.distortion=distortion;
+                    if(scale==.5f) { saved.offsetX=.08f; saved.offsetY=-.08f; saved.eyeSeparation=-.4f; }
+                    renderer.setSettings(saved); renderer.setPose(.8f,.9f,.4f); renderer.onDrawFrame(null);
+                    readPixels(pixels); VrSettings nativeSettings=StereoProjection.viewingSettings(saved);
+                    for(int eye=0;eye<2;eye++) {
+                        int eyeWidth=eye==0?WIDTH/2:WIDTH-WIDTH/2, origin=eye==0?0:WIDTH/2;
+                        float aspect=StereoProjection.eyeAspect(128,imageHeight), eyeAspect=eyeWidth/(float)HEIGHT;
+                        float[] b=HeadsetGeometry.bounds(nativeSettings,aspect,eyeAspect,eye==0?-1:1);
+                        float fitX=Math.min(1,aspect/eyeAspect),fitY=Math.min(1,eyeAspect/aspect);
+                        for(float[] probe:probes) {
+                            int x=Math.round(eyeWidth*(1+b[0]+probe[0]*b[2])/2-.5f);
+                            int y=Math.round(HEIGHT*(1+b[1]+probe[1]*b[3])/2-.5f);
+                            require(x>=0&&x<eyeWidth&&y>=0&&y<HEIGHT,"Invalid stereo probe position");
+                            float px=2f*(x+.5f)/eyeWidth-1,py=2f*(y+.5f)/HEIGHT-1;
+                            float d=1+distortion*(px*px+py*py);
+                            float qx=(px*d-b[0])/saved.scale/fitX,qy=(py*d-b[1])/saved.scale/fitY;
+                            int at=(y*WIDTH+origin+x)*4,r=pixels.get(at)&255,g=pixels.get(at+1)&255,blue=pixels.get(at+2)&255;
+                            String label="Native stereo "+mode+" scale="+scale+" distortion="+distortion+" eye="+eye+" q="+qx+","+qy;
+                            if(Math.abs(qx)>1||Math.abs(qy)>1||Math.abs(px-b[0])>b[2]||Math.abs(py-b[1])>b[3])
+                                require(r<=3&&g<=3&&blue<=3,label+" must be black");
+                            else {
+                                float u=StereoProjection.sourceU(qx,eye,128),localU=(u-eye*.5f)*2;
+                                float sx=Math.max(0,Math.min(1,(localU*64-.5f)/63));
+                                float sy=Math.max(0,Math.min(1,((.5f-qy*.5f)*imageHeight-.5f)/(imageHeight-1)));
+                                int ramp=Math.round(40+180*sx),green=Math.round(30+180*sy);
+                                int expectedR=eye==0?ramp:10,expectedB=eye==0?10:ramp;
+                                require(Math.abs(r-expectedR)<=4&&Math.abs(g-green)<=4&&Math.abs(blue-expectedB)<=4,
+                                    label+" swapped/warped/seam pixel "+r+","+g+","+blue);
+                            }
+                            samples++;
+                        }
+                    }
+                }
+            require(image.isRecycled(),"Native stereo bitmap ownership leak");
+        }
+        return samples;
+    }
+
+    private static int assertStereoLifecycle(VrRenderer renderer, ByteBuffer pixels) {
+        renderer.clearFrames(); renderer.resumeFrames(); renderer.setStreamLayout(true,false);
+        Bitmap pending=Bitmap.createBitmap(64,32,Bitmap.Config.ARGB_8888); pending.eraseColor(Color.WHITE);
+        renderer.submitFrame(pending); require(pending.isRecycled(),"Unnegotiated frame must be dropped");
+        renderer.onDrawFrame(null); readPixels(pixels); requireBlack(pixels,"Unaccepted SBS displayed");
+        renderer.setStreamLayout(true,true); renderer.onDrawFrame(null); readPixels(pixels);
+        requireBlack(pixels,"Pre-acceptance frame survived negotiation");
+        Bitmap odd=Bitmap.createBitmap(63,32,Bitmap.Config.ARGB_8888); odd.eraseColor(Color.WHITE);
+        renderer.submitFrame(odd); renderer.onDrawFrame(null); readPixels(pixels);
+        require(odd.isRecycled(),"Odd SBS ownership leak"); requireBlack(pixels,"Odd SBS displayed");
+        Bitmap old=Bitmap.createBitmap(64,32,Bitmap.Config.ARGB_8888); old.eraseColor(Color.WHITE);
+        renderer.submitFrame(old); renderer.setStreamLayout(false,true);
+        require(old.isRecycled(),"Route change retained a queued old-layout frame");
+        renderer.onDrawFrame(null); readPixels(pixels); requireBlack(pixels,"Old SBS survived mono route change");
+        renderer.clearFrames(); Bitmap late=Bitmap.createBitmap(64,32,Bitmap.Config.ARGB_8888);
+        renderer.submitFrame(late); require(late.isRecycled(),"Late disconnect frame was accepted");
+        renderer.onDrawFrame(null); readPixels(pixels); requireBlack(pixels,"Disconnect retained video");
+        return 5;
+    }
+    private static void readPixels(ByteBuffer pixels) {
+        pixels.clear(); GLES20.glReadPixels(0,0,WIDTH,HEIGHT,GLES20.GL_RGBA,GLES20.GL_UNSIGNED_BYTE,pixels);
+        require(GLES20.glGetError()==GLES20.GL_NO_ERROR,"Stereo GLES error");
+    }
+    private static void requireBlack(ByteBuffer pixels,String label) {
+        for(int at=0;at<WIDTH*HEIGHT*4;at+=4)
+            require((pixels.get(at)&255)<=3&&(pixels.get(at+1)&255)<=3&&(pixels.get(at+2)&255)<=3,label);
     }
 
     private static void require(boolean condition, String message) {

@@ -6,4 +6,4 @@ dependencyResolutionManagement {
     repositories { google(); mavenCentral() }
 }
 rootProject.name = 'VRization'
-include ':app', ':vr-core'
+include ':app', ':vr-core', ':steamvr-app'

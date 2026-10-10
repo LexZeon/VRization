@@ -5,10 +5,13 @@ import CoreGraphics
 /// One active decode, one waiting JPEG and one waiting decoded image, across all sessions.
 final class JPEGDecoder {
     var onImage: ((CGImage, UInt64) -> Void)?
+#if STEAMVR_PREVIEW
+    var onUnsupportedStereo: ((UInt64) -> Void)?
+#endif
     private let queue = DispatchQueue(label: "org.vrization.jpeg", qos: .userInitiated)
     private let lock = NSLock()
     private var generation: UInt64 = 0
-    private var pending: (Data, UInt64)?
+    private var pending: (Data, UInt64, Bool)?
     private var decoded: (CGImage, UInt64)?
     private var working = false
     private var deliveryPosted = false
@@ -19,11 +22,11 @@ final class JPEGDecoder {
         pending = nil; decoded = nil
     }
 
-    func submit(_ data: Data, generation: UInt64) {
+    func submit(_ data: Data, generation: UInt64, stereo: Bool = false) {
         guard data.count >= 4, data.count <= 8 * 1024 * 1024 else { return }
         lock.lock()
         guard generation == self.generation else { lock.unlock(); return }
-        pending = (data, generation)
+        pending = (data, generation, stereo)
         if working { lock.unlock(); return }
         working = true
         lock.unlock()
@@ -44,6 +47,25 @@ final class JPEGDecoder {
                       let height = metadata[kCGImagePropertyPixelHeight] as? Int,
                       width > 0, height > 0, width <= 16384, height <= 16384,
                       Int64(width) * Int64(height) <= 64_000_000 else { return nil }
+#if STEAMVR_PREVIEW
+                if job.2 {
+                    // Packed eyes were resized independently by the host. A
+                    // whole-image thumbnail here could mix their shared border
+                    // or produce an odd packed width. Decode this raster exactly.
+                    let orientation = metadata[kCGImagePropertyOrientation] as? Int ?? 1
+                    guard width <= 2048, height <= 2048, width % 2 == 0, orientation == 1 else {
+                        DispatchQueue.main.async { [weak self] in
+                            guard let self = self else { return }
+                            self.lock.lock(); let current = self.generation; self.lock.unlock()
+                            if job.1 == current { self.onUnsupportedStereo?(job.1) }
+                        }
+                        return nil
+                    }
+                    guard let exact = CGImageSourceCreateImageAtIndex(source, 0,
+                        [kCGImageSourceShouldCacheImmediately: true] as CFDictionary) else { return nil }
+                    return Self.rgba8(exact)
+                }
+#endif
                 let options: [CFString: Any] = [
                     kCGImageSourceCreateThumbnailFromImageAlways: true,
                     kCGImageSourceCreateThumbnailWithTransform: true,

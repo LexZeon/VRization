@@ -1,0 +1,57 @@
+name: SteamVR experimental / SteamVR 实验版
+
+on:
+  push:
+    branches: [codex/steamvr-experimental]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  native:
+    name: Windows OpenVR native / Windows 原生 OpenVR
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.12.10'
+      - name: Build pinned SDK and exercise IPC / 构建固定 SDK 并检查 IPC
+        run: python scripts/build_steamvr_native.py --configuration Release --test
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: SteamVR-native
+          path: artifacts/steamvr/native-bundle/
+          if-no-files-found: error
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
+        with:
+          name: SteamVR-native-reports
+          path: artifacts/steamvr/native-build/
+          if-no-files-found: ignore
+  ios:
+    name: Separate iOS client / 独立 iOS 客户端
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.12.10'
+      - name: Install synthetic fixture / 安装合成测试环境
+        run: |
+          python3 -m pip install aiohttp==3.14.4 pillow==12.3.0
+          python3 -m pip install --no-deps -e ./desktop
+      - name: Swift cores, both SDKs and native SBS UI / Swift 核心、双 SDK 和原生双眼界面
+        run: python3 scripts/build_ios_steamvr.py
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
+        with:
+          name: SteamVR-iOS
+          path: artifacts/ios-steamvr/
+          if-no-files-found: error
