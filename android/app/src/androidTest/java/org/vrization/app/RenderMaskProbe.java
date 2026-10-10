@@ -17,18 +17,26 @@ import org.vrization.core.HeadsetGeometry;
 import org.vrization.core.VrRenderer;
 import org.vrization.core.VrSettings;
 
-/** Offscreen GLES2 probe. Synthetic white pixels only; no Activity, network or device input.
+/** Default: offscreen GLES2 probe with synthetic pixels and no Activity/network/device input.
+ * Optional -e connectionProbe true exercises real USB buttons and streaming, without mouse output.
  * Run the separately built test APK through platform Instrumentation. A compilation
  * pass alone does not establish a real-driver rendering pass.
  */
 public final class RenderMaskProbe extends Instrumentation {
     private static final int WIDTH = 257, HEIGHT = 128; // Different per-eye widths.
+    private Bundle arguments;
 
-    @Override public void onCreate(Bundle arguments) { super.onCreate(arguments); start(); }
+    @Override public void onCreate(Bundle arguments) {
+        super.onCreate(arguments); this.arguments = arguments == null ? new Bundle() : new Bundle(arguments); start();
+    }
 
     @Override public void onStart() {
         Bundle result = new Bundle();
         try {
+            if ("true".equals(String.valueOf(arguments.get("connectionProbe")))) {
+                result = ConnectionProbe.run(this, "true".equals(String.valueOf(arguments.get("pcStopProbe"))));
+                finish(Activity.RESULT_OK, result); return;
+            }
             int cases = renderCases();
             result.putInt("renderCases", cases);
             result.putString("stream", "\nOK (" + cases + " offscreen GLES mask cases, both eyes)\n");

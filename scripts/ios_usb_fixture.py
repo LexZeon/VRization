@@ -37,11 +37,12 @@ class Handler(socketserver.BaseRequestHandler):
                 self.reply({"PairRecordData": plistlib.dumps({"HostID": "VRization-Fixture",
                     "SystemBUID": "VRization-Fixture"})}, tag)
             elif request.get("MessageType") == "Connect":
-                if request.get("DeviceID") != 1 or request.get("PortNumber") != socket.htons(18766):
+                port = socket.ntohs(request.get("PortNumber", 0))
+                if request.get("DeviceID") != 1 or port not in (18766, 18767):
                     self.reply({"Number": 3}, tag)
                     return
                 try:
-                    phone = socket.create_connection(("127.0.0.1", 18766), timeout=1)
+                    phone = socket.create_connection(("127.0.0.1", port), timeout=1)
                 except OSError:
                     self.reply({"Number": 3}, tag)
                     return

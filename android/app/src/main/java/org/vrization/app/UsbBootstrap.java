@@ -1,12 +1,14 @@
 package org.vrization.app;
 
+import org.vrization.core.TransportEndpoints;
+
 import java.util.Map;
 
 /** Validate discovery without letting an HTTP response redirect the phone off loopback. */
 final class UsbBootstrap {
-    static final String HOST = "127.0.0.1";
-    static final int FORWARDED_PORT = 18765;
-    static final String ENDPOINT = "http://127.0.0.1:18765/usb-bootstrap";
+    static final String HOST = TransportEndpoints.USB_HOST;
+    static final int FORWARDED_PORT = TransportEndpoints.USB_VIDEO_PORT;
+    static final String ENDPOINT = TransportEndpoints.USB_BOOTSTRAP;
     final int computerPort;
     final String token;
     private UsbBootstrap(int computerPort, String token) { this.computerPort = computerPort; this.token = token; }

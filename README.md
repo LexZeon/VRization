@@ -7,18 +7,18 @@
 
 **Put your PC screen inside a phone VR viewer.**
 
-![Alpha](https://img.shields.io/badge/version-0.3.2--alpha-orange)
+![Alpha](https://img.shields.io/badge/version-0.3.3--alpha-orange)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Desktop](https://img.shields.io/badge/desktop-Windows%2010%2F11-blue)
 ![Android](https://img.shields.io/badge/Android-6.0%2B-3DDC84)
 ![iOS](https://img.shields.io/badge/iOS%2FiPadOS-15%2B-black)
 [![Build](https://github.com/LexZeon/VRization/actions/workflows/build.yml/badge.svg)](https://github.com/LexZeon/VRization/actions/workflows/build.yml)
 
-[简体中文](#简体中文) · [Quick start](docs/QUICKSTART.md) · [📝 Changelog](CHANGELOG.md) · [🔌 USB setup](docs/USB.md) · [🥽 Edit and save](docs/EDITING.md) · [🎯 Stabilization](docs/STABILIZATION.md) · [⚡ Performance](docs/PERFORMANCE.md) · [📦 Downloads](docs/DOWNLOADS.md) · [🍎 iPhone + Windows](docs/IOS.md) · [Build](docs/BUILD.md) · [Architecture](docs/ARCHITECTURE.md)
+[简体中文](#简体中文) · [Quick start](docs/QUICKSTART.md) · [📝 Changelog](CHANGELOG.md) · [🔌 USB setup](docs/USB.md) · [🥽 Edit and save](docs/EDITING.md) · [🎯 Stabilization](docs/STABILIZATION.md) · [⚡ Performance](docs/PERFORMANCE.md) · [📦 Downloads](docs/DOWNLOADS.md) · [🍎 iPhone + Windows](docs/IOS.md) · [Build](docs/BUILD.md) · [Architecture](docs/ARCHITECTURE.md) · [🤝 AI handoff](AI_HANDOFF.md)
 
 VRization streams a Windows desktop or rectangular region to an Android phone, iPhone or iPad, renders the image side by side, and optionally maps phone rotation to PC mouse movement. Its reusable Android library, Swift core package and separated host components provide a starting point for embedding these features in other applications.
 
-**v0.3.2-alpha — adjustable First-person stabilization and portable USB tools.** All three apps use version 0.3.2. The new stabilization slider defaults to **0%**, preserving the previous input behavior; filtering runs only on the PC. Committed values synchronize and persist, with compatible ten-field / eleven-field settings negotiation inside protocol v1. Windows also improves USB tool lookup outside packaged-app storage and offers a manual official-tools import flow. Physical Huawei slider / synchronization / restart checks and clean-environment packaged Windows USB discovery passed; see [verified results and limits](docs/RELEASE_NOTES.md).
+**v0.3.3-alpha — reliable stop/reconnect and explicit Connect from either end.** The next candidate separates USB connection control from video, cancels owned phone sockets and rejects late frames, preserves reverse-map ownership during temporary ADB failures, and makes PC Stop wait for capture cleanup. See [release evidence and limits](docs/RELEASE_NOTES.md). Developers can use the [AI handoff and module map](AI_HANDOFF.md) to continue or integrate the project.
 
 Visual headset fitting and saved phone profiles from v0.3 remain available. An original Windows DXGI / D3D11 backend crops, rotates and scales on the GPU before smaller pixel readback; the CPU encodes JPEG for the existing WebSocket protocol. GDI / MSS remain compatibility paths. Both eyes receive the same 2D source: ordinary games do not acquire stereoscopic depth. See [performance and measurement limits](docs/PERFORMANCE.md).
 
@@ -46,7 +46,7 @@ The USB screenshots below show **v0.2.0 on a physical HUAWEI Pura 70 Ultra** rec
 
 ### 🚀 Try it
 
-1. Download the Windows archive and Android APK from [Releases](https://github.com/LexZeon/VRization/releases), or [build from source](docs/BUILD.md). Update the host and phone to v0.3.2 for the stabilization control; preserve a matching-signer Android installation's data. For iPhone / iPad, use the [iOS installation guide](docs/IOS.md): source and a Mac Simulator build are provided; physical installation requires your Apple signing in Xcode.
+1. Download the Windows archive and Android APK from [Releases](https://github.com/LexZeon/VRization/releases), or [build from source](docs/BUILD.md). Update the host and phone to v0.3.3 for bidirectional USB connection; preserve a matching-signer Android installation's data. For iPhone / iPad, use the [iOS installation guide](docs/IOS.md): source and a Mac Simulator build are provided; physical installation requires your Apple signing in Xcode.
 2. Connect a data USB cable. Android needs official Platform Tools, USB debugging and computer authorization. iPhone needs Apple Devices / its Windows driver, Trust approval and your signed foreground app. See [USB setup](docs/USB.md).
 3. Start the host, choose a display or region, and start streaming. Use **USB connection…** to find the automatic-detection checkbox and official ADB selector; read USB status below the PC address. USB detection configures the authorized connection; multiple Android phones require selection.
 4. Open the phone app in its default USB mode. Its first foreground session tries automatically; after backgrounding or changing language, tap Connect. LAN remains an optional mode with manual IP, port and pairing code.
@@ -124,7 +124,7 @@ The [v0.3.0-alpha notes](docs/releases/v0.3.0-alpha.md) preserve editor / profil
 
 Windows 桌面串流 · Android / 兼容 Android 的系统 · iPhone / iPad · 可复用核心模块
 
-![Alpha](https://img.shields.io/badge/version-0.3.2--alpha-orange)
+![Alpha](https://img.shields.io/badge/version-0.3.3--alpha-orange)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Desktop](https://img.shields.io/badge/desktop-Windows%2010%2F11-blue)
 ![Android](https://img.shields.io/badge/Android-6.0%2B-3DDC84)
@@ -136,7 +136,7 @@ Windows 桌面串流 · Android / 兼容 Android 的系统 · iPhone / iPad · �
 
 VRization 是一个开源的电脑 → 手机串流实验项目。Windows 端采集显示器或指定矩形区域，Android、iPhone / iPad 客户端将画面显示在 VR 盒子的左右眼区域。你可以让画面固定在眼前，也可以把它当成一个随头部转动观看的虚拟大屏幕，或者用手机的姿态控制电脑游戏视角。
 
-> **v0.3.2-alpha — 可调第一人称防抖与便携 USB 工具。** 三端应用均为 0.3.2。新增防抖滑块默认 **0%**，保留此前输入行为，滤波只在电脑执行；已提交值同步保存，在协议 v1 内兼容十字段 / 十一字段配置协商。Windows 改进打包应用存储之外的 USB 工具查找，并提供手动导入官方工具的流程。华为真机滑块 / 同步 / 重启及独立环境的打包 Windows USB 发现检查已通过，见 [实际结果与限制](docs/RELEASE_NOTES.md)。
+> **v0.3.3-alpha — 修复停止 / 重连，支持两端主动连接。** 本次候选将 USB 连接控制与视频分开，取消手机实际持有的连接并拒绝迟到帧，临时 ADB 查询失败时保留映射归属，电脑 Stop 等待采集清理完成。见 [发布证据与限制](docs/RELEASE_NOTES.md)。后续开发或移植可使用 [AI 接手指南与模块说明](AI_HANDOFF.md)。
 
 v0.3 的可视盒子适配与手机配置保存继续保留。原创 Windows DXGI / D3D11 后端在 GPU 裁切、旋转和缩放，再回读较小像素；CPU 编码 JPEG，经已有 WebSocket 协议传输，保留 GDI / MSS 兼容路径。左右眼接收同一张二维桌面图像，**不会把普通游戏自动变成立体 3D**。实测范围见 [性能与测量](docs/PERFORMANCE.md)。
 
@@ -192,7 +192,7 @@ USB 截图来自 **HUAWEI Pura 70 Ultra 真机运行 v0.2.0**，经真实数据�
 
 ### 🚀 五步把电脑放进盒子
 
-1. 在 [Releases](https://github.com/LexZeon/VRization/releases) 下载 Windows 电脑端压缩包与 Android APK。使用防抖时将电脑和手机都更新至 v0.3.2，签名一致的 Android 覆盖升级可保留数据。iPhone / iPad 按 [iOS 安装教程](docs/IOS.md) 使用源码和 Mac 模拟器构建；真机安装需要在 Xcode 使用自己的 Apple 签名。
+1. 在 [Releases](https://github.com/LexZeon/VRization/releases) 下载 Windows 电脑端压缩包与 Android APK。使用双端 USB 连接时将电脑和手机都更新至 v0.3.3，签名一致的 Android 覆盖升级可保留数据。iPhone / iPad 按 [iOS 安装教程](docs/IOS.md) 使用源码和 Mac 模拟器构建；真机安装需要在 Xcode 使用自己的 Apple 签名。
 2. 用数据 USB 线连接。Android 需要官方 Platform Tools、USB 调试和电脑授权；iPhone 需要 Windows 的 Apple Devices / 驱动、信任这台电脑，以及自己签名并在前台运行的应用。详见 [USB 教程](docs/USB.md)。
 3. 打开电脑端，选择显示器或矩形区域，再开始串流。点“**USB 连接…**”找到自动检测开关与官方 ADB 选择，USB 状态在电脑地址下方。USB 检测会配置授权后的连接；多台 Android 手机需要选择一台。
 4. 手机应用默认 USB，首次前台会自动尝试连接；进入后台或切换语言后，显式点击连接。局域网作为可选方式，需要填写 IP、端口与配对码。

@@ -11,13 +11,20 @@ final class ViewerSmokeTests: XCTestCase {
         app.launchArguments = baseArguments + ["--reset-preferences"]
         launchViewer()
     }
-    override func tearDownWithError() throws { app.terminate() }
+    override func tearDownWithError() throws {
+        app.terminate()
+        try requestFixtureAction("resume-relay")
+    }
     private func launchViewer() {
         app.launch()
         // Rotate the active app, rather than portrait-only SpringBoard before
         // launch. XCTest must observe the same orientation as the viewer scene.
         XCUIDevice.shared.orientation = .landscapeRight
         XCTAssertTrue(app.buttons["settings.hide"].waitForExistence(timeout: 10))
+        let version = app.staticTexts["version.info"]
+        XCTAssertTrue(version.waitForExistence(timeout: 5))
+        XCTAssertTrue(version.label.contains("0.3.3"))
+        XCTAssertTrue(version.label.contains("build 6") || version.label.contains("构建 6"))
     }
     private func screenshot(_ name: String) {
         // The physical screen avoids app-region crop/rotation ambiguity.
@@ -177,7 +184,7 @@ final class ViewerSmokeTests: XCTestCase {
         screenshot("05-full-stereo-Metal")
         rendered.press(forDuration: 1.2)
         XCTAssertTrue(app.scrollViews["settings.scroll"].waitForExistence(timeout: 5))
-        reveal(toggle); toggle.tap(); waitLabel(toggle, contains: "Connect")
+        reveal(toggle); toggle.tap(); try assertDisconnected()
         toggle.tap(); waitLabel(toggle, contains: "Disconnect")
         waitLabel(frames, contains: "1280")
         screenshot("06-reconnected")
@@ -187,7 +194,7 @@ final class ViewerSmokeTests: XCTestCase {
         reveal(toggle); toggle.tap(); waitLabel(toggle, contains: "Disconnect")
         waitLabel(frames, contains: "1280")
         screenshot("07-background-reconnect")
-        toggle.tap()
+        reveal(toggle); toggle.tap(); try assertDisconnected()
     }
 
     func testUSBDetectionAndFrames() throws {
@@ -199,6 +206,8 @@ final class ViewerSmokeTests: XCTestCase {
         XCTAssertTrue(app.segmentedControls["connection.transport"].buttons["USB"].isSelected)
         XCTAssertFalse(app.secureTextFields["connection.code"].exists)
         let toggle = app.buttons["connection.toggle"]
+        try assertDisconnected()
+        reveal(toggle); toggle.tap()
         waitLabel(toggle, contains: "Disconnect", timeout: 40)
         let frames = app.staticTexts["frame.status"]
         waitLabel(frames, contains: "1280")
@@ -219,7 +228,30 @@ final class ViewerSmokeTests: XCTestCase {
         waitLabel(toggle, contains: "Disconnect", timeout: 40)
         waitLabel(frames, contains: "1280")
         screenshot("USB-03-explicit-background-reconnect")
-        reveal(toggle); toggle.tap()
+        reveal(toggle); toggle.tap(); try assertDisconnected()
+        // Disconnect stops video, but foreground PC control stays available.
+        try requestFixturePhoneConnect()
+        waitLabel(toggle, contains: "Disconnect", timeout: 40)
+        waitLabel(frames, contains: "1280")
+        let active = try observeHost()
+        try requestFixturePhoneConnect()
+        Thread.sleep(forTimeInterval: 1)
+        XCTAssertTrue(try observeHost().connected)
+        XCTAssertEqual(try observeHost().settingsCount, active.settingsCount)
+        reveal(toggle); toggle.tap(); try assertDisconnected()
+        // Cover PC Stop while phone video is waiting with no accepted peer.
+        // The production stop control must close the pending video listener;
+        // restoring automatic scanning must not resurrect its old action.
+        try requestFixtureAction("pause-relay")
+        reveal(toggle); toggle.tap(); waitLabel(toggle, contains: "Cancel")
+        try requestFixtureAction("phone-stop")
+        try assertDisconnected()
+        try requestFixtureAction("resume-relay")
+        Thread.sleep(forTimeInterval: 2); try assertDisconnected()
+        try requestFixturePhoneConnect()
+        waitLabel(toggle, contains: "Disconnect", timeout: 40)
+        waitLabel(frames, contains: "1280")
+        reveal(toggle); toggle.tap(); try assertDisconnected()
     }
 
     private struct SavedSettings: Decodable, Equatable {
@@ -231,12 +263,13 @@ final class ViewerSmokeTests: XCTestCase {
     }
     private struct HostObservation: Decodable {
         let settingsCount: Int
+        let connected: Bool
         let settings: SavedSettings
         let mouseMoves: [[Int]]
     }
     private func observeHost(checkpoint name: String? = nil) throws -> HostObservation {
         let endpoint = name == nil ? "snapshot" : "checkpoint"
-        var request = URLRequest(url: URL(string: "http://127.0.0.1:18767/\(endpoint)")!)
+        var request = URLRequest(url: URL(string: "http://127.0.0.1:18769/\(endpoint)")!)
         request.timeoutInterval = 5
         if let name = name {
             request.httpMethod = "POST"; request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -250,6 +283,37 @@ final class ViewerSmokeTests: XCTestCase {
         wait(for: [completed], timeout: 8)
         XCTAssertNil(failure); XCTAssertEqual(status, 200)
         return try JSONDecoder().decode(HostObservation.self, from: XCTUnwrap(payload))
+    }
+    private func assertDisconnected() throws {
+        waitLabel(app.buttons["connection.toggle"], contains: "Connect")
+        waitLabel(app.staticTexts["frame.status"], contains: "Waiting")
+        let surface = app.otherElements["vr.surface"]
+        expectation(for: NSPredicate(format: "value CONTAINS %@", "texture=no texture"), evaluatedWith: surface)
+        waitForExpectations(timeout: 5)
+        for _ in 0..<40 {
+            if !(try observeHost().connected) { break }
+            Thread.sleep(forTimeInterval: 0.05)
+        }
+        XCTAssertFalse(try observeHost().connected)
+        // Recheck after several fixture frames: late decode/old session callbacks
+        // must not resurrect a texture or keep the desktop session alive.
+        Thread.sleep(forTimeInterval: 1)
+        XCTAssertFalse(try observeHost().connected)
+        XCTAssertTrue((surface.value as? String ?? "").contains("texture=no texture"))
+        XCTAssertTrue(app.staticTexts["frame.status"].label.contains("Waiting"))
+    }
+    private func requestFixturePhoneConnect() throws {
+        try requestFixtureAction("phone-connect")
+    }
+    private func requestFixtureAction(_ action: String) throws {
+        var request = URLRequest(url: URL(string: "http://127.0.0.1:18769/\(action)")!)
+        request.httpMethod = "POST"; request.timeoutInterval = 5
+        let completed = expectation(description: "Explicit PC control through production paired USB adapter")
+        var status: Int?, failure: Error?
+        URLSession.shared.dataTask(with: request) { _, response, error in
+            status = (response as? HTTPURLResponse)?.statusCode; failure = error; completed.fulfill()
+        }.resume()
+        wait(for: [completed], timeout: 8); XCTAssertNil(failure); XCTAssertEqual(status, 200)
     }
     private func draftSettings() throws -> SavedSettings {
         let summary = app.staticTexts["editor.summary"]
@@ -265,7 +329,7 @@ final class ViewerSmokeTests: XCTestCase {
     private func updateFixtureDesktopObject(_ patch: [String: Any]) throws {
         // This changes the synthetic PC's real HostServer settings, never the
         // app's values or preferences. The app must receive its normal broadcast.
-        var request = URLRequest(url: URL(string: "http://127.0.0.1:18767/host-update")!)
+        var request = URLRequest(url: URL(string: "http://127.0.0.1:18769/host-update")!)
         request.httpMethod = "POST"; request.timeoutInterval = 5
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONSerialization.data(withJSONObject: patch)
@@ -282,6 +346,8 @@ final class ViewerSmokeTests: XCTestCase {
         let before = try observeHost()
         app.launchArguments = ["--ui-testing", "--reset-preferences"]
         launchViewer()
+        let initialToggle = app.buttons["connection.toggle"]
+        reveal(initialToggle); initialToggle.tap()
         // A native Simulator has no usable motion source: the real application
         // must fall back after learning the host's full, negotiated settings.
         XCTAssertTrue(app.staticTexts["motion.status"].exists)
@@ -298,10 +364,11 @@ final class ViewerSmokeTests: XCTestCase {
         XCTAssertTrue(after.mouseMoves.isEmpty)
         app.terminate(); app.launchArguments = ["--ui-testing"]; launchViewer()
         reveal(label); XCTAssertTrue(label.label.contains("72%"))
+        reveal(toggle); toggle.tap()
         waitLabel(toggle, contains: "Disconnect", timeout: 40)
         XCTAssertEqual(try observeHost(checkpoint: "stabilization-fresh-usb-restarted").settings.stabilization, 0.72, accuracy: 0.000001)
         screenshot("STABILIZATION-03-fresh-USB-fallback-preserved")
-        reveal(toggle); toggle.tap()
+        reveal(toggle); toggle.tap(); try assertDisconnected()
     }
     private func stabilizationGeometry() throws -> SliderGeometry {
         let text = app.staticTexts["setting.stabilization.label"].value as? String
@@ -527,6 +594,7 @@ final class ViewerSmokeTests: XCTestCase {
         app.terminate(); app.launchArguments = ["--ui-testing"]; launchViewer()
         XCTAssertTrue(app.segmentedControls["language.picker"].buttons["English"].isSelected)
         XCTAssertTrue(app.segmentedControls["connection.transport"].buttons["USB"].isSelected)
+        try assertDisconnected(); reveal(toggle); toggle.tap()
         waitLabel(toggle, contains: "Disconnect", timeout: 40)
         openFitEditor(); XCTAssertEqual(try draftSettings(), defaults); app.buttons["editor.discard"].tap()
     }

@@ -58,6 +58,8 @@ public final class VrRenderer implements GLSurfaceView.Renderer {
     private volatile float yaw, pitch, roll;
     private int program, texture, positionLocation, width, height, imageWidth = 16, imageHeight = 9, maxTextureSize = 2048;
     private boolean hasTexture;
+    private volatile long clearGeneration;
+    private long drawnGeneration;
 
     public VrRenderer() { vertices.put(new float[]{-1,-1, 1,-1, -1,1, 1,1}).position(0); }
     public void setSettings(VrSettings value) { VrSettings copy = value.copy(); copy.normalize(); settings = copy; }
@@ -83,6 +85,14 @@ public final class VrRenderer implements GLSurfaceView.Renderer {
         }
     }
     public void resumeFrames() { synchronized (frameLock) { acceptingFrames = true; } }
+    /** Clear the last displayed frame on disconnect; only the GL thread touches its texture. */
+    public void clearFrames() {
+        synchronized (frameLock) {
+            acceptingFrames = false;
+            if (pending != null) { pending.recycle(); pending = null; }
+            clearGeneration++;
+        }
+    }
 
     @Override public void onSurfaceCreated(GL10 unused, EGLConfig config) {
         program = GLES20.glCreateProgram();
@@ -109,10 +119,12 @@ public final class VrRenderer implements GLSurfaceView.Renderer {
     @Override public void onDrawFrame(GL10 unused) {
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
         Bitmap latest;
-        long session, receivedAt;
+        long session, receivedAt, generation;
         synchronized (frameLock) {
             latest = pending; session = pendingSession; receivedAt = pendingReceivedAt; pending = null;
+            generation = clearGeneration;
         }
+        if (drawnGeneration != generation) { drawnGeneration = generation; hasTexture = false; }
         if (latest != null) {
             if (latest.getWidth() > maxTextureSize || latest.getHeight() > maxTextureSize) {
                 float factor = (float) maxTextureSize / Math.max(latest.getWidth(), latest.getHeight());
@@ -133,6 +145,8 @@ public final class VrRenderer implements GLSurfaceView.Renderer {
             TextureSubmissionListener callback = submissionListener;
             if (callback != null && receivedAt >= 0) callback.onSubmitted(session, receivedAt, SystemClock.elapsedRealtimeNanos());
         }
+        // A disconnect may have happened while this GL thread uploaded its old pending frame.
+        if (generation != clearGeneration) { hasTexture = false; return; }
         if (!hasTexture || width < 2 || height < 1) return;
         VrSettings current = settings;
         GLES20.glUseProgram(program);

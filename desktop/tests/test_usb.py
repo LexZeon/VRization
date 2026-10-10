@@ -166,9 +166,9 @@ class AdbDiscoveryTests(unittest.TestCase):
             presence = WindowsUsbPresence(lambda: [r"USB\VID_12D1&PID_107E\USB123"],
                                           windows=True, clock=lambda: 0)
 
-            def create_adb(selected_path):
+            def create_adb(selected_path, *args, **kwargs):
                 calls.append(selected_path)
-                return AdbReverse(selected_path, run, usb_presence=presence)
+                return AdbReverse(selected_path, run, usb_presence=presence, **kwargs)
 
             events = []
             manager = UsbManager(SimpleNamespace(port=8765, running=False), events.append,
@@ -179,7 +179,7 @@ class AdbDiscoveryTests(unittest.TestCase):
                  patch("vrization_host.usb.AdbReverse", side_effect=create_adb):
                 manager.set_enabled(preferences["enabled"])
                 manager.scan()
-                self.assertEqual(calls, [path.resolve()])
+                self.assertEqual(calls, [path.resolve(), path.resolve()])
                 self.assertTrue(manager.authorized.is_set())
                 self.assertIn({"event": "usb_devices", "serials": ("USB123",)}, events)
                 self.assertIn(("tcp:18765", "tcp:8765"), runner.mappings)
@@ -334,6 +334,19 @@ class UsbOwnershipTests(unittest.TestCase):
         sock.response = struct.pack("<IIII", 1024 * 1024 + 1, 1, 8, 1)
         with self.assertRaises(ValueError):
             mux.exchange(sock, {"MessageType": "ListDevices"})
+
+    def test_only_paired_connection_refused_proves_endpoint_unavailable(self):
+        from vrization_host.usb import AppleEndpointUnavailable
+        for result in (3, 2, 1, 6, None, False, "3"):
+            with self.subTest(result=result):
+                connected = MemorySocket({} if result is None else {"Number": result})
+                sockets = iter((MemorySocket({"PairRecordData": plistlib.dumps({"HostID": "TEST"})}), connected))
+                mux = AppleMux(connector=lambda *args, **kwargs: next(sockets))
+                error_type = AppleEndpointUnavailable if result == 3 else (ConnectionError if type(result) is int else ValueError)
+                with self.assertRaises(error_type) as caught:
+                    mux.connect(AppleDevice(1, "IOS"))
+                self.assertEqual(isinstance(caught.exception, AppleEndpointUnavailable), result == 3)
+                self.assertTrue(connected.closed)
 
     def test_mux_requires_existing_trust_pair_record_without_creating_one(self):
         for result in ({"Number": 2}, {"PairRecordData": b"invalid"},
@@ -498,7 +511,9 @@ class UsbOwnershipTests(unittest.TestCase):
                 with patch("vrization_host.usb.find_adb", return_value=None):
                     manager.scan()
                 self.assertFalse(manager.authorized.is_set())
-                self.assertEqual(events[-1]["message"], unavailable if error else missing)
+                expected = ("Android USB startup or recovery timed out; retrying automatically"
+                            if isinstance(error, subprocess.TimeoutExpired) else unavailable if error else missing)
+                self.assertEqual(events[-1]["message"], expected)
                 self.assertEqual(commands, [["devices", "-l"]] if error else [])
                 if adb:
                     self.assertIsNone(adb.owned)
@@ -681,6 +696,8 @@ class UsbAsyncTests(unittest.IsolatedAsyncioTestCase):
         try:
             relay.start(AppleDevice(1, "FAKE-USB"))
             reader, writer = await asyncio.wait_for(connected, 3)
+            writer.write(pack_frame(1, b'{"v":1,"type":"connect"}'))
+            await writer.drain()
             async def receive():
                 length, = struct.unpack(">I", await reader.readexactly(4))
                 kind = (await reader.readexactly(1))[0]

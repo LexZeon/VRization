@@ -515,6 +515,7 @@ class WindowsGpuCapture:
         self.scaler = None
         self._configuration = None
         self._last_frame = None
+        self.protected_content_masked = False
         self._fatal = False
         self.closed = False
         self.adapter = self.output = self.device = self.context = self.duplicator = PTR()
@@ -790,8 +791,9 @@ class WindowsGpuCapture:
             if not resource.value:
                 raise OSError("AcquireNextFrame returned no image resource")
             self._guard()
-            if frame.ProtectedContentMaskedOut:
-                raise OSError("Protected content is masked; capture stopped")
+            # DXGI already blacks out protected regions in this surface. Use
+            # only that OS-provided image; this flag is diagnostic, not failure.
+            # https://learn.microsoft.com/windows/win32/api/dxgi1_2/ns-dxgi1_2-dxgi_outdupl_frame_info
             iid = Guid.from_text("6f15aaf2-d208-4e89-9ab4-489535d34f9c")
             hr = invoke(resource, 0, HRESULT, [PTR, ct.POINTER(PTR)], ct.byref(iid), ct.byref(texture))
             check(hr, "QueryInterface acquired Texture2D")
@@ -802,6 +804,7 @@ class WindowsGpuCapture:
             # completed frame. Never publish it or return the previous cache.
             self._guard()
             self._last_frame = pixels
+            self.protected_content_masked = bool(frame.ProtectedContentMaskedOut)
             return pixels
         except BaseException as error:
             failure = error
@@ -838,6 +841,7 @@ class WindowsGpuCapture:
             raise OSError("Windows GPU resources must close on their capture thread")
         self.closed = True
         self._last_frame = None
+        self.protected_content_masked = False
         self._configuration = None
         first_error = None
         try:

@@ -59,7 +59,7 @@ class GpuCaptureIntegrationTests(unittest.TestCase):
 
     @staticmethod
     def make_gpu():
-        gpu = Mock()
+        gpu = Mock(protected_content_masked=False)
         gpu.grab.side_effect = lambda rectangle, size, **kwargs: pixels(size)
         return gpu
 
@@ -95,6 +95,23 @@ class GpuCaptureIntegrationTests(unittest.TestCase):
         for call in self.gpu.grab.call_args_list:
             self.assertEqual(call.kwargs, {"force_latest": True})
         self.clock.assert_not_called()
+        self.assert_no_cpu_capture()
+
+    def test_masked_pixels_stay_black_and_cached_without_cpu_fallback(self):
+        size = (384, 640)
+        row = bytes((0, 0, 0, 255)) * 192 + bytes((20, 140, 220, 255)) * 192
+        self.gpu.protected_content_masked = True
+        self.gpu.grab.side_effect = [row * 640, None, None]
+        first = self.source.read(self.config)
+        self.assertTrue(first.protected_content_masked)
+        with Image.open(BytesIO(first.jpeg)) as decoded:
+            self.assertEqual(decoded.getpixel((40, 40)), (0, 0, 0))
+            self.assertGreater(decoded.getpixel((300, 40))[0], 200)
+        self.assertIs(self.source.read(self.config), first)
+        reencoded = self.source.read(replace(self.config, quality=90))
+        self.assertTrue(reencoded.protected_content_masked)
+        self.assert_frame(reencoded, size)
+        self.gpu_factory.assert_called_once()
         self.assert_no_cpu_capture()
 
     def test_static_desktop_reuses_jpeg_and_original_capture_timestamp(self):

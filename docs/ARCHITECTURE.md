@@ -29,16 +29,21 @@ flowchart LR
 | Path | Responsibility |
 | --- | --- |
 | `desktop/src/vrization_host/` | Python capture, protocol, server, input adapter and GUI. |
+| `desktop/src/vrization_host/connection.py` | Candidate pure connection coordination and independent loopback USB control service; explicit Connect can originate on either supported device. |
 | `desktop/src/vrization_host/view_edit.py` | Pure per-eye fit geometry and local draft transactions. |
 | `desktop/src/vrization_host/pose_filter.py` | Original host-only speed-adaptive first-person smoothing; strength 0 bypasses it. |
 | `desktop/tests/` | Core checks without real games. |
 | `android/vr-core/` | Reusable Android settings, pose interfaces and GLES renderer. |
+| `android/vr-core/.../SocketAttempt.java`, `UsbConnectRequest.java`, `UsbConnectionAttempt.java`, `TransportEndpoints.java` | Candidate pure Java socket ownership, one-shot explicit requests, bounded retry policy and shared control/video endpoints. |
 | `android/app/` | Connection UI, WebSocket client, JPEG decoding and settings. |
-| `ios/Sources/VRizationCore/` | Foundation-based protocol, settings synchronization, rotation math, session gates and USB framing. |
+| `desktop/src/vrization_host/ios_usb.py` | Paired one-shot iOS control and video readiness / relay; injected coordinator callback. |
+| `ios/Sources/VRizationCore/` | Foundation protocol, settings synchronization, rotation math, session gates, USB framing and `USBConnectionControl`. |
 | `ios/VRizationApp/` | UIKit UI, URLSession / Network transport, Core Motion, JPEG decoding and Metal renderer. |
 | `docs/` | Tutorials, protocol, integration and scope. |
 
 `vr-core` is written in Java but depends on Android OpenGL ES, Bitmap and sensor APIs. Its AAR embeds in Android software; it is not a platform-independent Java / Unity / Unreal library. Other platforms can implement the protocol and adapt pose / rendering to their engine.
+
+The next connection repair is under development; new module paths do not establish release or hardware acceptance. The coordinator owns connection policy, while USB/OkHttp and UI layers adapt platform I/O and user actions. Explicit Stop invalidates connection/socket identities, cancels owned resources and clears displayed video; late retries and callbacks must not revive it. See [AI handoff and module calls](../AI_HANDOFF.md) for source/build/archive locations, portable seams, signing checks and the acceptance checklist. Historical v0.3.2 evidence remains scoped to that release.
 
 ### Replace the host image source
 
@@ -48,7 +53,7 @@ The original Windows GPU backend in [windows_gpu.py](https://github.com/LexZeon/
 
 `WindowsGpuCapture.grab(rectangle, size, force_latest=False)` returns owned BGRX bytes or `None` when no new duplication frame is available. `force_latest=True` can re-render the owned GPU image after a same-output crop / size change, including a static desktop. Acquired duplication frames are released before returning; their borrowed textures are never kept as the cache. Creation, use and release stay on the same capture thread.
 
-The source validates the requested output against Windows physical layout, output name, HMONITOR, rotation and panel identity before and after GPU work. Output names identify Windows display outputs rather than panel serial numbers. A layout / identity mismatch, protected-content condition, access loss or other fatal resource error closes the session and stops new frames; it does not silently choose another output or rebuild a lost session. Stop, reselect the display / region, then Start again. Any capture error immediately disarms first-person mouse control; resuming requires explicit authorization again.
+The source validates the requested output against Windows physical layout, output name, HMONITOR, rotation and panel identity before and after GPU work. Output names identify Windows display outputs rather than panel serial numbers. Layout / identity mismatch, access loss or fatal resource errors close the session and stop new frames; they do not silently choose another output or rebuild a lost session. Stop, reselect the display / region, then Start again. Capture errors disarm first-person mouse control; resuming requires explicit authorization. DXGI `ProtectedContentMaskedOut` means Windows has already blacked out protected regions in the supplied image; the backend continues streaming that masked surface and records the condition once. It does not remove the mask, recover those pixels or change capture backend to read them. See [Microsoft's frame-info contract](https://learn.microsoft.com/en-us/windows/win32/api/dxgi1_2/ns-dxgi1_2-dxgi_outdupl_frame_info).
 
 A verified region spanning multiple outputs, or an explicitly unsupported initial GPU API / session, can use **the same validated rectangle** through GDI, then MSS. A layout / identity error does not permit fallback. The original GDI backend pre-scales into a bounded top-down DIB, flushes writes before reading, and returns an owned byte copy on the capture thread. MSS captures the same rectangle and scales in CPU memory when that path is needed. `MssCaptureSource(prefer_gpu=False, prefer_native=False)` selects MSS explicitly. The default adapter reuses an owned JPEG on a static desktop, retaining its original `captured_at`; refresh packets are not necessarily new captures. Hardware, load and fallback availability still determine the achieved rate. See [performance and measurement boundaries](PERFORMANCE.md) and [validation](VALIDATION.md).
 
@@ -65,7 +70,7 @@ v1 carries JPEG. Hardware H.264 / H.265 requires new framing, timestamps, keyfra
 
 ### USB adapters and capture presets
 
-`desktop/src/vrization_host/usb.py` provides `UsbManager`, `AdbReverse`, `AppleMux` and `IOSUsbRelay`. Detection runs outside the Tk thread; iOS relay I/O has its own thread. The Windows GUI enables USB detection by default, but importing / embedding `HostServer` does not. An embedder must explicitly own the manager lifecycle and authorization callback:
+`desktop/src/vrization_host/usb.py` provides `UsbManager`, `AdbReverse` and `AppleMux`. `ios_usb.py` owns `IosRelay` and `request_ios_connect`; the historical `usb.IOSUsbRelay` spelling remains a lazy alias. Detection runs outside Tk; the video relay has its own thread. `connection.py` supplies a pure `ConnectionCoordinator` and independent loopback `UsbConnectService` at `18764`. Phone Connect requests host startup through the coordinator; PC Connect queues one selected-device request. Android uses `18764` control plus `18765` video. iOS uses foreground `18767` control plus explicit-attempt `18766` video and readiness before requesting startup. Host Stop invalidates pending identities, gates old iOS attempts and sends a paired acknowledged native stop before reopening detection startup; auto detection cannot restore the stopped session. Embedding `HostServer` alone does not enable these platform services; an embedder must own lifecycle and authorization:
 
 ```python
 from vrization_host.usb import UsbManager
@@ -123,7 +128,7 @@ let usbFrame = try USBFraming.encode(USBFrame(kind: .json, payload: poseJSON))
 // Send poseJSON through WebSocket, or usbFrame through the USB connection.
 ```
 
-Integrators can reuse validation, synchronization or math alone. The complete app supplies `StreamClient`, `USBListener`, `MotionSource`, `JPEGDecoder` and `StereoRenderer`; adapt their lifecycle and UI for your host application. Stop network / listener and motion on backgrounding, clear stale session work, and reconnect explicitly. A custom in-game camera sink can consume pose without the Windows mouse adapter. The core is not an installed Unity / Unreal plugin or an ABI-stable SDK. Preserve original MIT notices. See [iOS build and signing](IOS.md).
+Integrators can reuse validation, synchronization or math alone. The complete app supplies `StreamClient`, `USBListener`, `USBControlListener`, `MotionSource`, `JPEGDecoder` and `StereoRenderer`; adapt their lifecycle and UI for your host application. Stop network / listener and motion on backgrounding, clear stale session work, and reconnect explicitly. A custom in-game camera sink can consume pose without the Windows mouse adapter. The core is not an installed Unity / Unreal plugin or an ABI-stable SDK. Preserve original MIT notices. See [iOS build and signing](IOS.md).
 
 ### Windows and verification boundaries
 
@@ -147,7 +152,7 @@ The original host `view_edit.py` is a pure geometry / draft-transaction module. 
 
 App editors preview full-screen flat geometry with distortion disabled, while retaining actual mode / optical values in the draft. Phone poses pause during editing; entry sends one existing hello with editing:true to disarm on receipt, and desktop entry disarms locally. Phone Save commits the whole draft once; PC Save patches only the four fit fields (scale, offsetX, offsetY and eyeSeparation) into the latest state, preserving other concurrent changes. Discard restores the local entry preview, and phone lifecycle / disconnection ends an uncommitted draft. Phones persist committed complete VR profiles. A validated host hello opens the session first, then a saved local profile is sent once via normal settings / clientSeq; subsequent revision synchronization remains authoritative. Pairing secrets are excluded.
 
-Reset restores VR / English / USB and low capture defaults. The host preserves explicit capture monitor / rectangle and ADB path to avoid selecting unintended content or deleting tools; phone reset disconnects and suppresses the immediate rebuilt page's initial attempt. A fresh app launch resumes normal initial USB detection / listening. These user-preference changes do not change protocol v1, the bounded JPEG pipeline or explicit mouse authorization.
+Reset restores VR / English / USB and low capture defaults. The host preserves explicit capture monitor / rectangle and ADB path to avoid selecting unintended content or deleting tools; phone reset disconnects and suppresses the immediate rebuilt page's initial attempt. A fresh Android launch can wait for an existing stream; iOS restores only foreground control until explicit Connect. These user-preference changes do not change protocol v1, the bounded JPEG pipeline or explicit mouse authorization.
 
 ### Host-only stabilization and compatible profiles
 
@@ -188,16 +193,21 @@ flowchart LR
 | 路径 | 职责 |
 | --- | --- |
 | `desktop/src/vrization_host/` | Python 采集、协议、服务器、鼠标适配器与桌面界面。 |
+| `desktop/src/vrization_host/connection.py` | 候选纯连接协调与独立本机 USB 控制服务；受支持设备任一端可以发起主动连接。 |
 | `desktop/src/vrization_host/view_edit.py` | 纯单眼适配几何与本地草稿事务。 |
 | `desktop/src/vrization_host/pose_filter.py` | 原创主机速度自适应第一人称平滑，强度 0 绕过。 |
 | `desktop/tests/` | 不依赖真实游戏的核心检查。 |
 | `android/vr-core/` | 可复用 Android library：设置、旋转传感器接口与 OpenGL ES 双眼渲染。 |
+| `android/vr-core/.../SocketAttempt.java`、`UsbConnectRequest.java`、`UsbConnectionAttempt.java`、`TransportEndpoints.java` | 候选纯 Java socket 所有权、一次显式请求、有限重试策略及共用控制／视频端点。 |
 | `android/app/` | 连接界面、WebSocket 客户端、JPEG 解码和设置交互。 |
-| `ios/Sources/VRizationCore/` | Foundation 协议、设置同步、旋转数学、会话门与 USB 分帧。 |
+| `desktop/src/vrization_host/ios_usb.py` | 已配对 iOS 一次控制与视频就绪／中继，注入协调器回调。 |
+| `ios/Sources/VRizationCore/` | Foundation 协议、设置同步、旋转数学、会话门、USB 分帧和 `USBConnectionControl`。 |
 | `ios/VRizationApp/` | UIKit 界面、URLSession / Network 传输、Core Motion、JPEG 解码与 Metal 渲染。 |
 | `docs/` | 教程、协议、移植与版本边界。 |
 
 `vr-core` 使用 Java 编写，但依赖 Android 的 OpenGL ES、Bitmap 与传感器 API。它可生成 AAR 并嵌入其他 Android 软件；不能直接作为无平台依赖的 Java / Unity / Unreal 库使用。跨平台客户端可以独立实现协议，将姿态与显示逻辑适配到目标引擎。
+
+下一版连接修复仍在开发，新模块路径不代表发行或硬件验收已经完成。协调器拥有连接策略，USB／OkHttp 和界面层适配平台 I/O 与用户动作；主动停止使连接／socket 身份失效，取消自有资源并清掉显示画面，晚到重试和回调不能恢复会话。[AI 接手与模块调用](../AI_HANDOFF.md) 说明源码／构建／归档位置、移植切口、签名门槛与验收清单。历史 v0.3.2 证据只证明该版。
 
 ### 替换电脑画面来源
 
@@ -207,7 +217,7 @@ flowchart LR
 
 `WindowsGpuCapture.grab(rectangle, size, force_latest=False)` 返回独立 BGRX 字节，没有新的 duplication 帧时返回 `None`。`force_latest=True` 能在同一输出改变选区 / 尺寸后重新渲染自有 GPU 图像，静止桌面也适用。取得的 duplication 帧会在返回前释放，不把借用的纹理保留作缓存；创建、使用与释放均在同一采集线程。
 
-GPU 操作前后都会把目标同 Windows 物理布局、输出名称、HMONITOR、旋转和面板身份核对。输出名称表示 Windows 显示输出，不是面板序列号。布局 / 身份不匹配、受保护内容、访问丢失或其他致命资源错误会关闭会话并停止产生新帧，不悄悄换输出、不自动重建失效会话。需停止串流、重新选择显示器 / 区域，再启动。任何采集错误都会立即解除 第一人称鼠标授权，恢复控制必须重新明确授权。
+GPU 操作前后核对 Windows 物理布局、输出名称、HMONITOR、旋转和面板身份；输出名称不是面板序列号。布局／身份不匹配、访问丢失或致命资源错误关闭会话并停帧，不悄悄换输出或重建失效会话；须停止、重选显示器／选区再启动。采集错误解除第一人称鼠标授权，恢复需主动批准。DXGI `ProtectedContentMaskedOut` 表示 Windows 已把输出图像内受保护区域置黑，后端继续串流该已遮罩 surface、仅记录一次此状态；不解除遮罩、不恢复这些像素、不切换后端重新读取。见 [Microsoft 帧信息约定](https://learn.microsoft.com/en-us/windows/win32/api/dxgi1_2/ns-dxgi1_2-dxgi_outdupl_frame_info)。
 
 已确认跨越多个输出的合法区域，或初始化时明确不支持 GPU 的 API / 会话，可对**同一个已校验矩形**依次采用 GDI、MSS。布局 / 身份错误不允许回退。原创 GDI 后端先缩放到有尺寸上限的顶向下 DIB，读取前完成写入，在采集线程返回独立字节副本；需要 MSS 时，仍采集同一区域并在 CPU 内存缩放。`MssCaptureSource(prefer_gpu=False, prefer_native=False)` 显式选择 MSS。默认适配器在静止桌面复用自有 JPEG，保留原始 `captured_at`，刷新传输包不一定是新采集。实际速度仍取决于硬件、负载与可用后端，见 [性能与测量边界](PERFORMANCE.md) 和 [验证记录](VALIDATION.md)。
 
@@ -226,7 +236,7 @@ server = HostServer(capture_source=my_capture, input_sink=my_input)
 
 ### USB 适配器与捕获预设
 
-`desktop/src/vrization_host/usb.py` 提供 `UsbManager`、`AdbReverse`、`AppleMux`、`IOSUsbRelay`。检测在 Tk 线程之外运行，iOS 中继 IO 使用独立线程。Windows 界面默认启用 USB 检测，但导入 / 嵌入 `HostServer` 不会自动开启；宿主须主动管理生命周期和授权回调：
+`desktop/src/vrization_host/usb.py` 提供 `UsbManager`、`AdbReverse` 和 `AppleMux`；`ios_usb.py` 拥有 `IosRelay` 和 `request_ios_connect`，旧 `usb.IOSUsbRelay` 名称保留为懒加载别名。检测在 Tk 线程之外，中继另用线程。`connection.py` 提供纯 `ConnectionCoordinator` 和 `18764` 独立回环 `UsbConnectService`。手机主动连接经协调器请求主机启动，电脑主动连接对选定设备发一次请求。Android 为 `18764` 控制／`18765` 视频；iOS 为前台 `18767` 控制／主动尝试 `18766` 视频，请求启动前要求就绪预握手。主机停止使待处理身份失效、限制旧 iOS 尝试，并发送已配对、原生清理后确认的停止，再允许检测启动；自动检测不能恢复已停止会话。只嵌入 `HostServer` 不开启这些平台服务，宿主须拥有生命周期与授权：
 
 ```python
 from vrization_host.usb import UsbManager
@@ -310,7 +320,7 @@ Swift 协议 / 数学已经可以复用；引擎适配器和稳定 SDK 仍是未
 
 应用编辑器预览无畸变全屏平面，草稿仍保留实际模式 / 光学值。手机编辑时暂停姿态，进入时用已有 hello 的 editing:true 一次通知主机，收到后解除授权；电脑进入则本地解除。手机一次提交完整草稿，电脑只把四个适配字段（scale、offsetX、offsetY、eyeSeparation）合并进最新状态以保留其他并发变化；放弃恢复本地进入预览，手机生命周期变化 / 断线结束未提交草稿。手机保存完整已提交 VR 配置：先合法主机 hello 建立会话，再通过普通 settings / clientSeq 一次恢复本地配置，之后继续 revision 同步；排除配对秘密。
 
-重置恢复 VR / 英文 / USB 与低延迟采集默认；主机保留明确的显示器 / 选区和 ADB 路径，避免切到非预期内容或删除工具。手机重置断线，抑制当前重建界面的初次尝试；之后全新启动恢复正常初次 USB 检测 / 监听。这些用户偏好变化不改变协议 v1、有限 JPEG 队列或电脑主动授权边界。
+重置恢复 VR / 英文 / USB 与低延迟采集默认；主机保留明确的显示器 / 选区和 ADB 路径，避免切到非预期内容或删除工具。手机重置断线，抑制当前重建界面的初次尝试；之后全新 Android 启动可等待已有串流，iOS 仅恢复前台控制，需显式连接。这些用户偏好变化不改变协议 v1、有限 JPEG 队列或电脑主动授权边界。
 
 ### 主机单次防抖与兼容配置
 

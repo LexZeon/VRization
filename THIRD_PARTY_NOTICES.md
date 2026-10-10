@@ -77,6 +77,9 @@ The Python Apple-USB adapter and Swift USB framing are original implementations.
 
 Apple Devices / Apple Mobile Device support must be installed separately under Apple's terms; Apple's [Windows guide](https://support.apple.com/guide/devices-windows/welcome/windows) and [USB / Trust instructions](https://support.apple.com/en-us/108643) inform user setup. Protocol-reference credit does not claim ownership of upstream contributions or relicense upstream materials. VRization's four-byte big-endian JSON / JPEG framing inside the iOS USB tunnel is its own application protocol, separate from usbmux's plist framing. Future incorporation of any reference project's code or binary requires a new license and distribution review.
 
+
+The v0.3.3 connection lifecycle work consulted the Android Open Source Project's [ADB startup handshake](https://android.googlesource.com/platform/packages/modules/adb/+/refs/heads/main/client/main.cpp) (AOSP contributors, Apache-2.0 source; consulted 2026-10-09) to understand USB initialization before the parent receives acknowledgment. The bounded startup grace and reverse-map ownership policy are original code, not copied ADB implementation. Microsoft's [DXGI frame metadata](https://learn.microsoft.com/en-us/windows/win32/api/dxgi1_2/ns-dxgi1_2-dxgi_outdupl_frame_info) documents that protected content is already blacked out by Windows; v0.3.3 continues transmitting that OS-masked surface rather than failing the whole capture. No masked image is reread through another API and no Microsoft sample implementation is copied. Android socket cancellation follows the existing OkHttp 4.12.0 `WebSocket.cancel` contract; the original two-generation gate and separate control protocol introduce no dependency or copied implementation.
+
 ### Build tools and documentation services
 
 | Tool | Use / terms |
@@ -206,6 +209,8 @@ Python Apple USB 适配器和 Swift USB 分帧均为原创实现。以下材料�
 | usbmuxd；初始 daemon 作者 Hector Martin，及 Nikias Bassen 等贡献者 | [README](https://github.com/libimobiledevice/usbmuxd/blob/3ded00c9985a5108cfc7591a309f9a23d57a8cba/README.md) 与 [client.c 消息字段](https://github.com/libimobiledevice/usbmuxd/blob/3ded00c9985a5108cfc7591a309f9a23d57a8cba/src/client.c)，commit `3ded00c9985a5108cfc7591a309f9a23d57a8cba` | README 声明 GPL v3；实际参考的 `client.c` 头允许 GPL 第 2 版**或**第 3 版。此 daemon 与 LGPL 的 libusbmuxd 库不同。[GPL v3 原文](https://github.com/libimobiledevice/usbmuxd/blob/3ded00c9985a5108cfc7591a309f9a23d57a8cba/COPYING.GPLv3)。 |
 
 Apple Devices / Apple Mobile Device 支持需按 Apple 条款另行安装；用户设置参考 Apple 的 [Windows 指南](https://support.apple.com/guide/devices-windows/welcome/windows) 与 [USB / 信任说明](https://support.apple.com/en-us/108643)。协议参考致谢不冒称上游贡献归本项目，不重新授权上游材料。iOS USB 隧道内的四字节大端 JSON / JPEG 分帧是 VRization 自有应用协议，与 usbmux 的 plist 分帧不同。以后如引入任一参考项目的代码或二进制，须重新核对许可与分发条件。
+
+v0.3.3 连接生命周期改进参考 Android Open Source Project 的 [ADB 启动握手](https://android.googlesource.com/platform/packages/modules/adb/+/refs/heads/main/client/main.cpp)（AOSP 贡献者，源码 Apache-2.0；2026-10-09 查阅），理解父进程收到确认前的 USB 初始化。有限启动等待与映射归属策略均为原创代码，没有复制 ADB 实现。微软 [DXGI 帧信息](https://learn.microsoft.com/en-us/windows/win32/api/dxgi1_2/ns-dxgi1_2-dxgi_outdupl_frame_info) 说明受保护内容已由 Windows 遮黑；v0.3.3 继续传输系统已经遮罩的画面，不再中断整次采集，不使用其他接口重读遮罩，也没有复制微软示例实现。Android socket 取消使用既有 OkHttp 4.12.0 的 `WebSocket.cancel` 契约；原创双代际校验与独立控制协议没有新增依赖或复制实现。
 
 ### 构建工具与文档服务
 

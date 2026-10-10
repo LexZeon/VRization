@@ -1,5 +1,7 @@
 package org.vrization.app;
 
+import org.vrization.core.SocketAttempt;
+
 import java.util.ArrayDeque;
 import java.util.Queue;
 import java.util.concurrent.CountDownLatch;
@@ -58,6 +60,18 @@ public final class SessionDispatcherTest {
         sessions.dispatch(usb, () -> opened[0] = true);
         sessions.invalidate(); owner.remove().run();
         assertFalse(opened[0]);
+    }
+    @Test public void aRetryRejectsOldSocketCallbacksWhileKeepingTheUserConnectionWindow() {
+        Queue<Runnable> owner = new ArrayDeque<>(); SessionDispatcher sessions = new SessionDispatcher(owner::add);
+        SocketAttempt socket = new SocketAttempt();
+        long connection = sessions.invalidate(), old = socket.start(); int[] settings = {0};
+        sessions.dispatch(connection, () -> socket.deliverCurrent(old, () -> settings[0]++));
+        sessions.dispatch(connection, () -> socket.deliverCurrent(old, socket::cancel));
+        long current = socket.start();
+        while (!owner.isEmpty()) owner.remove().run();
+        assertEquals(0, settings[0]); assertTrue(sessions.isCurrent(connection)); assertTrue(socket.isCurrent(current));
+        sessions.dispatch(connection, () -> socket.deliverCurrent(current, () -> settings[0]++));
+        owner.remove().run(); assertEquals(1, settings[0]);
     }
     @Test public void directFrameHandoffDoesNotWaitForQueuedUiWork() {
         Queue<Runnable> owner = new ArrayDeque<>();

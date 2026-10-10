@@ -1,4 +1,5 @@
 """Deterministic capture pacing checks; no screen access or global timer changes."""
+import threading
 import unittest
 from unittest.mock import patch
 
@@ -94,6 +95,33 @@ class CapturePacingTests(unittest.TestCase):
 
 
 class SenderStatisticsTests(unittest.IsolatedAsyncioTestCase):
+    async def test_masked_notice_is_once_per_viewer_and_does_not_change_frame_bytes(self):
+        events = []
+        masked = Frame(b"os-masked-jpeg", 640, 360, 0, protected_content_masked=True)
+        class Buffer:
+            sequence = 0
+            async def next(buffer, after):
+                buffer.sequence += 1
+                return buffer.sequence, masked
+        class Socket:
+            closed = False
+            def __init__(socket):
+                socket.sent = []
+            async def send_bytes(socket, data):
+                socket.sent.append(data)
+                socket.closed = len(socket.sent) == 3
+        host = HostServer.__new__(HostServer)
+        host._buffer, host.on_event = Buffer(), events.append
+        host.session_generation, host._stopping = 1, threading.Event()
+        for session in (1, 2):
+            host.session_generation = session
+            socket = Socket()
+            host._ws = socket
+            await host._send_frames(socket)
+            self.assertEqual(socket.sent, [masked.jpeg] * 3)
+        notices = [event for event in events if event["event"] == "capture_masked"]
+        self.assertEqual([event["session"] for event in notices], [1, 2])
+
     async def test_host_component_timings_exclude_static_refresh_age(self):
         now, events = [0.0], []
         first = Frame(b"one", 640, 360, 0, capture_ms=3, ready_at=.1)
@@ -117,8 +145,11 @@ class SenderStatisticsTests(unittest.IsolatedAsyncioTestCase):
 
         host = HostServer.__new__(HostServer)
         host._buffer, host.on_event = Buffer(), events.append
+        host.session_generation, host._stopping = 1, threading.Event()
+        socket = Socket()
+        host._ws = socket
         with patch("vrization_host.server.time.perf_counter", side_effect=lambda: now[0]):
-            await host._send_frames(Socket())
+            await host._send_frames(socket)
         self.assertEqual(len(events), 1)
         self.assertAlmostEqual(events[0]["captureMs"], 4)
         self.assertAlmostEqual(events[0]["queueMs"], 7.5)
@@ -148,6 +179,7 @@ class SenderStatisticsTests(unittest.IsolatedAsyncioTestCase):
         host._buffer = Buffer()
         host.on_event = events.append
         socket = Socket()
+        host.session_generation, host._stopping, host._ws = 1, threading.Event(), socket
         with patch("vrization_host.server.time.perf_counter", side_effect=lambda: now[0]):
             await host._send_frames(socket)
         self.assertEqual(len(events), 1)

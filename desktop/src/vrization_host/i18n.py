@@ -59,6 +59,14 @@ ENGLISH = {
 }
 
 CHINESE = {
+    'iPhone Stop is unconfirmed; tap Connect on this PC for a new attempt': '尚未确认 iPhone 已停止；在此电脑点击连接可重新尝试',
+    'Windows has blacked out protected content; the remaining desktop continues streaming.': 'Windows 已将受保护内容遮黑，其余桌面继续串流。',
+    'Connect / Start streaming': '连接 / 开始串流',
+    'USB: tap Connect on either device. Automatic detection does not start streaming. LAN: start on this PC, then use the address and code above.': 'USB：在任一设备点击连接。自动检测不会自行开始串流。局域网：先在电脑开始串流，再输入上方地址和配对码。',
+    'USB connection control is unavailable; start streaming on this PC': 'USB 连接控制暂不可用；请在此电脑开始串流',
+    'USB cleanup unavailable; retrying before switching tools': 'USB 清理暂不可用；正在重试，暂不切换工具',
+    'USB control port is in use or unavailable; existing mappings were kept': 'USB 控制端口被占用或暂不可用；已保留原有映射',
+    'USB connection request expired; tap Connect again': 'USB 连接请求已超时，请再次点击连接',
     'First-person': '第一人称',
     '先选择 FPS 模式 / Select FPS mode first': '请先选择第一人称模式。',
     'Select First-person mode first.': '请先选择第一人称模式。',
@@ -133,6 +141,11 @@ CHINESE = {
     'iPhone found; start streaming and open the phone app': '已发现 iPhone；请开始串流并打开手机软件',
     'USB waiting: install Android Platform Tools or Apple Devices; LAN is available': 'USB 等待中：请安装 Android Platform Tools 或 Apple Devices；也可使用局域网',
     'Android USB unavailable; check the official Platform Tools path': '安卓 USB 不可用；请检查官方 Platform Tools 路径',
+    'Android USB detection timed out; retrying automatically': '安卓 USB 检测超时；正在自动重试',
+    'Android USB startup or recovery timed out; retrying automatically': '安卓 USB 启动或恢复超时；正在自动重试',
+    'Stopping streaming; waiting for cleanup': '正在停止串流，请等待清理完成',
+    'Streaming cleanup is still in progress; Start stays disabled': '串流仍在清理中；完成前无法重新开始',
+    'Streaming is still stopping; wait for cleanup to finish': '串流仍在停止中，请等待清理完成',
     'Connect a USB phone; enable Android USB debugging or install Apple Devices': '请连接 USB 手机；安卓开启 USB 调试，iPhone 安装 Apple Devices',
     'iPhone USB connected': 'iPhone USB 已连接',
     'iPhone USB disconnected': 'iPhone USB 已断开',

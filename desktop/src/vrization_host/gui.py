@@ -14,6 +14,7 @@ import webbrowser
 
 from ._version import __version__
 from .capture import CaptureConfig, MssCaptureSource
+from .connection import ConnectionCoordinator, UsbConnectService
 from .input import EmergencyHotkey
 from .i18n import load_language, save_language, translate
 from .protocol import Settings
@@ -112,8 +113,14 @@ class HostWindow:
             self.config = replace(self.config, monitor=initial_monitor, region=None)
         self.server = HostServer(settings=self.settings, capture_config=self.config,
                                  on_event=self.events.put)
+        self._stop_in_progress = False
+        self._stop_generation = 0
+        self.connection = ConnectionCoordinator(self.events.put, lambda: self.server.running,
+                                                 lambda: self._stop_in_progress)
         self.usb = UsbManager(self.server, self.events.put, adb_path=self.usb_preferences["adb_path"],
-                              preferred_serial=self.usb_preferences["preferred_serial"])
+                              preferred_serial=self.usb_preferences["preferred_serial"],
+                              start_request=self.connection.request)
+        self.control = UsbConnectService(self.connection, self.usb.control_authorized.is_set)
         self.server.usb_authorized = self.usb.authorized.is_set
         self.root.title(self.tr("VRization · 桌面 VR 串流"))
         self.root.configure(bg=BG)
@@ -140,6 +147,10 @@ class HostWindow:
         self.hotkey_available = self.hotkey.start()
         self.root.after(100, self._pump)
         self.usb.start(self.usb_preferences["enabled"])
+        try:
+            self.control.start()
+        except (OSError, TimeoutError):
+            self._log(self.tr("USB connection control is unavailable; start streaming on this PC"))
 
     def tr(self, text, **values):
         return translate(text, self.language, **values)
@@ -167,9 +178,15 @@ class HostWindow:
         self.root.title(self.tr("VRization · 桌面 VR 串流"))
         self._build()
         self.notebook.select(min(selected_tab, self.notebook.index("end") - 1))
-        if self.server.running:
-            self.code_label.configure(text=" ".join(self.server.token))
+        if self._stop_in_progress:
             self.start_button.configure(state="disabled")
+            self.stop_button.configure(state="disabled")
+            self.code_label.configure(text="— — — — — —")
+            self.status.configure(text=self.tr("Stopping streaming; waiting for cleanup"), fg=MUTED)
+            self.stats.configure(text="—")
+        elif self.server.running:
+            self.code_label.configure(text=" ".join(self.server.token))
+            self.start_button.configure(state="normal")
             self.stop_button.configure(state="normal")
             self.status.configure(text=self.tr("●  手机已连接  /  LIVE" if self.server.controller.connected
                                                else "●  等待手机连接  /  WAITING"), fg=ACCENT)
@@ -241,7 +258,7 @@ class HostWindow:
         self.code_label.pack(anchor="w", pady=(4, 0))
         self.address_label = self._label(left, self.tr("电脑地址  {ip} : 8765", ip=self.ip), 11)
         self.address_label.pack(anchor="w")
-        hint = self._label(left, self.tr("USB is preferred. Open the phone app after starting. LAN: use the address and code above."),
+        hint = self._label(left, self.tr("USB: tap Connect on either device. Automatic detection does not start streaming. LAN: start on this PC, then use the address and code above."),
                            9, MUTED, justify="left", anchor="w", wraplength=550)
         hint.pack(fill="x", pady=(5, 0))
         self.usb_label = self._label(left, self.tr(self.usb_status[0], **self.usb_status[1]), 9, MUTED,
@@ -254,7 +271,7 @@ class HostWindow:
         actions.pack(side="right", padx=(15, 0))
         left.pack_forget()
         left.pack(side="left", fill="x", expand=True)
-        self.start_button = ttk.Button(actions, text=self.tr("开始串流  /  START"), style="Primary.TButton", command=self.start)
+        self.start_button = ttk.Button(actions, text=self.tr("Connect / Start streaming"), style="Primary.TButton", command=self.start)
         self.start_button.pack(fill="x", pady=(0, 8))
         row = tk.Frame(actions, bg=CARD)
         row.pack(fill="x")
@@ -720,26 +737,52 @@ class HostWindow:
         overlay.focus_force()
         overlay.grab_set()
 
-    def start(self):
+    def start(self, *, notify_phone=True):
+        if self._stop_in_progress:
+            return False
+        if self.server.running:
+            if notify_phone:
+                self.usb.request_connect()
+            return True
         try:
             if not self.apply_capture():
-                return
+                return False
             self.server.start()
             self.code_label.configure(text=" ".join(self.server.token))
-            self.start_button.configure(state="disabled")
+            self.start_button.configure(state="normal")
             self.stop_button.configure(state="normal")
             self.status.configure(text=self.tr("●  等待手机连接  /  WAITING"), fg=ACCENT)
             self._log(self.tr("串流服务已启动。如 Windows 询问防火墙，请只允许专用网络。"))
+            if notify_phone:
+                self.usb.request_connect()
+            return True
         except (RuntimeError, OSError, TimeoutError) as exc:
             messagebox.showerror(self.tr("无法启动"), str(exc), parent=self.root)
+            return False
 
     def stop(self):
-        self.usb.relay.stop()
-        self.server.stop()
+        if self._stop_in_progress:
+            return
+        self._stop_in_progress = True
+        self._stop_generation += 1
+        generation = self._stop_generation
+        self.server.request_stop()
+        self.usb.request_stop_phone()
+        self.connection.cancel()
         self.code_label.configure(text="— — — — — —")
-        self.start_button.configure(state="normal")
+        self.start_button.configure(state="disabled")
         self.stop_button.configure(state="disabled")
-        self.status.configure(text=self.tr("●  已停止  /  STOPPED"), fg=MUTED)
+        self.status.configure(text=self.tr("Stopping streaming; waiting for cleanup"), fg=MUTED)
+        self.stats.configure(text="—")
+
+        def finish():
+            try:
+                self.usb.relay.stop()
+                complete = self.server.stop()
+                self.events.put({"event": "stop_result", "complete": complete, "generation": generation})
+            except Exception:
+                self.events.put({"event": "stop_result", "complete": False, "generation": generation})
+        threading.Thread(target=finish, name="vr-stop", daemon=True).start()
 
     def copy_link(self):
         if not self.server.running:
@@ -810,17 +853,35 @@ class HostWindow:
             except queue.Empty:
                 break
             kind = event["event"]
+            if kind == "stop_result" and (not self._stop_in_progress or
+                                           event.get("generation") != self._stop_generation):
+                continue
             if kind == "settings":
                 self._apply_settings_event(event)
+            elif kind == "connect_request":
+                request = event["request"]
+                if self.connection.accept(request):
+                    self.connection.complete(request, self.start(notify_phone=False))
             elif kind == "connection":
-                self.status.configure(text=self.tr("●  手机已连接  /  LIVE") if event["connected"] else self.tr("●  等待手机连接  /  WAITING"), fg=ACCENT)
+                if event.get("session", self.server.session_generation) != self.server.session_generation:
+                    continue
+                if not event["connected"]:
+                    self.stats.configure(text="—")
+                if not self._stop_in_progress and self.server.running:
+                    self.status.configure(text=self.tr("●  手机已连接  /  LIVE") if event["connected"] else self.tr("●  等待手机连接  /  WAITING"), fg=ACCENT)
                 self._log(self.tr("手机已连接。") if event["connected"] else self.tr("手机已断开，控制已停止。"))
             elif kind == "input":
                 self.arm_var.set(event["armed"])
                 self.arm_status.configure(text=self.tr("控制已启用 / ARMED") if event["armed"] else self.tr("控制已停止 / DISARMED"))
                 self._log(event["reason"])
             elif kind == "stats":
-                self.stats.configure(text=f"{event['width']} × {event['height']}  ·  {event['fps']:.0f} FPS  ·  {event['mbps']:.1f} Mbps")
+                if (self.server.running and not self._stop_in_progress and self.server.controller.connected
+                        and event.get("session", self.server.session_generation) == self.server.session_generation):
+                    self.stats.configure(text=f"{event['width']} × {event['height']}  ·  {event['fps']:.0f} FPS  ·  {event['mbps']:.1f} Mbps")
+            elif kind == "capture_masked":
+                if (self.server.running and not self._stop_in_progress
+                        and event.get("session") == self.server.session_generation):
+                    self._log(self.tr(event["message"]))
             elif kind == "usb":
                 self.usb_status = (event["message"], event["values"])
                 self.usb_label.configure(text=self.tr(event["message"], **event["values"]))
@@ -837,15 +898,23 @@ class HostWindow:
                 if event["message"] != self.last_error:
                     self.last_error = event["message"]
                     self._log(event["message"])
-            elif kind == "server" and not event["running"]:
+            elif kind == "stop_result" and not event["complete"]:
+                self.status.configure(text=self.tr("Stopping streaming; waiting for cleanup"), fg=MUTED)
+                self._log(self.tr("Streaming cleanup is still in progress; Start stays disabled"))
+            elif (kind == "server" and not event["running"]) or (kind == "stop_result" and event["complete"]):
+                self._stop_in_progress = False
                 self.start_button.configure(state="normal")
                 self.stop_button.configure(state="disabled")
                 self.status.configure(text=self.tr("●  已停止  /  STOPPED"), fg=MUTED)
+                self.stats.configure(text="—")
         self.root.after(100, self._pump)
 
     def close(self):
         if self.editor is not None:
             self.editor.discard()
+        self.connection.cancel(close=True)
+        self.usb.cancel_connect()
+        self.control.stop()
         self.usb.stop()
         self.server.stop()
         self.hotkey.stop()

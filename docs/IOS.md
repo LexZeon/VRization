@@ -7,6 +7,8 @@
 
 The native iOS client connects to the same Windows host as Android. It targets **iOS / iPadOS 15+**, landscape and a Metal-capable device. **USB is the default connection method**; trusted LAN is an explicit alternative. English is the default even on a Chinese system; select Simplified Chinese in the app to save that preference. This is an Alpha client, not an App Store or TestFlight release.
 
+The settings panel displays the version and build number read from the installed app bundle; hiding settings keeps them off the VR image.
+
 ### 📦 What the downloads mean
 
 | File | Use |
@@ -29,11 +31,11 @@ Windows runs the streaming host normally. A Mac is used for this documented Xcod
 
 ### 🔌 Default: USB to Windows
 
-Install Apple's official [Apple Devices](https://support.apple.com/guide/devices-windows/welcome/windows) / Apple Mobile Device Support on Windows, connect a data USB cable, unlock the iPhone and approve **Trust This Computer**. Start streaming in the Windows app and open the installed iOS app with **USB** selected. The PC looks for a USB device with an existing local Apple pairing record; the phone waits on a loopback-only port. They recognize each other from the normal host handshake without entering an IP or six-digit code. Neither client can automatically start screen capture or arm mouse input.
+Install Apple's official [Apple Devices](https://support.apple.com/guide/devices-windows/welcome/windows) / Apple Mobile Device Support on Windows. Connect a data cable, unlock the iPhone and approve **Trust This Computer**. Open the matching signed candidate iOS app in the foreground with **USB** selected, select the screen / region on Windows, then tap **Connect** on iOS or **Connect / Start streaming** on the PC. An explicit phone action can request host startup; platform trust and local mouse approval remain separate. USB detection alone does not start capture.
 
 This is direct USB framing through Apple's USB service, not Personal Hotspot, Wi-Fi or a charging cable used alongside wireless streaming. No jailbreak or hotspot subscription is required. The original relay and native client are tested with a **simulated usbmux service** in CI; a physical iPhone / Windows Apple driver combination still needs testing. Connect one iPhone for automatic selection. See [USB setup and exact limitations](USB.md).
 
-Leaving the foreground or changing language stops the listener and connection. Tap **Connect** to resume waiting; this prevents a background app from silently resuming control.
+The v0.3.3 candidate keeps foreground control on phone loopback `18767`; explicit Connect opens video `18766`. PC Connect sends one paired framed `{v:1,type:"connect"}` control. The accepted video peer returns readiness before normal host hello; the relay requires and consumes it before requesting capture. An old occupied listener cannot wake a stopped PC through TCP acceptance alone. Disconnect closes video and clears decoded output while retaining foreground control. PC Stop also cancels a pending listener with no peer: one paired stop control is acknowledged only after native video cleanup. Windows gates old startup attempts until that ACK or an explicit paired video-port refusal; a new PC Connect can replace the gate. Backgrounding closes both; return and connect explicitly. Windows cannot launch this app in the background. These native changes await macOS CI / physical-iPhone validation; use matching relay / viewer builds. LAN protocol v1 remains unchanged.
 
 ![Full-screen stereo over simulated USB in the native iOS Simulator](images/ios-usb-vr.png)
 
@@ -114,6 +116,8 @@ The native client adds a 0–100% First-person stabilization slider, default 0%,
 
 原生 iOS 客户端和 Android 使用同一个 Windows 主机，目标为 **iOS / iPadOS 15+**、横屏和支持 Metal 的设备。**默认使用 USB**，也可显式选择可信局域网。即使系统是中文，软件仍默认英文；在应用内选择简体中文后会保存偏好。目前是 Alpha 客户端，并非 App Store 或 TestFlight 发行版。
 
+设置面板显示从当前安装应用 bundle 读取的版本与构建号，隐藏设置后不遮挡 VR 画面。
+
 ### 📦 下载文件的用途
 
 | 文件 | 用途 |
@@ -136,11 +140,11 @@ Windows 正常运行串流主机。本文的 Xcode 安装方法需要 Mac；客�
 
 ### 🔌 默认：USB 连接 Windows
 
-Windows 安装 Apple 官方 [Apple Devices](https://support.apple.com/guide/devices-windows/welcome/windows) / Apple Mobile Device Support，接入数据 USB 线，解锁 iPhone 并批准**信任此电脑**。Windows 应用开始串流，手机打开已经签名安装的 iOS 应用并选择 **USB**。电脑查找已有本地 Apple 配对记录的 USB 设备，手机在仅本机可访问的端口等待，双方通过主机握手相互识别，不用填写 IP 或六位码。客户端不能自动开启电脑画面采集或授权鼠标。
+Windows 安装 Apple 官方 [Apple Devices](https://support.apple.com/guide/devices-windows/welcome/windows)／Apple Mobile Device Support。接数据线、解锁并“**信任此电脑**”；前台打开匹配候选、已签名 iOS 应用选择 **USB**，电脑先选屏幕／选区，再在 iOS 点“**连接**”或电脑点“**连接 / 开始串流**”。明确手机动作可请求主机开始采集，平台信任与电脑鼠标批准分开；只检测 USB 不开始采集。
 
 该方式通过 Apple USB 服务直接传帧，不依赖个人热点、Wi-Fi，也不是一边充电一边无线串流；不需要越狱或热点套餐。目前 CI 通过**模拟 usbmux 服务**检查原创桥接器与原生客户端，真实 iPhone / Windows Apple 驱动组合仍需测试。自动选择时只接一台 iPhone，详见 [USB 配置与实际边界](USB.md)。
 
-进入后台或切换语言会停止监听和连接；点击 **Connect / 连接** 才重新等待，避免后台应用悄悄恢复控制。
+v0.3.3 候选在手机回环 `18767` 保留前台控制，只有主动连接才开放视频 `18766`。电脑发送一次已配对 framed `{v:1,type:"connect"}` 控制；视频接受唯一 peer 后，在普通 host hello 前发同样有限长就绪。中继消费并校验就绪后才请求采集，旧监听拒绝第二连接不能唤醒已停止主机。断开关闭视频、清解码画面，前台控制保留。电脑停止还会取消尚无 peer 的待连接监听：已配对 stop 控制在原生视频清理后才确认；Windows 门控旧启动至该 ACK 或已配对视频端口明确拒绝，新电脑主动连接可替代门控。后台关闭两个监听，返回后需主动连接，Windows 不能启动后台应用。新增原生变化待 macOS CI／iPhone 真机验证，需匹配新版中继／观看端；LAN 协议 v1 不变。
 
 ![原生 iOS 模拟器通过模拟 USB 显示完整双眼画面](images/ios-usb-vr.png)
 

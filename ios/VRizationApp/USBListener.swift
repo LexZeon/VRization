@@ -31,7 +31,14 @@ final class USBListener {
             incoming.stateUpdateHandler = { [weak self, weak incoming] state in
                 guard let self = self, let incoming = incoming, self.connection === incoming, self.generation == epoch else { return }
                 switch state {
-                case .ready: self.header(incoming, epoch: epoch)
+                case .ready:
+                    // Only the unique peer of this explicit listener gets a
+                    // readiness request. A TCP connect to an old occupied
+                    // listener must never wake a stopped PC.
+                    self.send(USBConnectionControl.connectMessage()) { [weak self, weak incoming] ok in
+                        guard let self = self, let incoming = incoming, self.matches(incoming, epoch) else { return }
+                        if ok { self.header(incoming, epoch: epoch) } else { self.onFailure?() }
+                    }
                 case .failed: self.onFailure?()
                 default: break
                 }

@@ -30,7 +30,7 @@ def main():
     parser.add_argument("--report", type=Path, required=True)
     parser.add_argument("--port", type=int, default=18765)
     parser.add_argument("--usb-fixture", action="store_true")
-    parser.add_argument("--control-port", type=int, default=18767)
+    parser.add_argument("--control-port", type=int, default=18769)
     args = parser.parse_args()
     events = []
     guard = threading.Lock()
@@ -53,12 +53,12 @@ def main():
     def snapshot():
         with guard:
             count = sum(event["event"] == "settings" for event in events)
-        return {"settingsCount": count, "settings": host.get_settings_snapshot()[0].to_dict(), "mouseMoves": list(sink.moves)}
+        return {"settingsCount": count, "settings": host.get_settings_snapshot()[0].to_dict(), "mouseMoves": list(sink.moves), "connected": host.controller.connected}
 
     class ObservationHandler(BaseHTTPRequestHandler):
-        # Observation endpoints cannot mutate app state. The separate host-update
-        # endpoint exercises the same HostServer update path used by the PC UI;
-        # it only changes approved settings of our original calibration fixture.
+        # Snapshot/checkpoints only observe. Explicit phone-connect uses the real
+        # paired control adapter; host-update uses the same public settings path
+        # as the desktop GUI. Both operate only on the calibration fixture.
         def log_message(self, *_):
             pass
 
@@ -77,6 +77,29 @@ def main():
                 self.respond({"error": "unknown observation"}, 404)
 
         def do_POST(self):
+            if self.path in ("/pause-relay", "/resume-relay"):
+                if usb is None:
+                    self.respond({"error": "simulated USB is unavailable"}, 503)
+                    return
+                usb.set_enabled(self.path == "/resume-relay")
+                if self.path == "/pause-relay":
+                    usb.relay.stop()
+                self.respond(snapshot())
+                return
+            if self.path in ("/phone-connect", "/phone-stop"):
+                if mux_fixture is None:
+                    self.respond({"error": "simulated USB is unavailable"}, 503)
+                    return
+                from vrization_host.ios_usb import request_ios_connect, request_ios_stop
+                from vrization_host.usb import AppleDevice, AppleMux
+                try:
+                    action = request_ios_stop if self.path == "/phone-stop" else request_ios_connect
+                    action(AppleMux(address=mux_fixture.address), AppleDevice(1, "VRization-Simulated-USB-Fixture"))
+                except (OSError, ValueError):
+                    self.respond({"error": "foreground control is unavailable"}, 503)
+                    return
+                self.respond(snapshot())
+                return
             if self.path == "/host-update":
                 try:
                     length = int(self.headers.get("Content-Length", "0"))

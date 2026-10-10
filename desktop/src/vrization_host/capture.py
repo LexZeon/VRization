@@ -41,6 +41,7 @@ class Frame:
     # Optional host-only diagnostics; never added to the protocol-v1 JPEG.
     capture_ms: float | None = None
     ready_at: float | None = None  # perf_counter(), shared only within the host
+    protected_content_masked: bool = False
 
 
 def output_size(width: int, height: int, max_edge: int) -> tuple[int, int]:
@@ -172,7 +173,8 @@ class MssCaptureSource:
                     image.save(output, "JPEG", quality=config.quality, optimize=False)
                     ready = time.perf_counter()
                     self._gpu_frame = Frame(output.getvalue(), image.width, image.height, self._gpu_captured_at,
-                                            (ready - read_started) * 1000, ready)
+                                            (ready - read_started) * 1000, ready,
+                                            protected_content_masked=self._gpu.protected_content_masked)
                     self._gpu_quality = config.quality
                 # A static desktop can reuse the owned JPEG. Its original
                 # timestamp distinguishes refresh packets from new captures.

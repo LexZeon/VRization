@@ -41,6 +41,9 @@ class HostServer:
         self._started = threading.Event()
         self._start_error = None
         self._ws = None
+        self.session_generation = 0
+        self._sender = None
+        self._stopping = threading.Event()
         self._settings_schema2 = False
         self._worker = None
         self._watchdog = None
@@ -133,8 +136,10 @@ class HostServer:
         return app
 
     async def _health(self, request):
+        ws = self._ws
         return web.json_response({"name": "VRization", "version": __version__, "protocol": 1,
-                                  "connected": self._ws is not None})
+                                  "connected": ws is not None and not ws.closed and not self._stopping.is_set(),
+                                  "running": self.running, "stopping": self._stopping.is_set()})
 
     async def _usb_bootstrap(self, request):
         try:
@@ -157,7 +162,7 @@ class HostServer:
         headers = {"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"}
         if not authorized:
             return web.json_response({"error": "USB unauthorized"}, status=403, headers=headers)
-        if not self.running:
+        if not self.running or self._stopping.is_set():
             return web.json_response({"error": "Streaming not running"}, status=503, headers=headers)
         return web.json_response({"v": 1, "name": "VRization", "version": __version__,
                                   "port": self.port, "token": self.token}, headers=headers)
@@ -176,9 +181,17 @@ class HostServer:
         self._watchdog = asyncio.create_task(self._watch_input())
 
     async def _shutdown(self, app):
-        self.controller.disarm("server stopping")
+        self.controller.set_connected(False)
+        if self._buffer:
+            self._buffer.frame = None
+        if self._worker:
+            self._worker.active.clear()
+        if self._sender:
+            self._sender.cancel()
+            with suppress(asyncio.CancelledError, ConnectionError, RuntimeError):
+                await self._sender
         if self._ws:
-            await self._ws.close(code=1001, message=b"host stopping")
+            await self._ws.close(code=1001, message=b"host stopping", drain=False)
 
     async def _cleanup(self, app):
         if self._watchdog:
@@ -186,8 +199,14 @@ class HostServer:
             with suppress(asyncio.CancelledError):
                 await self._watchdog
         if self._worker:
-            self._worker.stop()
+            # Keep the loop responsive during a slow native capture teardown.
+            # Do not allow a new worker to reuse the source before it is closed.
+            await asyncio.to_thread(self._worker.stop)
+            while self._worker.thread.is_alive():
+                await asyncio.sleep(0.05)
         self.controller.set_connected(False)
+        if self._buffer:
+            self._buffer.frame = None
 
     async def _watch_input(self):
         while True:
@@ -195,6 +214,8 @@ class HostServer:
             self.controller.tick()
 
     async def _connect(self, request):
+        if self._stopping.is_set():
+            return web.Response(status=503, text="Streaming is stopping")
         address = request.remote or "unknown"
         if not self._limiter.allowed(address):
             return web.Response(status=429, text="Too many pairing attempts. Wait one minute.",
@@ -205,15 +226,23 @@ class HostServer:
             return web.Response(status=401, text="Incorrect pairing code")
         if self._ws is not None:
             return web.Response(status=409, text="A headset is already connected")
-        ws = web.WebSocketResponse(heartbeat=10, max_msg_size=16 * 1024,
+        ws = web.WebSocketResponse(heartbeat=10, timeout=1, max_msg_size=16 * 1024,
                                    compress=False, writer_limit=64 * 1024)
         self._ws = ws  # Claim before the first await so a duplicate cannot steal ownership.
+        self.session_generation += 1
+        session_generation = self.session_generation
         self._settings_schema2 = request.query.get("settingsSchema") == "2"
         sender = None
         try:
             await ws.prepare(request)
-            self.controller.set_connected(True)
-            self._emit("connection", connected=True, address=address)
+            with self.lock:
+                stopping = self._stopping.is_set()
+                if not stopping:
+                    self.controller.set_connected(True)
+            if stopping:
+                await ws.close(code=1001, message=b"host stopping", drain=False)
+                return ws
+            self._emit("connection", connected=True, address=address, session=session_generation)
             settings, revision = self.get_settings_snapshot()
             await ws.send_json({"v": 1, "type": "hello", "name": "VRization",
                                 "version": __version__, "settings": self._wire_settings(settings), "revision": revision,
@@ -222,9 +251,12 @@ class HostServer:
                                            "maxWidth": self.capture_config.width},
                                 "mouseArmed": False})
             sender = asyncio.create_task(self._send_frames(ws))
+            self._sender = sender
             self._worker.active.set()
             errors, tokens, refill_at = 0, 180.0, time.monotonic()
             async for message in ws:
+                if self._stopping.is_set() or self._ws is not ws:
+                    break
                 if message.type == WSMsgType.TEXT:
                     now = time.monotonic()
                     tokens = min(180.0, tokens + (now - refill_at) * 120)
@@ -265,30 +297,43 @@ class HostServer:
                 elif message.type == WSMsgType.ERROR:
                     break
         finally:
+            # Revoke ownership/input/status before any awaited sender teardown.
+            # A blocked old task cannot keep the phone shown as connected or
+            # later clear an independently established replacement session.
+            if self._ws is ws:
+                self._ws = None
+                if self._sender is sender:
+                    self._sender = None
+                self._settings_schema2 = False
+                self._worker.active.clear()
+                self.controller.set_connected(False)
+                self._emit("connection", connected=False, address=address, session=session_generation)
             if sender:
                 sender.cancel()
                 with suppress(asyncio.CancelledError, ConnectionError, RuntimeError):
                     await sender
-            if self._ws is ws:
-                self._ws = None
-                self._settings_schema2 = False
-                self._worker.active.clear()
-                self.controller.set_connected(False)
-                self._emit("connection", connected=False, address=address)
         return ws
 
     async def _send_frames(self, ws):
+        session_generation = self.session_generation
         after = self._buffer.sequence
         count, sent_bytes, started = 0, 0, time.perf_counter()
         capture_total = queue_total = send_total = 0.0
         fresh_count = 0
         previous_frame = None
+        masked_notice_sent = False
         try:
-            while not ws.closed:
+            while not ws.closed and not self._stopping.is_set():
                 after, frame = await self._buffer.next(after)
+                if self._stopping.is_set() or self._ws is not ws:
+                    break
                 send_started = time.perf_counter()
                 await asyncio.wait_for(ws.send_bytes(frame.jpeg), timeout=2)
                 sent_at = time.perf_counter()
+                if frame.protected_content_masked and not masked_notice_sent:
+                    masked_notice_sent = True
+                    self._emit("capture_masked", session=session_generation,
+                               message="Windows has blacked out protected content; the remaining desktop continues streaming.")
                 send_total += (sent_at - send_started) * 1000
                 if frame is not previous_frame and frame.ready_at is not None and frame.capture_ms is not None:
                     # Same host QPC clock only. Static refresh packets must not
@@ -301,7 +346,7 @@ class HostServer:
                 sent_bytes += len(frame.jpeg)
                 elapsed = sent_at - started
                 if elapsed >= 1:
-                    self._emit("stats", fps=count / elapsed, mbps=sent_bytes * 8 / elapsed / 1_000_000,
+                    self._emit("stats", session=session_generation, fps=count / elapsed, mbps=sent_bytes * 8 / elapsed / 1_000_000,
                                width=frame.width, height=frame.height,
                                captureMs=capture_total / fresh_count if fresh_count else None,
                                queueMs=queue_total / fresh_count if fresh_count else None,
@@ -310,12 +355,16 @@ class HostServer:
                     capture_total = queue_total = send_total = 0.0
                     fresh_count = 0
         except (asyncio.TimeoutError, ConnectionError, RuntimeError):
-            self.controller.disarm("stream connection stalled")
+            if self._ws is ws:
+                self.controller.disarm("stream connection stalled")
             await ws.close(code=1001, message=b"stream stalled")
 
     def start(self):
         if self._thread and self._thread.is_alive():
+            if self._stopping.is_set():
+                raise RuntimeError("Streaming is still stopping; wait for cleanup to finish")
             return
+        self._stopping.clear()
         self.token = f"{secrets.randbelow(1_000_000):06d}"
         self._limiter = TokenLimiter()
         self._started.clear()
@@ -351,9 +400,26 @@ class HostServer:
         finally:
             await runner.cleanup()
 
-    def stop(self):
-        self.controller.disarm("server stopped")
+    def request_stop(self):
+        """Immediately revoke streaming/input; completion remains asynchronous."""
+        with self.lock:
+            self._stopping.set()
+            self.running = False
+            self.controller.set_connected(False)
+        if self._worker:
+            self._worker.active.clear()
+            self._worker.stop_event.set()
         if self._loop and self._loop.is_running() and self._stop_signal:
-            self._loop.call_soon_threadsafe(self._stop_signal.set)
+            def signal():
+                if self._sender:
+                    self._sender.cancel()
+                self._stop_signal.set()
+            with suppress(RuntimeError):  # The same loop may already be closing.
+                self._loop.call_soon_threadsafe(signal)
+
+    def stop(self, timeout: float = 6) -> bool:
+        self.request_stop()
         if self._thread:
-            self._thread.join(timeout=6)
+            self._thread.join(timeout=timeout)
+            return not self._thread.is_alive()
+        return True

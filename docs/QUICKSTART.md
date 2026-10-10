@@ -5,7 +5,7 @@
 <!-- vrization:english -->
 ## English
 
-v0.3.2-alpha sends one Windows desktop / rectangular region to both eyes of an Android or iOS phone viewer. **USB is the default**; trusted LAN is optional. The image is the same 2D source in both eyes, with no audio or native game stereo. English is the default software language; choose Simplified Chinese independently on each device.
+v0.3.3-alpha sends one Windows desktop / rectangular region to both eyes of an Android or iOS phone viewer. **USB is the default**; trusted LAN is optional. The image is the same 2D source in both eyes, with no audio or native game stereo. English is the default software language; choose Simplified Chinese independently on each device.
 
 ### 1. Get the applications
 
@@ -16,10 +16,10 @@ Download from [GitHub Releases](https://github.com/LexZeon/VRization/releases) u
 
 ### 2. Connect by USB
 
-On Windows select the intended display / region, leave automatic USB detection enabled and click **Start streaming**. A cable connection never starts capture or mouse control by itself.
+On Windows select the intended display / region and leave automatic USB detection enabled. With both apps open, click **Connect / Start streaming** on the PC **or Connect on the phone**. Either explicit action coordinates streaming; detection or plugging in a cable alone never starts capture or mouse control.
 
-- **Android:** install Google's official Platform Tools, enable USB debugging, connect a data cable, unlock the phone and approve this computer. Select the official SDK's `adb.exe` in PC USB settings if needed. With several Android USB devices, select the intended one. Open the app with **USB cable · default** selected; if its first attempt has ended, tap **Detect USB and connect**. No IP or code entry is needed.
-- **iPhone / iPad:** install official Apple Devices / Apple Mobile Device support on Windows. Connect one device, unlock it and **Trust This Computer**. Open the signed app with USB selected. Its initial foreground attempt waits for the PC; use **Connect** to retry. No hotspot or USB tethering is used.
+- **Android:** install Google's official Platform Tools, enable USB debugging, connect a data cable, unlock the phone and approve this computer. Select the official SDK's `adb.exe` in PC USB settings if needed. With several Android USB devices, select the intended one. Open the app with **USB cable · default** selected; tap **Detect USB and connect** to start explicitly, including during automatic waiting. No IP or code entry is needed.
+- **iPhone / iPad:** install official Apple Devices / Apple Mobile Device support on Windows. Connect one device, unlock it and **Trust This Computer**. Open the signed app with USB selected. It keeps a foreground control listener ready; click **Connect** on either endpoint to begin video. Keep the app foregrounded; Windows cannot launch a background iOS application. No hotspot or USB tethering is used.
 
 Detailed menus, prerequisites and port-conflict recovery are in [the USB guide](USB.md). Huawei Android hardware evidence is separate from the current iOS simulated-usbmux / native-Simulator checks; a real iPhone USB connection remains unverified. See [compatibility](COMPATIBILITY.md) and [validation](VALIDATION.md).
 
@@ -60,7 +60,7 @@ The complete Windows ZIP includes a launcher and needs no Python or development 
 <!-- vrization:chinese -->
 ## 简体中文
 
-v0.3.2-alpha 把 Windows 桌面 / 矩形区域发给 Android 或 iOS 手机盒子的两眼。**默认 USB**，可信局域网为可选项。两眼是相同二维源画面，没有声音或原生游戏立体深度。软件默认英文，每台设备可独立选择简体中文。
+v0.3.3-alpha 把 Windows 桌面 / 矩形区域发给 Android 或 iOS 手机盒子的两眼。**默认 USB**，可信局域网为可选项。两眼是相同二维源画面，没有声音或原生游戏立体深度。软件默认英文，每台设备可独立选择简体中文。
 
 ### 1. 安装应用
 
@@ -71,10 +71,10 @@ v0.3.2-alpha 把 Windows 桌面 / 矩形区域发给 Android 或 iOS 手机盒�
 
 ### 2. USB 连接
 
-Windows 选择目标显示器 / 选区，保持自动检测 USB，点击**开始串流**。插线不会自动开始采集或授权鼠标。
+Windows 选择目标显示器 / 选区，保持自动检测 USB。两端应用都打开后，点击电脑“**连接 / 开始串流**”或手机“**连接**”，任一主动操作都可协调开始串流；单纯检测或插线不会开始采集或授权鼠标。
 
-- **Android：**安装 Google 官方 Platform Tools，启用 USB 调试，接数据线、解锁并授权此电脑。需要时在电脑 USB 设置选择官方 SDK 的 `adb.exe`；多台 Android USB 设备时明确选择目标。手机保持“**USB 数据线 · 默认**”；首次尝试结束后点“**检测 USB 并连接**”，无需填写 IP / 配对码。
-- **iPhone / iPad：**Windows 安装官方 Apple Devices / Apple Mobile Device 支持，只接一台设备，解锁并**信任此电脑**。前台打开已签名应用并选 USB；首次会等待电脑，点 **Connect / 连接**可重试。不使用热点或 USB 网络共享。
+- **Android：**安装 Google 官方 Platform Tools，启用 USB 调试，接数据线、解锁并授权此电脑。需要时在电脑 USB 设置选择官方 SDK 的 `adb.exe`；多台 Android USB 设备时明确选择目标。手机保持“**USB 数据线 · 默认**”；点“**检测 USB 并连接**”主动开始，自动等待期间也能点，无需填写 IP / 配对码。
+- **iPhone / iPad：**Windows 安装官方 Apple Devices / Apple Mobile Device 支持，只接一台设备，解锁并**信任此电脑**。前台打开已签名应用并选 USB，会保留前台控制监听；任一端点“**连接**”开始视频。请保持手机应用在前台，Windows 不能启动后台 iOS 应用；不使用热点或 USB 网络共享。
 
 具体菜单、前提和端口冲突排查见 [USB 教程](USB.md)。华为 Android 硬件证据与现有 iOS 模拟 usbmux / 原生模拟器检查分开；真实 iPhone USB 仍未验证。参见 [兼容性](COMPATIBILITY.md)、[验证记录](VALIDATION.md)。
 

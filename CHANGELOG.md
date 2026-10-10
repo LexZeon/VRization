@@ -9,7 +9,10 @@ User-visible changes are listed newest first. Dates are GitHub publication dates
 
 ### Unreleased
 
-- **Documentation:** Added this bilingual changelog covering every published version, with README links and a requirement to keep it updated for future changes.
+- **Connection candidate:** Explicit Connect from either endpoint, separate foreground USB control/video, bounded ADB recovery, owned-map cleanup and actual Android socket cancellation.
+- **Stop:** Immediate session/input invalidation, late-frame rejection and capture cleanup completion before restarting.
+- **Reuse:** Pure Android connection helpers, a PC connection coordinator and bilingual [AI handoff](AI_HANDOFF.md) explaining every module and integration boundary.
+- **Publishing:** Canonical Android signing-certificate gate prevents an unrelated CI debug key from replacing an upgrade-compatible public APK. Final packaged/hardware acceptance is pending.
 
 ### [v0.3.2-alpha](https://github.com/LexZeon/VRization/releases/tag/v0.3.2-alpha) — 2026-10-09
 
@@ -77,7 +80,10 @@ First Windows / Android preview.
 
 ### 未发布
 
-- **文档：** 新增覆盖全部已发布版本的中英双语日志、README 入口及今后持续更新日志的项目要求。
+- **连接候选：** 两端主动连接、前台 USB 控制 / 视频分离、有限 ADB 恢复、映射归属清理及 Android 实际 socket 取消。
+- **停止：** 即时作废会话 / 输入、拒绝迟到帧，清理采集完成后才能重开。
+- **复用：** Android 纯连接辅助类、电脑连接协调器和说明各模块 / 移植边界的双语 [AI 接手指南](AI_HANDOFF.md)。
+- **发布：** 固定 Android 公开签名证书门槛，避免 CI 随机调试签名替换可覆盖升级的 APK；最终打包 / 真机验收待完成。
 
 ### [v0.3.2-alpha](https://github.com/LexZeon/VRization/releases/tag/v0.3.2-alpha) — 2026-10-09
 

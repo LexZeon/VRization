@@ -1,4 +1,4 @@
-package org.vrization.app;
+package org.vrization.core;
 
 import java.util.ArrayDeque;
 import org.junit.Test;
@@ -55,12 +55,12 @@ public final class UsbConnectionAttemptTest {
         assertTrue(attempt.beginSocket(7, 1003)); assertFalse(attempt.beginSocket(7, 1004));
     }
     @Test public void queuedPreviousGenerationRetryCannotTouchTheCurrentAttempt() {
-        ArrayDeque<Runnable> queue = new ArrayDeque<>(); SessionDispatcher sessions = new SessionDispatcher(queue::add);
-        UsbConnectionAttempt attempt = new UsbConnectionAttempt(); long old = sessions.invalidate(); attempt.start(old, 0);
+        ArrayDeque<Runnable> queue = new ArrayDeque<>();
+        UsbConnectionAttempt attempt = new UsbConnectionAttempt(); long old = 1; attempt.start(old, 0);
         assertTrue(attempt.beginDiscovery(old, 0)); assertEquals(1000, attempt.discoveryFailed(old, 1));
-        int[] requestCount = {0}; sessions.dispatch(old, () -> { if (attempt.beginDiscovery(old, 1001)) requestCount[0]++; });
-        long current = sessions.invalidate(); attempt.cancel(); attempt.start(current, 500);
-        sessions.dispatch(current, () -> { if (attempt.beginDiscovery(current, 500)) requestCount[0]++; });
+        int[] requestCount = {0}; queue.add(() -> { if (attempt.beginDiscovery(old, 1001)) requestCount[0]++; });
+        long current = 2; attempt.cancel(); attempt.start(current, 500);
+        queue.add(() -> { if (attempt.beginDiscovery(current, 500)) requestCount[0]++; });
         queue.remove().run(); assertEquals(0, requestCount[0]);
         queue.remove().run(); assertEquals(1, requestCount[0]); assertTrue(attempt.beginSocket(current, 600));
     }
@@ -69,5 +69,66 @@ public final class UsbConnectionAttemptTest {
         assertTrue(attempt.beginDiscovery(9, 0)); assertEquals(1000, attempt.discoveryFailed(9, 10));
         assertTrue(attempt.beginDiscovery(9, 1010)); assertTrue(attempt.beginSocket(9, 1020));
         attempt.cancel(); assertFalse(attempt.established(9, 1030)); assertFalse(attempt.beginDiscovery(9, 1040));
+    }
+    @Test public void bootstrapSuccessThenTransientSocketFailureRediscoversTheComputerWithoutCableReplug() {
+        UsbConnectionAttempt attempt = new UsbConnectionAttempt(); attempt.start(10, 0);
+        assertTrue(attempt.beginDiscovery(10, 0)); assertTrue(attempt.beginSocket(10, 20));
+        assertEquals(1000, attempt.socketFailed(10, 100));
+        assertEquals(-1, attempt.socketFailed(10, 101));
+        assertTrue(attempt.beginDiscovery(10, 1100)); assertTrue(attempt.beginSocket(10, 1120));
+        assertTrue(attempt.established(10, 1200)); assertFalse(attempt.isActive(10));
+    }
+    @Test public void socketRetryRetainsTheOriginalDeadlineAndCannotReviveAfterExplicitDisconnect() {
+        UsbConnectionAttempt attempt = new UsbConnectionAttempt(); attempt.start(11, 0);
+        assertTrue(attempt.beginDiscovery(11, 29_500)); assertTrue(attempt.beginSocket(11, 29_600));
+        assertEquals(100, attempt.socketFailed(11, 29_900));
+        assertFalse(attempt.beginDiscovery(11, 30_000));
+        attempt.start(12, 31_000); assertTrue(attempt.beginDiscovery(12, 31_000));
+        assertTrue(attempt.beginSocket(12, 31_020)); attempt.cancel();
+        assertEquals(-1, attempt.socketFailed(12, 31_100));
+        assertFalse(attempt.beginDiscovery(12, 32_100));
+    }
+    @Test public void anEstablishedSessionDoesNotSilentlyReconnectWhenItsSocketDisconnects() {
+        UsbConnectionAttempt attempt = new UsbConnectionAttempt(); attempt.start(13, 0);
+        assertTrue(attempt.beginDiscovery(13, 0)); assertTrue(attempt.beginSocket(13, 10));
+        assertTrue(attempt.established(13, 20));
+        assertEquals(-1, attempt.socketFailed(13, 30)); assertFalse(attempt.beginDiscovery(13, 1030));
+    }
+    @Test public void onlyTheExplicitPhoneActionCanWakeThePcAndDoesSoOnceAcrossRetries() {
+        UsbConnectionAttempt attempt = new UsbConnectionAttempt();
+        attempt.start(14, 0, UsbConnectionAttempt.Source.PHONE_ACTION);
+        assertFalse(attempt.isAutomatic()); assertFalse(attempt.beginDiscovery(14, 0));
+        assertTrue(attempt.takeHostWake(14, 0)); assertFalse(attempt.takeHostWake(14, 1));
+        assertTrue(attempt.beginDiscovery(14, 50)); assertEquals(1000, attempt.discoveryFailed(14, 100));
+        assertFalse(attempt.takeHostWake(14, 1100)); assertTrue(attempt.beginDiscovery(14, 1100));
+        assertTrue(attempt.beginSocket(14, 1150)); assertEquals(1000, attempt.socketFailed(14, 1200));
+        assertFalse(attempt.takeHostWake(14, 2200)); assertTrue(attempt.beginDiscovery(14, 2200));
+    }
+    @Test public void pcActionsAndAutomaticDiscoveryNeverRestartAStoppedPcThroughTheControlEndpoint() {
+        UsbConnectionAttempt attempt = new UsbConnectionAttempt();
+        attempt.start(15, 0, UsbConnectionAttempt.Source.AUTOMATIC);
+        assertTrue(attempt.isAutomatic()); assertFalse(attempt.takeHostWake(15, 0));
+        assertTrue(attempt.beginDiscovery(15, 0));
+        attempt.cancel(); attempt.start(16, 100, UsbConnectionAttempt.Source.COMPUTER_ACTION);
+        assertFalse(attempt.isAutomatic()); assertFalse(attempt.takeHostWake(16, 100));
+        assertTrue(attempt.beginDiscovery(16, 100));
+    }
+    @Test public void absentOldPcControlServiceFallsBackToBootstrapWithoutExtendingTheWindow() {
+        UsbConnectionAttempt attempt = new UsbConnectionAttempt();
+        attempt.start(17, 0, UsbConnectionAttempt.Source.PHONE_ACTION);
+        assertTrue(attempt.takeHostWake(17, 0));
+        assertEquals(27_000, attempt.remaining(17, 3000));
+        assertTrue(attempt.beginDiscovery(17, 3000)); assertTrue(attempt.beginSocket(17, 3100));
+        assertTrue(attempt.established(17, 3200));
+    }
+    @Test public void cancelledOrExpiredPhoneRequestsCannotWakeThePcOrResumeOldDiscovery() {
+        UsbConnectionAttempt attempt = new UsbConnectionAttempt();
+        attempt.start(18, 0, UsbConnectionAttempt.Source.PHONE_ACTION); attempt.cancel();
+        assertFalse(attempt.takeHostWake(18, 1)); assertFalse(attempt.beginDiscovery(18, 1));
+        attempt.start(19, 100, UsbConnectionAttempt.Source.COMPUTER_ACTION);
+        assertFalse(attempt.takeHostWake(18, 200)); assertFalse(attempt.beginDiscovery(18, 200));
+        assertTrue(attempt.beginDiscovery(19, 200));
+        attempt.start(20, 0, UsbConnectionAttempt.Source.PHONE_ACTION);
+        assertFalse(attempt.takeHostWake(20, 30_000)); assertFalse(attempt.beginDiscovery(20, 30_000));
     }
 }

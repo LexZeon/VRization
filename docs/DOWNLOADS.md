@@ -7,9 +7,9 @@
 
 Download published assets and `SHA256SUMS.txt` from [GitHub Releases](https://github.com/LexZeon/VRization/releases). Use the application versions listed for that release: a host-only patch can intentionally retain older phone assets. Published alpha builds have the limitations recorded in [release notes](RELEASE_NOTES.md) and [compatibility records](COMPATIBILITY.md).
 
-### v0.3.2-alpha: update the host and phone
+### v0.3.3-alpha: update the host and phone
 
-Windows, Android / AAR and iOS applications now use version **0.3.2** for the first-person stabilization control. Update both ends to apply it, retain a matching-signer Android installation's saved data, and verify each asset against this release's manifest. Existing ten-field profiles migrate to eleven fields with stabilization zero. iOS remains source / Mac Simulator output, not a signed iPhone installer. Final build / acceptance status is in [current notes](RELEASE_NOTES.md).
+Windows, Android / AAR and iOS applications use **0.3.3** for the connection lifecycle repair and explicit Connect on either USB endpoint. Update both ends, preserve matching-signer Android data, and verify this release's manifest. Existing profiles and default-off stabilization remain. Source and Mac Simulator output are supplied for iOS, not a signed iPhone installer. Final acceptance is recorded in [current notes](RELEASE_NOTES.md). The Windows ZIP also includes the bilingual [AI handoff](../AI_HANDOFF.md).
 
 The earlier [v0.3.1-alpha patch](releases/v0.3.1-alpha.md) combined Windows 0.3.1 with unchanged mobile 0.3.0 assets. That historical mixed-version policy does not mean the new phone slider is available without updating.
 
@@ -76,9 +76,9 @@ v0.2.0-alpha preceded the v0.3 editor / reset / profile release; v0.3.1-alpha is
 
 从 [GitHub Releases](https://github.com/LexZeon/VRization/releases) 下载已发布产物及 `SHA256SUMS.txt`，使用该次发布明确列出的应用版本；仅修复电脑端的补丁可以有意保留较早手机产物。Alpha 版限制见 [发布说明](RELEASE_NOTES.md) 与 [兼容性记录](COMPATIBILITY.md)。
 
-### v0.3.2-alpha：更新电脑与手机
+### v0.3.3-alpha：更新电脑与手机
 
-Windows、Android / AAR 与 iOS 应用均为 **0.3.2**，提供第一人称防抖控制。生效时更新两端，签名一致的 Android 覆盖升级保留已存数据，逐个按本版清单核对产物。旧十字段配置迁移为十一字段，防抖添加零；iOS 仍提供源码 / Mac 模拟器产物，不是签名 iPhone 安装包。最终构建 / 验收状态见 [当前说明](RELEASE_NOTES.md)。
+Windows、Android / AAR 与 iOS 应用均为 **0.3.3**，修复连接生命周期并支持 USB 两端主动连接。更新两端，保留同签名 Android 数据，按本版清单校验。原配置和默认关闭防抖继续保留。iOS 提供源码与 Mac 模拟器产物，不是签名 iPhone 安装器。最终验收见 [当前说明](RELEASE_NOTES.md)，Windows ZIP 也包含双语 [AI 接手指南](../AI_HANDOFF.md)。
 
 此前 [v0.3.1-alpha 补丁](releases/v0.3.1-alpha.md) 用 Windows 0.3.1 搭配未变的 0.3.0 手机产物。该历史混合版本策略不表示不升级手机就能使用新滑块。
 

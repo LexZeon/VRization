@@ -5,7 +5,7 @@ protocol (ListDevices/Connect); no libusbmuxd application source is incorporated
 Detection and relay I/O run separately and never call Windows mouse APIs.
 """
 
-import asyncio
+from collections import deque
 from contextlib import suppress
 import ctypes
 from ctypes import wintypes
@@ -22,7 +22,8 @@ import threading
 import time
 from xml.parsers.expat import ExpatError
 
-from aiohttp import ClientError, ClientResponseError, ClientSession, ClientTimeout, WSMsgType
+from aiohttp import ClientError, ClientResponseError
+from .connection import ANDROID_CONTROL_PORT
 
 ANDROID_PORT = 18765
 IOS_PORT = 18766
@@ -197,28 +198,82 @@ class WindowsUsbPresence:
             except (OSError, ValueError):
                 pass
             self._expires = self.clock() + 10
-        return serial.casefold() in self._serials
+        present = serial.casefold() in self._serials
+        if not present:
+            # Enumeration can briefly precede Windows PnP discovery. Retry a
+            # negative proof sooner without relaxing the physical USB check.
+            self._expires = min(self._expires, self.clock() + 2)
+        return present
 
 
 class AdbReverse:
-    def __init__(self, path: Path, runner=None, usb_presence=None):
+    def __init__(self, path: Path, runner=None, usb_presence=None, *, clock=None, remote_port=ANDROID_PORT):
+        if type(remote_port) is not int or not 1 <= remote_port <= 65535:
+            raise ValueError("Invalid USB reverse port")
         self.path = path
+        self.remote_port = remote_port
         self.runner = runner or subprocess.run
         self.owned: tuple[str, str, str] | None = None
         self.usb_presence = usb_presence or WindowsUsbPresence()
+        self.clock = clock or time.perf_counter
+        self.enumeration_ready = False
+        self.recent_commands = deque(maxlen=8)
+        self.last_devices_probe = None
 
-    def command(self, *args) -> str:
+    def command(self, *args, timeout: float = 3) -> str:
         # Windowed frozen applications can have no valid inherited stdin handle.
         # ADB discovery is noninteractive; never inherit GUI standard handles.
-        result = self.runner([str(self.path), *args], stdin=subprocess.DEVNULL, capture_output=True, text=True,
-                             timeout=3, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
-        if result.returncode:
-            raise OSError(result.stderr.strip() or "Android USB command failed")
-        return result.stdout
+        if args == ("devices", "-l"):
+            stage = "devices"
+        elif args == ("version",):
+            stage = "version"
+        elif args[-1:] == ("get-devpath",):
+            stage = "physical_transport"
+        elif args[2:5] == ("shell", "am", "start"):
+            stage = "phone_connect"
+        elif "reverse" in args:
+            stage = ("mapping_create" if "--no-rebind" in args else
+                     "mapping_remove" if "--remove" in args else "mapping_list")
+        else:
+            stage = "other"
+        started, outcome = self.clock(), "error"
+        try:
+            result = self.runner([str(self.path), *args], stdin=subprocess.DEVNULL, capture_output=True, text=True,
+                                 timeout=timeout, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+            if result.returncode:
+                raise OSError(result.stderr.strip() or "Android USB command failed")
+            outcome = "ok"
+            return result.stdout
+        except subprocess.TimeoutExpired:
+            outcome = "timeout"
+            if stage.startswith("mapping_"):
+                self.enumeration_ready = False
+            raise
+        except OSError:
+            outcome = "unavailable"
+            if stage.startswith("mapping_"):
+                self.enumeration_ready = False
+            raise
+        finally:
+            # Deliberately exclude arguments, IDs, paths, stdout and stderr.
+            probe = {"stage": stage, "elapsedMs": max(0, (self.clock() - started) * 1000),
+                     "timeoutSeconds": timeout, "result": outcome}
+            self.recent_commands.append(probe)
+            if stage == "devices":
+                self.last_devices_probe = probe
 
     def devices(self) -> list[AndroidDevice]:
         result = []
-        for device in parse_adb_devices(self.command("devices", "-l")):
+        # A cold/recovering daemon needs time to ACK its Windows startup pipe.
+        # Never repeatedly cut startup off at the steady-state three-second limit.
+        timeout = 3 if self.enumeration_ready else 8
+        try:
+            output = self.command("devices", "-l", timeout=timeout)
+        except (OSError, subprocess.TimeoutExpired):
+            self.enumeration_ready = False
+            raise
+        self.enumeration_ready = True
+        for device in parse_adb_devices(output):
             usb = device.usb
             if not usb and device.state == "device":
                 with suppress(OSError, subprocess.TimeoutExpired):
@@ -234,12 +289,13 @@ class AdbReverse:
         return result
 
     def ensure(self, serial: str, host_port: int) -> bool:
-        remote, local = f"tcp:{ANDROID_PORT}", f"tcp:{host_port}"
+        remote, local = f"tcp:{self.remote_port}", f"tcp:{host_port}"
         current = reverse_mappings(self.command("-s", serial, "reverse", "--list"))
         if self.owned == (serial, remote, local) and (remote, local) in current:
             return True
         if self.owned is not None:
-            self.release()
+            if not self.release():
+                raise OSError("Android USB mapping cleanup unavailable")
             current = reverse_mappings(self.command("-s", serial, "reverse", "--list"))
         if any(source == remote for source, _ in current):
             return False  # Even an identical existing mapping belongs to someone else.
@@ -248,13 +304,20 @@ class AdbReverse:
         return True
 
     def release(self):
-        owned, self.owned = self.owned, None
-        if owned:
-            serial, remote, local = owned
-            with suppress(OSError, subprocess.TimeoutExpired):
-                current = reverse_mappings(self.command("-s", serial, "reverse", "--list"))
-                if (remote, local) in current:
-                    self.command("-s", serial, "reverse", "--remove", remote)
+        owned = self.owned
+        if owned is None:
+            return True
+        serial, remote, local = owned
+        try:
+            current = reverse_mappings(self.command("-s", serial, "reverse", "--list"))
+            if (remote, local) in current:
+                self.command("-s", serial, "reverse", "--remove", remote)
+        except (OSError, subprocess.TimeoutExpired):
+            # Uncertain cleanup must revoke authorization, not forget ownership.
+            # A later successful read can recover or remove only this mapping.
+            return False
+        self.owned = None
+        return True
 
 
 def pack_frame(kind: int, payload: bytes) -> bytes:
@@ -296,6 +359,10 @@ def _receive_exact(sock, size: int, deadline=None) -> bytes:
 class AppleDevice:
     device_id: int
     serial: str
+
+
+class AppleEndpointUnavailable(ConnectionError):
+    """A paired mux Connect specifically reports connection refused."""
 
 
 class AppleMux:
@@ -340,7 +407,9 @@ class AppleMux:
                 devices.append(AppleDevice(identity, str(props.get("SerialNumber", identity))))
         return devices
 
-    def connect(self, device: AppleDevice):
+    def connect(self, device: AppleDevice, port=IOS_PORT):
+        if type(port) is not int or not 1 <= port <= 65535:
+            raise ValueError("Invalid Apple USB port")
         # Read only: a USB enumeration alone does not establish Trust This Computer.
         # Keep pairing keys in memory only; never log, write or return their contents.
         with self._socket() as paired:
@@ -356,8 +425,13 @@ class AppleMux:
         sock = self._socket()
         try:
             response = self.exchange(sock, {"MessageType": "Connect", "DeviceID": device.device_id,
-                                           "PortNumber": socket.htons(IOS_PORT)})
-            if response.get("Number") != 0:
+                                           "PortNumber": socket.htons(port)})
+            result = response.get("Number")
+            if type(result) is not int:
+                raise ValueError("Invalid Apple USB connection result")
+            if result == 3:  # usbmux RESULT_CONNREFUSED, not a missing device.
+                raise AppleEndpointUnavailable("Open VRization on your iPhone and tap Connect (USB)")
+            if result != 0:
                 raise ConnectionError("Open VRization on your iPhone and tap Connect (USB)")
             sock.setblocking(False)
             return sock
@@ -366,115 +440,41 @@ class AppleMux:
             raise
 
 
-class IosRelay:
-    def __init__(self, server, mux=None, on_status=None, *, mux_address=("127.0.0.1", 27015)):
-        self.server, self.mux = server, mux or AppleMux(address=mux_address)
-        self.on_status = on_status or (lambda *args, **kwargs: None)
-        self._thread = None
-        self._loop = None
-        self._task = None
-        self._stop = threading.Event()
-
-    @property
-    def active(self):
-        return self._thread is not None and self._thread.is_alive()
-
-    def start(self, device: AppleDevice):
-        if self.active:
-            return
-        self._stop.clear()
-        self._thread = threading.Thread(target=self._run, args=(device,), name="vrization-ios-usb", daemon=True)
-        self._thread.start()
-
-    def _run(self, device):
-        try:
-            asyncio.run(self._relay(device))
-        except (ClientError, OSError, ValueError, asyncio.IncompleteReadError, asyncio.TimeoutError) as exc:
-            self.on_status("iOS USB: {detail}", detail=safe_relay_error(exc))
-        except asyncio.CancelledError:
-            pass
-
-    async def _relay(self, device):
-        self._loop, self._task = asyncio.get_running_loop(), asyncio.current_task()
-        # Already on the dedicated I/O thread. A bounded blocking connect avoids
-        # leaking a late socket from a cancelled executor future.
-        sock = self.mux.connect(device)
-        try:
-            if self._stop.is_set():
-                return
-            reader, writer = await asyncio.open_connection(sock=sock)
-        except BaseException:
-            sock.close()
-            raise
-        finally:
-            if self._stop.is_set():
-                sock.close()
-        try:
-            if self._stop.is_set():
-                return
-            url = f"http://127.0.0.1:{self.server.port}/ws?token={self.server.token}"
-            async with ClientSession(timeout=ClientTimeout(total=None, sock_connect=2)) as session:
-                async with session.ws_connect(url, max_msg_size=MAX_FRAME - 1, compress=0) as ws:
-                    self.on_status("iPhone USB connected")
-
-                    async def to_phone():
-                        async for message in ws:
-                            if message.type == WSMsgType.TEXT:
-                                payload, kind = message.data.encode("utf-8"), 1
-                            elif message.type == WSMsgType.BINARY:
-                                payload, kind = message.data, 2
-                            else:
-                                break
-                            writer.write(pack_frame(kind, payload))
-                            await asyncio.wait_for(writer.drain(), 2)
-
-                    async def to_host():
-                        while True:
-                            _, payload = await read_frame(reader)
-                            await asyncio.wait_for(ws.send_str(payload.decode("utf-8")), 2)
-
-                    tasks = [asyncio.create_task(to_phone()), asyncio.create_task(to_host())]
-                    try:
-                        done, _ = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
-                        for task in done:
-                            task.result()
-                    finally:
-                        for task in tasks:
-                            task.cancel()
-                        await asyncio.gather(*tasks, return_exceptions=True)
-        finally:
-            writer.close()
-            with suppress(OSError, asyncio.TimeoutError):
-                await asyncio.wait_for(writer.wait_closed(), 2)
-            self._loop = self._task = None
-            self.on_status("iPhone USB disconnected")
-
-    def stop(self):
-        self.request_stop()
-        if self._thread and self._thread is not threading.current_thread():
-            self._thread.join(timeout=8)
-
-    def request_stop(self):
-        self._stop.set()
-        if self._loop and self._task:
-            with suppress(RuntimeError):
-                self._loop.call_soon_threadsafe(self._task.cancel)
-
 
 class UsbManager:
     def __init__(self, server, on_event=None, *, adb_path=None, preferred_serial="", adb=None, mux=None,
-                 mux_address=("127.0.0.1", 27015)):
+                 mux_address=("127.0.0.1", 27015), control_adb=None, start_request=None, ios_notify=None,
+                 ios_stop_notify=None):
         self.server, self.on_event = server, on_event
         self.adb_path, self.preferred_serial = adb_path or "", preferred_serial
         self._configured_path = self.adb_path
         self.adb, self.mux = adb, mux or AppleMux(address=mux_address)
         self.authorized = threading.Event()
+        self.control_authorized = threading.Event()
+        self.control_adb = control_adb
+        self._control_source = adb if control_adb is not None else None
         self.enabled = threading.Event()
         self._stop = threading.Event()
+        self._wake = threading.Event()
+        self._connect_lock = threading.Lock()
+        self._connect_generation = 0
+        self._connect_pending = None
+        self._ios_lock = threading.RLock()
+        self._ios_generation = 0
+        self._ios_start_blocked = False
+        self._ios_device = self._ios_stop_target = None
+        self._ios_stop_pending = None
+        self._start_request = start_request
         self._thread = None
         self._last_status = None
         self._last_devices = None
-        self.relay = IosRelay(server, self.mux, self.status)
+        self._scan_failed = False
+        self._failed_scans = 0
+        from .ios_usb import IosRelay, request_ios_connect, request_ios_stop
+        self.relay = IosRelay(server, self.mux, self.status,
+                              start_request=self._ios_request_start if start_request is not None else None)
+        self.ios_notify = ios_notify or request_ios_connect
+        self.ios_stop_notify = ios_stop_notify or request_ios_stop
 
     def status(self, message, **values):
         state = (message, values)
@@ -493,45 +493,192 @@ class UsbManager:
         self.enabled.set() if enabled else self.enabled.clear()
         if not enabled:
             self.authorized.clear()
+            self.control_authorized.clear()
+            self.cancel_connect()
             self.relay.request_stop()
+
+    def request_connect(self, *, timeout=20):
+        """Queue one explicit desktop Connect action, never a detection action."""
+        if not self.enabled.is_set() or self._stop.is_set():
+            return False
+        with self._connect_lock:
+            self._connect_generation += 1
+            self._connect_pending = (self._connect_generation, time.perf_counter() + min(30, max(1, timeout)))
+        # A new explicit desktop gesture supersedes an unconfirmed old Stop.
+        with self._ios_lock:
+            self._ios_generation += 1
+            self._ios_start_blocked = False
+            self._ios_stop_pending = self._ios_stop_target = None
+        self._wake.set()
+        return True
+
+    def _ios_request_start(self, generation=None, device=None):
+        with self._ios_lock:
+            if (generation is not None and generation != self._ios_generation
+                    or device is not None and device != self._ios_device):
+                return False
+            if self._ios_blocked_for(self._ios_device) or not self.enabled.is_set() or self._stop.is_set():
+                return False
+            return self._start_request() if self._start_request is not None else False
+
+    def _ios_blocked_for(self, device):
+        return self._ios_start_blocked and (self._ios_stop_target is None or device is None
+                                            or self._ios_stop_target.serial == device.serial)
+
+    def request_stop_phone(self):
+        """Revoke pending iOS readiness before scheduling one paired Stop."""
+        self.cancel_connect()
+        with self._ios_lock:
+            self._ios_generation += 1
+            self._ios_start_blocked = True
+            self._ios_stop_target = self._ios_device
+            self._ios_stop_pending = (self._ios_generation, time.perf_counter() + 8)
+            self.relay.request_stop()
+        self._wake.set()
+
+    def _ios_stop_confirmed(self, generation, device):
+        with self._ios_lock:
+            if (generation == self._ios_generation and self._ios_start_blocked
+                    and device == self._ios_stop_target):
+                self._ios_start_blocked = False
+                self._ios_stop_pending = None
+
+    def _service_ios_stop(self):
+        # Only the existing detection thread performs this bounded notification.
+        # No GUI-thread I/O, repeated intent, shared daemon reset, or SDK install.
+        with self._ios_lock:
+            pending = self._ios_stop_pending
+            if pending is None:
+                return
+            generation, deadline = pending
+            if time.perf_counter() > deadline:
+                self._ios_stop_pending = None
+                self.status("iPhone Stop is unconfirmed; tap Connect on this PC for a new attempt")
+                return
+        try:
+            devices = self.mux.devices()
+        except (OSError, ValueError, plistlib.InvalidFileException):
+            return
+        with self._ios_lock:
+            if pending != self._ios_stop_pending or generation != self._ios_generation:
+                return
+            target = self._ios_stop_target
+            candidates = [device for device in devices if target is not None and device.serial == target.serial]
+            if target is None and len(devices) == 1:
+                candidates = devices
+            if len(candidates) != 1:
+                return
+            # IDs can be reused/reassigned. Only today's USB enumeration paired
+            # with the selected phone's identity authorizes this targeted Stop.
+            device = self._ios_stop_target = candidates[0]
+            self._ios_stop_pending = None  # Exactly one attempt for this gesture.
+        try:
+            acknowledged = self.ios_stop_notify(self.mux, device)
+        except (OSError, ValueError):
+            acknowledged = False
+        if acknowledged is True:
+            self._ios_stop_confirmed(generation, device)
+        else:
+            with self._ios_lock:
+                if generation == self._ios_generation and self._ios_start_blocked:
+                    self.status("iPhone Stop is unconfirmed; tap Connect on this PC for a new attempt")
+
+    def _probe_ios_stopped(self, device, generation):
+        # A refused *paired* endpoint proves that no old video listener remains.
+        # If it still accepts, close the owned probe without readiness/host WS.
+        try:
+            sock = self.mux.connect(device)
+        except AppleEndpointUnavailable:
+            self._ios_stop_confirmed(generation, device)
+        except (OSError, ValueError):
+            pass  # Trust, service/device loss and timeouts prove no such fact.
+        else:
+            sock.close()
+
+    def cancel_connect(self):
+        with self._connect_lock:
+            self._connect_generation += 1
+            self._connect_pending = None
+        self._wake.set()
+
+    def _take_connect(self):
+        with self._connect_lock:
+            pending, self._connect_pending = self._connect_pending, None
+            if pending is None or time.perf_counter() > pending[1]:
+                return False
+            return self.enabled.is_set() and not self._stop.is_set()
+
+    def _release_android(self):
+        self.authorized.clear()
+        self.control_authorized.clear()
+        for adapter in (self.adb, self.control_adb):
+            if adapter:
+                adapter.release()
+
+    def _ensure_control(self, selected):
+        if self._control_source is not self.adb:
+            self.control_authorized.clear()
+            if self.control_adb and not self.control_adb.release():
+                return False
+            self.control_adb = None
+            path = getattr(self.adb, "path", None)
+            if path is not None:
+                self.control_adb = AdbReverse(path, self.adb.runner, self.adb.usb_presence,
+                                              remote_port=ANDROID_CONTROL_PORT)
+            self._control_source = self.adb
+        return self.control_adb is not None and self.control_adb.ensure(selected.serial, ANDROID_CONTROL_PORT)
 
     def _run(self):
         while not self._stop.is_set():
+            self._wake.clear()
+            self._scan_failed = False
             try:
                 self.scan()
             except (OSError, ValueError, subprocess.TimeoutExpired) as exc:
                 self.authorized.clear()
+                self.control_authorized.clear()
+                self._scan_failed = True
                 self.status("USB: {detail}", detail=str(exc))
-            self._stop.wait(2)
-        self.authorized.clear()
+            self._failed_scans = min(3, self._failed_scans + 1) if self._scan_failed else 0
+            self._wake.wait(min(8, 2 ** self._failed_scans) if self._failed_scans else 2)
+        self._release_android()
         self.relay.stop()
-        if self.adb:
-            self.adb.release()
 
     def scan(self):
+        self._service_ios_stop()
+        with self._connect_lock:
+            expired = self._connect_pending is not None and time.perf_counter() > self._connect_pending[1]
+            if expired:
+                self._connect_pending = None
+        if expired:
+            self.status("USB connection request expired; tap Connect again")
         if self.adb_path != self._configured_path:
-            self.authorized.clear()
+            self._release_android()
             if self.adb:
-                self.adb.release()
+                if self.adb.owned or self.control_adb and self.control_adb.owned:
+                    self.status("USB cleanup unavailable; retrying before switching tools")
+                    self._scan_failed = True
+                    return
             self.adb = None
             self._configured_path = self.adb_path
         if not self.enabled.is_set():
-            self.authorized.clear()
+            self._release_android()
             self.relay.stop()
-            if self.adb:
-                self.adb.release()
             self.status("USB off; use LAN address and pairing code")
             return
         if self.adb is None:
             path = find_adb(self.adb_path)
             if path:
                 self.adb = AdbReverse(path)
-        devices, adb_error = [], False
+        devices, adb_error, adb_timeout = [], False, False
         if self.adb:
             try:
                 devices = self.adb.devices()
-            except (OSError, subprocess.TimeoutExpired):
+            except subprocess.TimeoutExpired:
+                adb_error = adb_timeout = True
+            except OSError:
                 adb_error = True
+        self._scan_failed = adb_error
         authorized = [d for d in devices if d.state == "device" and d.usb]
         serials = tuple(d.serial for d in authorized)
         if serials != self._last_devices:
@@ -544,21 +691,30 @@ class UsbManager:
         if selected:
             if self.adb.owned and self.adb.owned[0] != selected.serial:
                 self.authorized.clear()
+                self.control_authorized.clear()
             if self.adb.ensure(selected.serial, self.server.port):
                 if self.enabled.is_set() and not self._stop.is_set():
                     self.authorized.set()
-                    self.status("Android USB ready: {serial}", serial=selected.serial)
+                    control_ready = self._ensure_control(selected)
+                    if control_ready and self.enabled.is_set() and not self._stop.is_set():
+                        self.control_authorized.set()
+                        self.status("Android USB ready: {serial}", serial=selected.serial)
+                        if self.server.running and self._take_connect():
+                            self.adb.command("-s", selected.serial, "shell", "am", "start", "--activity-single-top",
+                                             "--activity-clear-top", "-n", "org.vrization.app/.MainActivity",
+                                             "--ez", "vrization_connect_usb", "true")
+                    else:
+                        self.control_authorized.clear()
+                        self.status("USB control port is in use or unavailable; existing mappings were kept")
                 else:
-                    self.authorized.clear()
-                    self.adb.release()
+                    self._release_android()
             else:
                 self.authorized.clear()
+                self.control_authorized.clear()
                 self.status("USB port is in use by another application; no mapping changed")
             self.relay.stop()
             return
-        self.authorized.clear()
-        if self.adb:
-            self.adb.release()
+        self._release_android()
         try:
             apple = self.mux.devices()
         except (OSError, ValueError, plistlib.InvalidFileException):
@@ -572,13 +728,36 @@ class UsbManager:
         elif apple:
             if len(apple) != 1:
                 self.status("Connect only one iPhone for automatic USB pairing")
-            elif (self.enabled.is_set() and not self._stop.is_set()
-                  and self.server.running and not self.server.controller.connected):
-                self.relay.start(apple[0])
-            elif not self.server.running:
-                self.status("iPhone found; start streaming and open the phone app")
+            elif self.enabled.is_set() and not self._stop.is_set():
+                with self._ios_lock:
+                    self._ios_device = apple[0]
+                    if (self._ios_start_blocked and self._ios_stop_target is not None
+                            and self._ios_stop_target.serial == apple[0].serial):
+                        self._ios_stop_target = apple[0]
+                self._service_ios_stop()
+                if self.server.running and self._take_connect():
+                    self.ios_notify(self.mux, apple[0])
+                with self._ios_lock:
+                    generation, blocked = self._ios_generation, self._ios_blocked_for(apple[0])
+                    stop_target = self._ios_stop_target
+                if blocked:
+                    if apple[0] == stop_target:
+                        self._probe_ios_stopped(apple[0], generation)
+                    return
+                if not self.server.controller.connected:
+                    with self._ios_lock:
+                        if generation == self._ios_generation and not self._ios_blocked_for(apple[0]):
+                            self.relay.start(apple[0],
+                                             on_video_absent=lambda: self._ios_stop_confirmed(generation, apple[0]),
+                                             start_request=(lambda: self._ios_request_start(generation, apple[0]))
+                                             if self._start_request is not None else None)
         elif self.adb is None:
             self.status("USB waiting: install Android Platform Tools or Apple Devices; LAN is available")
+        elif adb_timeout:
+            probe = getattr(self.adb, "last_devices_probe", None)
+            startup = probe is not None and probe["timeoutSeconds"] > 3
+            self.status("Android USB startup or recovery timed out; retrying automatically" if startup else
+                        "Android USB detection timed out; retrying automatically")
         elif adb_error:
             self.status("Android USB unavailable; check the official Platform Tools path")
         else:
@@ -586,11 +765,17 @@ class UsbManager:
 
     def stop(self):
         self._stop.set()
+        self.cancel_connect()
         self.authorized.clear()
+        self.control_authorized.clear()
         self.relay.stop()
         if self._thread:
             self._thread.join(timeout=12)
 
 
-# Public spelling used by integration fixtures and embedding applications.
-IOSUsbRelay = IosRelay
+# Lazy spelling keeps the original embedding API while avoiding circular imports.
+def __getattr__(name):
+    if name in ("IOSUsbRelay", "IosRelay"):
+        from .ios_usb import IosRelay
+        return IosRelay
+    raise AttributeError(name)

@@ -144,7 +144,8 @@ class FakeGpu:
             return 0
         if kind == "duplicator" and slot == 14:
             if not self.held: raise AssertionError("ReleaseFrame without an acquisition")
-            self.held = False; return 0
+            self.held = False
+            return self.hr(0x80004005) if self.failure == "release_frame" else 0
         if kind in ("source_texture", "texture") and slot == 10:
             desc = ctypes.cast(values[0], ctypes.POINTER(gpu.TextureDesc)).contents
             source = self.outputs[1]
@@ -173,6 +174,11 @@ class FakeGpu:
             stride = width * 4; pitch = stride + self.padding
             rows = [bytes(((self.frames + row + column) % 256 for column in range(stride)))
                     + bytes([255]) * self.padding for row in range(height)]
+            if self.protected:
+                # Simulate the already-masked DXGI surface: black left half,
+                # ordinary pixels on the right. Capture must preserve this.
+                black = bytes((0, 0, 0, 255)) * (width // 2)
+                rows = [black + row[len(black):] for row in rows]
             buffer = ctypes.create_string_buffer(b"".join(rows))
             self.buffers.append(buffer)
             mapped = ctypes.cast(values[-1], ctypes.POINTER(gpu.MappedResource)).contents
@@ -261,12 +267,41 @@ class WindowsGpuTests(unittest.TestCase):
         self.fake.d3d.D3D11CreateDevice.assert_not_called()
         self.assertEqual(self.fake.frames, 0)
 
-    def test_protected_desktop_is_released_and_not_read_back(self):
+    def test_os_masked_desktop_is_read_back_unchanged_and_released(self):
         self.fake.protected = True
-        with self.assertRaises(OSError):
+        pixels = self.capture.grab(self.rect, (12, 16))
+        expected = b"".join(bytes((0, 0, 0, 255)) * 6
+                            + bytes((1 + row + column) % 256 for column in range(24, 48))
+                            for row in range(16))
+        self.assertEqual(pixels, expected)
+        self.assertTrue(self.capture.protected_content_masked)
+        self.assertFalse(self.fake.held)
+        self.assertEqual(len(self.fake.buffers), 1)
+        self.assertEqual(sum(kind == "duplicator" and slot == 14
+                             for kind, slot, *_ in self.fake.calls), 1)
+        self.fake.acquire_status = [0x887a0027]
+        self.assertIs(self.capture.grab(self.rect, (12, 16), force_latest=True), pixels)
+        self.assertTrue(self.capture.protected_content_masked)
+        self.fake.protected = False
+        self.assertIsNot(self.capture.grab(self.rect, (12, 16)), pixels)
+        self.assertFalse(self.capture.protected_content_masked)
+        self.capture.close()
+        self.assertIsNone(self.capture._last_frame)
+        self.assertTrue(all(count == 0 for count in self.fake.references.values()))
+
+    def test_masked_frame_release_failure_is_fatal_and_invalidates_cache(self):
+        self.capture.grab(self.rect, (12, 16))
+        self.fake.protected = True
+        self.fake.failure = "release_frame"
+        with self.assertRaisesRegex(OSError, "ReleaseFrame"):
             self.capture.grab(self.rect, (12, 16))
         self.assertFalse(self.fake.held)
-        self.assertEqual(self.fake.buffers, [])
+        self.assertTrue(self.capture.closed)
+        self.assertIsNone(self.capture._last_frame)
+        self.assertFalse(self.capture.protected_content_masked)
+        self.assertTrue(all(count == 0 for count in self.fake.references.values()))
+        with self.assertRaisesRegex(OSError, "closed"):
+            self.capture.grab(self.rect, (12, 16), force_latest=True)
 
     def test_invalid_pitch_unmaps_and_releases_frame_before_error(self):
         self.fake.force_bad_pitch = True

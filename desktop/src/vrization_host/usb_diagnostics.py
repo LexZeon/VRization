@@ -43,6 +43,7 @@ def _base_report():
             "adb_list_complete": False, "adb_listed_device_count": 0, "adb_listed_authorized_count": 0,
             "authorized_physical_count": 0, "physical_usb_count": 0, "unauthorized_count": 0,
             "observed_device_count": 0, "diagnostic_complete": False,
+            "adb_probes": [], "adb_devices_probe": None,
             "errors": [], "forbidden_runtime_imports": []}
 
 
@@ -154,6 +155,9 @@ def collect_usb_diagnostics() -> dict:
                 report["unauthorized_count"] = sum(device.state == "unauthorized" for device in devices)
             except Exception as error:
                 _error(report, "adb_devices", error)
+            report["adb_probes"] = list(getattr(adb, "recent_commands", ()))
+            probe = getattr(adb, "last_devices_probe", None)
+            report["adb_devices_probe"] = probe if isinstance(probe, dict) else None
     except Exception as error:
         _error(report, "adb_discovery", error)
     report["forbidden_runtime_imports"] = [prefix for prefix in FORBIDDEN_RUNTIME if any(

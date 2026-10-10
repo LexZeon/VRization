@@ -4,6 +4,7 @@ import VRizationCore
 
 final class ViewerController: UIViewController, UIScrollViewDelegate {
     private let client = StreamClient()
+    private let usbControl = USBControlListener()
     private let motion = MotionSource()
     private var settings = VRSettings()
     private var sync = LocalProfileSync()
@@ -28,7 +29,6 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
     private var statusKey = "waiting"
     private var frames = 0
     private var lastSent: TimeInterval = 0
-    private var startedInitialUSB = false
     private var sampleFrames = 0
     private var frameSampleAt: TimeInterval = 0
     private var receiveFPS: Double = 0
@@ -84,6 +84,18 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
     }
 
     private func wireCallbacks() {
+        usbControl.onStop = { [weak self] in self?.client.disconnect() }
+        usbControl.onConnect = { [weak self] in
+            guard let self = self, self.active, self.client.state == .disconnected else { return }
+            if self.selectedTransport != .usb {
+                self.preferences.transport = "usb"; try? self.preferenceStore.save(self.preferences); self.buildControls()
+            }
+            self.recenter(); _ = self.client.connectUSB()
+        }
+        usbControl.onFailure = { [weak self] in
+            guard let self = self, self.selectedTransport == .usb, self.client.state == .disconnected else { return }
+            self.statusKey = "usbFailed"; self.updateStatus()
+        }
         client.onSessionStarted = { [weak self] in
             self?.closeEditor(save: false, resumeMotion: false)
             if let self = self { self.sync.newSession(hasSavedProfile: self.preferences.hasCommittedProfile) }
@@ -97,6 +109,7 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
             if self.client.state == .disconnected {
                 self.closeEditor(save: false, resumeMotion: false)
                 self.renderer?.clear(); self.frameStatus.text = L.text("waitingFrame")
+                self.updateTestingGeometry()
             }
         }
         client.onSettings = { [weak self] value, revision, sequence in
@@ -176,6 +189,12 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
             content.widthAnchor.constraint(equalTo: scroll.frameLayoutGuide.widthAnchor, constant: -24)
         ])
         let title = label("VRization", size: 25); title.textColor = .systemTeal; content.addArrangedSubview(title)
+        let info = Bundle.main.infoDictionary ?? [:]
+        let version = info["CFBundleShortVersionString"] as? String ?? "?"
+        let build = info["CFBundleVersion"] as? String ?? "?"
+        let versionInfo = label(String(format: L.text("versionInfo"), version, build), size: 13)
+        versionInfo.accessibilityIdentifier = "version.info"
+        content.addArrangedSubview(versionInfo)
         content.addArrangedSubview(button("editorOpen", id: "view.editor", action: #selector(openEditor)))
         content.addArrangedSubview(label(L.text("editorHelp"), size: 12))
         let languages = UISegmentedControl(items: ["English", "中文"])
@@ -352,7 +371,7 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
     @objc private func resetSettings() {
         closeEditor(save: false, resumeMotion: false)
         client.disconnect(notify: false); motion.stop(); renderer?.clear()
-        sync = LocalProfileSync(); launchOverridesActive = false; startedInitialUSB = true
+        sync = LocalProfileSync(); launchOverridesActive = false
         try? preferenceStore.reset(); preferences = preferenceStore.load(); settings = preferences.settings
         client.setSettingsBase(settings)
         codeField.text = ""; statusKey = "disconnected"
@@ -403,11 +422,17 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
     @objc private func showSettings(_ gesture: UILongPressGestureRecognizer) { if gesture.state == .began { overlay.isHidden = false } }
     func suspendSession() {
         active = false; closeEditor(save: false, resumeMotion: false)
+        usbControl.stop()
         motion.stop(); client.disconnect(reason: "paused"); renderer?.clear(); metalView.isPaused = true
         UIApplication.shared.isIdleTimerDisabled = false
     }
     func resumeDisplay() {
         active = true; metalView.isPaused = false; UIApplication.shared.isIdleTimerDisabled = true; updateTracking()
+        startUSBControl()
+    }
+    private func startUSBControl() {
+        guard active else { return }
+        do { try usbControl.start() } catch { usbControl.onFailure?() }
     }
     private func updateTracking() {
         if active && editor == nil && client.state == .connected && settings.mode != "full" && motion.available { motion.start() }
@@ -415,10 +440,9 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
     }
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated); UIApplication.shared.isIdleTimerDisabled = true
-        if !startedInitialUSB {
-            startedInitialUSB = true
-            if selectedTransport == .usb { _ = client.connectUSB() }
-        }
+        // Only control listens automatically. Video starts after an explicit
+        // phone action or one PC control request, never by enumeration alone.
+        startUSBControl()
     }
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews(); updateTestingGeometry()

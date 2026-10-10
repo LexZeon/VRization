@@ -4,12 +4,17 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.SharedPreferences;
 import android.content.Context;
+import android.content.Intent;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.opengl.GLSurfaceView;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.InputType;
 import android.view.GestureDetector;
 import android.view.Gravity;
@@ -42,9 +47,12 @@ import org.vrization.core.AndroidPoseSource;
 import org.vrization.core.VrRenderer;
 import org.vrization.core.VrSettings;
 import org.vrization.core.HeadsetEdit;
+import org.vrization.core.UsbConnectRequest;
+import org.vrization.core.UsbConnectionAttempt;
 
 /** Native Android viewer. No Google services, account, camera or storage permission required. */
 public final class MainActivity extends Activity {
+    private static final String STATE_USB_CONNECT_PENDING = "vrization_usb_connect_pending";
     private static final int INK = Color.rgb(229, 239, 246);
     private static final int MUTED = Color.rgb(165, 182, 199);
     private static final int ACCENT = Color.rgb(70, 212, 185);
@@ -61,11 +69,13 @@ public final class MainActivity extends Activity {
     private TextView transportHelp, linkStatus, processingStatus, connectionNotice, stabilizationHelp;
     private LinearLayout lanInputs;
     private EditText hostInput, portInput, codeInput;
-    private Spinner modeInput;
+    private Spinner modeInput, transportInput;
     private CheckBox invertInput;
     private final List<Slider> sliders = new ArrayList<>();
     private boolean refreshing;
     private boolean resumed;
+    private final Handler lifecycle = new Handler(Looper.getMainLooper());
+    private Runnable pauseDisconnect;
     private boolean trackingActive;
     private boolean destroyed;
     private boolean panelVisible = true;
@@ -73,6 +83,7 @@ public final class MainActivity extends Activity {
     private final SettingsSync settingsSync = new SettingsSync();
     private ConnectionMode connectionMode = ConnectionMode.USB;
     private InitialUsbDetection initialUsb;
+    private final UsbConnectRequest explicitUsb = new UsbConnectRequest();
     private PhoneProfile profile;
     private FrameLayout screenRoot;
     private HeadsetEdit headsetEdit;
@@ -100,6 +111,8 @@ public final class MainActivity extends Activity {
         preferences = getSharedPreferences("vrization", MODE_PRIVATE);
         connectionMode = ConnectionMode.fromPreference(preferences.getString("transport", "usb"));
         initialUsb = new InitialUsbDetection(state == null && !getIntent().getBooleanExtra("suppress_usb_auto", false));
+        if (state != null && state.getBoolean(STATE_USB_CONNECT_PENDING, false)) explicitUsb.request();
+        acceptExplicitUsbIntent(getIntent());
         requestFastDisplay();
         try {
             profile = new PhoneProfile(preferences.contains("settings")
@@ -117,6 +130,16 @@ public final class MainActivity extends Activity {
                 if (profile.hasSavedProfile()) settingsChanged(true);
                 frameStatus.setText(R.string.waiting_frame); linkStatus.setText(R.string.waiting_ping);
                 processingStatus.setText(R.string.waiting_processing);
+                renderer.resumeFrames(); updateTracking();
+            }
+            @Override public void onSessionStopped() {
+                if (destroyed) return;
+                renderer.clearFrames();
+                if (surface != null) surface.requestRender();
+                if (frameStatus != null) frameStatus.setText(R.string.waiting_frame);
+                if (linkStatus != null) linkStatus.setText(R.string.waiting_ping);
+                if (processingStatus != null) processingStatus.setText(R.string.waiting_processing);
+                updateTracking();
             }
             @Override public void onStatus(String text, boolean connected) {
                 runOnUiThread(() -> {
@@ -208,6 +231,7 @@ public final class MainActivity extends Activity {
         Button recenterButton = button(getString(R.string.recenter), this::recenter);
         toolbar.addView(recenterButton, new LinearLayout.LayoutParams(dp(120), dp(44)));
         overlay.addView(toolbar);
+        overlay.addView(text(versionLabel(), 12, MUTED, false));
         panel = new ScrollView(this);
         panel.setFillViewport(false);
         panel.setBackgroundColor(Color.argb(242, 16, 26, 41));
@@ -230,6 +254,7 @@ public final class MainActivity extends Activity {
             @Override public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 String selected = position == 1 ? "zh" : "en";
                 if (!selected.equals(preferences.getString("language", "en"))) {
+                    explicitUsb.cancel();
                     preferences.edit().putString("language", selected).apply();
                     initialUsb.stop(); getIntent().putExtra("suppress_usb_auto", true);
                     client.disconnect(false); recreate();
@@ -240,15 +265,17 @@ public final class MainActivity extends Activity {
         content.addView(languageInput, new LinearLayout.LayoutParams(-1, dp(44)));
         content.addView(text(getString(R.string.tagline), 14, MUTED, false));
         content.addView(text(getString(R.string.connection_method), 14, MUTED, false));
-        Spinner transportInput = new Spinner(this);
+        transportInput = new Spinner(this);
         ArrayAdapter<String> transports = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item,
             getResources().getStringArray(R.array.connection_methods));
         transports.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         transportInput.setAdapter(transports); transportInput.setSelection(connectionMode == ConnectionMode.LAN ? 1 : 0);
         transportInput.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                if (position != transportInput.getSelectedItemPosition()) return;
                 ConnectionMode selected = position == 1 ? ConnectionMode.LAN : ConnectionMode.USB;
                 if (selected != connectionMode) {
+                    explicitUsb.cancel();
                     initialUsb.stop(); client.disconnect(false); connectionMode = selected;
                     preferences.edit().putString("transport", selected.preferenceValue).apply();
                     status.setText(selected == ConnectionMode.USB ? R.string.usb_ready : R.string.connection_help);
@@ -328,10 +355,26 @@ public final class MainActivity extends Activity {
         setContentView(root);
     }
 
+    @SuppressWarnings("deprecation")
+    private String versionLabel() {
+        try {
+            PackageInfo info = getPackageManager().getPackageInfo(getPackageName(), 0);
+            long build = Build.VERSION.SDK_INT >= 28 ? info.getLongVersionCode() : info.versionCode;
+            return getString(R.string.app_version, info.versionName, build);
+        } catch (PackageManager.NameNotFoundException impossible) {
+            throw new IllegalStateException("Installed app package is unavailable", impossible);
+        }
+    }
+
     private void connectOrDisconnect() {
+        explicitUsb.cancel();
         initialUsb.stop();
-        if (client.isActive()) { client.disconnect(true); return; }
-        if (connectionMode == ConnectionMode.USB) { recenter(); client.connectUsb(); return; }
+        if (client.isConnected() || (client.isConnecting() && !client.isAutomaticUsbAttempt())) {
+            client.disconnect(true); return;
+        }
+        if (connectionMode == ConnectionMode.USB) {
+            recenter(); client.connectUsb(UsbConnectionAttempt.Source.PHONE_ACTION); return;
+        }
         String host = hostInput.getText().toString().trim();
         String code = codeInput.getText().toString().trim();
         int port;
@@ -356,7 +399,8 @@ public final class MainActivity extends Activity {
         updateStabilizationHelp();
     }
     private void updateConnectButton() {
-        connectButton.setText(client.isConnected() ? R.string.disconnect : client.isConnecting() ? R.string.cancel_connect
+        connectButton.setText(client.isConnected() ? R.string.disconnect
+            : client.isConnecting() && !client.isAutomaticUsbAttempt() ? R.string.cancel_connect
             : connectionMode == ConnectionMode.USB ? R.string.connect_usb : R.string.connect);
     }
     private void updateStabilizationHelp() {
@@ -431,6 +475,7 @@ public final class MainActivity extends Activity {
         updateTracking();
     }
     private void resetAllPreferences() {
+        explicitUsb.cancel();
         finishHeadsetEdit(false, false); initialUsb.stop(); client.disconnect(false);
         settings = profile.reset();
         preferences.edit().clear().putString("settings", SettingsJson.encode(settings).toString())
@@ -492,13 +537,51 @@ public final class MainActivity extends Activity {
             | View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
     }
     @Override public void onWindowFocusChanged(boolean focused) { super.onWindowFocusChanged(focused); if (focused) immersive(); }
+    private void acceptExplicitUsbIntent(Intent intent) {
+        if (intent == null || !intent.getBooleanExtra(UsbConnectRequest.INTENT_EXTRA, false)) return;
+        // Consuming the actual extra prevents task restoration or configuration changes replaying it.
+        intent.removeExtra(UsbConnectRequest.INTENT_EXTRA);
+        explicitUsb.request();
+    }
+    @Override protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        if (intent != null && intent.getBooleanExtra(UsbConnectRequest.INTENT_EXTRA, false) && pauseDisconnect != null) {
+            // Android pauses a foreground Activity while delivering a new single-top intent.
+            // This explicit action is part of the same UI message, rather than a background exit.
+            lifecycle.removeCallbacks(pauseDisconnect); pauseDisconnect = null;
+        }
+        setIntent(intent); acceptExplicitUsbIntent(intent);
+        if (resumed) connectFromExplicitUsbRequest();
+    }
+    @Override protected void onSaveInstanceState(Bundle state) {
+        state.putBoolean(STATE_USB_CONNECT_PENDING, explicitUsb.isPending());
+        super.onSaveInstanceState(state);
+    }
+    private boolean connectFromExplicitUsbRequest() {
+        if (!explicitUsb.isPending()) return false;
+        initialUsb.stop();
+        boolean preserveConnection = client.isConnected() || (client.isConnecting() && !client.isAutomaticUsbAttempt());
+        if (explicitUsb.consume(preserveConnection)) {
+            connectionMode = ConnectionMode.USB;
+            preferences.edit().putString("transport", connectionMode.preferenceValue).apply();
+            transportInput.setSelection(0); updateTransportUi(); recenter();
+            client.connectUsb(UsbConnectionAttempt.Source.COMPUTER_ACTION);
+        } else {
+            status.setText(client.isConnected() ? R.string.connected : R.string.usb_waiting);
+            updateConnectButton(); updateStabilizationHelp();
+        }
+        return true;
+    }
     @Override protected void onResume() {
-        super.onResume(); resumed = true; renderer.resumeFrames(); surface.onResume(); pose.recenter();
+        super.onResume(); finishPauseDisconnect();
+        resumed = true; renderer.resumeFrames(); surface.onResume();
+        // A repeated PC intent preserves the established host's pose origin as well as its socket.
+        if (!client.isConnected()) pose.recenter();
         updateTracking();
-        if (initialUsb.onForeground(connectionMode) && !client.isActive()) client.connectUsb();
+        if (!connectFromExplicitUsbRequest() && initialUsb.onForeground(connectionMode) && !client.isActive()) client.connectUsb();
     }
     private void updateTracking() {
-        boolean needed = resumed && headsetEdit == null && !"full".equals(settings.mode) && pose.isAvailable();
+        boolean needed = resumed && client.isConnected() && headsetEdit == null && !"full".equals(settings.mode) && pose.isAvailable();
         if (!needed) { if (trackingActive) pose.stop(); trackingActive = false; return; }
         if (trackingActive) return;
         trackingActive = true;
@@ -509,14 +592,26 @@ public final class MainActivity extends Activity {
         });
     }
     @Override protected void onPause() {
-        resumed = false; finishHeadsetEdit(false, false); initialUsb.stop(); trackingActive = false; pose.stop(); client.disconnect(false); renderer.pauseFrames(); surface.onPause();
+        resumed = false; finishHeadsetEdit(false, false); initialUsb.stop(); trackingActive = false; pose.stop();
+        finishPauseDisconnect();
+        pauseDisconnect = this::finishPauseDisconnect;
+        lifecycle.post(pauseDisconnect);
+        renderer.pauseFrames(); surface.onPause();
         status.setText(getString(R.string.paused));
         updateConnectButton();
         updateStabilizationHelp();
         super.onPause();
     }
+    private void finishPauseDisconnect() {
+        if (pauseDisconnect == null) return;
+        lifecycle.removeCallbacks(pauseDisconnect); pauseDisconnect = null;
+        client.disconnect(false); updateConnectButton(); updateStabilizationHelp();
+    }
+    @Override protected void onStop() {
+        finishPauseDisconnect(); super.onStop();
+    }
     @Override protected void onDestroy() {
-        destroyed = true; pose.stop(); client.shutdown(); renderer.pauseFrames(); super.onDestroy();
+        destroyed = true; finishPauseDisconnect(); pose.stop(); client.shutdown(); renderer.pauseFrames(); super.onDestroy();
     }
     @Override public void onBackPressed() {
         if (headsetEdit != null) finishHeadsetEdit(false, true);

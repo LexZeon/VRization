@@ -7,7 +7,7 @@
 
 Updated 2026-10-09. Automated checks, desktop capture and emulator observations are distinguished from hardware capabilities that remain untested.
 
-### v0.3.2-alpha — current checks
+### v0.3.2-alpha — archived checks
 
 - Final [Actions 37991498159](https://github.com/LexZeon/VRization/actions/runs/37991498159), source `a9afaceabc5f237d31794a271ac5bc2ed6eb006b`, passed all Windows / Android / iOS / documentation jobs. The Windows suite passed **220 tests**, and its complete public ZIP passed a clean run without a developer SDK. Android APK / AAR tests, builds and lint passed. Documentation checks establish section / link structure, not translation quality.
 - The frozen local x64 Windows EXE matched **19 project modules, 47 notice files and 38 recorded native components** in a static audit, with no forbidden research runtime or system D3D DLL bundled. Its SHA-256 is `19eaebd0d1420872b76db7add6fa3aee0835a4f18987a2bd997bcccee665378d`. With SDK variables cleared and fresh application preferences, this EXE selected **portable_executable** tools, found one authorized physical USB phone and completed diagnostics without errors; no legacy developer-SDK fallback was found. Official tools are still separately installed.
@@ -138,7 +138,7 @@ Final [GitHub Actions 37897738507](https://github.com/LexZeon/VRization/actions/
 
 更新日期：2026-10-09。这里区分自动检查、电脑采集和模拟器观察；未验证的硬件能力不以截图或单元测试代替。
 
-### v0.3.2-alpha — 当前检查
+### v0.3.2-alpha — 历史检查
 
 - 最终 [Actions 37991498159](https://github.com/LexZeon/VRization/actions/runs/37991498159)，源码 `a9afaceabc5f237d31794a271ac5bc2ed6eb006b`，Windows / Android / iOS / 文档任务全部通过。Windows **220 项测试通过**，完整公开 ZIP 通过脱离开发 SDK 的独立运行检查；Android APK / AAR 测试、构建、lint 通过。文档检查验证分区 / 链接结构，不评价翻译质量。
 - 冻结本地 x64 Windows EXE 静态审计匹配 **19 个自有模块、47 份通知及 38 个已记录原生组件**，未附带禁止的研究运行库或系统 D3D DLL。SHA-256 为 `19eaebd0d1420872b76db7add6fa3aee0835a4f18987a2bd997bcccee665378d`。清空 SDK 变量、使用新偏好后，该 EXE 选择 **portable_executable** 工具，识别一台已授权真实 USB 手机，诊断完成且无错误，没有发现旧开发 SDK 回退；官方工具仍另行安装。

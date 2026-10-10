@@ -5,7 +5,7 @@
 <!-- vrization:english -->
 ## English
 
-v0.3.2-alpha retains integration **protocol v1**: 2D JPEG frames and JSON control messages. Android and iOS use the same messages over LAN or their USB adapters. This is not OpenXR or a stereoscopic video format. For installation and device authorization, read [USB setup](USB.md).
+The v0.3.3 candidate retains integration **protocol v1**: 2D JPEG frames and JSON control messages. Android and iOS use the same messages over LAN or their USB adapters. This is not OpenXR or a stereoscopic video format. For installation and device authorization, read [USB setup](USB.md).
 
 ### LAN WebSocket connection
 
@@ -21,7 +21,7 @@ Unauthenticated `GET /health` returns host name, version, protocol and connectio
 
 ### Android USB discovery
 
-The Windows GUI's optional `UsbManager` discovers a physical, authorized Android USB device and creates `adb -s <serial> reverse --no-rebind tcp:18765 tcp:<hostport>`. It never replaces an existing reverse mapping. Emulators, IP / port and wireless mDNS transports are excluded; Windows native SetupAPI supplies physical USB evidence when ADB reports an unknown device path. Only one unambiguously selected Android device is mapped automatically. The user still starts streaming on the PC.
+The Windows GUI's optional `UsbManager` discovers a physical, authorized Android USB device and creates `adb -s <serial> reverse --no-rebind tcp:18765 tcp:<hostport>`. It never replaces an existing reverse mapping. Emulators, IP / port and wireless mDNS transports are excluded; Windows native SetupAPI supplies physical USB evidence when ADB reports an unknown device path. Only one unambiguously selected Android device is mapped automatically. Automatic phone startup can wait for an existing stream; explicit phone / PC Connect can request startup through the separate control path.
 
 The phone requests `GET http://127.0.0.1:18765/usb-bootstrap`:
 
@@ -31,9 +31,21 @@ The phone requests `GET http://127.0.0.1:18765/usb-bootstrap`:
 
 `port` describes the PC listener; it does **not** change the phone destination. The phone then uses `ws://127.0.0.1:18765/ws?token=001234&settingsSchema=2` with the ordinary v1 WebSocket protocol. The example token is fictitious. Responses use `Cache-Control: no-store` and `X-Content-Type-Options: nosniff`. Access requires a loopback peer, one `Host` header naming `127.0.0.1`, `localhost` or `[::1]` with the PC port or reverse port `18765`, no `Origin` header, and an authorized physical USB mapping owned by this manager. Refusal is `403`; a reachable but stopped host returns `503`, while a stopped listener usually refuses the TCP connection. Ordinary `HostServer` embedding disables bootstrap unless explicitly supplied an authorization callback. No CORS permission is granted.
 
+### Explicit Android USB control (v0.3.3 candidate)
+
+`ConnectionCoordinator` owns request identities independently of capture. The PC binds `UsbConnectService` only to `127.0.0.1:18764`; an owned non-rebinding reverse mapping connects phone `18764` to it. Explicit phone Connect makes one empty-body `POST http://127.0.0.1:18764/connect`, then uses ordinary video bootstrap at `18765`. Automatic waiting, bootstrap polling and socket retries do not repeat this request. The route requires a loopback peer, one literal loopback Host with the control port, no Origin and independently authorized physical USB control mapping. No token or target is supplied. On 200 the response is `{"v":1,"name":"VRization","ready":true}`; refusal is 403, unavailable / eight-second failed startup is 503. GUI acceptance rejects stopped / expired identities. Video bootstrap remains independently authorized.
+
+PC Connect starts the host under the same coordinator and makes one explicit selected-device Activity request (`vrization_connect_usb`). Extras are consumed once; repeated requests preserve an active session. Detection never launches or wakes the phone periodically. Stop invalidates queued requests and video/socket identities; old retries and restored intents cannot revive a stopped session.
+
 ### iOS USB envelope
 
-The foreground iOS app listens only at phone loopback `127.0.0.1:18766`. Windows enumerates USB devices through Apple's local usbmux service (`127.0.0.1:27015`), requires an existing local pairing record through read-only `ReadPairRecord`, and connects to the selected device's port `18766`. The relay authenticates to the host's local WebSocket using its current token. No six-digit code is entered on the phone. Automatic selection requires a single attached Apple mobile device; VRization sends no Pair / Trust / SavePairRecord request and never logs or persists pairing-record keys.
+The foreground iOS app keeps control at phone loopback `127.0.0.1:18767`; explicit Connect opens video at `127.0.0.1:18766`. Windows enumerates USB devices through local usbmux (`127.0.0.1:27015`) and requires a read-only existing `ReadPairRecord` before either connection. PC Connect sends exactly one framed kind-1 `{"v":1,"type":"connect"}` to `18767`. Control accepts only these two fields, integer v1 and type connect or stop; it cannot authorize input or choose a capture target. Active sessions ignore repeated control. The control listener persists during video Disconnect and stops in background / destruction. Windows cannot launch a background viewer.
+
+PC Stop first gates pending relay startup and closes its existing video. It sends one paired control `{"v":1,"type":"stop"}`. The native main queue closes video/socket, invalidates decoder state and clears the renderer before replying `{"v":1,"type":"stopped"}`; foreground control remains available. `request_ios_stop` requires that bounded acknowledgment within two seconds. Only acknowledgment or an independently paired explicit video-port refusal can clear the stop gate; a trust/service failure cannot prove listener absence. Old notifications / absence results are checked against the stop epoch. Notification is bounded and a new explicit PC Connect can replace the stopped request; detection does not unlock it after a timeout. This also closes an explicitly opened video listener that had never accepted a peer.
+
+The unique accepted video peer sends the same readiness frame before receiving host hello. `IosRelay` requires it within two seconds, consumes it even for running hosts and never forwards it as a host message. Only valid readiness can request a stopped host through the injected coordinator; the relay waits up to eight seconds for the same request identity and startup. Cancellation / timeout fails pending identities and closes the paired peer; a later different action cannot satisfy an old request. An occupied old listener rejects the new peer without readiness, so TCP acceptance alone never starts capture. This candidate pre-handshake requires the matching native viewer; legacy iOS USB viewers without readiness are not compatible with the new relay. LAN v1 message compatibility is unaffected.
+
+The relay then authenticates to the local host WebSocket with its current token and bridges ordinary messages. No code is entered on iOS; automatic selection requires one attached Apple device. VRization sends no Pair / Trust / SavePairRecord and never logs or saves record keys.
 
 Inside this tunnel, each VRization frame is:
 
@@ -43,7 +55,7 @@ Inside this tunnel, each VRization frame is:
 
 The length includes the kind and excludes the four-byte prefix; valid length is `1…8 MiB`. Kind `1` carries UTF-8 v1 JSON and kind `2` carries one JPEG. JSON payloads are limited to 16 KiB. Phone → host accepts JSON only. Reject invalid lengths / kinds before allocating a payload; handle partial headers, fragmented payloads and multiple frames in one read. The first host JSON is the normal `hello`; the app requires it before treating the session as connected. Closing either side closes the relay's WebSocket and revokes host input authorization. This envelope is separate from usbmux's own little-endian plist service protocol; it does not change WebSocket v1.
 
-USB starts with one foreground attempt on a fresh phone app launch; after backgrounding, language changes or a disconnect the user connects explicitly. iOS USB evidence currently covers a simulated usbmux service, the production relay and the native Simulator listener, not a physical iPhone / Apple driver test. Huawei Android hardware evidence is recorded separately in [validation](VALIDATION.md).
+Fresh Android startup can wait for an existing stream; fresh iOS startup opens only foreground control. An explicit Connect on either supported device can establish USB. Backgrounding, language changes and Disconnect invalidate video and require another explicit action. New candidate native checks are pending. Historical iOS evidence covers simulated usbmux and the native Simulator, not a physical iPhone / Apple driver. See version-scoped [validation](VALIDATION.md).
 
 ### Message directions
 
@@ -144,7 +156,7 @@ Phones persist all committed VR fields, including offline changes; pairing secre
 
 Connected Save from the PC or phone uses settings / acknowledgments / broadcasts and retains the accepted state on both sides. Offline changes stay local. If both sides have conflicting offline changes, the saved phone profile takes precedence on reconnect; the PC can Save again afterward. No timestamp / clock comparison, automatic merge or new conflict wire type is introduced. Editor horizontal dragging updates the existing eyeSeparation field with selected-eye sign (left −1, right +1), mirrored around shared X while the remaining gap permits it; vertical motion updates shared offsetY. Left-eye left / right-eye right widens, the opposite directions narrow. Flat-fit resolution uses h=fit.x×scale, separation=clamp(raw,h−1,.2), gap=max(0,1+separation−h), X=clamp(rawX,±min(.3,gap)). Contact recenters X and enlargement may adjust spacing outward; normal corner motion and first-person mapping stay unchanged. These pure render constraints do not rewrite raw saved settings. Both endpoints must be v0.3 for negative values; v0.2 accepted only 0…0.2. Existing nonnegative profiles remain valid. Only undistorted flat preview / full / first-person guarantees this seam geometry, not cinema or distorted views.
 
-Reset restores standard Settings defaults, English and USB; phone reset clears connection preferences and disconnects without immediate auto-reconnect. A fresh app launch resumes its normal initial USB attempt; a valid hello restores the committed defaults. Host reset also restores capture 640 / 60 / Q45 but preserves explicit monitor / region and ADB tool path. Connected updates use ordinary settings validation. No remote reset / arm message is introduced. See [editor geometry and reset scope](EDITING.md).
+Reset restores standard Settings defaults, English and USB; phone reset clears connection preferences and disconnects without immediate auto-reconnect. A fresh Android launch can wait for an existing stream; iOS opens foreground control only; a valid hello restores the committed defaults. Host reset also restores capture 640 / 60 / Q45 but preserves explicit monitor / region and ADB tool path. Connected updates use ordinary settings validation. No remote reset / arm message is introduced. See [editor geometry and reset scope](EDITING.md).
 
 ### Disarm-only editor metadata (v0.3)
 
@@ -169,7 +181,7 @@ Positive smoothing runs only in the host's first-person pose-to-mouse path. Phon
 <!-- vrization:chinese -->
 ## 简体中文
 
-v0.3.2-alpha 保留集成**协议 v1**：传输二维 JPEG 帧和 JSON 控制消息。Android 与 iOS 经局域网或各自 USB 适配器使用相同消息。它不是 OpenXR 或立体视频协议；安装和设备授权见 [USB 教程](USB.md)。
+v0.3.3 候选保留集成**协议 v1**：传输二维 JPEG 帧和 JSON 控制消息。Android 与 iOS 经局域网或各自 USB 适配器使用相同消息。它不是 OpenXR 或立体视频协议；安装和设备授权见 [USB 教程](USB.md)。
 
 ### 局域网 WebSocket 连接
 
@@ -185,7 +197,7 @@ ws://<电脑局域网 IP>:8765/ws?token=<六位配对码>&settingsSchema=2
 
 ### Android USB 发现
 
-Windows 界面可启用 `UsbManager`，检测已授权的真实 Android USB 设备，并建立 `adb -s <serial> reverse --no-rebind tcp:18765 tcp:<hostport>`，不替换已有映射。排除模拟器、IP / 端口和无线 mDNS 连接；ADB 报告未知路径时，Windows 原生 SetupAPI 提供真实 USB 设备证据。只有唯一、明确选中的安卓设备会自动建立映射，电脑仍需用户主动开始串流。
+Windows 界面可启用 `UsbManager`，检测已授权的真实 Android USB 设备，并建立 `adb -s <serial> reverse --no-rebind tcp:18765 tcp:<hostport>`，不替换已有映射。排除模拟器、IP / 端口和无线 mDNS 连接；ADB 报告未知路径时，Windows 原生 SetupAPI 提供真实 USB 设备证据。只有唯一、明确选中的安卓设备会自动建立映射，手机自动启动可等待已有串流；手机／电脑主动连接可经独立控制路径请求启动。
 
 手机请求 `GET http://127.0.0.1:18765/usb-bootstrap`：
 
@@ -195,9 +207,21 @@ Windows 界面可启用 `UsbManager`，检测已授权的真实 Android USB 设�
 
 `port` 说明电脑监听端口，**不改变**手机目的端口；手机随后以普通 v1 协议连接 `ws://127.0.0.1:18765/ws?token=001234&settingsSchema=2`。示例 token 为虚构。响应含 `Cache-Control: no-store`、`X-Content-Type-Options: nosniff`。请求必须来自回环地址，仅含一个 `Host`，主机为 `127.0.0.1`、`localhost` 或 `[::1]`，端口为电脑端口或反向端口 `18765`，不能含 `Origin`，并且 manager 必须拥有已授权的真实 USB 映射。拒绝返回 `403`；服务可达但已停止返回 `503`，监听停止时通常直接拒绝 TCP 连接。普通 `HostServer` 嵌入默认关闭 bootstrap，须显式提供授权回调；接口不授予 CORS 访问。
 
+### Android 主动 USB 控制（v0.3.3 候选）
+
+`ConnectionCoordinator` 独立于采集管理请求身份。电脑仅在 `127.0.0.1:18764` 监听 `UsbConnectService`，自有不重新绑定的 reverse 将手机 `18764` 映射到它。手机主动连接发送一次空 body `POST http://127.0.0.1:18764/connect`，再走普通 `18765` 视频 bootstrap；自动等待、bootstrap 轮询、socket 重试不重复请求。路由要求回环 peer、仅一个带控制端口的字面回环 Host、无 Origin 和独立验证的真实 USB 控制映射；不传 token 或目标。200 返回 `{"v":1,"name":"VRization","ready":true}`，拒绝 403，不可用／八秒启动失败 503；GUI 拒绝已停止或过期身份，视频 bootstrap 独立鉴权。
+
+电脑主动连接经同一协调器启动主机，对选中设备发送一次 Activity 请求（`vrization_connect_usb`）；intent extra 只消费一次，重复请求保留活动会话。定时检测不启动或唤醒手机。停止使排队请求、视频／socket 身份失效，旧重试或 intent 不能恢复已停止会话。
+
 ### iOS USB 分帧
 
-iOS 应用仅在前台监听手机回环 `127.0.0.1:18766`。Windows 经 Apple 本地 usbmux 服务（`127.0.0.1:27015`）枚举 USB 设备，通过只读 `ReadPairRecord` 要求已有本地配对记录，再连接所选设备的 `18766`。中继使用当次 token 连接主机本地 WebSocket，手机不填写六位码。自动选择要求只接一台 Apple 移动设备；VRization 不发送 Pair / Trust / SavePairRecord，也不输出或保存配对记录密钥。
+iOS 前台在手机回环 `127.0.0.1:18767` 保留控制，主动连接才开放视频 `127.0.0.1:18766`。Windows 经本地 usbmux（`127.0.0.1:27015`）枚举设备，任一路连接前均要求只读已有 `ReadPairRecord`。电脑连接动作对 `18767` 发送一次 framed 类型 1 `{"v":1,"type":"connect"}`；控制仅接受这两个字段、整数 v1 和 connect 或 stop 类型，不授予输入或允许选择采集目标。活动会话忽略重复控制；视频断开后保留控制，后台／销毁停止。Windows 不能启动后台观看端。
+
+电脑停止先限制待处理中继启动、关闭已有视频，并发送一次已配对控制 `{"v":1,"type":"stop"}`。原生主队列关闭视频／socket，使解码状态失效并清渲染器，再回复 `{"v":1,"type":"stopped"}`；前台控制仍保留。`request_ios_stop` 要求两秒内收到有限长确认。只有确认或独立已配对的视频端口明确拒绝可解除停止门控；信任／服务错误不能证明监听消失。旧通知／端口结果核对停止代际。通知有限等待，新电脑主动连接可替代停止请求，检测不因超时自行解除；这也能关闭已开放但从未接受 peer 的视频监听。
+
+视频接受唯一 peer 后，手机在收到 host hello 前发送同样就绪帧。`IosRelay` 两秒内要求就绪，主机已运行也消费它，不将其转成 host 消息；合法就绪才可经注入协调器请求已停止主机，最多八秒等待同一请求身份和启动。取消／超时使待处理身份失败、关闭已配对 peer，后续其他动作不能满足旧请求。旧监听已占用时拒第二 peer、没有就绪，仅 TCP 接受不能开始采集。候选预握手需要匹配原生观看端，无就绪的旧 iOS USB 端不兼容新中继；LAN v1 消息兼容不变。
+
+随后中继使用当前 token 鉴权主机本机 WebSocket、桥接普通消息。iOS 不输入码，自动选择只接一台 Apple 设备。VRization 不发 Pair／Trust／SavePairRecord，不记录／保存其中密钥。
 
 隧道内每个 VRization 帧为：
 
@@ -207,7 +231,7 @@ iOS 应用仅在前台监听手机回环 `127.0.0.1:18766`。Windows 经 Apple �
 
 长度包含类型字节、不包含四字节头，有效范围 `1…8 MiB`。类型 `1` 为 UTF-8 v1 JSON，类型 `2` 为一个 JPEG；JSON 内容最多 16 KiB，手机向主机只发 JSON。分配内容前先拒绝非法长度 / 类型；支持分段头、分段内容及一次读取多个帧。首条主机 JSON 为普通 `hello`，应用收到合法握手才认为连接成功。任意一侧关闭会关闭中继 WebSocket，并撤销主机输入授权。此分帧独立于 usbmux 自身的小端 plist 服务协议，不改变 WebSocket v1。
 
-手机软件新启动时只在前台自动尝试一次 USB；进入后台、切换语言或断线后需主动连接。目前 iOS USB 证据包含模拟 usbmux 服务、生产中继与原生模拟器监听，不代表真实 iPhone / Apple 驱动已经通过；华为 Android 实机证据在 [验证记录](VALIDATION.md) 单独列出。
+全新 Android 启动可等待已有串流，全新 iOS 仅开放前台控制；受支持任一端主动连接可建立 USB，后台、切换语言和断线使视频失效，需再次主动连接。新增候选原生检查待完成，历史 iOS 证据只包含模拟 usbmux 和原生模拟器，不代表真实 iPhone／Apple 驱动。见按版本记录的[验证](VALIDATION.md)。
 
 ### 消息方向
 
@@ -320,7 +344,7 @@ v0.1.1 起，主机 `hello` 与 `settings` 含非负、单调增加的 `revision
 
 电脑或手机已连接的保存经设置 / 确认 / 广播传播，两端保留接受状态；离线变化只在本地。若两边离线冲突，重连时已保存手机配置优先，电脑可随后再保存；不比较时间戳 / 时钟、不自动合并、不新增冲突协议类型。编辑器横向拖动根据选中眼符号（左 −1、右 +1）更新已有 eyeSeparation，在剩余间隙允许时围绕共用 X 镜像联动；竖向更新共用 offsetY。左眼向左 / 右眼向右拉开，反向收拢；平面解析采用 h=fit.x×scale、间距=clamp(raw,h−1,.2)、gap=max(0,1+间距−h)、X=clamp(rawX,±min(.3,gap))；接触时 X 居中，放大时可能向外调整间距，普通角点方向与 第一人称映射不变。纯渲染约束不改写原始已存设置。负值需两端均为 v0.3，v0.2 只接受 0…0.2；已有非负配置仍有效。接缝几何只保证无畸变平面预览 / 全屏 / 第一人称，不含大屏幕或畸变视图。
 
-重置恢复标准 Settings 默认、英文与 USB；手机清除连接偏好并断线，当前界面不自动重连；全新启动恢复正常初次 USB 尝试，合法 hello 后恢复已提交默认值。主机还恢复采集 640 / 60 / Q45，但保留明确显示器 / 选区和 ADB 工具路径；已连接更新仍经过普通设置校验，不新增远程 reset / arm 消息。见 [几何与重置范围](EDITING.md)。
+重置恢复标准 Settings 默认、英文与 USB；手机清除连接偏好并断线，当前界面不自动重连；全新 Android 可等待已有串流，iOS 仅开放前台控制，合法 hello 后恢复已提交默认值。主机还恢复采集 640 / 60 / Q45，但保留明确显示器 / 选区和 ADB 工具路径；已连接更新仍经过普通设置校验，不新增远程 reset / arm 消息。见 [几何与重置范围](EDITING.md)。
 
 
 ### 只解除授权的编辑元数据（v0.3）
