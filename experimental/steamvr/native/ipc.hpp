@@ -120,7 +120,9 @@ public:
         if (!view_) { close(); return false; } return true;
     }
     void create(const std::wstring& name, std::size_t bytes) {
+        if(view_ || handle_) throw std::runtime_error("Mapping already owns a handle");
         if (!local_map_name(name)) throw std::runtime_error("Invalid Local frame map name");
+        SetLastError(ERROR_SUCCESS);
         handle_ = CreateFileMappingW(INVALID_HANDLE_VALUE, nullptr, PAGE_READWRITE, 0, static_cast<DWORD>(bytes), name.c_str());
         if (!handle_) throw std::runtime_error("Cannot create frame mapping");
         if (GetLastError() == ERROR_ALREADY_EXISTS) { close(); throw std::runtime_error("Frame mapping already has an owner"); }

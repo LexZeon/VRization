@@ -35,9 +35,10 @@ def enhanced_preview(image, size, fov):
 
 
 class HeadsetEditor:
-    def __init__(self, owner, entry):
+    def __init__(self, owner, entry, *, stereo=False):
         self.owner = owner
-        self.transaction = EditTransaction(entry)
+        self.stereo = stereo
+        self.transaction = EditTransaction(entry.update({"mode": "fps"}) if stereo else entry)
         self.gesture = None
         self.closed = False
         self.frame = None
@@ -108,7 +109,7 @@ class HeadsetEditor:
 
     def bounds(self, eye):
         x, y, width, height = self.geometry()
-        image_aspect = self.image.width / self.image.height if self.image is not None else 16 / 9
+        image_aspect = self._image_aspect()
         left, bottom, right, top = eye_bounds(self.draft, eye, image_aspect, width / 2 / height)
         return (x + eye * width / 2 + (left + 1) * width / 4,
                 y + (1 - top) * height / 2,
@@ -132,6 +133,11 @@ class HeadsetEditor:
         # Ten local preview refreshes/s; reuse the existing small stream image.
         self.job = self.window.after(100, self.refresh)
 
+    def _image_aspect(self):
+        if self.image is None:
+            return 1.0 if self.stereo else 16 / 9
+        return self.image.width / self.image.height / (2 if self.stereo else 1)
+
     def draw(self, force=False):
         if self.closed:
             return
@@ -149,7 +155,11 @@ class HeadsetEditor:
             picture = Image.new("RGB", (ew, eh), "#050910")
             target_width, target_height = max(1, round(right - left)), max(1, round(bottom - top))
             if self.image is not None:
-                if self.draft.mode == "fps_enhanced":
+                if self.stereo:
+                    half = self.image.width // 2
+                    patch = self.image.crop((eye * half, 0, (eye + 1) * half, self.image.height)).resize(
+                        (target_width, target_height), Image.Resampling.BILINEAR)
+                elif self.draft.mode == "fps_enhanced":
                     if enhanced_patch is None:
                         enhanced_patch = enhanced_preview(self.image, (target_width, target_height), self.draft.fov)
                     patch = enhanced_patch
@@ -184,7 +194,7 @@ class HeadsetEditor:
         if not (x <= event.x <= x + width and y <= event.y <= y + height):
             return
         eye = 0 if event.x < x + width / 2 else 1
-        image_aspect = self.image.width / self.image.height if self.image is not None else 16 / 9
+        image_aspect = self._image_aspect()
         left, top, right, bottom = self.bounds(eye)
         for px, py, sx, sy in ((left, top, -1, 1), (right, top, 1, 1),
                                 (left, bottom, -1, -1), (right, bottom, 1, -1)):

@@ -1,6 +1,7 @@
 // Original VRization native fixture tests, MIT. No SteamVR runtime is started.
 #include "pose.hpp"
 #include "gpu.hpp"
+#include "stop.hpp"
 #include <functional>
 #include <iostream>
 #include <limits>
@@ -68,6 +69,9 @@ void ipc_tests() {
     bool refused=false;try { vrization::FrameWriter conflicting(name); } catch(const std::exception&) { refused=true; }
     require(refused,"existing map writer ownership rejected");
     writer.publish(nullptr,0,0,false);require(vrization::snapshot_frame(reader.data(),f,pixels) && !f.flags && pixels.empty(),"Stop publishes inactive and clears reader pixels");
+    const std::uint8_t odd[12]={1,2,3,255,4,5,6,255,7,8,9,255};writer.publish(odd,3,1);
+    require(vrization::snapshot_frame(reader.data(),f,pixels) && f.width==3 && f.stride==12,"mono overlay permits odd width");
+    writer.publish(nullptr,0,0,false);
     require(!vrization::local_map_name(L"Global\\unsafe") && !vrization::local_map_name(L"Local\\a/b"),"bounded Local namespace only");
     const auto next=unique_map(L"new-generation"); vrization::FrameWriter nextWriter(next); vrization::Mapping nextReader;
     require(nextReader.open(next,vrization::kFrameMapBytes),"new generation uses separate map");
@@ -85,6 +89,21 @@ void ipc_tests() {
     vrization::PoseHeader snapshot{};
     require(vrization::snapshot_header(memory,snapshot) && snapshot.positionXYZ[1]==1.6,"128-byte pose IPC snapshot");
     pp->seqlock=1;require(!vrization::snapshot_header(memory,snapshot),"in-progress pose snapshot rejected");
+}
+void stop_tests() {
+    vrization::stopping=false;const auto name=unique_map(L"stop");
+    HANDLE event=CreateEventW(nullptr,TRUE,FALSE,name.c_str());require(event!=nullptr,"host-owned manual-reset Stop event fixture");
+    struct Close { HANDLE handle;~Close(){CloseHandle(handle);} } close{event};
+    {
+        vrization::StopEvent observer(name);require(!vrization::should_stop(),"Stop reader initially quiet");
+        require(SetEvent(event)!=FALSE,"host can signal owned Stop event");
+        require(vrization::should_stop(),"native loop observes host Stop without blocking");
+        ResetEvent(event);require(vrization::should_stop(),"Stop request remains latched after signal reset");
+    }
+    require(vrization::stopHandle==nullptr,"native event reader released on cleanup");
+    vrization::stopping=false;bool refused=false;
+    try { vrization::StopEvent missing(unique_map(L"missing-stop")); }catch(const std::exception&) { refused=true; }
+    require(refused,"provided missing host Stop event refuses uncontrolled launch");
 }
 vrization::ComPtr<ID3D11ShaderResourceView> texture(vrization::Device& gpu,UINT w,UINT h,const std::vector<std::uint8_t>& pixels,bool srgb=false) {
     D3D11_TEXTURE2D_DESC d{}; d.Width=w;d.Height=h;d.MipLevels=d.ArraySize=1;d.SampleDesc.Count=1;
@@ -143,7 +162,7 @@ void factory_tests(const wchar_t* dll) {
 int wmain(int argc,wchar_t** argv) {
     try {
         if(argc!=2) throw std::runtime_error("Pass driver DLL path");
-        pose_tests();ipc_tests();gpu_tests();factory_tests(argv[1]);
-        std::cout<<"PASS: "<<checks<<" native fixture checks (IPC, pose, WARP pixels, factory ABI); no SteamVR/hardware test"<<std::endl;return 0;
+        pose_tests();ipc_tests();stop_tests();gpu_tests();factory_tests(argv[1]);
+        std::cout<<"PASS: "<<checks<<" native fixture checks (IPC, pose, owned Stop, WARP pixels, factory ABI); no SteamVR/hardware test"<<std::endl;return 0;
     }catch(const std::exception& error){std::cerr<<"FAIL after "<<checks<<" checks: "<<error.what()<<std::endl;return 1;}
 }

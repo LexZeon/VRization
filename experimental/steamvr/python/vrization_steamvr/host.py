@@ -48,12 +48,13 @@ class PreviewHost(HostServer):
         return self._session_ready
 
     async def _on_client_hello(self,msg,ws):
-        try:
-            self.stream_session.negotiate(msg.get("capabilities",[]))
-        except ProtocolError as error:
-            await ws.send_json({"v":1,"type":"error","message":str(error)})
-            await ws.close(code=1008,message=b"SteamVR capabilities required",drain=False)
-            return
+        if not self.stream_session.accepted:
+            try:
+                self.stream_session.negotiate(msg.get("capabilities",[]))
+            except ProtocolError as error:
+                await ws.send_json({"v":1,"type":"error","message":str(error)})
+                await ws.close(code=1008,message=b"SteamVR capabilities required",drain=False)
+                return
         if self.hmd:
             if msg.get("editing") is True:self.disarm("headset editor opened")
         # Always a complete authoritative snapshot; even LAN query opt-in waits

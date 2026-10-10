@@ -6,3 +6,4 @@ android/gradlew text eol=lf
 *.jar -text
 # Preserve upstream license bytes and their publisher hashes verbatim.
 licenses/** -text -whitespace
+experimental/steamvr/native/licenses/*.txt -text -whitespace

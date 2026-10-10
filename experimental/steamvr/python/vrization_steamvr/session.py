@@ -39,7 +39,7 @@ def parse_preview_message(data):
         raise ProtocolError("Message exceeds 4096 bytes")
     try:
         msg = json.loads(data)
-    except (ValueError, TypeError) as error:
+    except (ValueError, TypeError, RecursionError) as error:
         raise ProtocolError("Invalid JSON") from error
     if not isinstance(msg, dict) or msg.get("type") != "hmdPose":
         return parse_message(data)
@@ -56,9 +56,14 @@ def parse_preview_message(data):
         raise ProtocolError("Valid tracking needs a quaternion")
     if "q" in msg:
         q = msg["q"]
-        if (not isinstance(q, list) or len(q) != 4 or
-                any(type(x) not in (int, float) or not math.isfinite(x) for x in q)):
+        if not isinstance(q, list) or len(q)!=4 or any(type(x) not in (int,float) for x in q):
             raise ProtocolError("Quaternion must contain four finite numbers")
+        try:
+            q=tuple(float(x) for x in q)
+        except (OverflowError,ValueError) as error:
+            raise ProtocolError("Quaternion must contain four finite numbers") from error
+        if any(not math.isfinite(x) or abs(x)>1.001 for x in q):
+            raise ProtocolError("Quaternion must contain finite unit components")
         norm = math.sqrt(sum(x*x for x in q))
         if not .999 <= norm <= 1.001:
             raise ProtocolError("Quaternion must have unit length")

@@ -3,16 +3,25 @@
 #include "pose.hpp"
 #include <mutex>
 #include <cstring>
+#include <atomic>
 
 namespace {
 class PhoneHmd final:public vr::ITrackedDeviceServerDriver,public vr::IVRDisplayComponent {
-    vr::TrackedDeviceIndex_t index_=vr::k_unTrackedDeviceIndexInvalid;
+    std::atomic<vr::TrackedDeviceIndex_t> index_{vr::k_unTrackedDeviceIndexInvalid};
     std::mutex mutex_; vrization::PoseHeader latest_{};
 public:
     void update(const vrization::PoseHeader& input) {
         { std::lock_guard<std::mutex> guard(mutex_); latest_=input; }
-        if(index_!=vr::k_unTrackedDeviceIndexInvalid) {
-            const auto pose=GetPose(); vr::VRServerDriverHost()->TrackedDevicePoseUpdated(index_,pose,sizeof(pose));
+        publish();
+    }
+    bool hasFreshHeader(std::uint64_t now) {
+        std::lock_guard<std::mutex> guard(mutex_);
+        return vrization::pose_header(latest_) && vrization::fresh(latest_.tickMs,now);
+    }
+    void publish() {
+        const auto index=index_.load();
+        if(index!=vr::k_unTrackedDeviceIndexInvalid) {
+            const auto pose=GetPose(); vr::VRServerDriverHost()->TrackedDevicePoseUpdated(index,pose,sizeof(pose));
         }
     }
     vr::EVRInitError Activate(std::uint32_t index) override {
@@ -72,7 +81,14 @@ public:
     const char* const* GetInterfaceVersions() override { return vr::k_InterfaceVersions; }
     void RunFrame() override {
         vrization::PoseHeader pose{};
-        if(mapping_.open(vrization::kPoseMapName,sizeof(pose)) && vrization::snapshot_header(mapping_.data(),pose)) {
+        if(mapping_.open(vrization::kPoseMapName,sizeof(pose))) {
+            if(!vrization::snapshot_header(mapping_.data(),pose)) {
+                // A bounded read may overlap a legitimate write. Preserve the last
+                // snapshot only until its original timestamp expires; a crashed
+                // odd writer must not keep an orphaned mapping alive forever.
+                if(hmd_.hasFreshHeader(GetTickCount64())) { hmd_.publish(); return; }
+                mapping_.close(); hmd_.update({}); return;
+            }
             const bool headerReady=vrization::pose_header(pose) && !(pose.flags & ~7U) &&
                 vrization::fresh(pose.tickMs,GetTickCount64());
             if(headerReady && !registrationAttempted_) {

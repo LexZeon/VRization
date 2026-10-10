@@ -44,9 +44,12 @@ int wmain(int argc,wchar_t** argv) {
         const auto selectedSerial=vrization::hmd_serial(runtime.system);
         int adapter=-1; runtime.system->GetDXGIOutputInfo(&adapter);
         if(adapter<0) throw std::runtime_error("SteamVR did not report a DXGI adapter");
-        auto gpu=vrization::Device::adapter(adapter); OwnedOverlay overlay(vr::VROverlay()); overlay.configure();
+        auto gpu=vrization::Device::adapter(adapter);
         vrization::Mapping mapping; vrization::FrameHeader frame{};
         std::vector<std::uint8_t> pixels; vrization::ComPtr<ID3D11Texture2D> texture;
+        // Destruction order matters on exceptions too: hide/clear/destroy the
+        // submitted overlay while its texture and D3D device are still alive.
+        OwnedOverlay overlay(vr::VROverlay()); overlay.configure();
         UINT width=0,height=0; std::uint32_t lastSequence=0; bool haveFrame=false;
         std::cout<<"ready: existing-headset overlay; no mouse or tracking output"<<std::endl;
         while(!runtime.quitting()) {

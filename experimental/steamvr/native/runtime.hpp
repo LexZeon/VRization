@@ -1,35 +1,13 @@
 // Original VRization client lifecycle, MIT. Calls pinned BSD-3-Clause OpenVR SDK.
 #pragma once
 #include "ipc.hpp"
+#include "stop.hpp"
 #include <openvr.h>
-#include <atomic>
 #include <chrono>
 #include <iostream>
 #include <stdexcept>
 
 namespace vrization {
-inline std::atomic<bool> stopping{false};
-inline HANDLE stopHandle=nullptr;
-inline bool should_stop() {
-    if(stopHandle && WaitForSingleObject(stopHandle,0)==WAIT_OBJECT_0) stopping=true;
-    return stopping.load();
-}
-class StopEvent {
-public:
-    explicit StopEvent(const std::wstring& name) {
-        if(name.empty()) return;
-        if(!local_map_name(name)) throw std::runtime_error("Invalid Local stop event name");
-        stopHandle=OpenEventW(SYNCHRONIZE,FALSE,name.c_str());
-        if(!stopHandle) throw std::runtime_error("Host stop event unavailable");
-    }
-    ~StopEvent() { if(stopHandle) CloseHandle(stopHandle);stopHandle=nullptr; }
-};
-inline BOOL WINAPI console_control(DWORD event) {
-    if(event==CTRL_C_EVENT || event==CTRL_BREAK_EVENT || event==CTRL_CLOSE_EVENT || event==CTRL_SHUTDOWN_EVENT) {
-        stopping=true; return TRUE;
-    }
-    return FALSE;
-}
 struct Arguments {
     std::wstring map,stopEvent; UINT width=640,fps=60; bool allowNative=false;
     static Arguments parse(int argc,wchar_t** argv,bool mirror) {

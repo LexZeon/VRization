@@ -110,6 +110,12 @@ def main(argv: list[str] | None = None) -> int:
         raise ValueError("Staged OpenVR binary is not the pinned SDK DLL")
     if digest(output / "native/licenses/OpenVR-LICENSE.txt") != PINS["LICENSE"]:
         raise ValueError("Staged OpenVR license differs from upstream")
+    allowed_binaries = {name for name in expected if Path(name).suffix.lower() in (".exe", ".dll", ".lib")}
+    unexpected_binaries = [path.relative_to(output).as_posix() for path in output.rglob("*")
+                           if path.is_file() and path.suffix.lower() in (".exe", ".dll", ".lib")
+                           and path.relative_to(output).as_posix() not in allowed_binaries]
+    if unexpected_binaries:
+        raise ValueError(f"Unexpected native staging binaries preserved; refusing package: {unexpected_binaries}")
     report = {
         "generatedUtc": datetime.now(timezone.utc).isoformat(), "sdkCommit": COMMIT,
         "sdkLicense": "BSD-3-Clause", "sdkPins": pins, "configuration": args.configuration,
@@ -117,6 +123,11 @@ def main(argv: list[str] | None = None) -> int:
         "driverRegistered": False, "bundledWindowsSystemDlls": False,
         "files": {name: digest(output / name) for name in expected},
     }
+    if args.test:
+        log = build / "Testing/Temporary/LastTest.log"
+        if not log.is_file():
+            raise RuntimeError("CTest finished but its native fixture log is missing")
+        report["ctestLogSha256"] = digest(log)
     report_path = output / "native-build-report.json"
     report_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     print(f"Native staging complete. Report: {report_path}", flush=True)

@@ -16,13 +16,13 @@ class HmdPoseGate:
     def __init__(self, sink, tick_ms):
         self.sink, self.tick_ms = sink, tick_ms
         self.lock = threading.RLock()
-        self.epoch=0; self.last_seq=-1; self.last_tick=0
+        self.epoch=0; self.last_seq=-1; self.last_time=-1; self.last_tick=0
         self.connected=False; self.accepted=False; self.paused=False; self.enabled=True
         self.pending_baseline=False; self.current=None; self.baseline=(0.,0.,0.,1.); self.output=None
 
     def open(self, epoch):
         with self.lock:
-            self.epoch=epoch; self.last_seq=-1; self.last_tick=0
+            self.epoch=epoch; self.last_seq=-1; self.last_time=-1; self.last_tick=0
             self.connected=True; self.accepted=False; self.current=self.output=None
             self.baseline=(0.,0.,0.,1.)
             self._invalidate()
@@ -46,7 +46,7 @@ class HmdPoseGate:
     def enable(self, enabled):
         with self.lock:
             self.enabled=bool(enabled)
-            if not enabled: self._invalidate()
+            if not enabled: self.output=None; self._invalidate()
 
     def resume(self):
         with self.lock:
@@ -58,13 +58,15 @@ class HmdPoseGate:
     def recenter(self, *, phone_reset=False):
         with self.lock:
             self.baseline=(0.,0.,0.,1.) if phone_reset else self.current or (0.,0.,0.,1.)
+            self.pending_baseline=False
             self.output=None; self._invalidate()
 
     def pose(self, msg):
         with self.lock:
             if not self.connected or not self.accepted or msg["epoch"]!=self.epoch or msg["seq"]<=self.last_seq:
                 return False
-            self.last_seq=msg["seq"]; self.last_tick=self.tick_ms()
+            if msg["timeUs"]<self.last_time:return False
+            self.last_seq=msg["seq"]; self.last_time=msg["timeUs"]; self.last_tick=self.tick_ms()
             if not msg["trackingValid"]:
                 self.current=self.output=None; self._invalidate(); return True
             self.current=msg["q"]
