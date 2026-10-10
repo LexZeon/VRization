@@ -3,11 +3,37 @@ from io import BytesIO
 import unittest
 from unittest.mock import Mock, patch
 from PIL import Image
-from vrization_host.capture import CaptureConfig
-from vrization_steamvr.capture import MirrorCaptureSource
+from vrization_host.capture import CaptureConfig, output_size
+from vrization_steamvr.capture import MirrorCaptureSource, overlay_config
 
 
 class PreviewCaptureTests(unittest.TestCase):
+    def test_overlay_capture_bounds_both_axes_for_portrait_and_non_widescreen_displays(self):
+        for source in ((1920,1200),(1920,1080),(1080,1920),(2560,2560),(5120,1440),
+                       (3440,1440),(1200,1600),(600,800),(100,300)):
+            for ceiling in (640,960,1280,1600,1920):
+                with self.subTest(source=source,ceiling=ceiling):
+                    original=CaptureConfig(monitor=2,width=ceiling,fps=30,quality=90)
+                    changed=overlay_config(original,{"width":source[0],"height":source[1]})
+                    width,height=output_size(*source,changed.width)
+                    self.assertLessEqual(width,1920)
+                    self.assertLessEqual(height,1080)
+                    self.assertLessEqual(max(width,height),ceiling)
+                    self.assertLessEqual(width,source[0])
+                    self.assertLessEqual(height,source[1])
+                    self.assertEqual((changed.monitor,changed.fps,changed.quality),(2,30,90))
+                    self.assertEqual(original.width,ceiling)
+        changed=overlay_config(CaptureConfig(width=1920),{"width":1920,"height":1200})
+        self.assertEqual(output_size(1920,1200,changed.width),(1728,1080))
+        portrait=overlay_config(CaptureConfig(width=1920),{"width":1080,"height":1920})
+        self.assertEqual(output_size(1080,1920,portrait.width),(608,1080))
+
+    def test_overlay_capture_refuses_unavailable_display_dimensions(self):
+        for width,height in ((0,1080),(1920,0),(-1,1080),(1920,-1)):
+            with self.subTest(width=width,height=height):
+                with self.assertRaisesRegex(ValueError,"unavailable"):
+                    overlay_config(CaptureConfig(),{"width":width,"height":height})
+
     def fixture(self):
         child=Mock();child.poll.return_value=None
         reader=Mock()

@@ -114,8 +114,11 @@ def package_simulator():
         for name in ("LICENSE","CHANGELOG.md","THIRD_PARTY_NOTICES.md"):
             path=ROOT/name
             if path.is_file(): target.write(path,name)
-        guide = ROOT / "experimental/steamvr/docs/IOS.md"
-        if guide.is_file(): target.write(guide, guide.relative_to(ROOT))
+        # Preserve the included guide's local provenance/operation links.
+        for name in ("experimental/steamvr/docs/IOS.md", "experimental/steamvr/native/README.md",
+                     "experimental/steamvr/native/licenses/README.md", "experimental/steamvr/native/licenses/OpenVR-LICENSE.txt"):
+            guide = ROOT/name
+            if guide.is_file(): target.write(guide, guide.relative_to(ROOT))
     print(f"Unsigned Simulator and source packages created: {archive.name}, {source.name}",flush=True)
 
 

@@ -7,6 +7,7 @@ import shutil
 import subprocess
 import zipfile
 from package_release import check_document_links
+from build_steamvr_native import COMMIT,PINS
 
 ROOT=Path(__file__).resolve().parents[1]
 OUT=ROOT/"artifacts/steamvr/release"
@@ -28,9 +29,23 @@ def windows():
     native=ROOT/"artifacts/steamvr/native-bundle"
     required=("native/VRization-SteamVR-Mirror.exe","native/VRization-SteamVR-Overlay.exe",
               "native/VRization-SteamVR-IPC.dll","native/openvr_api.dll",
-              "drivers/vrization_phone/bin/win64/driver_vrization_phone.dll","native-build-report.json")
+              "drivers/vrization_phone/bin/win64/driver_vrization_phone.dll",
+              "drivers/vrization_phone/driver.vrdrivermanifest",
+              "drivers/vrization_phone/resources/settings/default.vrsettings",
+              "native/licenses/OpenVR-LICENSE.txt","native/licenses/VRization-MIT.txt",
+              "native/README.md","native/licenses/README.md","native-build-report.json")
     for name in required:
         if not (native/name).is_file():raise FileNotFoundError(f"Incomplete native bundle: {name}")
+    report=json.loads((native/"native-build-report.json").read_text(encoding="utf-8"))
+    if report.get("sdkCommit")!=COMMIT or report.get("sdkPins")!=PINS or report.get("ctestExecuted") is not True or report.get("configuration")!="Release":
+        raise ValueError("Native bundle needs a passing Release build of the pinned SDK")
+    for name in required[:-1]:
+        if report.get("files",{}).get(name)!=hashlib.sha256((native/name).read_bytes()).hexdigest():
+            raise ValueError(f"Native report does not match {name}")
+    for name,pin in (("native/openvr_api.dll",PINS["bin/win64/openvr_api.dll"]),("native/licenses/OpenVR-LICENSE.txt",PINS["LICENSE"])):
+        if hashlib.sha256((native/name).read_bytes()).hexdigest()!=pin:raise ValueError("Upstream binary/license changed")
+    binaries={path.relative_to(native).as_posix() for path in native.rglob("*") if path.suffix.lower() in {".dll",".exe",".lib"}}
+    if binaries!={name for name in required if Path(name).suffix in {".dll",".exe"}}:raise ValueError("Unexpected native binary; preserve and review the bundle")
     executable=ROOT/"artifacts/steamvr/windows-dist/VRization-SteamVR.exe"
     if not executable.is_file():raise FileNotFoundError("Build the separate Windows preview first")
     archive_path=OUT/"VRization-SteamVR-Windows-x64.zip"

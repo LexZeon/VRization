@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+import zipfile
 
 from PIL import Image
 import build_ios_steamvr as build
@@ -86,6 +87,21 @@ class StereoPixelOracleTests(unittest.TestCase):
                 self.exports(defect)
                 with redirect_stdout(StringIO()), self.assertRaises(AssertionError): build.check_stereo_pixels(self.report)
                 self.assertTrue(json.loads((self.shots/"stereo-check.json").read_text())["failures"])
+
+    def testSourcePackagePreservesGuideAndLocalLicenseLinks(self):
+        # Exercise packaging with an explicitly synthetic app placeholder.
+        # This is archive validation, never a Simulator build claim.
+        app = self.output/"simulator/Build/Products/Debug-iphonesimulator/VRizationSteamVRApp.app"
+        app.mkdir(parents=True); (app/"checker-test-placeholder.txt").write_text("CPU packaging fixture")
+        with redirect_stdout(StringIO()): build.package_simulator()
+        with zipfile.ZipFile(self.output/"VRization-SteamVR-iOS-source.zip") as archive:
+            names = set(archive.namelist())
+            for required in ("ios/VRizationSteamVR.xcodeproj/project.pbxproj", "ios/SteamVR/Package.swift",
+                             "experimental/steamvr/docs/IOS.md", "experimental/steamvr/native/README.md",
+                             "experimental/steamvr/native/licenses/README.md",
+                             "experimental/steamvr/native/licenses/OpenVR-LICENSE.txt", "LICENSE"):
+                self.assertIn(required,names)
+            self.assertFalse(any(".build/" in name or name.endswith((".dll",".exe")) for name in names))
 
 
 if __name__ == "__main__": unittest.main()

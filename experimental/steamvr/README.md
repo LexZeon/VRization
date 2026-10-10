@@ -48,6 +48,8 @@ Stop closes the current host session and owned native helper, clears old frames 
 
 Native Windows targets are built on a Windows x64 MSVC runner:
 
+The four native targets and 365 runtime-independent fixture checks passed in the native build/CTest step of [CI 38092149008](https://github.com/LexZeon/VRization/actions/runs/38092149008/job/114330601507), source `045ae23745f47b41ce3542a69f1f4edc17f31fd1`; the exact binaries also passed a local software-WARP replay. Six SDK provenance/fetch tests passed locally. These results do not validate real SteamVR or physical phones.
+
 ```powershell
 python scripts/build_steamvr_native.py --configuration Release --test
 python -m unittest discover -s scripts -p test_build_steamvr_native.py -v
@@ -107,6 +109,8 @@ SBS 为每眼使用各自半幅源图及自身比例，仍可缩放、移动、�
 ### 🛠️ 构建、鸣谢及下次测试
 
 原生 Windows 目标在 Windows x64 MSVC runner 构建：
+
+四个原生目标及 365 项不依赖运行环境的检查已在 [CI 38092149008](https://github.com/LexZeon/VRization/actions/runs/38092149008/job/114330601507) 的原生构建／CTest 步骤通过，源码 `045ae23745f47b41ce3542a69f1f4edc17f31fd1`；同一二进制的本地软件 WARP 复跑也通过。六项 SDK 来源／下载测试在本机通过。这些结果不验证真实 SteamVR 或实体手机。
 
 ```powershell
 python scripts/build_steamvr_native.py --configuration Release --test

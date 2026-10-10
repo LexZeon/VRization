@@ -40,6 +40,7 @@ The diagram describes implemented source paths; actual SteamVR and physical-devi
 | `native/gpu.hpp`, `mirror.cpp` | Selected-adapter eye SRVs, original shader resize/color conversion, compact SBS readback, writer ownership and SRV release |
 | `native/overlay.cpp` | Existing-headset texture submission; hides/clears stale input and destroys only its unique overlay before texture teardown |
 | `native/ipc.hpp`, `stop.hpp`, `runtime.hpp` | Native layout/bounds, cooperative Stop and client OpenVR lifetime; no OS mouse API |
+| `native/ipc_bridge.cpp` | Original intrinsic DLL exports for Python seqlock increment/memory barriers; no assumed `kernel32` Interlocked export or OpenVR dependency |
 | Android `ClientVariant`, `StreamSession`, `HmdPoseValues` | Separate install/prefs/endpoints; video/input pairing and epoch-bound full quaternion messages |
 | Android core `OrientationMath`, `AndroidPoseSource`, `StereoProjection`, `VrRenderer` | Framework rotation matrix + landscape remap + recenter; normalized Hamilton quaternion; per-eye aspect/UV clamps and GPU rendering |
 | iOS `SteamVRProtocol`, `StreamSession`, `HMDQuaternion`, `StereoSampling`, `SteamVRPreferences` | Independent Swift package for pairing, counters, full orientation, stereo slices and isolated preferences |
@@ -67,6 +68,8 @@ Explicit registration changes only the extracted preview's driver path. There is
 ### Evidence and license boundaries
 
 Native tests cover byte layout/maps, Stop event/latch, pose validation, real WARP eye packing and factory ABI without a runtime context. Android preview JVM tests and compiled instrumentation, Swift tests/Simulator and both Apple SDK builds have distinct scopes; report actual completed results, not expected counts. Physical USB, optical fitting, real SteamVR initialization/compositor output, existing-headset lifecycle, gyro axes, sustained FPS and motion-to-photon latency are deferred.
+
+Native source `045ae23745f47b41ce3542a69f1f4edc17f31fd1` compiled all four targets in the native step of [CI 38092149008](https://github.com/LexZeon/VRization/actions/runs/38092149008/job/114330601507); all 365 CTest fixture checks passed and the exact binaries passed a local software-WARP replay. Six offline SDK provenance/fetch tests passed. These narrow results do not establish whole-package or hardware acceptance.
 
 OpenVR interfaces, import library and redistributable DLL are unchanged pinned SDK dependencies under BSD-3-Clause. Official simple HMD/overlay examples inform lifecycle ideas; VRization writes its own IPC, validation, shader packing and overlay implementation under MIT. The legacy virtual-display sample is architecture-only and not compiled/bundled. Preserve the [exact native notices](../native/licenses/README.md), root third-party records and historic released artifacts.
 
@@ -110,6 +113,7 @@ flowchart LR
 | `native/gpu.hpp`、`mirror.cpp` | 指定显卡双眼 SRV、原创 shader 缩小／颜色转换、紧凑 SBS 读回、写入所有权和 SRV 释放 |
 | `native/overlay.cpp` | 已有头显纹理提交，隐藏／清空旧输入，在纹理销毁前仅销毁自身覆盖层 |
 | `native/ipc.hpp`、`stop.hpp`、`runtime.hpp` | 原生布局／边界、协作 Stop 及 OpenVR 客户端生命周期，没有系统鼠标 API |
+| `native/ipc_bridge.cpp` | 原创 intrinsic DLL 为 Python 导出 seqlock 递增／内存屏障，不假设 `kernel32` 导出 Interlocked，无 OpenVR 依赖 |
 | Android `ClientVariant`、`StreamSession`、`HmdPoseValues` | 独立安装／设置／端点、视频／输入配对及代际绑定完整四元数消息 |
 | Android 核心 `OrientationMath`、`AndroidPoseSource`、`StereoProjection`、`VrRenderer` | 系统旋转矩阵、横屏重映射、居中、归一化 Hamilton 四元数、分眼比例／UV 边界与 GPU 渲染 |
 | iOS `SteamVRProtocol`、`StreamSession`、`HMDQuaternion`、`StereoSampling`、`SteamVRPreferences` | 独立 Swift 包，管理配对、序号、完整方向、双眼切片和隔离设置 |
@@ -137,5 +141,7 @@ IPC 准确约定见[原生教程](../native/README.md)。只有手机头显路�
 ### 证据与许可边界
 
 原生测试覆盖字节布局／映射、Stop 事件／锁定、姿态校验、实际 WARP 双眼拼接和无运行环境上下文的工厂 ABI。Android 实验版 JVM／已编译仪器测试、Swift／模拟器与双 Apple SDK 构建范围不同，记录已完成结果而不是预期数量。实体 USB、光学适配、真实 SteamVR 初始化／合成输出、已有头显生命周期、陀螺仪坐标、持续帧率、运动到显示延迟均留待真机。
+
+原生源码 `045ae23745f47b41ce3542a69f1f4edc17f31fd1` 的四个目标已在 [CI 38092149008](https://github.com/LexZeon/VRization/actions/runs/38092149008/job/114330601507) 原生步骤编译，365 项 CTest 通过，相同二进制本地软件 WARP 复跑也通过；六项离线 SDK 来源／下载测试通过。这些有限结果不代表完整包或硬件验收。
 
 OpenVR 接口、导入库、可再分发 DLL 是原样锁定的 BSD-3-Clause SDK 依赖；官方 Simple HMD／Overlay 示例提供生命周期思路，VRization 用 MIT 原创实现 IPC、校验、shader 拼接和覆盖层。旧 virtual-display 示例只作架构比较，不编译／打包。保留[准确原生声明](../native/licenses/README.md)、根第三方记录及历史发布产物。

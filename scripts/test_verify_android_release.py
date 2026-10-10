@@ -67,7 +67,13 @@ class AndroidReleaseSigningTests(unittest.TestCase):
             for file in (tool, jar, java):
                 file.parent.mkdir(parents=True, exist_ok=True); file.touch()
             with patch.dict(os.environ, {"JAVA_HOME": str(java.parent.parent)}):
-                self.assertEqual(signing.verifier_command(tool), [str(java), "-jar", str(jar)])
+                command = signing.verifier_command(tool)
+                self.assertEqual(len(command), 3)
+                self.assertEqual(command[1], "-jar")
+                # Windows CI may return an 8.3 TEMP alias while resolve()
+                # expands the same SDK path; compare file identity.
+                self.assertTrue(Path(command[0]).samefile(java))
+                self.assertTrue(Path(command[2]).samefile(jar))
 
     def test_invalid_expected_fingerprint_and_missing_verifier_fail_closed(self):
         with tempfile.TemporaryDirectory(prefix="vrization-signature-test-") as directory:

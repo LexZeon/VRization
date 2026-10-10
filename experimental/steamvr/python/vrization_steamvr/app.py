@@ -19,7 +19,7 @@ from vrization_host.i18n import load_language,save_language
 from vrization_host.usb import UsbManager
 from vrization_host.view_editor import HeadsetEditor
 from . import __version__
-from .capture import MirrorCaptureSource
+from .capture import MirrorCaptureSource,overlay_config
 from .host import PreviewHost
 from .ipc import FrameWriter,frame_name
 from .runtime import DriverManager,OwnedProcess,native_helper,diagnostics
@@ -176,6 +176,7 @@ class OverlayWindow:
         try:
             helper=native_helper("Overlay")
             config=CaptureConfig(monitor=self.monitor.current(),width=int(self.width.get()),fps=int(self.fps.get()),quality=45)
+            config=overlay_config(config,self.monitors[config.monitor])
         except (OSError,ValueError) as error:messagebox.showerror("VRization",str(error),parent=self.root);return
         self.stop_event.clear();self.start_button.configure(state="disabled");self.stop_button.configure(state="normal")
         self.status.configure(text=self.words("Starting SteamVR overlay…","正在启动 SteamVR 悬浮层…"))

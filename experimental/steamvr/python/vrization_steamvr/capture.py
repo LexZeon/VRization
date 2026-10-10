@@ -9,6 +9,15 @@ from .ipc import FrameReader,frame_name
 from .runtime import OwnedProcess,native_helper
 
 
+def overlay_config(config,monitor):
+    """Respect both shared-map dimensions while retaining the user's ceiling."""
+    width,height=monitor["width"],monitor["height"]
+    if width<=0 or height<=0:raise ValueError("Selected display is unavailable")
+    ceiling=min(config.width,1920,int(1080*max(width,height)/height))
+    from dataclasses import replace
+    return replace(config,width=max(320,ceiling))
+
+
 class MirrorCaptureSource:
     def __init__(self,*,process_factory=OwnedProcess,reader_factory=FrameReader,helper=native_helper):
         self.process_factory,self.reader_factory,self.helper=process_factory,reader_factory,helper

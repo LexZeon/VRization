@@ -7,6 +7,8 @@
 
 This directory implements the native part of the separate SteamVR experiment. It preserves the ordinary VRization app and its four direct-phone display modes. Native source implementation is available; compilation, fixture results and hardware acceptance are separate claims. Physical Huawei, iPhone, PCVR and SteamVR virtual-display tests are deferred to the next hardware session. A packaged DLL or passing WARP test does not establish that SteamVR can render to this phone HMD without a physical display.
 
+The four native targets compiled with x64 MSVC 19.51.36260.0 on source `045ae23745f47b41ce3542a69f1f4edc17f31fd1`. The native build/CTest step in [CI run 38092149008](https://github.com/LexZeon/VRization/actions/runs/38092149008/job/114330601507) passed **365 fixture checks**, and the same CI binaries passed an independent local software-WARP replay. This establishes the native fixture scope only; whole-package and phone/runtime hardware checks are separate.
+
 The experiment has three host entries: original direct phone streaming; phone as a SteamVR HMD with phone orientation; and desktop viewing on an already connected SteamVR headset. The direct-phone entry uses the original stream path. These native targets implement the other two entries:
 
 | Target | Data path | Ownership |
@@ -14,6 +16,7 @@ The experiment has three host entries: original direct phone streaming; phone as
 | `driver_vrization_phone.dll` | Validated phone XYZW quaternion → shared pose → `TrackedDevicePoseUpdated` | SteamVR loads the provider only after explicit driver registration; the provider discovers the host map from `RunFrame` and adds serial `VRizationPhone` once |
 | `VRization-SteamVR-Mirror.exe` | Two undistorted compositor eye SRVs → D3D11 per-eye resize → SBS BGRA → shared frame → host encoder → phone | Mirror owns the unique frame map and OpenVR SRVs; the host reads |
 | `VRization-SteamVR-Overlay.exe` | Host desktop BGRA → shared frame → D3D11 texture → `SetOverlayTexture` | Host owns the unique frame map; overlay reads and owns only its overlay handle |
+| `VRization-SteamVR-IPC.dll` | Explicit x64 `VRizationSequenceIncrement` / `VRizationMemoryBarrier` exports for Python ctypes | Original Windows-intrinsic bridge; no OpenVR dependency or runtime activation |
 
 The mirror verifies active HMD serial `VRizationPhone`. It refuses to silently stream another headset. Its explicit `--allow-native-headset` option is reserved for deliberate alternate integrations; the phone host route does not use it. The overlay requires an existing native HMD and refuses the phone serial. Neither native program moves the Windows mouse. The overlay leaves the existing headset's tracking and driver in control.
 
@@ -33,6 +36,7 @@ The script fetches only five SHA256-pinned OpenVR SDK files from Valve at commit
 native/
   VRization-SteamVR-Mirror.exe
   VRization-SteamVR-Overlay.exe
+  VRization-SteamVR-IPC.dll
   openvr_api.dll
   README.md
   licenses/{README.md,OpenVR-LICENSE.txt,VRization-MIT.txt}
@@ -42,7 +46,7 @@ drivers/vrization_phone/
   resources/settings/default.vrsettings
 ```
 
-The native targets use `/MD`; they require the Microsoft Visual C++ 2015–2022 compatible x64 runtime on the target PC. Windows D3D11, DXGI and D3DCompiler remain system components and are not bundled. OpenVR's redistributable SDK DLL is bundled with its BSD-3-Clause license; SteamVR itself must be installed separately under its own terms. See [native provenance and licenses](licenses/README.md).
+The native targets use `/MD`; the target PC needs the **Microsoft Visual C++ v14 x64 Redistributable at least as new as the build toolset**, including the Visual Studio 2026 toolset used here. Use Microsoft's [current supported runtime guidance](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist); an old 2015–2022 package alone is not a sufficient version check. Windows D3D11, DXGI and D3DCompiler remain system components and are not bundled. OpenVR's redistributable SDK DLL is bundled with its BSD-3-Clause license; SteamVR itself must be installed separately under its own terms. See [native provenance and licenses](licenses/README.md).
 
 ### Runtime and Stop boundaries
 
@@ -59,6 +63,8 @@ The host signals the unique manual-reset Stop event; each loop polls it without 
 ### Shared-memory contract for integrations
 
 All maps are `Local\` with Windows' normal user security descriptor. A second writer refuses an already existing map. Readers open read-only. Seqlock at byte 12 is odd while writing, even when complete; Windows Interlocked operations and memory barriers publish complete snapshots. Readers retry at most four times and validate bounds before payload access. Tick timestamps use Windows `GetTickCount64`, not wall clock or Python `perf_counter`.
+
+The Python writer/reader uses the original `VRization-SteamVR-IPC.dll` to expose Windows compiler intrinsics. `InterlockedIncrement` is not assumed to be a callable `kernel32` export. CTest loads this real DLL and checks odd/even mapped publication and its explicit ABI without starting a VR runtime.
 
 | Map / field | Layout |
 | --- | --- |
@@ -86,6 +92,8 @@ For another developer or AI: `ipc.hpp` defines bounded ownership/snapshots; `pos
 
 本目录实现独立 SteamVR 实验版的原生部分，保留普通 VRization 及其四种直连手机显示模式。已经编写原生源码，但编译结果、自动化测试和硬件验收是分别需要证据的事项。华为、iPhone、PCVR 和 SteamVR 虚拟显示真机测试留到下一次硬件会话；打包出 DLL 或通过 WARP 测试，不代表 SteamVR 已能在没有实体显示器时为手机头显渲染。
 
+四个原生目标已用 x64 MSVC 19.51.36260.0 编译，源码为 `045ae23745f47b41ce3542a69f1f4edc17f31fd1`；[CI run 38092149008](https://github.com/LexZeon/VRization/actions/runs/38092149008/job/114330601507) 的原生构建／CTest 步骤通过 **365 项测试**，相同 CI 二进制的本地独立软件 WARP 复跑也通过。这只证明原生自动检查范围，完整包与手机／运行环境真机检查另行验收。
+
 实验版电脑端有三个入口：原版手机直连串流、手机作为 SteamVR 头显并提供方向、已连接 SteamVR 头显观看桌面。直连入口沿用原有串流；以下原生组件实现另外两个入口：
 
 | 组件 | 数据通路 | 所有权 |
@@ -93,6 +101,7 @@ For another developer or AI: `ipc.hpp` defines bounded ownership/snapshots; `pos
 | `driver_vrization_phone.dll` | 已校验的手机 XYZW 四元数 → 共享姿态 → `TrackedDevicePoseUpdated` | 显式注册驱动后 SteamVR 加载提供器；提供器从 `RunFrame` 发现电脑端映射，只添加一次序列号 `VRizationPhone` |
 | `VRization-SteamVR-Mirror.exe` | 两只眼未畸变合成纹理 → D3D11 分眼缩小 → SBS BGRA → 共享帧 → 电脑编码 → 手机 | Mirror 拥有独立帧映射及 OpenVR SRV；电脑端只读 |
 | `VRization-SteamVR-Overlay.exe` | 电脑桌面 BGRA → 共享帧 → D3D11 纹理 → `SetOverlayTexture` | 电脑端拥有独立帧映射；Overlay 只读并只拥有自己的覆盖层句柄 |
+| `VRization-SteamVR-IPC.dll` | 为 Python ctypes 显式导出 x64 `VRizationSequenceIncrement`／`VRizationMemoryBarrier` | 原创 Windows intrinsic 桥接，无 OpenVR 依赖，不激活运行环境 |
 
 Mirror 检查当前头显序列号必须为 `VRizationPhone`，不会悄悄串流另一台头显。显式 `--allow-native-headset` 参数保留给有意选择的其他集成，手机路线不用它。Overlay 要求已有实体头显，并拒绝手机序列号。两个原生程序都不移动 Windows 鼠标；Overlay 保留原头显的追踪与驱动。
 
@@ -112,6 +121,7 @@ python scripts/build_steamvr_native.py --fetch-only
 native/
   VRization-SteamVR-Mirror.exe
   VRization-SteamVR-Overlay.exe
+  VRization-SteamVR-IPC.dll
   openvr_api.dll
   README.md
   licenses/{README.md,OpenVR-LICENSE.txt,VRization-MIT.txt}
@@ -121,7 +131,7 @@ drivers/vrization_phone/
   resources/settings/default.vrsettings
 ```
 
-原生目标采用 `/MD`，目标电脑需要兼容 Microsoft Visual C++ 2015–2022 的 x64 运行库。D3D11、DXGI、D3DCompiler 属于 Windows 系统组件，不随包复制。可再分发的 OpenVR SDK DLL 携带 BSD-3-Clause 许可证；SteamVR 本身需另外安装并遵守自己的条款。参见[原生来源与许可证](licenses/README.md)。
+原生目标采用 `/MD`，目标电脑需要 **不旧于构建工具链的 Microsoft Visual C++ v14 x64 Redistributable**，包括本次 Visual Studio 2026 工具链。按 Microsoft 的[当前支持运行库说明](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist)检查；仅有旧 2015–2022 安装包不足以证明版本满足。D3D11、DXGI、D3DCompiler 属于 Windows 系统组件，不随包复制。可再分发的 OpenVR SDK DLL 携带 BSD-3-Clause 许可证；SteamVR 本身需另外安装并遵守自己的条款。参见[原生来源与许可证](licenses/README.md)。
 
 ### 运行与停止边界
 
@@ -138,6 +148,8 @@ Mirror 使用 OpenVR `GetDXGIOutputInfo` 指定的显卡创建设备，每次会
 ### 共享内存集成约定
 
 映射均处于 `Local\`，采用 Windows 普通用户安全描述符；第二个写入者遇到同名现存映射会拒绝接管。读端只读打开。第 12 字节的 seqlock 在写入中为奇数、完成后为偶数，Windows Interlocked 与内存屏障发布完整快照；读端最多重试四次，先校验边界再读取载荷。时间戳使用 Windows `GetTickCount64`，不使用墙上时间或 Python `perf_counter`。
+
+Python 写／读端通过原创 `VRization-SteamVR-IPC.dll` 暴露 Windows 编译器 intrinsic，不假设 `InterlockedIncrement` 是可调用的 `kernel32` 导出。CTest 加载这个真实 DLL，验证映射奇／偶发布及显式 ABI，不启动 VR 运行环境。
 
 | 映射／字段 | 布局 |
 | --- | --- |

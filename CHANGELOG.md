@@ -9,7 +9,12 @@ User-visible changes are listed newest first. Dates are GitHub publication dates
 
 ### Unreleased
 
-No additional implemented changes.
+Separate **0.5.0-steamvr-preview** branch, with final checks and publication pending. Stable **v0.4.0-alpha** and local stable `latest` remain preserved.
+
+- **Added:** Separate Windows launcher with direct-phone, phone SteamVR HMD and existing SteamVR headset routes; independent mobile installs, USB endpoints and preferences.
+- **Added:** Original 3DOF virtual HMD driver, full gyro quaternions, capability/epoch-gated stereo, GPU compositor packing and existing-headset desktop overlay. Native Stop cleans owned resources; HMD never moves the mouse, and F8/editor/Stop require local PC Resume.
+- **Compatibility:** Original direct-phone modes remain. SBS viewer/editor use independent source halves, native aspect/projection and synchronized fit. Experimental archives cannot replace stable `latest`.
+- **Verification and credits:** See the [experimental guide](experimental/steamvr/README.md) and [pinned BSD-3-Clause OpenVR attribution](experimental/steamvr/native/licenses/README.md). Software tests establish their recorded scope; Huawei and PCVR hardware, achieved FPS and physical latency remain unverified until next chat. All previous files/releases are retained.
 
 ### [v0.4.0-alpha](https://github.com/LexZeon/VRization/releases/tag/v0.4.0-alpha) — 2026-10-10
 
@@ -113,7 +118,12 @@ First Windows / Android preview.
 
 ### 未发布
 
-暂无其他已实现改动。
+独立 **0.5.0-steamvr-preview** 分支，最终检查和发布待完成；正式 **v0.4.0-alpha** 及本地正式 `latest` 继续保留。
+
+- **新增：** 独立 Windows 启动器，提供直接连手机、手机 SteamVR 头显、现有 SteamVR 头显三条路线；手机安装身份、USB 端点及设置独立。
+- **新增：** 原创三自由度虚拟头显驱动、完整陀螺仪四元数、能力／epoch 协商双眼协议、GPU 合成器拼接和真实头显桌面悬浮层。停止会清理本程序资源；HMD 不移动鼠标，F8／编辑／停止暂停后需要电脑本地恢复。
+- **兼容：** 保留原来的直连手机模式。SBS 查看器／编辑器使用独立源图像、原生比例／投影和同步适配。实验归档不能替换正式 `latest`。
+- **验证与鸣谢：** 见 [实验教程](experimental/steamvr/README.md) 及 [固定 BSD-3-Clause OpenVR 来源](experimental/steamvr/native/licenses/README.md)。软件测试只证明记录范围；华为和 PCVR 硬件、实际帧率及物理延迟留到下次验证。全部旧文件和发布保留。
 
 ### [v0.4.0-alpha](https://github.com/LexZeon/VRization/releases/tag/v0.4.0-alpha) — 2026-10-10
 
