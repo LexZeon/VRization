@@ -14,6 +14,7 @@ Separate **0.5.0-steamvr-preview** branch and download channel. Stable **v0.4.0-
 - **Added:** Separate Windows launcher with direct-phone, phone SteamVR HMD and existing SteamVR headset routes; independent mobile installs, USB endpoints and preferences.
 - **Added:** Original 3DOF virtual HMD driver, full gyro quaternions, capability/epoch-gated stereo, GPU compositor packing and existing-headset desktop overlay. Native Stop cleans owned resources; HMD never moves the mouse, and F8/editor/Stop require local PC Resume.
 - **Compatibility:** Original direct-phone modes remain. SBS viewer/editor use independent source halves, native aspect/projection and synchronized fit. Experimental archives cannot replace stable `latest`.
+- **Polish and regression:** Preview window titles/footer text follow the selected language; the native iOS drag test now waits for the real handle and verifies the draft actually shrinks before checking Save synchronization.
 - **Checked:** 387 Windows/Python cases plus 312 subtests, 40 script cases, 176 Android cases, 365 native fixtures, iOS 95+21 Swift/two UI/50 pixel samples and dual SDK builds passed. The full public Windows package receives fresh-profile diagnostics and real owned IPC checks in future CI. See [exact evidence](experimental/steamvr/docs/VALIDATION.md), [illustrated tutorial](experimental/steamvr/docs/TUTORIAL.md) and [pinned BSD-3-Clause OpenVR attribution](experimental/steamvr/native/licenses/README.md). Huawei/PCVR hardware, achieved FPS and physical latency remain unverified until next chat; all previous files/releases are retained.
 
 ### [v0.4.0-alpha](https://github.com/LexZeon/VRization/releases/tag/v0.4.0-alpha) — 2026-10-10
@@ -123,6 +124,7 @@ First Windows / Android preview.
 - **新增：** 独立 Windows 启动器，提供直接连手机、手机 SteamVR 头显、现有 SteamVR 头显三条路线；手机安装身份、USB 端点及设置独立。
 - **新增：** 原创三自由度虚拟头显驱动、完整陀螺仪四元数、能力／epoch 协商双眼协议、GPU 合成器拼接和真实头显桌面悬浮层。停止会清理本程序资源；HMD 不移动鼠标，F8／编辑／停止暂停后需要电脑本地恢复。
 - **兼容：** 保留原来的直连手机模式。SBS 查看器／编辑器使用独立源图像、原生比例／投影和同步适配。实验归档不能替换正式 `latest`。
+- **完善及回归：** 实验版窗口标题／页脚随所选语言显示；iOS 原生拖动测试等待真实顶点，在检查保存同步前确认草稿确实缩小。
 - **检查：** Windows／Python 387 项加 312 子检查、40 脚本、176 Android、365 原生、iOS 95+21 Swift／2 UI／50 像素及双 SDK 通过。未来 CI 为完整 Windows 发布包执行全新设置目录诊断和真实自有 IPC 检查。见[准确证据](experimental/steamvr/docs/VALIDATION.md)、[图文教程](experimental/steamvr/docs/TUTORIAL.md)及[固定 BSD-3-Clause OpenVR 来源](experimental/steamvr/native/licenses/README.md)。华为／PCVR、真实帧率和物理延迟留到下次，全部旧文件／发布保留。
 
 ### [v0.4.0-alpha](https://github.com/LexZeon/VRization/releases/tag/v0.4.0-alpha) — 2026-10-10

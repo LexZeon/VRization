@@ -44,7 +44,8 @@ class PhoneWindow(HostWindow):
 
     def _build(self):
         super()._build()
-        self.root.title(f"VRization SteamVR · {__version__} · {self.route}")
+        route_title=self.words("Phone SteamVR HMD","手机 SteamVR 头显") if self.route=="steamvr-phone" else self.words("Direct phone","手机直连")
+        self.root.title(f"VRization SteamVR · {__version__} · {route_title}")
         self.stats.configure(text=f"USB / LAN · {__version__}")
         self._log(self.words("Separate preview APK required. Stable v0.4.0 remains installed separately.",
                              "请使用独立实验版 APK；原来的 v0.4.0 可以同时保留。"))
@@ -150,7 +151,7 @@ class OverlayWindow:
     def __init__(self,root,language,monitor=None,on_close=None):
         self.root,self.language,self.on_close=root,language,on_close
         self.thread=None;self.stop_event=threading.Event();self.events=queue.SimpleQueue();self.writer=None
-        self.root.configure(bg=BG);self.root.title(f"VRization SteamVR overlay · {__version__}")
+        self.root.configure(bg=BG);self.root.title(f"VRization SteamVR · {self.words('Desktop overlay','桌面悬浮层')} · {__version__}")
         self.root.geometry("720x490");self.root.protocol("WM_DELETE_WINDOW",self.close)
         self.monitors=MssCaptureSource.monitors()
         body=ttk.Frame(root,padding=24);body.pack(fill="both",expand=True)
@@ -167,7 +168,7 @@ class OverlayWindow:
         self.start_button=ttk.Button(actions,text=self.words("Start overlay","开始悬浮层"),command=self.start);self.start_button.pack(side="left")
         self.stop_button=ttk.Button(actions,text=self.words("Stop","停止"),command=self.stop,state="disabled");self.stop_button.pack(side="left",padx=8)
         self.status=ttk.Label(body,text=self.words("Ready · capture starts only after Start","就绪 · 点击开始后才采集"),wraplength=660);self.status.pack(anchor="w",pady=10)
-        ttk.Label(body,text=f"{__version__} · 3 m screen · 2 m ahead · experimental",foreground=MUTED).pack(anchor="w")
+        ttk.Label(body,text=f"{__version__} · {self.words('3 m screen · 2 m ahead · experimental','屏幕宽 3 米 · 前方 2 米 · 实验版')}",foreground=MUTED).pack(anchor="w")
         self.root.after(100,self.pump)
 
     def words(self,en,zh):return zh if self.language=="zh" else en
@@ -263,7 +264,7 @@ class Launcher:
         ttk.Label(body,text=self.words("Driver registration changes only this preview's path. Keep the extracted folder in place. Switching between Phone HMD and physical HMD may require restarting SteamVR. No positional tracking or controllers in the phone preview.",
             "驱动注册仅添加本实验版路径；请保留解压文件夹。手机头显与真实头显切换可能需要重启 SteamVR。手机首版没有位置追踪或控制器。"),wraplength=780).pack(anchor="w",pady=6)
         self.status=ttk.Label(body,text=self.words("Hardware tests deferred to the next session.","实机测试留到下次。"),foreground=MUTED,wraplength=780);self.status.pack(anchor="w",pady=10)
-        ttk.Label(body,text=f"{__version__} · English default · separate ports and preferences",foreground=MUTED).pack(anchor="w")
+        ttk.Label(body,text=f"{__version__} · {self.words('English default · separate ports and preferences','默认英文 · 独立端口及设置')}",foreground=MUTED).pack(anchor="w")
     def change_language(self,value):
         self.language="zh" if value=="简体中文" else "en";save_language(self.language);self.build()
     def driver(self,register):
