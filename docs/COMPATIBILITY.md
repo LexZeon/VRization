@@ -16,12 +16,12 @@ Support targets and observed tests are separate. Passing an emulator test does n
 | iOS client | iOS / iPadOS 15+, landscape, Metal, local-network permission | Native Swift / UIKit client. Xcode on macOS builds and signs it; the Windows host serves both phone platforms. See [iOS guide](IOS.md) for exact installation / test limits. |
 | Google services | Not required | First-release API 23 emulator uses no Google services. |
 | Full screen | Network and graphics support | No rotation sensor required; verified on the sensor-less API 23 emulator. |
-| Cinema / both first-person modes | Compatible Android rotation sensor or iOS Core Motion | Real gyro axes, drift and headset tracking still need a physical phone. |
+| Cinema tracking / gyro control in both first-person modes | Compatible Android rotation sensor or iOS Core Motion | Enhanced viewing itself can render without a sensor; real gyro axes, drift and headset tracking still need a physical phone. |
 | First-person mouse input | Desktop/apps/games accept ordinary relative mouse input; enabled PC gyro preference, validated poses and F8/Resume | Real FPS games and anti-cheat / raw-input combinations remain unverified. |
 
-### Enhanced mode compatibility (v0.4.0 development)
+### Enhanced mode compatibility (v0.4.0)
 
-Enhanced viewing uses the existing Android GLES 2.0/iOS Metal requirements and can render without a rotation sensor; mouse input still needs valid rotation data. Every eye stays physically square irrespective of JPEG or viewport aspect. Keep both current clients/host updated for negotiated `fps_enhanced`; new-host/old-phone and new-phone/old-host paths fall back to ordinary `fps` on the wire, with new phones retaining local enhanced presentation. New rendering, editor, compatibility and physical results are pending in [Validation](VALIDATION.md), not inferred from older checks. [Mode guide](ENHANCED_FIRST_PERSON.md).
+Enhanced viewing uses the existing Android GLES 2.0/iOS Metal requirements and can render without a rotation sensor; mouse input still needs valid rotation data. Every eye stays physically square irrespective of JPEG or viewport aspect. Keep both current clients/host updated for negotiated `fps_enhanced`; new-host/old-phone and new-phone/old-host paths fall back to ordinary `fps` on the wire, with new phones retaining local enhanced presentation. Windows/Android software/build/signature checks and iOS native Simulator tests/pixels passed; Android graphics instrumentation was only compiled. Huawei/PCVR hardware testing is explicitly deferred; no old result proves this mode's physical rendering or input. See [Validation](VALIDATION.md) and the [mode guide](ENHANCED_FIRST_PERSON.md).
 
 ### Interface language
 
@@ -75,12 +75,12 @@ The final packaged Windows EXE found one authorized physical device using a sepa
 | iOS 手机端 | iOS / iPadOS 15+、横屏、Metal、本地网络权限 | 原生 Swift / UIKit 客户端，macOS 用 Xcode 构建和签名；Windows 主机同时服务两类手机。安装与实测边界见 [iOS 教程](IOS.md)。 |
 | Google 服务 | 不需要 | 首版 API 23 模拟器不含 Google 服务。 |
 | 全屏模式 | 网络与图形支持 | 无需旋转传感器，已在无传感器 API 23 模拟器检查。 |
-| 大屏幕／两种第一人称 | 兼容 Android 旋转传感器或 iOS Core Motion | 真实轴向、漂移与头部追踪仍需手机实测。 |
+| 大屏幕追踪／两种第一人称陀螺仪控制 | 兼容 Android 旋转传感器或 iOS Core Motion | 加强观看本身无传感器仍可显示，真实轴向、漂移与头部追踪仍需手机实测。 |
 | 第一人称鼠标输入 | 桌面／应用／游戏接受普通相对鼠标；电脑启用偏好、合法姿态与 F8／恢复 | 真实 FPS、反作弊与原始输入组合尚未验证。 |
 
-### 加强模式兼容性（v0.4.0 开发中）
+### 加强模式兼容性（v0.4.0）
 
-加强观看沿用 Android GLES 2.0／iOS Metal 要求，无旋转传感器仍可渲染，鼠标仍需合法旋转数据；不论 JPEG／视口比例，每眼物理上均为正方形。当前手机／电脑更新后协商 `fps_enhanced`，新电脑／旧手机与新手机／旧电脑线上回退普通 `fps`，新手机保留本地加强显示。新渲染／编辑器／兼容／真机结果在 [验证](VALIDATION.md) 待完成，不借用旧检查证明，见 [模式教程](ENHANCED_FIRST_PERSON.md)。
+加强观看沿用 Android GLES 2.0／iOS Metal 要求，无旋转传感器仍可渲染，鼠标仍需合法旋转数据；不论 JPEG／视口比例，每眼物理上均为正方形。当前手机／电脑更新后协商 `fps_enhanced`，新电脑／旧手机与新手机／旧电脑线上回退普通 `fps`，新手机保留本地加强显示。Windows／Android 软件／构建／签名及 iOS 原生模拟器测试／像素通过，Android 图形 instrumentation 仅编译；华为／PCVR 真机明确留待下次，旧结果不证明本模式实际渲染或输入，见 [验证](VALIDATION.md) 与 [模式教程](ENHANCED_FIRST_PERSON.md)。
 
 ### 界面语言
 

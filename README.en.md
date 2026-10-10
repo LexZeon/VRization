@@ -7,7 +7,7 @@
 
 **Put your PC screen inside a phone VR viewer.**
 
-![Alpha](https://img.shields.io/badge/version-0.4.0--development-orange)
+![Alpha](https://img.shields.io/badge/version-0.4.0--alpha-orange)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Desktop](https://img.shields.io/badge/desktop-Windows%2010%2F11-blue)
 ![Android](https://img.shields.io/badge/Android-6.0%2B-3DDC84)
@@ -18,7 +18,7 @@
 
 VRization streams a Windows desktop or rectangular region to an Android phone, iPhone or iPad, renders the image side by side, and optionally maps phone rotation to PC mouse movement. Its reusable Android library, Swift core package and separated host components provide a starting point for embedding these features in other applications.
 
-**v0.4.0 development — Enhanced first person adds a fourth mode.** Each eye keeps a physical 1:1 square with GPU wide-angle deformation, proportional scaling, movement and mirrored spacing. Both first-person modes use the saved default-enabled gyro policy and existing F8/PC Resume boundaries. New-version checks are [recorded separately](docs/VALIDATION.md); published [v0.3.4](https://github.com/LexZeon/VRization/releases/tag/v0.3.4-alpha) remains the previous release. Read the [projection tutorial](docs/ENHANCED_FIRST_PERSON.md), [current notes](docs/RELEASE_NOTES.md) and [AI handoff](AI_HANDOFF.md).
+**v0.4.0-alpha — Enhanced first person adds a fourth mode.** Each eye keeps a physical 1:1 square with GPU wide-angle deformation, proportional scaling, movement and mirrored spacing. Both first-person modes use the saved default-enabled gyro policy and existing F8/PC Resume boundaries. Completed software/package, real Windows editor and native iOS Simulator checks are [recorded with their limits](docs/VALIDATION.md). Published [v0.3.4](https://github.com/LexZeon/VRization/releases/tag/v0.3.4-alpha) remains the previous release. Read the [projection tutorial](docs/ENHANCED_FIRST_PERSON.md), [current notes](docs/RELEASE_NOTES.md) and [AI handoff](AI_HANDOFF.md).
 
 Visual headset fitting and saved phone profiles from v0.3 remain available. An original Windows DXGI / D3D11 backend crops, rotates and scales on the GPU before smaller pixel readback; the CPU encodes JPEG for the existing WebSocket protocol. GDI / MSS remain compatibility paths. Both eyes receive the same 2D source: ordinary games do not acquire stereoscopic depth. See [performance and measurement limits](docs/PERFORMANCE.md).
 
@@ -49,7 +49,7 @@ The USB screenshots below show **v0.2.0 on a physical HUAWEI Pura 70 Ultra** rec
 
 ### 🚀 Try it
 
-1. Download the Windows archive and Android APK from [Releases](https://github.com/LexZeon/VRization/releases), or [build from source](docs/BUILD.md). Published v0.3.4 provides continuous gyro control; use matching v0.4.0 builds for Enhanced first person; preserve a matching-signer Android installation's data. For iPhone / iPad, use the [iOS installation guide](docs/IOS.md): source and a Mac Simulator build are provided; physical installation requires your Apple signing in Xcode.
+1. Download the Windows archive and Android APK from [Releases](https://github.com/LexZeon/VRization/releases), or [build from source](docs/BUILD.md). Use matching **v0.4.0-alpha** Windows/Android assets for Enhanced first person. Preserve matching-signer Android installation data. v0.3.4 remains the preceding published version. For iPhone / iPad, use the [iOS installation guide](docs/IOS.md): source and a Mac Simulator build are provided; physical installation requires your Apple signing in Xcode.
 2. Connect a data USB cable. Android needs official Platform Tools, USB debugging and computer authorization. iPhone needs Apple Devices / its Windows driver, Trust approval and your signed foreground app. See [USB setup](docs/USB.md).
 3. Start the host, choose a display or region, and start streaming. Use **USB connection…** to find the automatic-detection checkbox and official ADB selector; read USB status below the PC address. USB detection configures the authorized connection; multiple Android phones require selection.
 4. Open the phone app in its default USB mode. Android's first foreground session can wait automatically; tap **Detect USB and connect** to start explicitly or after backgrounding / changing language. iOS keeps a foreground control listener ready; click **Connect** on either endpoint to begin video. LAN remains an optional mode with manual IP, port and pairing code.
@@ -127,7 +127,7 @@ The [v0.3.0-alpha notes](docs/releases/v0.3.0-alpha.md) preserve editor / profil
 
 Windows 桌面串流 · Android / 兼容 Android 的系统 · iPhone / iPad · 可复用核心模块
 
-![Alpha](https://img.shields.io/badge/version-0.4.0--development-orange)
+![Alpha](https://img.shields.io/badge/version-0.4.0--alpha-orange)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Desktop](https://img.shields.io/badge/desktop-Windows%2010%2F11-blue)
 ![Android](https://img.shields.io/badge/Android-6.0%2B-3DDC84)
@@ -139,7 +139,7 @@ Windows 桌面串流 · Android / 兼容 Android 的系统 · iPhone / iPad · �
 
 VRization 是一个开源的电脑 → 手机串流实验项目。Windows 端采集显示器或指定矩形区域，Android、iPhone / iPad 客户端将画面显示在 VR 盒子的左右眼区域。你可以让画面固定在眼前，也可以把它当成一个随头部转动观看的虚拟大屏幕，或者用手机的姿态控制电脑游戏视角。
 
-> **v0.4.0 开发中——加强第一人称新增第四种模式。** 每眼固定物理 1:1 正方形，GPU 广角变形，仍可等比缩放、移动与镜像调节间距；两种第一人称共用已保存的默认开启陀螺仪策略与 F8／电脑恢复边界。新版检查 [单独记录](docs/VALIDATION.md)，已发布 [v0.3.4](https://github.com/LexZeon/VRization/releases/tag/v0.3.4-alpha) 保留为前一版本。见 [投影教程](docs/ENHANCED_FIRST_PERSON.md)、[当前说明](docs/RELEASE_NOTES.md) 与 [AI 接手指南](AI_HANDOFF.md)。
+> **v0.4.0-alpha——加强第一人称新增第四种模式。** 每眼固定物理 1:1 正方形，GPU 广角变形，仍可等比缩放、移动与镜像调节间距；两种第一人称共用已保存的默认开启陀螺仪策略与 F8／电脑恢复边界。已完成软件／打包、真实 Windows 编辑器和原生 iOS 模拟器检查，准确范围见 [验证](docs/VALIDATION.md)；已发布 [v0.3.4](https://github.com/LexZeon/VRization/releases/tag/v0.3.4-alpha) 保留为前一版本。见 [投影教程](docs/ENHANCED_FIRST_PERSON.md)、[当前说明](docs/RELEASE_NOTES.md) 与 [AI 接手指南](AI_HANDOFF.md)。
 
 v0.3 的可视盒子适配与手机配置保存继续保留。原创 Windows DXGI / D3D11 后端在 GPU 裁切、旋转和缩放，再回读较小像素；CPU 编码 JPEG，经已有 WebSocket 协议传输，保留 GDI / MSS 兼容路径。左右眼接收同一张二维桌面图像，**不会把普通游戏自动变成立体 3D**。实测范围见 [性能与测量](docs/PERFORMANCE.md)。
 
@@ -196,7 +196,7 @@ USB 截图来自 **HUAWEI Pura 70 Ultra 真机运行 v0.2.0**，经真实数据�
 
 ### 🚀 五步把电脑放进盒子
 
-1. 在 [Releases](https://github.com/LexZeon/VRization/releases) 下载 Windows 电脑端压缩包与 Android APK。已发布 v0.3.4 提供持续陀螺仪控制，加强第一人称需使用匹配的 v0.4.0 构建，签名一致的 Android 覆盖升级可保留数据。iPhone / iPad 按 [iOS 安装教程](docs/IOS.md) 使用源码和 Mac 模拟器构建；真机安装需要在 Xcode 使用自己的 Apple 签名。
+1. 在 [Releases](https://github.com/LexZeon/VRization/releases) 下载 Windows 电脑端压缩包与 Android APK。加强第一人称使用匹配的 **v0.4.0-alpha** Windows／Android 文件；签名一致的 Android 覆盖升级可保留数据，v0.3.4 仍是此前已发布版本。iPhone / iPad 按 [iOS 安装教程](docs/IOS.md) 使用源码和 Mac 模拟器构建；真机安装需要在 Xcode 使用自己的 Apple 签名。
 2. 用数据 USB 线连接。Android 需要官方 Platform Tools、USB 调试和电脑授权；iPhone 需要 Windows 的 Apple Devices / 驱动、信任这台电脑，以及自己签名并在前台运行的应用。详见 [USB 教程](docs/USB.md)。
 3. 打开电脑端，选择显示器或矩形区域，再开始串流。点“**USB 连接…**”找到自动检测开关与官方 ADB 选择，USB 状态在电脑地址下方。USB 检测会配置授权后的连接；多台 Android 手机需要选择一台。
 4. 手机应用默认 USB；Android 首次前台可自动等待，点“**检测 USB 并连接**”主动开始，进入后台或切换语言后也需主动连接。iOS 在前台保持控制监听就绪，在任一端点“**连接**”开始视频。局域网作为可选方式，需要填写 IP、端口与配对码。

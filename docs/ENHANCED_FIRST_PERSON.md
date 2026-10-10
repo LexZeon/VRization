@@ -17,6 +17,22 @@
 
 The enhanced-mode editor keeps the square and wide-angle warp visible. Android/iOS use their GPU renderer; Windows approximates the mapping with a mesh using the existing latest frame, at up to ten preview updates per second, without a second capture. Corner handles describe the physical square even when image corners are black. The older Cinema editor retains its flat-preview behavior. Rendering can still show the enhanced image without a rotation sensor, but gyro mouse control is unavailable on that device.
 
+### Actual Windows fitting example
+
+![Unmodified Windows enhanced editor, reopened after saving two touching square previews](images/windows-enhanced-saved-v040.png)
+
+This unmodified screenshot shows the actual Windows **0.4.0 preview editor** reopened after Save, using an original synthetic grid and the desktop's approximate angular mesh. The saved profile has **scale 50%, eye separation −0.55, X/Y offsets 0**; the two physical square bounds meet at their inner edges. It is an editor preview, not a captured phone GPU output or a headset/streaming benchmark.
+
+On the ASUS display, an isolated profile passed real Enhanced-mode selection, proportional corner resizing **0.85 → 0.50**, mirrored inward contact, **Save/reopen**, and a draft-pan **Discard** that retained the committed fit. No desktop capture, phone connection, pose or operating-system mouse output ran in this check. It used the frozen preview before final notices were rebuilt; final-package checks are recorded separately in [Validation](VALIDATION.md).
+
+### Actual native Metal example
+
+![Unaltered native iOS Simulator Metal output showing two square warped calibration cards and black corners](images/ios-enhanced-metal-v040.png)
+
+This unaltered PNG is **ENHANCED-01-square-warp-Metal** from the genuine **iPhone 17 Pro Max Simulator**, iOS 26.2/arm64, app **0.4.0/build 8**. It received the project's original 16:9 calibration card through LAN and rendered it with the actual Metal shader at **scale 0.60 / FOV 80°**: each eye is physically square, the grid/border curves and outside samples are black. The screenshot retains its native orientation metadata. This is native Simulator GPU output; the Windows example above uses an approximate desktop mesh.
+
+The independently decoded native captures passed **38 enhanced pixel checks**, including colors, curved borders, black masks and exact eye seams. Native simulated-usbmux captures also exercised the framed USB client. These establish native app rendering in this Simulator, not a physical iPhone/cable, Huawei GPU, gyro-axis accuracy, achieved FPS or end-to-end latency. [Exact evidence and limits](VALIDATION.md).
+
 ### What the projection does
 
 The original Android GLES and iOS Metal fragment shaders map an output square back into the streamed texture. They run on the phone GPU; the host continues sending ordinary JPEG frames. The square resamples a rectangular desktop source to the requested 1:1 presentation, so content proportions change deliberately in this mode. It cannot recover content outside the captured desktop or create separate stereo viewpoints, scene depth or a native VR180 video.
@@ -58,6 +74,22 @@ A separate **SteamVR experimental version is planned** after preserving existing
 5. 使用与第一人称相同的鼠标灵敏度、防抖及 Y 轴反转；Windows 默认开启陀螺仪鼠标，**F8** 暂停，电脑“**恢复陀螺仪控制**”恢复。保存、切换模式或重连不能解除已有暂停锁。
 
 加强模式编辑器保留正方形及广角变形预览；Android／iOS 用 GPU 渲染器，Windows 以网格近似已有最新帧的映射，预览最高每秒十次，不额外采集。即使内容角点变黑，角点把手仍表示物理正方形范围；旧大屏幕编辑器仍采用平面预览。没有旋转传感器的设备仍可观看加强图像，但无法进行陀螺仪鼠标控制。
+
+### 实际 Windows 适配示例
+
+![未经修改的 Windows 加强编辑器，保存后重开，两眼正方形预览在中间接触](images/windows-enhanced-saved-v040.png)
+
+这张未经修改的截图来自实际 Windows **0.4.0 预览编辑器**，保存后重新打开，内容是原创合成网格与电脑近似角度网格。已保存 **缩放 50%、眼间距 −0.55、X／Y 偏移 0**，两个物理正方形的内侧边缘接触；它是编辑器预览，不是手机 GPU 截图或头显／串流性能测量。
+
+在 ASUS 显示器、隔离配置中，真实操作通过加强模式选择、等比角点 **0.85 → 0.50**、镜像向内接触、**保存／重开**及平移草稿 **放弃**后保留已提交适配。本次没有桌面采集、手机连接、姿态或操作系统鼠标输出；使用最终通知重建前的冻结预览，最终包检查另见 [验证](VALIDATION.md)。
+
+### 实际原生 Metal 示例
+
+![未修改的原生 iOS 模拟器 Metal 输出，两个正方形变形校准卡与黑角](images/ios-enhanced-metal-v040.png)
+
+这张未修改 PNG 来自真实原生 **iPhone 17 Pro Max 模拟器**的 **ENHANCED-01-square-warp-Metal**，iOS 26.2／arm64、应用 **0.4.0／构建 8**；经局域网接收项目原创 16:9 校准卡，实际 Metal 着色器以 **缩放 0.60／视场角 80°**渲染，每眼物理正方形、网格／边框弯曲、范围外采样为黑。截图保留原生方向元数据，这是原生模拟器 GPU 输出，上方 Windows 例子则使用电脑近似网格。
+
+独立解码原生截图通过 **38 项加强像素检查**，包含颜色、弯曲边框、黑色遮罩及准确双眼接缝；原生模拟 usbmux 截图也覆盖 framed USB 客户端。这证明此模拟器中的原生应用渲染，不是真实 iPhone／数据线、华为 GPU、陀螺仪轴向、实际帧率或端到端延迟，见 [准确证据与限制](VALIDATION.md)。
 
 ### 投影的作用
 

@@ -7,7 +7,7 @@
 
 Read the [version changelog](../../CHANGELOG.md) for a newest-first summary of every published version and upcoming implemented changes.
 
-- [v0.4.0 development](../RELEASE_NOTES.md): fourth Enhanced first-person mode, fixed 1:1 squares, GPU wide-angle deformation and explicit capability fallback; verification pending.
+- [v0.4.0-alpha](v0.4.0-alpha.md): fourth Enhanced first-person mode, fixed 1:1 squares, GPU wide-angle deformation and explicit capability fallback. Windows/Android, actual Windows editor, frozen/package and native iOS Simulator checks passed; Huawei/PCVR hardware remains deferred.
 - [v0.3.4-alpha](v0.3.4-alpha.md): default-enabled First-person gyro mouse control across desktop/apps/games, saved local preference and latched PC stop/resume. Software/package/native Simulator checks passed; physical gyro/game/video/latency and advanced Windows GUI acceptance remain unverified.
 - [v0.3.3-alpha](v0.3.3-alpha.md): actual stop/reconnect, explicit Connect on either USB endpoint and reusable connection modules.
 - [v0.3.2-alpha](v0.3.2-alpha.md): default-off first-person stabilization, compatible settings negotiation and portable USB tool lookup.
@@ -27,7 +27,7 @@ Keep historical version notes and download checksums with each release. Measurem
 
 在 [版本日志](../../CHANGELOG.md) 查看全部已发布版本及后续已实现改动的摘要，按从新到旧排列。
 
-- [v0.4.0 开发中](../RELEASE_NOTES.md)：第四种加强第一人称、固定 1:1 正方形、GPU 广角变形及显式能力回退；验证待完成。
+- [v0.4.0-alpha](v0.4.0-alpha.md)：第四种加强第一人称、固定 1:1 正方形、GPU 广角变形及显式能力回退；Windows／Android、实际 Windows 编辑器、冻结／打包与原生 iOS 模拟器通过，华为／PCVR 真机留待下次。
 - [v0.3.4-alpha](v0.3.4-alpha.md)：默认开启第一人称陀螺仪鼠标，桌面／应用／游戏均可控制，保存本地偏好并保留电脑停止锁／主动恢复；软件／打包／原生模拟器检查通过，真机陀螺仪／游戏／视频／延迟和高级 Windows 界面仍未验证。
 - [v0.3.3-alpha](v0.3.3-alpha.md)：真实停止／重连、USB 双端主动连接及可复用连接模块。
 - [v0.3.2-alpha](v0.3.2-alpha.md)：默认关闭的第一人称防抖、兼容配置协商与便携 USB 工具查找。

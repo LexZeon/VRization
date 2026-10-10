@@ -30,13 +30,21 @@ New GUI users get the 640 / 60 FPS / Q45 low-latency preset; stable, quality and
 
 Cloud builds compile simulator and device SDKs and exercise the native iOS Simulator over a synthetic stream and simulated usbmux service. Physical iPhone installation still needs Apple signing, and real iPhone USB / motion remains unverified. Huawei Android hardware checks are tracked separately in [validation](VALIDATION.md); neither path establishes headset optics, game compatibility or measured motion-to-photon latency.
 
-### v0.4.0 Enhanced first person — development
+### v0.4.0-alpha Enhanced first person
 
-The fourth mode adds fixed 1:1 eye squares, GPU angular image remapping, scalable/movable fit, mirrored spacing, persistent Save/Discard and explicit compatibility fallback. It keeps both first-person modes on the existing local gyro/F8/Resume policy. New-version validation is pending; the [projection guide](ENHANCED_FIRST_PERSON.md) separates the display effect from native stereo depth.
+The fourth mode adds fixed 1:1 eye squares, GPU angular image remapping, scalable/movable fit, mirrored spacing, persistent Save/Discard and explicit compatibility fallback. It keeps both first-person modes on the existing local gyro/F8/Resume policy. All four CI jobs, Windows/Android software checks, iOS native Simulator review and final EXE/prepublication ZIP checks passed; physical Huawei/PCVR testing is deferred. The [projection guide](ENHANCED_FIRST_PERSON.md) separates the display effect from native stereo depth.
 
 ### Separate SteamVR experiment — planned
 
 Preserve all existing source, files and published downloads before creating a separate experimental version. SteamVR integration needs an explicit engine/driver boundary and its own tests; it is not implemented by the new phone-viewing mode and no SteamVR package is offered here. Keep ordinary VRization usable independently and record experimental results separately.
+
+The requested three entries are:
+
+1. **Original direct phone:** retain the normal Windows/Android/iOS path and its four viewing modes.
+2. **Phone as SteamVR HMD:** a separately enabled virtual HMD sends full phone orientation to SteamVR and streams distinct compositor eyes to an experimental stereo receiver. This requires a real frame/pose bridge; a stub device alone is insufficient. Initial tracking is 3DoF, not position tracking.
+3. **Existing SteamVR headset:** an original native overlay displays selected desktop content in a headset already connected through its vendor's SteamVR-compatible PC link. A standalone headset's charging USB cable alone does not establish that connection.
+
+Read-only architecture research consulted Valve's **OpenVR v2.15.6**, commit `0924064316de3effbcd1acf1e309182a2deb1c05`: [driver contract](https://github.com/ValveSoftware/openvr/blob/0924064316de3effbcd1acf1e309182a2deb1c05/docs/Driver_API_Documentation.md), [D3D11 mirror/overlay API](https://github.com/ValveSoftware/openvr/blob/0924064316de3effbcd1acf1e309182a2deb1c05/headers/openvr.h) and [BSD-3-Clause license](https://github.com/ValveSoftware/openvr/blob/0924064316de3effbcd1acf1e309182a2deb1c05/LICENSE), credited to Valve Corporation. The proposed first frame route uses both composited-eye mirror textures; Valve's [virtual_display](https://github.com/ValveSoftware/virtual_display/tree/da13899ea6b4c0e4167ed97c77c6d433718489b1) at `da13899ea6b4c0e4167ed97c77c6d433718489b1` is a DisplayRedirect architecture reference with its [own BSD-3-Clause license](https://github.com/ValveSoftware/virtual_display/blob/da13899ea6b4c0e4167ed97c77c6d433718489b1/LICENSE), not an implemented phone HMD. Consulted 2026-10-10; no Valve code/runtime is incorporated in the ordinary v0.4.0 application. Future reuse must preserve exact upstream terms and identify changes; the separately installed SteamVR runtime is not relicensed by the SDK license.
 
 ### Next candidates
 
@@ -86,13 +94,21 @@ USB 已是默认偏好：Android 经官方 ADB reverse 发现已授权真实设�
 
 云端编译模拟器 / 真机 SDK，并经合成串流与模拟 usbmux 服务运行原生 iOS 模拟器。真实 iPhone 安装仍须 Apple 签名，真实 iPhone USB / 姿态尚未验证。华为 Android 实机检查另见 [验证记录](VALIDATION.md)；两条路径均不证明盒子镜片、游戏兼容或运动到光子延迟已经通过。
 
-### v0.4.0 加强第一人称——开发中
+### v0.4.0-alpha 加强第一人称
 
-第四模式新增固定 1:1 双眼正方形、GPU 角度变形、可缩放／移动适配、镜像间距、本地保存／放弃及显式兼容回退；两种第一人称共用现有本地陀螺仪／F8／恢复策略。新版验证待完成，[投影教程](ENHANCED_FIRST_PERSON.md) 区分显示效果与原生立体深度。
+第四模式新增固定 1:1 双眼正方形、GPU 角度变形、可缩放／移动适配、镜像间距、本地保存／放弃及显式兼容回退；两种第一人称共用现有本地陀螺仪／F8／恢复策略。四项 CI、Windows／Android 软件、iOS 原生模拟器审核与最终 EXE／预发布 ZIP 检查通过，华为／PCVR 真机留到下次；[投影教程](ENHANCED_FIRST_PERSON.md) 区分显示效果与原生立体深度。
 
 ### 独立 SteamVR 实验——计划
 
 先保留全部现有源码、文件和发布下载，再创建独立实验版本；SteamVR 集成需要明确引擎／驱动边界及独立测试，不由新手机观看模式实现，此处没有 SteamVR 下载。普通 VRization 保持可独立使用，实验结果单独记录。
+
+用户要求的三个入口为：
+
+1. **原有手机直连：** 保留普通 Windows／Android／iOS 路径及其四种观看模式。
+2. **手机作为 SteamVR HMD：** 独立启用的虚拟头显向 SteamVR 传送完整手机姿态，把左右眼独立合成画面串流到实验立体接收端；须有实际画面／姿态桥，只有设备占位驱动不足。初期为 3DoF 方向追踪，不提供位置追踪。
+3. **已有 SteamVR 头显：** 原创原生 overlay 把选定桌面显示在已经经厂商 SteamVR 兼容电脑链路连接的头显中；一根用于充电的独立式头显 USB 线本身不构成这种连接。
+
+只读架构研究查阅 Valve 的 **OpenVR v2.15.6**，commit `0924064316de3effbcd1acf1e309182a2deb1c05`：[驱动约定](https://github.com/ValveSoftware/openvr/blob/0924064316de3effbcd1acf1e309182a2deb1c05/docs/Driver_API_Documentation.md)、[D3D11 镜像／overlay API](https://github.com/ValveSoftware/openvr/blob/0924064316de3effbcd1acf1e309182a2deb1c05/headers/openvr.h) 和 [BSD-3-Clause 许可](https://github.com/ValveSoftware/openvr/blob/0924064316de3effbcd1acf1e309182a2deb1c05/LICENSE)，鸣谢 Valve Corporation。提议的首版画面路径接收两眼合成镜像纹理；Valve [virtual_display](https://github.com/ValveSoftware/virtual_display/tree/da13899ea6b4c0e4167ed97c77c6d433718489b1) 的 `da13899ea6b4c0e4167ed97c77c6d433718489b1` 是 DisplayRedirect 架构参考，保留 [自己的 BSD-3-Clause 许可](https://github.com/ValveSoftware/virtual_display/blob/da13899ea6b4c0e4167ed97c77c6d433718489b1/LICENSE)，不代表已实现手机 HMD。查阅于 2026-10-10，普通 v0.4.0 未采用 Valve 代码／运行库；未来复用须保留准确上游条款并记录改动，另行安装的 SteamVR 运行时不因 SDK 许可而被重新授权。
 
 ### 下一阶段候选
 

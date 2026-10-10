@@ -7,13 +7,15 @@
 
 Download published assets and `SHA256SUMS.txt` from [GitHub Releases](https://github.com/LexZeon/VRization/releases). Use the application versions listed for that release: a host-only patch can intentionally retain older phone assets. Published alpha builds have the limitations recorded in [release notes](RELEASE_NOTES.md) and [compatibility records](COMPATIBILITY.md).
 
-### v0.4.0 development and preserved downloads
+### v0.4.0-alpha: Enhanced first person
 
-Enhanced first person is being prepared as a separate v0.4.0 release. Until published, use the explicitly identified development build rather than assuming older downloads contain it. Its protocol capability is separate from settings schema 2; see [projection and fallback](ENHANCED_FIRST_PERSON.md). Keep all existing files, published assets, signed APK data and historical checksums. A separate SteamVR experimental version is planned, not an existing download.
+Windows, Android and iOS applications are **0.4.0**, mobile build **8**; the Android core AAR is updated. Use the [v0.4.0-alpha assets and SHA-256 manifest](https://github.com/LexZeon/VRization/releases/tag/v0.4.0-alpha), with [exact completed checks and limits](VALIDATION.md). Windows/Android software, canonical APK identity, the frozen EXE/prepublication ZIP and native iOS Simulator review passed. Older downloads do not contain Enhanced first person.
+
+The fourth mode adds physical 1:1 eye squares, GPU angular warp and the existing Save/Discard fit controls. Its capability is negotiated separately from settings schema 2; see [projection and fallback](ENHANCED_FIRST_PERSON.md). Preserve matching-signer Android data, the full Windows archive, separate USB tools, all historical files and checksums. iOS remains source/Mac Simulator output, not a signed iPhone installer. A separate SteamVR three-entry experimental version is planned, not an existing download; Huawei/PCVR hardware tests are deferred to the next chat.
 
 ### v0.3.4-alpha: default-enabled First-person control
 
-Windows, Android and iOS applications are **0.3.4**, mobile build **7**; the reusable Android core AAR is unchanged. Protocol v1/settings schema 2 remain compatible, including phone 0.3.3 messages. Windows saves the default-enabled First-person gyro mouse preference across desktop/application/game windows, with latched F8/editor/failure/Stop and explicit PC Resume. The new mobile notices explain that policy. Use [this release's assets/manifest](https://github.com/LexZeon/VRization/releases/tag/v0.3.4-alpha) and [verification limits](RELEASE_NOTES.md). Preserve matching-signer Android data, the complete Windows ZIP, checksums and independent USB tools. iOS remains source/Mac Simulator output, not a signed iPhone installer. The Windows ZIP includes the bilingual [AI handoff](../AI_HANDOFF.md). Use the archive instructions below to save verified versions locally.
+Windows, Android and iOS applications are **0.3.4**, mobile build **7**; the reusable Android core AAR is unchanged. Protocol v1/settings schema 2 remain compatible, including phone 0.3.3 messages. Windows saves the default-enabled First-person gyro mouse preference across desktop/application/game windows, with latched F8/editor/failure/Stop and explicit PC Resume. The new mobile notices explain that policy. Use [this release's assets/manifest](https://github.com/LexZeon/VRization/releases/tag/v0.3.4-alpha) and [verification limits](releases/v0.3.4-alpha.md). Preserve matching-signer Android data, the complete Windows ZIP, checksums and independent USB tools. iOS remains source/Mac Simulator output, not a signed iPhone installer. The Windows ZIP includes the bilingual [AI handoff](../AI_HANDOFF.md). Use the archive instructions below to save verified versions locally.
 
 The earlier [v0.3.1-alpha patch](releases/v0.3.1-alpha.md) combined Windows 0.3.1 with unchanged mobile 0.3.0 assets. That historical mixed-version policy does not mean the new phone slider is available without updating.
 
@@ -80,13 +82,15 @@ v0.2.0-alpha preceded the v0.3 editor / reset / profile release; v0.3.1-alpha is
 
 从 [GitHub Releases](https://github.com/LexZeon/VRization/releases) 下载已发布产物及 `SHA256SUMS.txt`，使用该次发布明确列出的应用版本；仅修复电脑端的补丁可以有意保留较早手机产物。Alpha 版限制见 [发布说明](RELEASE_NOTES.md) 与 [兼容性记录](COMPATIBILITY.md)。
 
-### v0.4.0 开发与保留下载
+### v0.4.0-alpha：加强第一人称
 
-加强第一人称准备单独作为 v0.4.0 发布；发布前需使用明确标注的开发构建，不能假定旧下载包含它。模式能力与配置 schema 2 分开，见 [投影与回退](ENHANCED_FIRST_PERSON.md)。保留全部已有文件、发布产物、同签名 APK 数据与历史哈希；另行计划 SteamVR 实验版本，目前没有对应下载。
+Windows、Android 与 iOS 应用 **0.4.0**、手机构建号 **8**，Android 核心 AAR 已更新；使用 [v0.4.0-alpha 文件与 SHA-256 清单](https://github.com/LexZeon/VRization/releases/tag/v0.4.0-alpha)，准确已完成范围见 [验证](VALIDATION.md)。Windows／Android 软件、权威 APK 身份、冻结 EXE／预发布 ZIP 和原生 iOS 模拟器审核通过，旧下载不包含加强第一人称。
+
+第四模式加入物理 1:1 双眼正方形、GPU 角度变形和已有保存／放弃适配控件；模式能力与配置 schema 2 分开协商，见 [投影与回退](ENHANCED_FIRST_PERSON.md)。保留同签名 Android 数据、完整 Windows 归档、独立 USB 工具、全部历史文件与校验值。iOS 仍是源码／Mac 模拟器产物，不是签名 iPhone 安装器；独立 SteamVR 三入口实验版本仍为计划，目前没有对应下载，华为／PCVR 真机留到下次聊天。
 
 ### v0.3.4-alpha：默认开启第一人称控制
 
-Windows、Android 与 iOS 应用为 **0.3.4**、手机构建号 **7**；可复用 Android 核心 AAR 不变。协议 v1／配置 schema 2 继续兼容，包含手机 0.3.3 消息。电脑保存默认启用第一人称陀螺仪偏好，桌面／应用／游戏均可控制，F8／编辑器／故障／Stop 锁定暂停，须电脑主动恢复；新版手机说明解释该策略。使用 [本版文件／清单](https://github.com/LexZeon/VRization/releases/tag/v0.3.4-alpha) 并查看 [验证范围](RELEASE_NOTES.md)。保留同签名 Android 数据、完整 Windows ZIP、校验值与独立 USB 工具；iOS 仍是源码／Mac 模拟器产物，不是签名 iPhone 安装器。Windows 包含双语 [AI 接手指南](../AI_HANDOFF.md)；按下文方法将已校验版本保存在本地。
+Windows、Android 与 iOS 应用为 **0.3.4**、手机构建号 **7**；可复用 Android 核心 AAR 不变。协议 v1／配置 schema 2 继续兼容，包含手机 0.3.3 消息。电脑保存默认启用第一人称陀螺仪偏好，桌面／应用／游戏均可控制，F8／编辑器／故障／Stop 锁定暂停，须电脑主动恢复；新版手机说明解释该策略。使用 [本版文件／清单](https://github.com/LexZeon/VRization/releases/tag/v0.3.4-alpha) 并查看 [验证范围](releases/v0.3.4-alpha.md)。保留同签名 Android 数据、完整 Windows ZIP、校验值与独立 USB 工具；iOS 仍是源码／Mac 模拟器产物，不是签名 iPhone 安装器。Windows 包含双语 [AI 接手指南](../AI_HANDOFF.md)；按下文方法将已校验版本保存在本地。
 
 此前 [v0.3.1-alpha 补丁](releases/v0.3.1-alpha.md) 用 Windows 0.3.1 搭配未变的 0.3.0 手机产物。该历史混合版本策略不表示不升级手机就能使用新滑块。
 
