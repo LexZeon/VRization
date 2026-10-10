@@ -8,7 +8,10 @@ if (base.parent / 'licenses').is_dir():
     notices.append((str(base.parent / 'licenses'), 'licenses'))
 a = Analysis([str(base / 'launcher.py')], pathex=[str(base / 'src')],
              binaries=[], datas=notices, hiddenimports=['PIL.JpegImagePlugin'],
-             hookspath=[], hooksconfig={}, runtime_hooks=[], excludes=['setuptools', 'pkg_resources'], noarchive=False)
+             hookspath=[], hooksconfig={}, runtime_hooks=[],
+             # Optional analysis / GPU development tools must not enter the
+             # portable runtime just because they exist on a builder's machine.
+             excludes=['setuptools', 'pkg_resources', 'numpy', 'dxcam', 'comtypes'], noarchive=False)
 # Windows 10/11 provide the UCRT and API-set forwarders. VC++ runtime is an
 # explicit Microsoft-installed prerequisite rather than a redistributed DLL.
 # A broad development PATH can otherwise copy unrelated SDK runtime files.
