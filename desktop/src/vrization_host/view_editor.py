@@ -7,7 +7,31 @@ from tkinter import ttk
 
 from PIL import Image, ImageTk
 
+from .enhanced_projection import source_point
 from .view_edit import EditTransaction, eye_bounds
+
+
+def enhanced_preview(image, size, fov):
+    """Small local editor approximation; never changes captured/network frames."""
+    width, height = size
+    mesh = []
+    # A bounded 24x24 mesh approximates the phone's per-fragment GPU mapping.
+    # Reuse one transformed patch for both eyes rather than doubling work.
+    for row in range(24):
+        top, bottom = row * height // 24, (row + 1) * height // 24
+        if top == bottom:
+            continue
+        for column in range(24):
+            left, right = column * width // 24, (column + 1) * width // 24
+            if left == right:
+                continue
+            quad = []
+            for px, py in ((left, top), (left, bottom), (right, bottom), (right, top)):
+                sx, sy = source_point(2 * px / width - 1, 1 - 2 * py / height, fov)
+                quad.extend(((sx * .5 + .5) * image.width, (.5 - sy * .5) * image.height))
+            mesh.append(((left, top, right, bottom), tuple(quad)))
+    return image.transform(size, Image.Transform.MESH, mesh,
+                           resample=Image.Resampling.BILINEAR, fillcolor=(0, 0, 0))
 
 
 class HeadsetEditor:
@@ -118,19 +142,27 @@ class HeadsetEditor:
         self.last_render = key
         self.canvas.delete("all")
         self.photos = []
+        enhanced_patch = None
         for eye in (0, 1):
             left, top, right, bottom = self.bounds(eye)
             ew, eh = max(1, round(width / 2)), max(1, round(height))
             picture = Image.new("RGB", (ew, eh), "#050910")
             target_width, target_height = max(1, round(right - left)), max(1, round(bottom - top))
             if self.image is not None:
-                patch = self.image.resize((target_width, target_height), Image.Resampling.BILINEAR)
+                if self.draft.mode == "fps_enhanced":
+                    if enhanced_patch is None:
+                        enhanced_patch = enhanced_preview(self.image, (target_width, target_height), self.draft.fov)
+                    patch = enhanced_patch
+                else:
+                    patch = self.image.resize((target_width, target_height), Image.Resampling.BILINEAR)
             else:
                 patch = Image.new("RGB", (target_width, target_height), "#142136")
                 for fraction in (.25, .5, .75):
                     gx, gy = round(target_width * fraction), round(target_height * fraction)
                     patch.paste("#29435c", (gx, 0, gx + 1, target_height))
                     patch.paste("#29435c", (0, gy, target_width, gy + 1))
+                if self.draft.mode == "fps_enhanced":
+                    patch = enhanced_preview(patch, (target_width, target_height), self.draft.fov)
             picture.paste(patch, (round(left - x - eye * width / 2), round(top - y)))
             photo = ImageTk.PhotoImage(picture, master=self.window)
             self.photos.append(photo)

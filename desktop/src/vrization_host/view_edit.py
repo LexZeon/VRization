@@ -44,6 +44,14 @@ def fit_size(image_aspect: float, eye_aspect: float) -> tuple[float, float]:
     return min(1.0, image / eye), min(1.0, eye / image)
 
 
+def content_aspect(settings: Settings, image_aspect: float) -> float:
+    """Enhanced first person fixes the physical content rectangle to a square."""
+    image = _finite(image_aspect, "image_aspect")
+    if image <= 0:
+        raise ValueError("aspect ratios must be positive")
+    return 1.0 if settings.mode == "fps_enhanced" else image
+
+
 def resolved_fit(settings: Settings, image_aspect: float,
                  eye_aspect: float) -> Settings:
     """Resolve a flat fit without an inner gap caused by shared X at contact.
@@ -54,7 +62,7 @@ def resolved_fit(settings: Settings, image_aspect: float,
     neither mutates them nor saves this aspect-dependent rendering result.
     """
     entry = _settings(settings)
-    fit_x, _ = fit_size(image_aspect, eye_aspect)
+    fit_x, _ = fit_size(content_aspect(entry, image_aspect), eye_aspect)
     half_x = fit_x * entry.scale
     separation = _clamp(entry.eyeSeparation, half_x - 1.0, 0.2)
     gap = max(0.0, 1.0 + separation - half_x)
@@ -75,7 +83,7 @@ def eye_bounds(settings: Settings, eye: int, image_aspect: float,
     entry = resolved_fit(settings, image_aspect, eye_aspect)
     if type(eye) is not int or eye not in (0, 1):
         raise ValueError("eye must be 0 (left) or 1 (right)")
-    fit_x, fit_y = fit_size(image_aspect, eye_aspect)
+    fit_x, fit_y = fit_size(content_aspect(entry, image_aspect), eye_aspect)
     center_x = entry.offsetX + (-1 if eye == 0 else 1) * entry.eyeSeparation
     half_x, half_y = fit_x * entry.scale, fit_y * entry.scale
     return (center_x - half_x, entry.offsetY - half_y,
@@ -100,7 +108,7 @@ def dragged(settings: Settings, kind: str, dx: float, dy: float,
     """
     entry = _settings(settings)
     delta_x, delta_y = _finite(dx, "dx"), _finite(dy, "dy")
-    fit_x, fit_y = fit_size(image_aspect, eye_aspect)
+    fit_x, fit_y = fit_size(content_aspect(entry, image_aspect), eye_aspect)
     if kind == "pan":
         return entry.update({
             "offsetX": _clamp(entry.offsetX + delta_x, -0.3, 0.3),

@@ -7,6 +7,10 @@
 
 Updated 2026-10-10. Automated checks, desktop capture and emulator observations are distinguished from hardware capabilities that remain untested.
 
+### v0.4.0 development — checks pending
+
+The new fourth mode, **Enhanced first person**, uses fixed physical 1:1 squares, original GPU inverse angular sampling and existing saved fit controls. Application versions are 0.4.0/mobile build 8; source/build/package and physical-device checks are pending until concrete results are recorded here. No v0.3.4 test count, screenshot or physical result establishes the new projection, mixed-version negotiation, square editor or sensor-less rendering. See [the projection contract](ENHANCED_FIRST_PERSON.md) and [current notes](RELEASE_NOTES.md).
+
 ### [v0.3.4-alpha](https://github.com/LexZeon/VRization/releases/tag/v0.3.4-alpha) — completed software/package checks
 
 Windows, Android and iOS applications are **0.3.4**, mobile build **7**; the reusable Android core AAR is unchanged. The Windows GUI enables First-person gyro mouse control across all foreground windows by default. The completed software/package/native Simulator results below do not establish physical gyro/game/video/latency or advanced Windows GUI acceptance.
@@ -157,6 +161,10 @@ Final [GitHub Actions 37897738507](https://github.com/LexZeon/VRization/actions/
 ## 简体中文
 
 更新日期：2026-10-10。这里区分自动检查、电脑采集和模拟器观察；未验证的硬件能力不以截图或单元测试代替。
+
+### v0.4.0 开发中——检查待完成
+
+新增第四种“**加强第一人称**”，固定物理 1:1 正方形，原创 GPU 逆角度采样，沿用已保存适配控件；应用版本 0.4.0／手机构建号 8。源码／构建／打包与真机检查须有准确结果后记录，目前待完成。v0.3.4 的测试数量、截图或真机结果不能证明新版投影、混合版本协商、正方形编辑器或无传感器渲染，见 [投影约定](ENHANCED_FIRST_PERSON.md) 与 [当前说明](RELEASE_NOTES.md)。
 
 ### [v0.3.4-alpha](https://github.com/LexZeon/VRization/releases/tag/v0.3.4-alpha) — 已完成软件／打包检查
 

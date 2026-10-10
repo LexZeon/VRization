@@ -24,8 +24,8 @@ final class ViewerSmokeTests: XCTestCase {
         XCTAssertTrue(app.buttons["settings.hide"].waitForExistence(timeout: 10))
         let version = app.staticTexts["version.info"]
         XCTAssertTrue(version.waitForExistence(timeout: 5))
-        XCTAssertTrue(version.label.contains("0.3.4"))
-        XCTAssertTrue(version.label.contains("build 7") || version.label.contains("构建 7"))
+        XCTAssertTrue(version.label.contains("0.4.0"))
+        XCTAssertTrue(version.label.contains("build 8") || version.label.contains("构建 8"))
     }
     private func screenshot(_ name: String) {
         // The physical screen avoids app-region crop/rotation ambiguity.
@@ -494,6 +494,103 @@ final class ViewerSmokeTests: XCTestCase {
         }
         XCTFail("The real host did not receive the saved phone snapshot")
         return try observeHost()
+    }
+    private func waitHostMode(_ mode: String) throws -> HostObservation {
+        for _ in 0..<25 {
+            let value = try observeHost()
+            if value.settings.mode == mode { return value }
+            Thread.sleep(forTimeInterval: 0.2)
+        }
+        XCTFail("The public mode control did not reach the real host")
+        return try observeHost()
+    }
+    private func assertEditorSquare() {
+        for eye in 0..<2 {
+            let rect = app.otherElements["editor.eye\(eye).interior"].frame
+            XCTAssertGreaterThan(rect.width, 50)
+            XCTAssertEqual(rect.width, rect.height, accuracy: 1)
+        }
+    }
+    func testEnhancedFirstPersonSquareWarpEditorAndPersistence() throws {
+        defer { try? updateFixtureDesktopObject(["mode": "full", "scale": 0.85, "offsetX": 0.0,
+            "offsetY": 0.0, "eyeSeparation": 0.03, "fov": 80.0, "distortion": 0.0]) }
+        let toggle = app.buttons["connection.toggle"]
+        reveal(toggle); toggle.tap(); waitLabel(toggle, contains: "Disconnect")
+        waitLabel(app.staticTexts["frame.status"], contains: "1280")
+        try updateFixtureDesktopObject(["mode": "full", "scale": 0.6, "offsetX": 0.0,
+            "offsetY": 0.0, "eyeSeparation": 0.03, "fov": 80.0, "distortion": 0.0])
+        // The observation HTTP reply precedes the asynchronous PC broadcast.
+        // Wait for its real native label before a phone mode edit can send.
+        waitLabel(app.staticTexts["setting.scale.label"], contains: "60%")
+        let modes = app.segmentedControls["view.mode"]; reveal(modes)
+        let enhanced = modes.buttons["Enhanced first person"]
+        XCTAssertTrue(enhanced.isEnabled)
+        enhanced.tap()
+        let entry = try waitHostMode("fps_enhanced")
+        XCTAssertEqual(entry.settings.scale, 0.6)
+        XCTAssertTrue(entry.mouseMoves.isEmpty)
+        // A real Simulator has no motion source. The production display remains
+        // useful without inventing poses or enabling ordinary FPS/Cinema.
+        XCTAssertTrue(app.staticTexts["motion.status"].exists)
+        XCTAssertTrue(enhanced.isSelected)
+        app.buttons["settings.hide"].tap(); Thread.sleep(forTimeInterval: 2)
+        screenshot("ENHANCED-01-square-warp-Metal")
+        app.otherElements["vr.surface"].press(forDuration: 1.2)
+        openFitEditor(); assertEditorSquare()
+        resizeEditor(horizontal: -20, vertical: -20); assertEditorSquare()
+        panEditor(horizontal: -18, vertical: 0)
+        let discarded = try draftSettings()
+        XCTAssertEqual(discarded.mode, "fps_enhanced"); XCTAssertLessThan(discarded.scale, entry.settings.scale)
+        app.buttons["editor.discard"].tap()
+        XCTAssertEqual(try observeHost().settings, entry.settings)
+        openFitEditor(); XCTAssertEqual(try draftSettings(), entry.settings)
+        resizeEditor(horizontal: -150, vertical: -80)
+        panEditor(horizontal: 350, vertical: 0)
+        assertEditorSquare()
+        let saved = try draftSettings()
+        XCTAssertEqual(saved.mode, "fps_enhanced"); XCTAssertEqual(saved.scale, 0.5)
+        XCTAssertEqual(saved.offsetX, 0); XCTAssertLessThan(saved.eyeSeparation, 0)
+        screenshot("ENHANCED-02-square-editor-seam")
+        app.buttons["editor.save"].tap(); _ = try waitHostSettings(saved)
+        _ = try observeHost(checkpoint: "enhanced-lan-editor-saved")
+        app.buttons["settings.hide"].tap(); Thread.sleep(forTimeInterval: 2)
+        screenshot("ENHANCED-03-square-seam-Metal")
+        app.terminate(); app.launchArguments = baseArguments; launchViewer()
+        reveal(modes); XCTAssertTrue(modes.buttons["Enhanced first person"].isSelected)
+        openFitEditor(); XCTAssertEqual(try draftSettings(), saved); assertEditorSquare()
+        app.buttons["editor.discard"].tap()
+        reveal(toggle); toggle.tap(); waitLabel(toggle, contains: "Disconnect")
+        _ = try waitHostSettings(saved)
+        XCTAssertTrue(try observeHost(checkpoint: "enhanced-lan-profile-restored").mouseMoves.isEmpty)
+        let languages = app.segmentedControls["language.picker"]; reveal(languages); languages.buttons["中文"].tap()
+        reveal(modes); XCTAssertTrue(modes.buttons["加强第一人称"].isSelected)
+        screenshot("ENHANCED-04-Chinese-mode")
+    }
+    func testEnhancedFreshUSBPreservesPostNegotiationHostProfileWithoutSensor() throws {
+        defer { try? updateFixtureDesktopObject(["mode": "full", "scale": 0.85, "offsetX": 0.0,
+            "offsetY": 0.0, "eyeSeparation": 0.03, "fov": 80.0, "distortion": 0.0, "stabilization": 0.0]) }
+        app.terminate()
+        try updateFixtureDesktopObject(["mode": "fps_enhanced", "scale": 0.6, "offsetX": 0.0,
+            "offsetY": 0.0, "eyeSeparation": 0.03, "fov": 80.0, "distortion": 0.0, "stabilization": 0.72])
+        let before = try observeHost()
+        app.launchArguments = ["--ui-testing", "--reset-preferences"]
+        launchViewer()
+        let toggle = app.buttons["connection.toggle"]; reveal(toggle); toggle.tap()
+        waitLabel(toggle, contains: "Disconnect", timeout: 40)
+        waitLabel(app.staticTexts["frame.status"], contains: "1280")
+        let modes = app.segmentedControls["view.mode"]; reveal(modes)
+        XCTAssertTrue(modes.buttons["Enhanced first person"].isSelected)
+        XCTAssertTrue(app.staticTexts["motion.status"].exists)
+        let after = try observeHost(checkpoint: "enhanced-fresh-usb-negotiated")
+        XCTAssertEqual(after.settings, before.settings)
+        XCTAssertEqual(after.settingsCount, before.settingsCount)
+        XCTAssertTrue(after.mouseMoves.isEmpty)
+        openFitEditor(); XCTAssertEqual(try draftSettings(), before.settings); assertEditorSquare()
+        app.buttons["editor.discard"].tap()
+        app.buttons["settings.hide"].tap(); Thread.sleep(forTimeInterval: 2)
+        screenshot("ENHANCED-05-fresh-USB-square-warp-Metal")
+        app.otherElements["vr.surface"].press(forDuration: 1.2)
+        reveal(toggle); toggle.tap(); try assertDisconnected()
     }
     func testEditorSaveDiscardPersistenceAndReset() throws {
         let toggle = app.buttons["connection.toggle"]

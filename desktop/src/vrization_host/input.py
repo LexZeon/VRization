@@ -8,7 +8,7 @@ import threading
 import time
 from typing import Callable, Protocol, runtime_checkable
 
-from .protocol import Settings
+from .protocol import FIRST_PERSON_MODES, Settings
 from .pose_filter import PoseStabilizer
 
 
@@ -136,7 +136,7 @@ class PoseController:
 
     def set_settings(self, settings: Settings):
         with self.lock:
-            if self.settings.mode != settings.mode or settings.mode != "fps":
+            if self.settings.mode != settings.mode or settings.mode not in FIRST_PERSON_MODES:
                 self._disarm("mode changed")
             filter_changed = self.stabilizer.configure(settings.stabilization)
             filtered_gain_changed = settings.stabilization > 0 and (
@@ -151,7 +151,7 @@ class PoseController:
         with self.lock:
             if not self.connected:
                 return False, "先连接手机 / Connect a headset first"
-            if self.settings.mode != "fps":
+            if self.settings.mode not in FIRST_PERSON_MODES:
                 return False, "先选择第一人称模式 / Select First-person mode first"
             if self.last_seq < 0 or self.clock() - self.last_pose_time > self.HEARTBEAT_TIMEOUT:
                 return False, "手机陀螺仪未就绪 / No live headset pose"
@@ -195,7 +195,7 @@ class PoseController:
                 self._disarm("pose heartbeat expired")
             self.last_seq, self.last_pose_time = seq, now
             if self.auto_control:
-                if self.suspended or self.settings.mode != "fps":
+                if self.suspended or self.settings.mode not in FIRST_PERSON_MODES:
                     return
                 if not self.armed:
                     self.armed = True
@@ -208,7 +208,7 @@ class PoseController:
                         self.on_state(True, "gyro mouse control active; F8 stops")
                     return  # Never replay motion accumulated during a pause.
             previous, self.baseline = self.baseline, (yaw, pitch)
-            if not self.armed or self.settings.mode != "fps" or previous is None:
+            if not self.armed or self.settings.mode not in FIRST_PERSON_MODES or previous is None:
                 if self.settings.stabilization > 0:
                     self.stabilizer.reset(now)
                 return

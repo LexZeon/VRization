@@ -17,7 +17,7 @@ from .capture import CaptureConfig, MssCaptureSource
 from .connection import ConnectionCoordinator, UsbConnectService
 from .input import EmergencyHotkey
 from .i18n import load_language, save_language, translate
-from .protocol import Settings
+from .protocol import FIRST_PERSON_MODES, Settings
 from .profiles import PROFILES, CUSTOM, apply_profile, capture_profile, initial_capture
 from .server import HostServer
 from .storage import (load_preferences, save_preferences, preference_path,
@@ -288,7 +288,8 @@ class HostWindow:
         modes.pack(fill="x", pady=(0, 12))
         ttk.Label(modes, text=self.tr("02   选择模式"), style="Muted.TLabel").pack(side="left", padx=(0, 15))
         self.mode = tk.StringVar(value=self.settings.mode)
-        for text, value in [(self.tr("全屏  Full"), "full"), (self.tr("大屏幕  Cinema"), "cinema"), (self.tr("First-person"), "fps")]:
+        for text, value in [(self.tr("全屏  Full"), "full"), (self.tr("大屏幕  Cinema"), "cinema"),
+                            (self.tr("First-person"), "fps"), (self.tr("Enhanced first person"), "fps_enhanced")]:
             ttk.Radiobutton(modes, text=text, variable=self.mode, value=value,
                             command=lambda: self.change_setting("mode", self.mode.get())).pack(side="left", padx=8)
 
@@ -570,6 +571,8 @@ class HostWindow:
         ttk.Button(buttons, text=self.tr("恢复画面默认"), command=self.reset_view).pack(side="left")
         ttk.Label(buttons, text=self.tr("设置会同步到已连接的手机，并自动保存。"),
                   style="Muted.TLabel").pack(side="right")
+        self._paragraph(tab, text=self.tr("Enhanced first person fixes each eye to 1:1 and bends the image on the phone GPU. Scale, move and eye spacing still work. Field of view adjusts the warp; black corners are expected."),
+                        style="Muted.TLabel").grid(row=8, column=0, columnspan=3, sticky="w", pady=10)
 
     def _fit_tab(self, tab):
         ttk.Label(tab, text=self.tr("Fit the picture by dragging"),
@@ -855,7 +858,7 @@ class HostWindow:
             text = "Gyro mouse active · F8 pauses"
         elif not state["connected"]:
             text = "Gyro mouse enabled · waiting for phone"
-        elif state["mode"] != "fps":
+        elif state["mode"] not in FIRST_PERSON_MODES:
             text = "Gyro mouse enabled · select First-person"
         else:
             text = "Gyro mouse enabled · waiting for fresh sensor data"

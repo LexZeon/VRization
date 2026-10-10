@@ -24,6 +24,7 @@ final class StreamClient: NSObject, URLSessionWebSocketDelegate {
     private var protocolGate = HostSessionGate()
     private var settingsBase = VRSettings()
     var supportsStabilization: Bool { protocolGate.supportsStabilization }
+    var supportsEnhancedFirstPerson: Bool { protocolGate.supportsEnhancedFirstPerson }
     private var handshakeTimeout: Timer?
     private var heartbeat: Timer?
     private var sending = false
@@ -73,7 +74,7 @@ final class StreamClient: NSObject, URLSessionWebSocketDelegate {
         disconnect(notify: false)
         transport = .lan
         guard let url = try? ConnectionInput.url(host: host, port: String(port), token: code,
-                                                settingsSchema: VRProtocol.settingsSchema) else { return false }
+                                                settingsSchema: VRProtocol.settingsSchema, enhancedFirstPerson: true) else { return false }
         let config = URLSessionConfiguration.ephemeral
         config.timeoutIntervalForRequest = 15
         config.httpCookieStorage = nil
@@ -110,7 +111,8 @@ final class StreamClient: NSObject, URLSessionWebSocketDelegate {
     func sendSettings(_ settings: VRSettings, sequence: Int64) -> Bool {
         setSettingsBase(settings)
         guard state == .connected, let data = try? VRProtocol.encodeSettings(settings, clientSeq: sequence,
-                                                                           supportsStabilization: supportsStabilization) else { return false }
+            supportsStabilization: supportsStabilization,
+            supportsEnhancedFirstPerson: supportsEnhancedFirstPerson) else { return false }
         pendingSettings = data; drain()
         return true
     }
@@ -195,9 +197,10 @@ final class StreamClient: NSObject, URLSessionWebSocketDelegate {
     private func handle(_ data: Data) {
         do {
             let hadSupport = supportsStabilization
+            let hadEnhanced = supportsEnhancedFirstPerson
             let wasAwaitingSnapshot = protocolGate.awaitingSettingsSnapshot
             let event = try protocolGate.receiveText(data, settingsBase: settingsBase)
-            if hadSupport != supportsStabilization { onCapabilitiesChanged?() }
+            if hadSupport != supportsStabilization || hadEnhanced != supportsEnhancedFirstPerson { onCapabilitiesChanged?() }
             switch event {
             case .established(let hello):
                 let epoch = generation
@@ -208,7 +211,7 @@ final class StreamClient: NSObject, URLSessionWebSocketDelegate {
                 }
                 beginConnected()
                 guard generation == epoch, state == .connected else { return }
-                onSettings?(hello.settings, hello.revision, nil)
+                deliverSettings(hello.settings, revision: hello.revision, sequence: nil)
             case .message(let message):
                 if state == .connecting, wasAwaitingSnapshot {
                     if case .error = message { disconnect(reason: "protocolError"); return }
@@ -219,7 +222,7 @@ final class StreamClient: NSObject, URLSessionWebSocketDelegate {
                     let epoch = generation
                     beginConnected(schemaAlreadyRequested: true)
                     guard generation == epoch, state == .connected else { return }
-                    onSettings?(update.settings, update.revision, update.clientSeq)
+                    deliverSettings(update.settings, revision: update.revision, sequence: update.clientSeq)
                 } else { handleMessage(message) }
             }
         } catch { disconnect(reason: "protocolError") }
@@ -235,11 +238,16 @@ final class StreamClient: NSObject, URLSessionWebSocketDelegate {
     private func handleMessage(_ message: HostMessage) {
         switch message {
         case .hello: disconnect(reason: "protocolError")
-        case .settings(let update): onSettings?(update.settings, update.revision, update.clientSeq)
+        case .settings(let update): deliverSettings(update.settings, revision: update.revision, sequence: update.clientSeq)
         case .error: disconnect(reason: "protocolError")
         case .pong:
             if let sent = pingSentAt { onRTT?((ProcessInfo.processInfo.systemUptime - sent) * 1000); pingSentAt = nil }
         }
+    }
+    private func deliverSettings(_ value: VRSettings, revision: Int64?, sequence: Int64?) {
+        guard let local = try? VRProtocol.localSettings(value, local: settingsBase,
+            supportsEnhancedFirstPerson: supportsEnhancedFirstPerson) else { disconnect(reason: "protocolError"); return }
+        onSettings?(local, revision, sequence)
     }
 
     private func requestSettingsSnapshot() {

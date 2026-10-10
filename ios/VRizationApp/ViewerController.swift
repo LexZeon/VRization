@@ -20,6 +20,8 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
     private var content: UIStackView!
     private var status = UILabel(), frameStatus = UILabel()
     private var stabilizationNotice = UILabel()
+    private var enhancedNotice = UILabel()
+    private var sensorNotice = UILabel()
     private var hostField = UITextField(), portField = UITextField(), codeField = UITextField()
     private var connectButton = UIButton(type: .system)
     private var modes = UISegmentedControl()
@@ -51,7 +53,7 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
         preferences = preferenceStore.load()
         if let route = argument("--transport"), ["usb", "lan"].contains(route) { preferences.transport = route }
         settings = preferences.settings
-        if !motion.available { settings.mode = "full" }
+        if !motion.available && settings.requiresMotion { settings.mode = "full" }
         client.setSettingsBase(settings)
         metalView = MTKView(frame: .zero, device: MTLCreateSystemDefaultDevice())
         metalView.translatesAutoresizingMaskIntoConstraints = false
@@ -123,7 +125,7 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
             guard value != self.settings || value != self.preferences.settings || !self.preferences.hasCommittedProfile else { return }
             let oldMode = self.settings.mode
             self.settings = value
-            let fallback = !self.motion.available && value.mode != "full"
+            let fallback = !self.motion.available && value.requiresMotion
             if fallback { self.settings.mode = "full" }
             self.saveSettings(); self.refreshControls(); self.renderer?.setSettings(self.settings)
             if oldMode != self.settings.mode { self.recenter() }
@@ -152,12 +154,13 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
         motion.onPose = { [weak self] pose in
             guard let self = self, self.active, self.editor == nil else { return }
             if self.settings.mode == "cinema" { self.renderer?.setPose(pose) }
-            else if self.settings.mode == "fps" { self.client.sendPose(yaw: pose.yaw, pitch: pose.pitch) }
+            else if self.settings.isFirstPerson { self.client.sendPose(yaw: pose.yaw, pitch: pose.pitch) }
         }
         motion.onUnavailable = { [weak self] in
             guard let self = self else { return }
             self.closeEditor(save: false, resumeMotion: false)
-            self.settings.mode = "full"; self.statusKey = "sensorFallback"
+            if self.settings.mode != "fps_enhanced" { self.settings.mode = "full" }
+            self.statusKey = self.settings.mode == "fps_enhanced" ? "enhancedSensorFallback" : "sensorFallback"
             self.refreshControls(); self.updateStatus(); self.recenter(); self.changed(sendNow: true)
         }
     }
@@ -223,12 +226,17 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
         connectButton = button("connect", id: "connection.toggle", action: #selector(toggleConnection))
         content.addArrangedSubview(connectButton)
         content.addArrangedSubview(label(L.text(selectedTransport == .usb ? "usbNotice" : "networkNotice"), size: 12))
-        let sensor = label(L.text("noSensor"), size: 13); sensor.accessibilityIdentifier = "motion.status"
-        sensor.isHidden = motion.available; sensor.textColor = .systemTeal; content.addArrangedSubview(sensor)
-        modes = UISegmentedControl(items: [L.text("full"), L.text("cinema"), L.text("fps")])
+        sensorNotice = label(L.text("noSensor"), size: 13); sensorNotice.accessibilityIdentifier = "motion.status"
+        sensorNotice.isHidden = motion.available; sensorNotice.textColor = .systemTeal; content.addArrangedSubview(sensorNotice)
+        modes = UISegmentedControl(items: [L.text("full"), L.text("cinema"), L.text("fps"), L.text("fps_enhanced")])
+        modes.apportionsSegmentWidthsByContent = true
+        modes.setTitleTextAttributes([.font: UIFont.systemFont(ofSize: 12)], for: .normal)
         modes.accessibilityIdentifier = "view.mode"
         modes.setEnabled(motion.available, forSegmentAt: 1); modes.setEnabled(motion.available, forSegmentAt: 2)
         modes.addTarget(self, action: #selector(modeChanged), for: .valueChanged); content.addArrangedSubview(modes)
+        enhancedNotice = label(L.text("enhancedHelp"), size: 12)
+        enhancedNotice.accessibilityIdentifier = "view.enhanced.notice"
+        content.addArrangedSubview(enhancedNotice)
         content.addArrangedSubview(label(L.text("headsetFit"), size: 18))
         content.addArrangedSubview(label(L.text("precisionHelp"), size: 12))
         addSlider("scale", path: \.scale, min: 0.5, max: 1, steps: 50)
@@ -290,7 +298,7 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
         sliders.append(slider); content.addArrangedSubview(slider.label); content.addArrangedSubview(slider.row)
     }
     private func refreshControls() {
-        modes.selectedSegmentIndex = settings.mode == "cinema" ? 1 : settings.mode == "fps" ? 2 : 0
+        modes.selectedSegmentIndex = settings.mode == "cinema" ? 1 : settings.mode == "fps" ? 2 : settings.mode == "fps_enhanced" ? 3 : 0
         modes.setEnabled(motion.available, forSegmentAt: 1); modes.setEnabled(motion.available, forSegmentAt: 2)
         for slider in sliders { slider.refresh(settings) }
         invert.isOn = settings.invertY
@@ -299,6 +307,10 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
     private func updateStabilizationNotice() {
         let unsupported = client.state == .connected && !client.supportsStabilization
         stabilizationNotice.text = L.text(unsupported ? "stabilizationUnsupported" : "stabilizationHelp")
+        enhancedNotice.isHidden = settings.mode != "fps_enhanced"
+        let legacy = client.state == .connected && !client.supportsEnhancedFirstPerson
+        enhancedNotice.text = L.text(legacy ? "enhancedLegacyHost" : "enhancedHelp")
+        sensorNotice.isHidden = motion.available
     }
     private func updateStatus() {
         status.text = L.text(statusKey)
@@ -363,9 +375,9 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
         statusKey = "disconnected"; buildControls()
     }
     @objc private func modeChanged() {
-        settings.mode = ["full", "cinema", "fps"][modes.selectedSegmentIndex]
-        if !motion.available { settings.mode = "full"; modes.selectedSegmentIndex = 0 }
-        recenter(); changed(sendNow: true); updateTracking()
+        settings.mode = ["full", "cinema", "fps", "fps_enhanced"][modes.selectedSegmentIndex]
+        if !motion.available && settings.requiresMotion { settings.mode = "full"; modes.selectedSegmentIndex = 0 }
+        recenter(); changed(sendNow: true); updateTracking(); updateStabilizationNotice()
     }
     @objc private func invertChanged() { settings.invertY = invert.isOn; changed(sendNow: true) }
     @objc private func resetSettings() {
@@ -402,7 +414,8 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
         preview(settings)
     }
     private func preview(_ draft: VRSettings) {
-        var flat = draft; flat.mode = "full"; flat.distortion = 0
+        var flat = draft
+        if flat.mode != "fps_enhanced" { flat.mode = "full"; flat.distortion = 0 }
         renderer?.setSettings(flat); renderer?.setPose(Pose())
     }
     private func closeEditor(save: Bool, resumeMotion: Bool = true) {

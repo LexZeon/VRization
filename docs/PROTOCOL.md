@@ -5,12 +5,12 @@
 <!-- vrization:english -->
 ## English
 
-The v0.3.4 retains integration **protocol v1**: 2D JPEG frames and JSON control messages. Android and iOS use the same messages over LAN or their USB adapters. This is not OpenXR or a stereoscopic video format. For installation and device authorization, read [USB setup](USB.md).
+v0.4.0 retains integration **protocol v1**: 2D JPEG frames and JSON control messages. Enhanced first person adds a capability negotiation, not new settings fields or a video format. Android and iOS use the same messages over LAN or their USB adapters. For installation and device authorization, read [USB setup](USB.md).
 
 ### LAN WebSocket connection
 
 ```text
-ws://<PC LAN IP>:8765/ws?token=<six-digit pairing code>&settingsSchema=2
+ws://<PC LAN IP>:8765/ws?token=<six-digit pairing code>&settingsSchema=2&enhancedFirstPerson=1
 ```
 
 The host listens on `0.0.0.0:8765` and accepts one client at a time. A fresh code is generated when streaming starts; preserve leading zeros. HTTP errors: `401` invalid pairing, `409` another client connected, `429` too many pairing attempts (wait about a minute). Failures are limited per address and globally.
@@ -78,7 +78,8 @@ Each JSON message requires integer `v: 1` and string `type`. On connection the h
   "name": "VRization",
   "version": "0.3.2",
   "revision": 0,
-  "capabilities": ["stabilization"],
+  "capabilities": ["stabilization", "enhanced-first-person"],
+  "enhancedFirstPerson": true,
   "settings": {
     "mode": "full", "scale": 0.85, "offsetX": 0.0, "offsetY": 0.0,
     "eyeSeparation": 0.03, "fov": 80.0, "distance": 3.0,
@@ -91,7 +92,7 @@ Each JSON message requires integer `v: 1` and string `type`. On connection the h
 
 Stream numbers are examples. v1 retains `maxWidth` as a width bound; the current host also limits the **longest edge** to this value. A 2160 × 3840 source becomes 360 × 640 at limit 640. Render the actual JPEG dimensions rather than inferring aspect ratio from this bound. GPU crop / rotation / scaling changes the host implementation, not the JPEG payload or protocol version. Static refresh packets can repeat an owned JPEG; v1 has no wire capture timestamp or distinct-frame counter.
 
-Validate `hello` before establishing the session. Since v0.3, a phone with a saved committed VR profile then sends that complete profile once using a new `clientSeq`; the user's local preference intentionally replaces the initial host settings. Without a saved profile, use the validated initial settings snapshot; a capable legacy USB hello first needs the schema-2 snapshot described below. Later acknowledgments / PC broadcasts follow the revision rules below. Current client metadata: `{"v":1,"type":"hello","settingsSchema":2}`. Legacy token-only URLs / hello remain accepted.
+Validate `hello` before establishing the session. Since v0.3, a phone with a saved committed VR profile then sends that complete profile once using a new `clientSeq`; the user's local preference intentionally replaces the initial host settings. Without a saved profile, use the validated initial settings snapshot; a capable legacy USB hello first needs the schema-2 snapshot described below. Later acknowledgments / PC broadcasts follow the revision rules below. Current client metadata: `{"v":1,"type":"hello","settingsSchema":2,"capabilities":["enhanced-first-person"]}`. Legacy token-only URLs / hello remain accepted.
 
 Both current phone clients wait for a valid v1 `hello` before marking either LAN or USB connected, with a ten-second host-handshake deadline. A socket opening alone does not establish the session. Invalid / unsupported host messages disconnect; this client-side gate is not a new server protocol version.
 
@@ -107,7 +108,7 @@ Since v0.1.1, `hello` and host `settings` messages include a nonnegative, monoto
 
 | Field | Valid values | Initial default | Meaning |
 | --- | --- | --- | --- |
-| `mode` | `full` / `cinema` / `fps` | `full` | Fixed / virtual screen / gyro mouse. |
+| `mode` | `full` / `cinema` / `fps` / `fps_enhanced` | `full` | Fixed / virtual screen / gyro mouse / square wide-angle gyro view. Enhanced value requires negotiated support. |
 | `scale` | 0.5–1.0 | 0.85 | Effective per-eye image scale. |
 | `offsetX`, `offsetY` | -0.3–0.3 | 0 | Normalized horizontal / vertical offset. |
 | `eyeSeparation` | −1–0.2 | 0.03 | Signed display spacing; dynamic flat-fit contact limits apply. Not meters or automatic IPD. |
@@ -134,7 +135,7 @@ Yaw / pitch are landscape-remapped angles in **radians**: positive yaw turns rig
 
 The phone resets its local camera center and sends this message so the next pose establishes a new host mouse baseline. Recenter alone produces no mouse movement and cannot clear a pause latch; a fresh valid pose follows the local enabled policy.
 
-Windows enables First-person gyro mouse control by default. A validated connection, First-person mode, available capture and fresh valid rotation data are required; the first pose sets a baseline before movement. Control works on the desktop, ordinary applications, games and VRization's own window regardless of foreground-window changes, with no five-second target-window deadline. A temporary sensor gap stops output and rebaselines on fresh poses before continuing. **F8**, the PC emergency stop, editor entry, PC Reset all settings, capture-region selection, capture/input failure and stream Stop latch a pause: late poses, settings and reconnecting cannot clear it. Click **Resume gyro control** on the PC, or explicitly turn the control checkbox off and on, to resume. Full screen and Cinema stop mouse output. The PC saves only the enabled preference, never the live armed state or pause latch. Pose freshness remains bounded to 0.5 seconds; the policy never emits timer-driven movement. There is no remote `arm`/`resume` message. Embeddable `HostServer` and `PoseController` default `auto_control=False`; manual callers retain explicit arming behavior. The Windows GUI opts into its local preference. Wire v1 and settings schema 2 are unchanged.
+Windows enables gyro mouse control in First person and Enhanced first person by default. A validated connection, either first-person mode, available capture and fresh valid rotation data are required; the first pose sets a baseline before movement. Control works on the desktop, ordinary applications, games and VRization's own window regardless of foreground-window changes, with no five-second target-window deadline. A temporary sensor gap stops output and rebaselines on fresh poses before continuing. **F8**, the PC emergency stop, editor entry, PC Reset all settings, capture-region selection, capture/input failure and stream Stop latch a pause: late poses, settings and reconnecting cannot clear it. Click **Resume gyro control** on the PC, or explicitly turn the control checkbox off and on, to resume. Full screen and Cinema stop mouse output. The PC saves only the enabled preference, never the live armed state or pause latch. Pose freshness remains bounded to 0.5 seconds; the policy never emits timer-driven movement. There is no remote `arm`/`resume` message. Embeddable `HostServer` and `PoseController` default `auto_control=False`; manual callers retain explicit arming behavior. The Windows GUI opts into its local preference. Wire v1 and settings schema 2 are unchanged.
 
 ### Heartbeat, errors and close
 
@@ -164,7 +165,19 @@ Reset restores standard Settings defaults, English and USB; phone reset clears c
 {"v":1,"type":"hello","editing":true}
 ```
 
-On editor entry, the phone stops new poses and drops application-pending pose work (already submitted transport bytes cannot be recalled) and sends this once on an already validated connection. Optional `editing` must be a JSON boolean; true latches the current host input paused immediately on receipt. False or omission never clears a pause latch. A new valid First-person pose may activate the locally enabled policy only when no latch is set. It is metadata on the existing v1 hello, not a draft settings update or a fourth mode. Older hosts can ignore the field; withholding poses still triggers their watchdog. Video / ping can continue during editing, and normal exit recentering remains allowed. Save or Discard sends no arm/resume request; the user must click Resume gyro control on the PC. Fresh poses cannot clear an editor pause latch.
+On editor entry, the phone stops new poses and drops application-pending pose work (already submitted transport bytes cannot be recalled) and sends this once on an already validated connection. Optional `editing` must be a JSON boolean; true latches the current host input paused immediately on receipt. False or omission never clears a pause latch. A new valid First-person pose may activate the locally enabled policy only when no latch is set. It is metadata on the existing v1 hello, not a draft settings update or a viewing-mode selection. Older hosts can ignore the field; withholding poses still triggers their watchdog. Video / ping can continue during editing, and normal exit recentering remains allowed. Save or Discard sends no arm/resume request; the user must click Resume gyro control on the PC. Fresh poses cannot clear an editor pause latch.
+
+### Enhanced first-person negotiation (v0.4.0)
+
+Enhanced support is independent of settings schema 2. Current LAN/Android USB URLs include `enhancedFirstPerson=1`; clients can also opt in on the validated connection with:
+
+```json
+{"v":1,"type":"hello","settingsSchema":2,"capabilities":["enhanced-first-person"]}
+```
+
+The new host always advertises `enhanced-first-person` alongside `stabilization`. Its initial hello and **every** settings message additionally carry a JSON boolean `enhancedFirstPerson`, indicating whether that connection has opted in. The flag is envelope metadata, not a twelfth setting. A token-only/legacy USB hello has false and substitutes wire `fps` when the host's committed mode is `fps_enhanced`. Opt-in hello requests a complete current settings snapshot with true, even while mode is Full screen; negotiation itself does not change settings revision.
+
+A new phone seeing the capability with a flag other than true waits for the confirmed full snapshot before applying initial settings or restoring its saved enhanced profile. This wait and support state belong to the connection generation; stale/partial acknowledgments cannot complete it. Capability absence on an old host means ordinary `fps` outbound fallback, while local enhanced rendering and committed mode stay saved. A new host similarly substitutes `fps` on all snapshots sent to old clients. Capability, schema selection and input permission are separate: none can clear F8/editor/Stop pauses. Enhanced pose messages, sensitivity and stabilization use the existing first-person contracts. See [the projection guide](ENHANCED_FIRST_PERSON.md).
 
 ### Compatible settings negotiation (v0.3.2)
 
@@ -181,12 +194,12 @@ Positive smoothing runs only in the host's first-person pose-to-mouse path. Phon
 <!-- vrization:chinese -->
 ## 简体中文
 
-v0.3.4 保留集成**协议 v1**：传输二维 JPEG 帧和 JSON 控制消息。Android 与 iOS 经局域网或各自 USB 适配器使用相同消息。它不是 OpenXR 或立体视频协议；安装和设备授权见 [USB 教程](USB.md)。
+v0.4.0 保留集成**协议 v1**：传输二维 JPEG 帧和 JSON 控制消息。加强第一人称新增能力协商，不增加设置字段或新视频格式；Android 与 iOS 经局域网或各自 USB 适配器使用相同消息。安装和设备授权见 [USB 教程](USB.md)。
 
 ### 局域网 WebSocket 连接
 
 ```text
-ws://<电脑局域网 IP>:8765/ws?token=<六位配对码>&settingsSchema=2
+ws://<电脑局域网 IP>:8765/ws?token=<六位配对码>&settingsSchema=2&enhancedFirstPerson=1
 ```
 
 主机默认监听 `0.0.0.0:8765`，一次只接受一个客户端。配对码在启动服务时生成，保留开头的零。错误码为 `401`（配对错误）、`409`（已有客户端）和 `429`（配对尝试过多，等待约一分钟）。配对失败有每地址与全局速率限制。
@@ -254,7 +267,8 @@ WebSocket 的 JPEG 内容没有自定义二进制头、帧序号、时间戳、�
   "name": "VRization",
   "version": "0.3.2",
   "revision": 0,
-  "capabilities": ["stabilization"],
+  "capabilities": ["stabilization", "enhanced-first-person"],
+  "enhancedFirstPerson": true,
   "settings": {
     "mode": "full", "scale": 0.85, "offsetX": 0.0, "offsetY": 0.0,
     "eyeSeparation": 0.03, "fov": 80.0, "distance": 3.0,
@@ -287,7 +301,7 @@ v0.1.1 起，主机 `hello` 与 `settings` 含非负、单调增加的 `revision
 
 | 字段 | 有效值 | 主机初始值 | 含义 |
 | --- | --- | --- | --- |
-| `mode` | `full` / `cinema` / `fps` | `full` | 全屏 / 虚拟大屏幕 / 第一人称鼠标模式。 |
+| `mode` | `full` / `cinema` / `fps` / `fps_enhanced` | `full` | 全屏／虚拟大屏幕／第一人称鼠标／正方形广角鼠标视图；加强值需协商支持。 |
 | `scale` | 0.5–1.0 | 0.85 | 每眼有效画面的缩放。 |
 | `offsetX` | -0.3–0.3 | 0 | 归一化水平偏移。 |
 | `offsetY` | -0.3–0.3 | 0 | 归一化垂直偏移。 |
@@ -315,7 +329,7 @@ v0.1.1 起，主机 `hello` 与 `settings` 含非负、单调增加的 `revision
 
 手机回正同时重设本地虚拟相机基准，并向主机发送 `recenter`，让下一条姿态建立新鼠标基准。回正自身不产生鼠标移动或解除暂停锁；新的合法姿态遵循本地已启用策略。
 
-Windows 默认开启第一人称陀螺仪鼠标控制。必须有通过校验的连接、第一人称模式、可用采集与新的合法旋转姿态；首条姿态先建立基准，再产生移动。桌面、普通应用、游戏和 VRization 自身窗口均可控制，不受前台窗口切换影响，也不要求五秒内切到目标窗口。传感器短暂间断时停止输出，新姿态先重建基准再继续。**F8**、电脑紧急停止、进入编辑器、电脑重置全部设置、选择采集区域、采集／输入故障和停止串流会锁定暂停；迟到姿态、设置与重连都不能解除。需要在电脑点“**恢复陀螺仪控制**”，或主动关闭再开启控制复选框。全屏和大屏幕停止鼠标输出。电脑只保存启用偏好，不保存实时授权状态或暂停锁。 姿态新鲜度仍为 0.5 秒，不产生定时驱动鼠标移动。没有远程 `arm`／`resume` 消息；嵌入式 `HostServer` 与 `PoseController` 默认 `auto_control=False`，手动调用方保留显式启用行为；Windows 界面采用本地偏好。线上 v1 和配置 schema 2 不变。
+Windows 默认开启第一人称与加强第一人称的陀螺仪鼠标控制。必须有通过校验的连接、任一第一人称模式、可用采集与新的合法旋转姿态；首条姿态先建立基准，再产生移动。桌面、普通应用、游戏和 VRization 自身窗口均可控制，不受前台窗口切换影响，也不要求五秒内切到目标窗口。传感器短暂间断时停止输出，新姿态先重建基准再继续。**F8**、电脑紧急停止、进入编辑器、电脑重置全部设置、选择采集区域、采集／输入故障和停止串流会锁定暂停；迟到姿态、设置与重连都不能解除。需要在电脑点“**恢复陀螺仪控制**”，或主动关闭再开启控制复选框。全屏和大屏幕停止鼠标输出。电脑只保存启用偏好，不保存实时授权状态或暂停锁。 姿态新鲜度仍为 0.5 秒，不产生定时驱动鼠标移动。没有远程 `arm`／`resume` 消息；嵌入式 `HostServer` 与 `PoseController` 默认 `auto_control=False`，手动调用方保留显式启用行为；Windows 界面采用本地偏好。线上 v1 和配置 schema 2 不变。
 
 ### 心跳、错误与关闭
 
@@ -353,7 +367,19 @@ Windows 默认开启第一人称陀螺仪鼠标控制。必须有通过校验的
 {"v":1,"type":"hello","editing":true}
 ```
 
-手机进入编辑器时停止新姿态、丢弃应用层待发姿态（已提交传输层字节无法撤回），在已校验连接上一次发送。可选 `editing` 必须为 JSON 布尔值，true 让当前主机收到后立即锁定输入暂停；false 或省略不解除暂停锁；仅在未锁定时，新的合法第一人称姿态可激活本地已启用策略。这是已有 v1 hello 的元数据，不是草稿设置更新或第四模式；旧主机可忽略，暂停姿态仍触发其看门狗。编辑期间可继续视频 / ping，正常退出仍可回正；保存或放弃不发送授权／恢复请求，用户须在电脑点“恢复陀螺仪控制”；新的姿态不能解除编辑暂停锁。
+手机进入编辑器时停止新姿态、丢弃应用层待发姿态（已提交传输层字节无法撤回），在已校验连接上一次发送。可选 `editing` 必须为 JSON 布尔值，true 让当前主机收到后立即锁定输入暂停；false 或省略不解除暂停锁；仅在未锁定时，新的合法第一人称姿态可激活本地已启用策略。这是已有 v1 hello 的元数据，不是草稿设置更新或观看模式选择；旧主机可忽略，暂停姿态仍触发其看门狗。编辑期间可继续视频 / ping，正常退出仍可回正；保存或放弃不发送授权／恢复请求，用户须在电脑点“恢复陀螺仪控制”；新的姿态不能解除编辑暂停锁。
+
+### 加强第一人称协商（v0.4.0）
+
+加强能力独立于配置 schema 2。当前局域网／Android USB 地址带 `enhancedFirstPerson=1`；客户端也可在合法连接上主动发送：
+
+```json
+{"v":1,"type":"hello","settingsSchema":2,"capabilities":["enhanced-first-person"]}
+```
+
+新版电脑始终同时声明 `enhanced-first-person` 与 `stabilization`；初始 hello 及**每条**设置消息另外包含 JSON 布尔值 `enhancedFirstPerson`，表示此连接是否主动启用。它是信封元数据，不是第十二个设置；仅 token／旧 USB hello 为 false，若电脑已提交模式为 `fps_enhanced`，线上代为发送 `fps`。主动启用 hello 会请求 true 的当前完整设置快照，即使当前模式为全屏；协商自身不增加设置 revision。
+
+新手机看到能力、但标记不是 true 时，先等确认完整快照，再采用初始设置或恢复保存的加强配置；等待／支持状态按连接代际管理，过期／部分确认不能完成。旧电脑没有能力时，出站回退普通 `fps`，保留本地加强渲染和已提交模式；新版电脑向旧客户端所有快照也代发 `fps`。能力、schema 选择与输入许可分别处理，均不能解除 F8／编辑器／Stop 暂停锁；加强模式的姿态消息、灵敏度和防抖沿用第一人称约定，见 [投影教程](ENHANCED_FIRST_PERSON.md)。
 
 ### 兼容配置协商（v0.3.2）
 

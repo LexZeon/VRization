@@ -5,7 +5,7 @@
 <!-- vrization:english -->
 ## English
 
-v0.3.0-alpha places visual headset fitting first in the settings on Windows, Android and iOS. It adjusts the image inside the two eye areas without adding a fourth viewing mode. The editor uses a flat, undistorted preview; your actual full-screen / cinema / First-person mode and other optical settings remain in the draft unchanged.
+Visual headset fitting is first in the settings on Windows, Android and iOS. It adjusts the image inside the two eye areas. Full screen, Cinema and ordinary First person retain their flat, undistorted fitting preview; Enhanced first person keeps a physical 1:1 square and the angular warp visible. Actual mode and other optical settings remain in the draft unchanged.
 
 | Application | Entry and actions |
 | --- | --- |
@@ -24,6 +24,10 @@ The preview temporarily suppresses motion-driven viewing and outgoing phone pose
 Phone backgrounding, disconnecting or changing language discards an open draft; iOS also cancels it when the viewport changes during rotation. Saved values remain separate from a temporary drag. The editor is a visual fit aid, not a measurement of physical lens alignment, interpupillary distance or headset comfort. A valid offset / eye separation can place an image partly outside an eye viewport; the viewport clips it.
 
 Seam contact is guaranteed by the flat preview geometry and undistorted full / first-person display. Cinema perspective, head motion and lens distortion change projected edges, so this is not a guarantee of a seamless image in those views. The PC's selected phone aspect is an approximation; the phone resolves against its real viewport and current image aspect. Update both host and phone to v0.3 before saving negative separation: v0.2 clients / hosts accept only nonnegative values. Existing nonnegative profiles and the 0.03 default remain valid.
+
+### Fixed square in Enhanced first person (v0.4.0)
+
+Enhanced mode resolves fitting with source aspect **1**, regardless of the JPEG's rectangular aspect, so the physical width and height of each eye image stay equal for every viewport. Corner dragging changes one scale; horizontal mirrored pan, shared vertical movement and dynamic seam limits still use the geometry below. The full source is deliberately resampled into a square instead of preserving its old rectangular proportions. The phone GPU retains the angular warp in the editor; Windows approximates it with a mesh over the existing frame. Lens/warp output can leave black corners inside the fitted square. Save/Discard and profile synchronization are unchanged; no draft is persisted or sent. See [the projection tutorial](ENHANCED_FIRST_PERSON.md).
 
 ### Physical Android examples
 
@@ -84,7 +88,8 @@ The original Python helper is `desktop/src/vrization_host/view_edit.py`; Android
 Each eye has normalized coordinates **[−1, 1], y upward**. For image aspect `a` and eye viewport aspect `e`:
 
 ```text
-fit = (min(1, a/e), min(1, e/a))
+ordinary modes: fit = (min(1, a/e), min(1, e/a))
+enhanced mode: fit = (min(1, 1/e), min(1, e))
 h = fit.x × scale
 minimum separation = h − 1
 resolved separation = clamp(raw separation, h − 1, 0.2)
@@ -122,7 +127,7 @@ The resolved per-eye display rectangle also bounds cinema / lens-distorted rende
 <!-- vrization:chinese -->
 ## 简体中文
 
-v0.3.0-alpha 将可视盒子适配放在 Windows、Android 与 iOS 设置首位，在两眼区域内直接调整画面，不增加第四种观看模式。编辑器采用平面、无畸变预览；实际全屏 / 大屏幕 / 第一人称模式与其他光学设置原样保留在草稿中。
+Windows、Android 与 iOS 的设置首位提供可视盒子适配，调整两眼区域内的画面；全屏、大屏幕、普通第一人称继续采用平面无畸变适配预览，加强第一人称保留物理 1:1 正方形与角度变形。草稿中的实际模式和其他光学参数保持不变。
 
 | 应用 | 入口与操作 |
 | --- | --- |
@@ -141,6 +146,10 @@ v0.3.0-alpha 将可视盒子适配放在 Windows、Android 与 iOS 设置首位�
 手机进入后台、断线或切语言会放弃尚未保存的草稿；iOS 在旋转导致显示区域改变时也取消编辑。已保存值与临时拖动分开。编辑器帮助肉眼适配，不测量实际镜片对齐、瞳距或舒适度。合法偏移 / 眼间距也可能使部分画面越出单眼区域，超出部分会被裁切。
 
 中缝相接由平面预览及无畸变全屏 / 第一人称 的几何保证。大屏幕透视、头部运动和镜片畸变会改变投影边缘，不保证这些视图也无缝。电脑选择的手机比例只是近似，手机按实际视口和当前图像比例解析。保存负间距前请把电脑与手机都更新到 v0.3：v0.2 只接受非负值。已有非负配置和默认 0.03 仍有效。
+
+### 加强第一人称的固定正方形（v0.4.0）
+
+加强模式按源比例 **1** 解析适配，不受矩形 JPEG 比例影响，每种视口中两眼的物理宽高始终相等；角点拖动只改变一个缩放值，水平镜像平移、共用竖向移动和动态接缝限位仍使用下方几何。完整源图有意重采样至正方形，不保留原矩形内容比例；手机 GPU 在编辑器保留角度变形，Windows 在已有帧上用网格近似。镜片／变形可能让适配正方形内出现黑角，保存／放弃和配置同步不变，草稿不保存或发送，见 [投影教程](ENHANCED_FIRST_PERSON.md)。
 
 ### Android 真机示例
 
@@ -201,7 +210,8 @@ v0.3.0-alpha 将可视盒子适配放在 Windows、Android 与 iOS 设置首位�
 每眼采用**[−1, 1] 归一化坐标，y 向上**。图像宽高比为 `a`、单眼区域宽高比为 `e`：
 
 ```text
-fit = (min(1, a/e), min(1, e/a))
+ordinary modes: fit = (min(1, a/e), min(1, e/a))
+enhanced mode: fit = (min(1, 1/e), min(1, e))
 h = fit.x × scale
 间距下限 = h − 1
 解析间距 = clamp(原始间距, h − 1, 0.2)

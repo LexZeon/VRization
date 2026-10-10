@@ -66,7 +66,7 @@ public final class MainActivity extends Activity {
     private LinearLayout overlay;
     private Button panelButton, connectButton;
     private TextView status, frameStatus;
-    private TextView transportHelp, linkStatus, processingStatus, connectionNotice, stabilizationHelp;
+    private TextView transportHelp, linkStatus, processingStatus, connectionNotice, stabilizationHelp, enhancedHelp;
     private LinearLayout lanInputs;
     private EditText hostInput, portInput, codeInput;
     private Spinner modeInput, transportInput;
@@ -121,7 +121,7 @@ public final class MainActivity extends Activity {
         settings = profile.snapshot();
         renderer = new VrRenderer();
         pose = new AndroidPoseSource(this, getWindowManager().getDefaultDisplay());
-        if (!pose.isAvailable()) settings.mode = "full";
+        if (!pose.isAvailable() && VrSettings.requiresRotationSensor(settings.mode)) settings.mode = "full";
         renderer.setSettings(settings);
         client = new StreamClient(this, new StreamClient.Listener() {
             @Override public void onSessionStarted() {
@@ -154,10 +154,11 @@ public final class MainActivity extends Activity {
                     String oldMode = settings.mode;
                     updateStabilizationHelp();
                     if (profile.waitForExtendedSnapshot(client.supportsStabilization(), json.has("stabilization"))) return;
-                    VrSettings incoming = SettingsJson.decode(json, settings);
+                    if (profile.waitForEnhancedSnapshot(client.waitsForEnhancedSnapshot())) return;
+                    VrSettings incoming = SettingsJson.decodeFromHost(json, settings, client.supportsEnhancedFirstPerson());
                     if (!settingsSync.accept(incoming, revision, clientSeq)) return;
                     settings = incoming;
-                    boolean unavailable = !pose.isAvailable() && !"full".equals(settings.mode);
+                    boolean unavailable = !pose.isAvailable() && VrSettings.requiresRotationSensor(settings.mode);
                     if (unavailable) settings.mode = "full";
                     renderer.setSettings(settings); surface.requestRender(); saveSettings(); refreshControls();
                     if (!oldMode.equals(settings.mode)) { recenter(); updateTracking(); }
@@ -311,7 +312,7 @@ public final class MainActivity extends Activity {
         modeInput = new Spinner(this);
         String[] modes = getResources().getStringArray(R.array.watch_modes);
         ArrayAdapter<String> modeAdapter = new ArrayAdapter<String>(this, android.R.layout.simple_spinner_item, modes) {
-            @Override public boolean isEnabled(int position) { return position == 0 || pose.isAvailable(); }
+            @Override public boolean isEnabled(int position) { return position == 0 || position == 3 || pose.isAvailable(); }
             @Override public View getDropDownView(int position, View convertView, ViewGroup parent) {
                 TextView view = (TextView) super.getDropDownView(position, convertView, parent);
                 view.setTextColor(isEnabled(position) ? INK : MUTED); return view;
@@ -323,12 +324,15 @@ public final class MainActivity extends Activity {
         modeInput.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 if (refreshing) return;
-                if (position > 0 && !pose.isAvailable()) { modeInput.setSelection(0); return; }
-                String selected = new String[]{"full", "cinema", "fps"}[position];
+                String selected = new String[]{"full", "cinema", "fps", VrSettings.ENHANCED_FIRST_PERSON}[position];
+                if (VrSettings.requiresRotationSensor(selected) && !pose.isAvailable()) { modeInput.setSelection(0); return; }
                 if (!selected.equals(settings.mode)) { settings.mode = selected; recenter(); updateTracking(); settingsChanged(true); }
+                updateStabilizationHelp();
             }
             @Override public void onNothingSelected(AdapterView<?> parent) { }
         });
+        enhancedHelp = text(getString(R.string.enhanced_help), 12, MUTED, false);
+        content.addView(enhancedHelp);
         content.addView(text(getString(R.string.headset_fit), 16, INK, true));
         addSlider(content, getString(R.string.scale), .5f, 1f, 100, () -> settings.scale, value -> settings.scale = value, "%.0f%%", 100f);
         addSlider(content, getString(R.string.offset_x), -.3f, .3f, 120, () -> settings.offsetX, value -> settings.offsetX = value, "%.2f", 1f);
@@ -406,6 +410,8 @@ public final class MainActivity extends Activity {
     private void updateStabilizationHelp() {
         if (stabilizationHelp != null) stabilizationHelp.setText(client.isConnected() && !client.supportsStabilization()
             ? R.string.stabilization_legacy : R.string.stabilization_help);
+        if (enhancedHelp != null) enhancedHelp.setText(client.isConnected() && !client.supportsEnhancedFirstPerson()
+            && VrSettings.ENHANCED_FIRST_PERSON.equals(settings.mode) ? R.string.enhanced_legacy : R.string.enhanced_help);
     }
     private void requestFastDisplay() {
         Display display = getWindowManager().getDefaultDisplay();
@@ -443,7 +449,8 @@ public final class MainActivity extends Activity {
         screenRoot.addView(editorView, new FrameLayout.LayoutParams(-1, -1));
         editorControls = new LinearLayout(this); editorControls.setOrientation(LinearLayout.VERTICAL);
         editorControls.setBackgroundColor(Color.argb(238, 16, 26, 41)); editorControls.setPadding(dp(12), dp(4), dp(12), dp(4));
-        editorControls.addView(text(getString(R.string.editor_gestures), 12, INK, false));
+        editorControls.addView(text(getString(VrSettings.ENHANCED_FIRST_PERSON.equals(settings.mode)
+            ? R.string.editor_gestures_enhanced : R.string.editor_gestures), 12, INK, false));
         editorValues = text("", 12, ACCENT, false); editorControls.addView(editorValues);
         LinearLayout actions = row();
         actions.addView(button(getString(R.string.editor_save), () -> finishHeadsetEdit(true, true)), new LinearLayout.LayoutParams(0, dp(44), 1));
@@ -486,10 +493,12 @@ public final class MainActivity extends Activity {
     }
     private void refreshControls() {
         refreshing = true;
-        modeInput.setSelection("cinema".equals(settings.mode) ? 1 : "fps".equals(settings.mode) ? 2 : 0);
+        modeInput.setSelection("cinema".equals(settings.mode) ? 1 : "fps".equals(settings.mode) ? 2
+            : VrSettings.ENHANCED_FIRST_PERSON.equals(settings.mode) ? 3 : 0);
         for (Slider slider : sliders) slider.refresh();
         invertInput.setChecked(settings.invertY);
         refreshing = false;
+        updateStabilizationHelp();
     }
     private void recenter() {
         pose.recenter(); renderer.setPose(0, 0, 0); if (headsetEdit == null) client.recenter();
@@ -588,7 +597,7 @@ public final class MainActivity extends Activity {
         pose.start((yaw, pitch, roll, timestamp) -> {
             if (!resumed || headsetEdit != null) return;
             if ("cinema".equals(settings.mode)) { renderer.setPose(yaw, pitch, roll); surface.requestRender(); }
-            else if ("fps".equals(settings.mode)) client.sendPose(yaw, pitch);
+            else if (VrSettings.isFirstPerson(settings.mode)) client.sendPose(yaw, pitch);
         });
     }
     @Override protected void onPause() {

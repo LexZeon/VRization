@@ -14,7 +14,7 @@ public final class HeadsetGeometry {
     /** Center x/y and half width/height. Left eye is -1, right eye is +1. */
     public static float[] bounds(VrSettings settings, float imageAspect, float eyeAspect, int eyeSign) {
         if (eyeSign != -1 && eyeSign != 1) throw new IllegalArgumentException("Invalid eye");
-        float[] fit = fit(imageAspect, eyeAspect);
+        float[] fit = fit(settings.contentAspect(imageAspect), eyeAspect);
         VrSettings resolved = resolveFit(settings, imageAspect, eyeAspect);
         return new float[]{resolved.offsetX + eyeSign * resolved.eyeSeparation, resolved.offsetY,
             fit[0] * resolved.scale, fit[1] * resolved.scale};
@@ -22,7 +22,7 @@ public final class HeadsetGeometry {
     /** Fit-dependent boundary: images can touch at the seam without overlap or horizontal clipping. */
     public static VrSettings resolveFit(VrSettings settings, float imageAspect, float eyeAspect) {
         finite(settings.scale); finite(settings.eyeSeparation); finite(settings.offsetX);
-        float halfWidth = fit(imageAspect, eyeAspect)[0] * settings.scale;
+        float halfWidth = fit(settings.contentAspect(imageAspect), eyeAspect)[0] * settings.scale;
         VrSettings value = settings.copy();
         value.eyeSeparation = Math.max(halfWidth - 1, Math.min(.2f, settings.eyeSeparation));
         float gap = Math.max(0, 1 + value.eyeSeparation - halfWidth);
@@ -53,7 +53,7 @@ public final class HeadsetGeometry {
         finite(deltaX); finite(deltaY);
         if ((signX != -1 && signX != 1) || (signY != -1 && signY != 1))
             throw new IllegalArgumentException("Invalid corner");
-        float[] fit = fit(imageAspect, eyeAspect);
+        float[] fit = fit(start.contentAspect(imageAspect), eyeAspect);
         float delta = (signX * deltaX * fit[0] + signY * deltaY * fit[1])
             / (fit[0] * fit[0] + fit[1] * fit[1]);
         VrSettings value = resolveFit(start, imageAspect, eyeAspect);

@@ -13,6 +13,9 @@ final class SettingsValues {
     private static final Set<String> CURRENT_KEYS = new LinkedHashSet<>(LEGACY_KEYS);
     static { CURRENT_KEYS.add("stabilization"); }
     private SettingsValues() { }
+    static boolean isComplete(Map<String, Object> values) {
+        return values != null && (values.keySet().equals(LEGACY_KEYS) || values.keySet().equals(CURRENT_KEYS));
+    }
     static Map<String, Object> encode(VrSettings value) {
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("mode", value.mode); result.put("scale", wire(value.scale));
@@ -25,14 +28,26 @@ final class SettingsValues {
     }
     /** Transport compatibility must never discard a locally saved preference. */
     static Map<String, Object> encodeForHost(VrSettings value, boolean supportsStabilization) {
+        return encodeForHost(value, supportsStabilization, false);
+    }
+    static Map<String, Object> encodeForHost(VrSettings value, boolean supportsStabilization, boolean supportsEnhanced) {
         Map<String, Object> result = encode(value);
         if (!supportsStabilization) result.remove("stabilization");
+        if (!supportsEnhanced && VrSettings.ENHANCED_FIRST_PERSON.equals(value.mode)) result.put("mode", "fps");
+        return result;
+    }
+    /** A legacy FPS echo must not erase the phone's local square projection choice. */
+    static VrSettings decodeFromHost(Map<String, Object> values, VrSettings base, boolean supportsEnhanced) {
+        VrSettings result = decode(values, base, false);
+        if (!supportsEnhanced && VrSettings.ENHANCED_FIRST_PERSON.equals(values.get("mode")))
+            throw new IllegalArgumentException("Enhanced mode without host capability");
+        if (!supportsEnhanced && VrSettings.ENHANCED_FIRST_PERSON.equals(base.mode) && "fps".equals(result.mode))
+            result.mode = VrSettings.ENHANCED_FIRST_PERSON;
         return result;
     }
     private static double wire(float value) { return Double.parseDouble(Float.toString(value)); }
     static VrSettings decode(Map<String, Object> values, VrSettings base, boolean complete) {
-        if (values == null || values.isEmpty() || (complete
-            && !values.keySet().equals(LEGACY_KEYS) && !values.keySet().equals(CURRENT_KEYS)))
+        if (values == null || values.isEmpty() || (complete && !isComplete(values)))
             throw new IllegalArgumentException("Invalid settings object");
         VrSettings result = base.copy();
         // A complete pre-extension profile migrates to the original, unfiltered behavior.
@@ -42,7 +57,8 @@ final class SettingsValues {
             String name = field.getKey(); Object value = field.getValue();
             switch (name) {
                 case "mode":
-                    if (!(value instanceof String) || (!"full".equals(value) && !"cinema".equals(value) && !"fps".equals(value)))
+                    if (!(value instanceof String) || (!"full".equals(value) && !"cinema".equals(value)
+                        && !VrSettings.isFirstPerson((String)value)))
                         throw new IllegalArgumentException("Invalid mode");
                     result.mode = (String) value; break;
                 case "invertY":

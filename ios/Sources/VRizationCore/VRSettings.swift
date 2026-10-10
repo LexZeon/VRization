@@ -24,12 +24,14 @@ public struct VRSettings: Codable, Equatable {
 
     public init() {}
     public static let defaults = VRSettings()
+    public var isFirstPerson: Bool { mode == "fps" || mode == "fps_enhanced" }
+    public var requiresMotion: Bool { mode == "fps" || mode == "cinema" }
     internal static let names: Set<String> = ["mode", "scale", "offsetX", "offsetY", "eyeSeparation",
                                                "fov", "distance", "distortion", "sensitivity", "invertY", "stabilization"]
     internal static let legacyNames = names.subtracting(["stabilization"])
 
     public func validated() throws -> VRSettings {
-        guard ["full", "cinema", "fps"].contains(mode) else { throw VRCoreError.invalid("Unknown viewing mode") }
+        guard ["full", "cinema", "fps", "fps_enhanced"].contains(mode) else { throw VRCoreError.invalid("Unknown viewing mode") }
         let values: [(String, Double, ClosedRange<Double>)] = [
             ("scale", scale, 0.5...1), ("offsetX", offsetX, -0.3...0.3),
             ("offsetY", offsetY, -0.3...0.3), ("eyeSeparation", eyeSeparation, -1...0.2),

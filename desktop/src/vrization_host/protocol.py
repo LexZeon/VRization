@@ -10,6 +10,10 @@ class ProtocolError(ValueError):
     pass
 
 
+FIRST_PERSON_MODES = frozenset(("fps", "fps_enhanced"))
+ENHANCED_FIRST_PERSON_CAPABILITY = "enhanced-first-person"
+
+
 @dataclass(frozen=True)
 class Settings:
     mode: str = "full"
@@ -37,7 +41,7 @@ class Settings:
         clean = {}
         for key, value in patch.items():
             if key == "mode":
-                if not isinstance(value, str) or value not in ("full", "cinema", "fps"):
+                if not isinstance(value, str) or value not in ("full", "cinema", "fps", "fps_enhanced"):
                     raise ProtocolError("unknown mode")
                 clean[key] = value
             elif key == "invertY":
@@ -69,6 +73,12 @@ def parse_message(raw: str) -> dict:
         raise ProtocolError("unknown message type")
     if kind == "hello" and "editing" in msg and type(msg["editing"]) is not bool:
         raise ProtocolError("editing must be boolean")
+    if kind == "hello" and "capabilities" in msg:
+        capabilities = msg["capabilities"]
+        if (not isinstance(capabilities, list) or len(capabilities) > 32
+                or any(not isinstance(value, str) or not 1 <= len(value) <= 64
+                       for value in capabilities)):
+            raise ProtocolError("capabilities must be bounded strings")
     if kind == "pose":
         if type(msg.get("seq")) is not int or not 0 <= msg["seq"] <= 2**53 - 1:
             raise ProtocolError("invalid pose sequence")

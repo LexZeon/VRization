@@ -88,10 +88,10 @@ final class StereoRenderer: NSObject, MTKViewDelegate {
                         imageAspect: Double(currentTexture.width) / Double(currentTexture.height),
                         eyeAspect: Double(eyeWidth) / Double(height))) ?? s
                     var u = Uniforms(
-                        optics: SIMD4(Float(eyeWidth) / Float(height), Float(currentTexture.width) / Float(currentTexture.height), Float(resolved.scale), Float(resolved.offsetX)),
+                        optics: SIMD4(Float(eyeWidth) / Float(height), s.mode == "fps_enhanced" ? 1 : Float(currentTexture.width) / Float(currentTexture.height), Float(resolved.scale), Float(resolved.offsetX)),
                         placement: SIMD4(Float(resolved.offsetY), Float(resolved.eyeSeparation) * sign, Float(s.distortion), Float(s.fov)),
                         scene: SIMD4(Float(s.distance), Float(p.yaw), Float(p.pitch), Float(p.roll)),
-                        flags: SIMD4(s.mode == "cinema" ? 1 : 0, sign, 0, 0))
+                        flags: SIMD4(s.mode == "cinema" ? 1 : 0, sign, s.mode == "fps_enhanced" ? 1 : 0, 0))
                     encoder.setViewport(MTLViewport(originX: eye == 0 ? 0 : Double(leftWidth), originY: 0,
                         width: Double(eyeWidth), height: Double(height), znear: 0, zfar: 1))
                     encoder.setFragmentBytes(&u, length: MemoryLayout<Uniforms>.stride, index: 0)

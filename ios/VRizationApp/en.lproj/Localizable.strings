@@ -22,11 +22,15 @@
 "recenter" = "Recenter";
 "gestures" = "Long press for settings. Double tap to recenter.";
 "networkNotice" = "Video and controls are unencrypted. Use a trusted LAN. First-person gyro mouse control uses the PC setting, enabled by default. Press F8 on the PC to stop control; Resume on the PC restores it.";
-"noSensor" = "No device-motion sensor. Full mode remains available; Cinema and first-person are disabled.";
+"noSensor" = "No device-motion sensor. Full and enhanced first-person display remain available without gyro mouse control; Cinema and ordinary first-person are disabled.";
 "sensorFallback" = "Device motion unavailable. Switched to Full mode.";
+"enhancedSensorFallback" = "Device motion unavailable. Enhanced display remains active; gyro mouse control stopped.";
 "full" = "Full";
 "cinema" = "Cinema";
 "fps" = "First person";
+"fps_enhanced" = "Enhanced first person";
+"enhancedHelp" = "Each eye is fixed to a 1:1 square. The full source is stretched and curved; Field of view adjusts the warp. Resize proportionally and move it in the fit editor. This warps a flat image, without adding scene detail or depth.";
+"enhancedLegacyHost" = "This PC uses ordinary first-person input. Enhanced square display and your profile remain local; update the PC for mode synchronization. Field of view adjusts the warp.";
 "headsetFit" = "Headset fit";
 "precisionHelp" = "Drag for larger changes; use − / + for precise one-step adjustments.";
 "decreaseStep" = "Decrease %@ by one step";
@@ -36,11 +40,11 @@
 "offsetY" = "Vertical position";
 "eyeSeparation" = "Eye separation";
 "distortion" = "Lens distortion";
-"fov" = "Field of view (Cinema)";
+"fov" = "Field of view (Cinema / enhanced warp)";
 "distance" = "Screen distance (Cinema)";
 "sensitivity" = "Mouse sensitivity (first-person, pixels/rad)";
 "stabilization" = "First-person stabilization strength";
-"stabilizationHelp" = "Applied on the PC in First-person mode only. 0% keeps the current behavior; stronger smoothing can slow the response.";
+"stabilizationHelp" = "Applied on the PC in both first-person modes. 0% keeps the current behavior; stronger smoothing can slow the response.";
 "stabilizationUnsupported" = "This PC does not support stabilization. Your setting is saved locally; update the PC app to apply it.";
 "invertY" = "Invert vertical first-person movement";
 "reset" = "Reset all phone settings";
@@ -61,5 +65,5 @@
 "usbStop" = "Stop waiting";
 "usbFailed" = "USB disconnected or unavailable. Check the cable, Apple Devices driver and Trust prompt, then tap Connect.";
 "usbNotice" = "USB is the default. Install Apple Devices on Windows, unlock this iPhone, connect a data cable and tap Trust. Keep this app in the foreground, then tap Connect on either device. Backgrounding stops video and control; return and connect explicitly. First-person gyro mouse control uses the PC setting, enabled by default. Press F8 on the PC to stop control; Resume on the PC restores it. FPS and link RTT are not end-to-end latency.";
-"help" = "Full and first-person show the same 2D image to both eyes. Cinema places it in virtual space; this is not native stereoscopic game rendering. Audio stays on the computer. Entering the background disconnects video and stops control.";
+"help" = "Full and both first-person modes show the same 2D image to both eyes; enhanced first-person curves it into fixed squares. Cinema places it in virtual space. Audio stays on the computer. Entering the background disconnects video and stops control.";
 "versionInfo" = "Version %@ · build %@";

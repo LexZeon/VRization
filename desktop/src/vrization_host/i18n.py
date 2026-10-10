@@ -59,6 +59,8 @@ ENGLISH = {
 }
 
 CHINESE = {
+    'Enhanced first person': '加强第一人称',
+    'Enhanced first person fixes each eye to 1:1 and bends the image on the phone GPU. Scale, move and eye spacing still work. Field of view adjusts the warp; black corners are expected.': '加强第一人称将每只眼固定为 1:1，并在手机 GPU 上弯曲画面。仍可缩放、移动和调整双眼间距；视野角度调节变形强度，边角留黑属于正常现象。',
     "streaming stopped": "串流已停止",
     'Ready. First-person gyro mouse control is on by default for the desktop and games; F8 pauses it.': '就绪。第一人称默认开启陀螺仪鼠标，桌面和游戏均可控制；F8 暂停。',
     'Gyro mouse · desktop and games': '陀螺仪鼠标 · 桌面与游戏',

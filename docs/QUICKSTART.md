@@ -32,8 +32,9 @@ Start with **Full screen**, confirm both eye images are complete, then adjust sc
 | Full screen | Fixed side-by-side images; no gyro needed. |
 | Cinema | Rotation-tracked virtual screen. Recenter after placing the phone. |
 | First person | Fixed side-by-side view, sending phone rotation to the host. The Windows gyro mouse preference defaults to enabled; F8 pauses it and PC Resume clears that pause. |
+| Enhanced first person | Fixed 1:1 squares with GPU wide-angle deformation; proportional scaling, movement and the same gyro policy. Requires enhanced-mode support; see [the tutorial](ENHANCED_FIRST_PERSON.md). |
 
-Windows enables First-person gyro mouse control by default. A validated connection, First-person mode, available capture and fresh valid rotation data are required; the first pose sets a baseline before movement. Control works on the desktop, ordinary applications, games and VRization's own window regardless of foreground-window changes, with no five-second target-window deadline. A temporary sensor gap stops output and rebaselines on fresh poses before continuing. **F8**, the PC emergency stop, editor entry, PC Reset all settings, capture-region selection, capture/input failure and stream Stop latch a pause: late poses, settings and reconnecting cannot clear it. Click **Resume gyro control** on the PC, or explicitly turn the control checkbox off and on, to resume. Full screen and Cinema stop mouse output. The PC saves only the enabled preference, never the live armed state or pause latch. Games using raw input or protection may ignore system mouse input. Automated checks do not establish actual game or headset comfort.
+Windows enables gyro mouse control in First person and Enhanced first person by default. A validated connection, either first-person mode, available capture and fresh valid rotation data are required; the first pose sets a baseline before movement. Control works on the desktop, ordinary applications, games and VRization's own window regardless of foreground-window changes, with no five-second target-window deadline. A temporary sensor gap stops output and rebaselines on fresh poses before continuing. **F8**, the PC emergency stop, editor entry, PC Reset all settings, capture-region selection, capture/input failure and stream Stop latch a pause: late poses, settings and reconnecting cannot clear it. Click **Resume gyro control** on the PC, or explicitly turn the control checkbox off and on, to resume. Full screen and Cinema stop mouse output. The PC saves only the enabled preference, never the live armed state or pause latch. Games using raw input or protection may ignore system mouse input. Automated checks do not establish actual game or headset comfort.
 
 ### 4. Choose a performance profile
 
@@ -87,8 +88,9 @@ Windows 选择目标显示器 / 选区，保持自动检测 USB。两端应用�
 | 全屏 | 固定双眼图像，不需要陀螺仪。 |
 | 大屏幕 | 随旋转观察虚拟屏幕，装入盒子后回正。 |
 | 第一人称 | 固定双眼图像，向主机发送手机旋转；Windows 默认启用陀螺仪鼠标；F8 锁定暂停，电脑恢复按钮解除。 |
+| 加强第一人称 | 固定 1:1 正方形与 GPU 广角变形，可等比缩放、移动，共用陀螺仪策略；需要新模式支持，见 [教程](ENHANCED_FIRST_PERSON.md)。 |
 
-Windows 默认开启第一人称陀螺仪鼠标控制。必须有通过校验的连接、第一人称模式、可用采集与新的合法旋转姿态；首条姿态先建立基准，再产生移动。桌面、普通应用、游戏和 VRization 自身窗口均可控制，不受前台窗口切换影响，也不要求五秒内切到目标窗口。传感器短暂间断时停止输出，新姿态先重建基准再继续。**F8**、电脑紧急停止、进入编辑器、电脑重置全部设置、选择采集区域、采集／输入故障和停止串流会锁定暂停；迟到姿态、设置与重连都不能解除。需要在电脑点“**恢复陀螺仪控制**”，或主动关闭再开启控制复选框。全屏和大屏幕停止鼠标输出。电脑只保存启用偏好，不保存实时授权状态或暂停锁。 原始输入或游戏保护可能忽略系统鼠标，自动检查不证明真实游戏／盒子舒适度。
+Windows 默认开启第一人称与加强第一人称的陀螺仪鼠标控制。必须有通过校验的连接、任一第一人称模式、可用采集与新的合法旋转姿态；首条姿态先建立基准，再产生移动。桌面、普通应用、游戏和 VRization 自身窗口均可控制，不受前台窗口切换影响，也不要求五秒内切到目标窗口。传感器短暂间断时停止输出，新姿态先重建基准再继续。**F8**、电脑紧急停止、进入编辑器、电脑重置全部设置、选择采集区域、采集／输入故障和停止串流会锁定暂停；迟到姿态、设置与重连都不能解除。需要在电脑点“**恢复陀螺仪控制**”，或主动关闭再开启控制复选框。全屏和大屏幕停止鼠标输出。电脑只保存启用偏好，不保存实时授权状态或暂停锁。 原始输入或游戏保护可能忽略系统鼠标，自动检查不证明真实游戏／盒子舒适度。
 
 ### 4. 性能预设
 

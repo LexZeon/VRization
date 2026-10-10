@@ -18,6 +18,9 @@ final class PhoneProfile {
     boolean waitForExtendedSnapshot(boolean hostSupportsStabilization, boolean containsStabilization) {
         return !saved && hostSupportsStabilization && !containsStabilization;
     }
+    boolean waitForEnhancedSnapshot(boolean pendingEnhancedSnapshot) {
+        return !saved && pendingEnhancedSnapshot;
+    }
     void commit(VrSettings value) {
         settings = SettingsValues.decode(SettingsValues.encode(value), new VrSettings(), true); saved = true;
     }

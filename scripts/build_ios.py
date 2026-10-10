@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 from pathlib import Path
 import platform
@@ -211,6 +212,90 @@ def check_rendered_seam(report):
     print("The real Metal screenshot has video on both sides of the contact seam.", flush=True)
 
 
+def check_rendered_enhanced(report):
+    """Verify original native Metal pixels with independent forward projection."""
+    from PIL import Image, ImageOps
+
+    folder = OUT / "screenshots"
+    manifest = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))
+    attachments = [item for group in manifest for item in group["attachments"]]
+    records, failures = [], []
+
+    def screenshot(name):
+        matches = [item for item in attachments if item["suggestedHumanReadableName"].startswith(name + "_")]
+        assert len(matches) == 1, f"Expected exactly one native screenshot for {name}"
+        with Image.open(folder / matches[0]["exportedFileName"]) as raw:
+            return ImageOps.exif_transpose(raw).convert("RGB")
+
+    for name in ("ENHANCED-01-square-warp-Metal", "ENHANCED-05-fresh-USB-square-warp-Metal"):
+        image = screenshot(name)
+        width, height = image.size
+        assert width > height, "Enhanced screenshot must be landscape"
+        for eye in range(2):
+            eye_width = width // 2 if eye == 0 else width - width // 2
+            origin, sign = (0, -1) if eye == 0 else (width // 2, 1)
+            aspect = eye_width / height
+            fit_x, fit_y = min(1, 1 / aspect), min(1, aspect)
+            # This physical rectangle MUST be square for a 16:9 source.
+            assert abs(fit_x * eye_width - fit_y * height) < 1e-6
+
+            def point(qx, qy):
+                return (round(origin + eye_width * (.5 + (qx * fit_x * .6 + sign * .03) / 2)),
+                        round(height * (.5 - qy * fit_y * .6 / 2)))
+
+            def forward(u, v):
+                sx, sy = 2 * u - 1, 1 - 2 * v
+                radius, angle = math.hypot(sx, sy), math.radians(40)
+                gain = math.atan(radius * math.tan(angle)) / (radius * angle) if radius else 1
+                return point(sx * gain, sy * gain)
+
+            for uv, expected in (((.97, .05), (13, 21, 40)), ((.8, .4), (20, 38, 60)), ((.8, .65), (20, 38, 60))):
+                x, y = forward(*uv)
+                pixels = [image.getpixel((x + dx, y + dy)) for dx in (-1, 0, 1) for dy in (-1, 0, 1)]
+                actual = tuple(round(median(pixel[channel] for pixel in pixels)) for channel in range(3))
+                records.append({"kind": "color", "screenshot": name, "eye": eye, "sourceUV": uv,
+                                "screenXY": (x, y), "expectedRGB": expected, "actualRGB": actual})
+                if max(abs(a - b) for a, b in zip(actual, expected)) > 12:
+                    failures.append(f"{name} eye {eye}: enhanced RGB/orientation mismatch {actual}")
+            # A curved teal top border lies above its unwarped position. This
+            # detects a shader silently bypassing warp even with a square fit.
+            x, y = forward(.5, 109.5 / 720)
+            pixels = [image.getpixel((x + dx, y + dy)) for dx in range(-3, 4) for dy in range(-3, 4)]
+            teal = sum(g > 100 and g - r > 50 and b > 60 for r, g, b in pixels)
+            records.append({"kind": "curved-border", "screenshot": name, "eye": eye,
+                            "screenXY": (x, y), "tealPixels": teal})
+            if teal < 2:
+                failures.append(f"{name} eye {eye}: missing fisheye-curved top border")
+            for qx, qy in ((-.96, -.96), (-.96, .96), (.96, -.96), (.96, .96), (0, 1.06)):
+                x, y = point(qx, qy)
+                actual = image.getpixel((x, y))
+                records.append({"kind": "black-boundary", "screenshot": name, "eye": eye,
+                                "destinationXY": (qx, qy), "screenXY": (x, y), "actualRGB": actual})
+                if max(actual) > 5:
+                    failures.append(f"{name} eye {eye}: outside square/curved source is not black: {actual}")
+
+    name = "ENHANCED-03-square-seam-Metal"
+    image = screenshot(name)
+    width, height = image.size
+    saved = next(item["settings"] for item in report["checkpoints"] if item["name"] == "enhanced-lan-editor-saved")
+    assert saved["mode"] == "fps_enhanced" and abs(saved["offsetX"]) < 1e-6
+    for eye in range(2):
+        eye_width = width // 2 if eye == 0 else width - width // 2
+        half_width = min(1, height / eye_width) * saved["scale"]
+        separation = max(half_width - 1, saved["eyeSeparation"])
+        assert abs(1 + separation - half_width) < 1e-6, "Enhanced physical squares do not meet"
+        x = width // 2 - 1 if eye == 0 else width // 2
+        y = round(height * (.5 - saved["offsetY"] / 2))
+        pixels = [image.getpixel((x, y + delta)) for delta in (-1, 0, 1)]
+        records.append({"kind": "seam-center", "screenshot": name, "eye": eye,
+                        "screenXY": (x, y), "actualRGB": pixels})
+        if any(pixel[2] <= 20 or sum(pixel) <= 35 for pixel in pixels):
+            failures.append(f"Enhanced eye {eye} has a black gap at the exact center seam")
+    (folder / "enhanced-check.json").write_text(json.dumps({"samples": records, "failures": failures}, indent=2), encoding="utf-8")
+    assert not failures, "; ".join(failures)
+    print("Native Metal enhanced LAN/USB square, inverse angular warp, clipping and center seam passed.", flush=True)
+
+
 def main():
     if sys.platform != "darwin":
         raise SystemExit("This script requires macOS with Xcode. The Windows host has a separate build script.")
@@ -266,7 +351,7 @@ def main():
                 "-derivedDataPath", OUT / "simulator", "-parallel-testing-enabled", "NO",
                 "-test-timeouts-enabled", "YES", "-default-test-execution-time-allowance", "300",
                 "-maximum-test-execution-time-allowance", "300", "-destination-timeout", "120",
-                "-resultBundlePath", OUT / "UI.xcresult", "test", timeout=1200)
+                "-resultBundlePath", OUT / "UI.xcresult", "test", timeout=1800)
         finally:
             fixture.terminate()
             try:
@@ -296,6 +381,7 @@ def main():
     assert checkpoints["editor-local-restored"]["settings"]["scale"] != saved["settings"]["scale"], "Offline phone profile was not restored over old host state"
     check_rendered_card_colors()
     check_rendered_seam(report)
+    check_rendered_enhanced(report)
     run("python3", "scripts/package_release.py", "--ios-only")
 
 

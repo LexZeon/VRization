@@ -14,7 +14,8 @@ from aiohttp import web, WSMsgType
 from ._version import __version__
 from .capture import CaptureConfig, CaptureWorker, LatestFrameBuffer, MssCaptureSource
 from .input import PoseController, WindowsMouseSink
-from .protocol import ProtocolError, Settings, TokenLimiter, parse_message
+from .protocol import (ENHANCED_FIRST_PERSON_CAPABILITY, ProtocolError, Settings,
+                       TokenLimiter, parse_message)
 
 
 class HostServer:
@@ -46,6 +47,7 @@ class HostServer:
         self._sender = None
         self._stopping = threading.Event()
         self._settings_schema2 = False
+        self._enhanced_first_person = False
         self._worker = None
         self._watchdog = None
         self._buffer = None
@@ -101,6 +103,8 @@ class HostServer:
         values = settings.to_dict()
         if not self._settings_schema2:
             values.pop("stabilization", None)
+        if values["mode"] == "fps_enhanced" and not self._enhanced_first_person:
+            values["mode"] = "fps"
         return values
 
     async def _broadcast_settings(self, owner, client_seq: int | None = None):
@@ -111,7 +115,8 @@ class HostServer:
             if ws is not owner or ws.closed:
                 return  # A queued acknowledgement belongs to its original session.
             settings, revision = self.get_settings_snapshot()
-            message = {"v": 1, "type": "settings", "settings": self._wire_settings(settings), "revision": revision}
+            message = {"v": 1, "type": "settings", "settings": self._wire_settings(settings), "revision": revision,
+                       "enhancedFirstPerson": self._enhanced_first_person}
             if client_seq is not None:
                 message["clientSeq"] = client_seq
             with suppress(ConnectionError, RuntimeError, asyncio.TimeoutError):
@@ -258,6 +263,7 @@ class HostServer:
         self.session_generation += 1
         session_generation = self.session_generation
         self._settings_schema2 = request.query.get("settingsSchema") == "2"
+        self._enhanced_first_person = request.query.get("enhancedFirstPerson") == "1"
         sender = None
         try:
             await ws.prepare(request)
@@ -272,7 +278,8 @@ class HostServer:
             settings, revision = self.get_settings_snapshot()
             await ws.send_json({"v": 1, "type": "hello", "name": "VRization",
                                 "version": __version__, "settings": self._wire_settings(settings), "revision": revision,
-                                "capabilities": ["stabilization"],
+                                "capabilities": ["stabilization", ENHANCED_FIRST_PERSON_CAPABILITY],
+                                "enhancedFirstPerson": self._enhanced_first_person,
                                 "stream": {"codec": "jpeg", "fps": self.capture_config.fps,
                                            "maxWidth": self.capture_config.width},
                                 "mouseArmed": False})
@@ -295,6 +302,8 @@ class HostServer:
                         msg = parse_message(message.data)
                         kind = msg["type"]
                         if kind == "settings":
+                            if msg["settings"].get("mode") == "fps_enhanced" and not self._enhanced_first_person:
+                                raise ProtocolError("Enhanced first person requires capability negotiation")
                             self.update_settings(msg["settings"], client_seq=msg.get("clientSeq"), response_socket=ws)
                         elif kind == "pose":
                             self.controller.pose(msg["seq"], msg["yaw"], msg["pitch"])
@@ -306,10 +315,17 @@ class HostServer:
                             if msg.get("editing") is True:
                                 # A control pause only: false/exit can never authorize input.
                                 self.controller.disarm("headset editor opened")
+                            upgraded = False
+                            if (ENHANCED_FIRST_PERSON_CAPABILITY in msg.get("capabilities", [])
+                                    and not self._enhanced_first_person):
+                                self._enhanced_first_person = True
+                                upgraded = True
                             if type(msg.get("settingsSchema")) is int and msg["settingsSchema"] == 2 and not self._settings_schema2:
                                 # USB relays start with the legacy settings shape. A
                                 # validated client can opt in without another hello.
                                 self._settings_schema2 = True
+                                upgraded = True
+                            if upgraded:
                                 await self._broadcast_settings(ws)
                     except (ProtocolError, TypeError, ValueError) as exc:
                         errors += 1
@@ -331,6 +347,7 @@ class HostServer:
                 if self._sender is sender:
                     self._sender = None
                 self._settings_schema2 = False
+                self._enhanced_first_person = False
                 self._worker.active.clear()
                 self.controller.set_connected(False)
                 self._emit("connection", connected=False, address=address, session=session_generation)

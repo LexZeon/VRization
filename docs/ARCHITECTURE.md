@@ -150,7 +150,7 @@ Swift protocol / math reuse is available now; engine adapters and a stable SDK r
 
 The original host `view_edit.py` is a pure geometry / draft-transaction module. `fit_size` computes aspect fit; `resolved_fit` clamps signed separation to [fit.x × scale − 1, 0.2] and shared X to the remaining gap; `eye_bounds` returns these resolved y-up left / bottom / right / top bounds; `dragged` uses gesture-start deltas for eye_pan (selected-eye horizontal spacing and shared vertical movement), proportional resize and reusable ordinary pan. Resize keeps centers fixed when contact constraints permit it; enlargement at contact resolves spacing outward to avoid overlap. Rendering resolution is pure and does not rewrite raw saved preferences. `EditTransaction` exposes an immutable entry snapshot, local draft and one commit / discard action without storage or network side effects. Android / Swift cores use the same geometry contract; see [editor integration](EDITING.md).
 
-App editors preview full-screen flat geometry with distortion disabled, while retaining actual mode / optical values in the draft. Phone poses pause during editing; entry sends one existing hello with editing:true to latch input paused on receipt, and desktop entry latches it locally. Phone Save commits the whole draft once; PC Save patches only the four fit fields (scale, offsetX, offsetY and eyeSeparation) into the latest state, preserving other concurrent changes. Discard restores the local entry preview, and phone lifecycle / disconnection ends an uncommitted draft. Phones persist committed complete VR profiles. A validated host hello opens the session first, then a saved local profile is sent once via normal settings / clientSeq; subsequent revision synchronization remains authoritative. Pairing secrets are excluded.
+App editors retain actual mode/optical values in the draft. Legacy modes preview full-screen flat geometry with distortion disabled; Enhanced first person retains its square fit and angular warp. Phone poses pause during editing; entry sends one existing hello with editing:true to latch input paused on receipt, and desktop entry latches it locally. Phone Save commits the whole draft once; PC Save patches only the four fit fields (scale, offsetX, offsetY and eyeSeparation) into the latest state, preserving other concurrent changes. Discard restores the local entry preview, and phone lifecycle / disconnection ends an uncommitted draft. Phones persist committed complete VR profiles. A validated host hello opens the session first, then a saved local profile is sent once via normal settings / clientSeq; subsequent revision synchronization remains authoritative. Pairing secrets are excluded.
 
 Reset restores VR / English / USB and low capture defaults. The host preserves explicit capture monitor / rectangle and ADB path to avoid selecting unintended content or deleting tools; phone reset disconnects and suppresses the immediate rebuilt page's initial attempt. A fresh Android launch can wait for an existing stream; iOS restores only foreground control until explicit Connect. These user-preference changes do not change protocol v1, the bounded JPEG pipeline or the host-local input preference and pause latch.
 
@@ -162,13 +162,19 @@ Clients persist eleven fields and migrate exact legacy ten with stabilization ze
 
 ### Shared per-eye display bounds
 
-Android GLES and iOS Metal resolve the same fit rectangle and apply it as a physical per-eye output mask in full, cinema and first-person modes, including lens distortion. The mask confines display range without changing the virtual-screen projection or sensor math. It is distinct from proving that projected content reaches the middle seam. Editor geometry remains pure; raw committed profiles are not rewritten by rendering.
+Android GLES and iOS Metal resolve the same fit rectangle and apply it as a physical per-eye output mask in all four modes, including lens distortion. Enhanced mode uses a physical-square fit independent of JPEG aspect. The mask confines display range without changing the virtual-screen projection or sensor math. It is distinct from proving that projected content reaches the middle seam. Editor geometry remains pure; raw committed profiles are not rewritten by rendering.
 
 ---
 
-### Default-enabled GUI input policy (v0.3.4)
+### Enhanced first-person projection (v0.4.0)
 
-Windows enables First-person gyro mouse control by default. A validated connection, First-person mode, available capture and fresh valid rotation data are required; the first pose sets a baseline before movement. Control works on the desktop, ordinary applications, games and VRization's own window regardless of foreground-window changes, with no five-second target-window deadline. A temporary sensor gap stops output and rebaselines on fresh poses before continuing. **F8**, the PC emergency stop, editor entry, PC Reset all settings, capture-region selection, capture/input failure and stream Stop latch a pause: late poses, settings and reconnecting cannot clear it. Click **Resume gyro control** on the PC, or explicitly turn the control checkbox off and on, to resume. Full screen and Cinema stop mouse output. The PC saves only the enabled preference, never the live armed state or pause latch.
+`enhanced_projection.py`, Java `EnhancedProjection` and Swift `EnhancedProjection` provide pure inverse angular sampling. GLES/Metal fragment shaders run the mapping on phone GPUs; no host codec/capture change is needed. The existing FOV controls its span and out-of-source samples are black. All platforms resolve enhanced fit using aspect 1, giving a physical square even on tall or wide viewports, and the existing scale/pan/seam/editor rules still apply. The PC editor uses a bounded mesh approximation at its existing 10 Hz latest-frame preview rate; it performs no extra capture. A square source presentation deliberately changes rectangular source proportions without adding scene depth. See [exact projection and provenance](ENHANCED_FIRST_PERSON.md).
+
+The new wire mode `fps_enhanced` requires separate `enhanced-first-person` capability opt-in. Host hello/settings carry a negotiated boolean and map enhanced state to `fps` for legacy sessions; new phones keep local enhanced profiles when sending ordinary `fps` to an older host. Await a confirmed full snapshot before profile restore when negotiation is pending. Enhanced rendering remains available without a sensor, while mouse control requires valid poses. Both first-person modes share the host-local preference and pause latch; neither capability nor a mode switch can resume a latched Stop. [Protocol](PROTOCOL.md).
+
+### Default-enabled GUI input policy (v0.3.4, extended to enhanced mode in v0.4.0)
+
+Windows enables gyro mouse control in First person and Enhanced first person by default. A validated connection, either first-person mode, available capture and fresh valid rotation data are required; the first pose sets a baseline before movement. Control works on the desktop, ordinary applications, games and VRization's own window regardless of foreground-window changes, with no five-second target-window deadline. A temporary sensor gap stops output and rebaselines on fresh poses before continuing. **F8**, the PC emergency stop, editor entry, PC Reset all settings, capture-region selection, capture/input failure and stream Stop latch a pause: late poses, settings and reconnecting cannot clear it. Click **Resume gyro control** on the PC, or explicitly turn the control checkbox off and on, to resume. Full screen and Cinema stop mouse output. The PC saves only the enabled preference, never the live armed state or pause latch.
 
 `HostServer(..., auto_control=False)` and `PoseController(..., auto_control=False)` retain the manual embedding default, including legacy manual focus checks. The GUI passes the validated `input.json` preference to the server; `HostServer.set_auto_control()` / `PoseController.configure_auto_control()` change local policy and `resume_control()` clears a pause only for a PC action. The preference is separate from wire Settings and phone profiles. The first valid pose after activation/pause establishes a new baseline; no pose means no mouse output.
 
@@ -326,7 +332,7 @@ Swift 协议 / 数学已经可以复用；引擎适配器和稳定 SDK 仍是未
 
 原创主机 `view_edit.py` 是纯几何 / 草稿事务模块：`fit_size` 计算比例适配，`resolved_fit` 将有符号间距限制为 [fit.x × scale − 1, 0.2]、共用 X 限制在剩余间隙内，`eye_bounds` 返回解析后的 y 向上左 / 下 / 右 / 上边界，`dragged` 按手势起点总位移计算 eye_pan（选中眼水平间距与共用竖向移动）、等比缩放，另保留普通 pan；接触约束允许时中心固定，接触后放大必要时向外解析间距，避免重叠。渲染解析无副作用，不改写原始已存偏好；`EditTransaction` 提供不可变进入快照、本地草稿及一次提交 / 放弃，不带存储或网络副作用。Android / Swift 核心使用相同合同，见 [编辑器集成](EDITING.md)。
 
-应用编辑器预览无畸变全屏平面，草稿仍保留实际模式 / 光学值。手机编辑时暂停姿态，进入时用已有 hello 的 editing:true 一次通知主机，收到后锁定输入暂停；电脑进入则本地锁定。手机一次提交完整草稿，电脑只把四个适配字段（scale、offsetX、offsetY、eyeSeparation）合并进最新状态以保留其他并发变化；放弃恢复本地进入预览，手机生命周期变化 / 断线结束未提交草稿。手机保存完整已提交 VR 配置：先合法主机 hello 建立会话，再通过普通 settings / clientSeq 一次恢复本地配置，之后继续 revision 同步；排除配对秘密。
+应用编辑器草稿保留实际模式／光学值；旧模式预览无畸变全屏平面，加强第一人称则保留正方形适配与角度变形。手机编辑时暂停姿态，进入时用已有 hello 的 editing:true 一次通知主机，收到后锁定输入暂停；电脑进入则本地锁定。手机一次提交完整草稿，电脑只把四个适配字段（scale、offsetX、offsetY、eyeSeparation）合并进最新状态以保留其他并发变化；放弃恢复本地进入预览，手机生命周期变化 / 断线结束未提交草稿。手机保存完整已提交 VR 配置：先合法主机 hello 建立会话，再通过普通 settings / clientSeq 一次恢复本地配置，之后继续 revision 同步；排除配对秘密。
 
 重置恢复 VR / 英文 / USB 与低延迟采集默认；主机保留明确的显示器 / 选区和 ADB 路径，避免切到非预期内容或删除工具。手机重置断线，抑制当前重建界面的初次尝试；之后全新 Android 启动可等待已有串流，iOS 仅恢复前台控制，需显式连接。这些用户偏好变化不改变协议 v1、有限 JPEG 队列或电脑本地输入偏好与暂停锁。
 
@@ -338,10 +344,16 @@ Swift 协议 / 数学已经可以复用；引擎适配器和稳定 SDK 仍是未
 
 ### 共用单眼显示边界
 
-Android GLES 与 iOS Metal 解析相同适配矩形，并在全屏、大屏幕、第一人称模式及镜片畸变后作物理单眼输出遮罩，限定显示范围，不改虚拟屏幕投影或传感器数学；这与证明投影内容填到中缝不同。编辑几何保持纯函数，渲染不改写原始已提交配置。
+Android GLES 与 iOS Metal 解析相同适配矩形，并在四种模式及镜片畸变后作物理单眼输出遮罩；加强模式采用不受 JPEG 比例影响的物理正方形适配，限定显示范围，不改虚拟屏幕投影或传感器数学；这与证明投影内容填到中缝不同。编辑几何保持纯函数，渲染不改写原始已提交配置。
 
-### 默认启用的界面输入策略（v0.3.4）
+### 加强第一人称投影（v0.4.0）
 
-Windows 默认开启第一人称陀螺仪鼠标控制。必须有通过校验的连接、第一人称模式、可用采集与新的合法旋转姿态；首条姿态先建立基准，再产生移动。桌面、普通应用、游戏和 VRization 自身窗口均可控制，不受前台窗口切换影响，也不要求五秒内切到目标窗口。传感器短暂间断时停止输出，新姿态先重建基准再继续。**F8**、电脑紧急停止、进入编辑器、电脑重置全部设置、选择采集区域、采集／输入故障和停止串流会锁定暂停；迟到姿态、设置与重连都不能解除。需要在电脑点“**恢复陀螺仪控制**”，或主动关闭再开启控制复选框。全屏和大屏幕停止鼠标输出。电脑只保存启用偏好，不保存实时授权状态或暂停锁。
+`enhanced_projection.py`、Java／Swift `EnhancedProjection` 提供纯逆角度采样，GLES／Metal 片元着色器在手机 GPU 执行，不改变电脑编码／采集；已有 FOV 控制范围，超出源图采样置黑。三端加强适配均按比例 1 解析，在窄长或宽视口仍保持物理正方形，沿用缩放／平移／接缝／编辑规则。电脑编辑器以现有 10 Hz 最新帧预览作有界网格近似，不额外采集；正方形呈现有意改变矩形源图内容比例，不添加场景深度，见 [准确投影与来源](ENHANCED_FIRST_PERSON.md)。
+
+新线上模式 `fps_enhanced` 需单独主动启用 `enhanced-first-person` 能力；主机 hello／设置携带协商布尔值，旧会话把加强状态映射为 `fps`，新手机对旧电脑发普通 `fps` 时保留本地加强配置。待协商时先收到确认完整快照再恢复配置；无传感器仍可加强渲染，鼠标需合法姿态，两种第一人称共用电脑本地偏好与暂停锁，能力或切模式均不能恢复锁定 Stop，见 [协议](PROTOCOL.md)。
+
+### 默认启用的界面输入策略（v0.3.4，v0.4.0 扩展到加强模式）
+
+Windows 默认开启第一人称与加强第一人称的陀螺仪鼠标控制。必须有通过校验的连接、任一第一人称模式、可用采集与新的合法旋转姿态；首条姿态先建立基准，再产生移动。桌面、普通应用、游戏和 VRization 自身窗口均可控制，不受前台窗口切换影响，也不要求五秒内切到目标窗口。传感器短暂间断时停止输出，新姿态先重建基准再继续。**F8**、电脑紧急停止、进入编辑器、电脑重置全部设置、选择采集区域、采集／输入故障和停止串流会锁定暂停；迟到姿态、设置与重连都不能解除。需要在电脑点“**恢复陀螺仪控制**”，或主动关闭再开启控制复选框。全屏和大屏幕停止鼠标输出。电脑只保存启用偏好，不保存实时授权状态或暂停锁。
 
 `HostServer(..., auto_control=False)` 与 `PoseController(..., auto_control=False)` 保留手动嵌入默认，包括旧手动模式的焦点检查。界面把合法 `input.json` 偏好交给服务器；`HostServer.set_auto_control()`／`PoseController.configure_auto_control()` 修改本地策略，只有电脑主动操作才用 `resume_control()` 解除暂停。该偏好独立于线上 Settings 与手机配置；启用／暂停后的首条合法姿态重建基准，没有姿态就没有鼠标输出。

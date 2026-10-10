@@ -135,7 +135,9 @@ def main():
                         raise ValueError
                     patch = json.loads(self.rfile.read(length))
                     if not isinstance(patch, dict) or set(patch) not in (
-                            {"scale"}, {"stabilization"}, {"mode", "stabilization"}):
+                            {"scale"}, {"stabilization"}, {"mode", "stabilization"},
+                            {"mode", "scale", "offsetX", "offsetY", "eyeSeparation", "fov", "distortion"},
+                            {"mode", "scale", "offsetX", "offsetY", "eyeSeparation", "fov", "distortion", "stabilization"}):
                         raise ValueError
                     host.update_settings(patch)
                 except (ValueError, KeyError, TypeError):

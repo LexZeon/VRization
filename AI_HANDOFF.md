@@ -9,7 +9,7 @@ This is a technical handoff for continuing VRization or integrating its componen
 
 ### Status and source of truth
 
-This handoff covers **v0.3.4-alpha**, application version **0.3.4**, mobile build **7**. The reusable Android AAR is unchanged. The Windows GUI defaults First-person gyro mouse control to enabled across all foreground windows and retains local emergency/editor/failure/Stop pauses. Completed software/package/native Simulator checks and untested physical/advanced GUI boundaries are recorded in [validation](docs/VALIDATION.md) and [release notes](docs/RELEASE_NOTES.md); use the exact [release assets and manifest](https://github.com/LexZeon/VRization/releases/tag/v0.3.4-alpha). [v0.3.3 checks](docs/releases/v0.3.3-alpha.md) remain historical. Source/build success does not establish hardware/game acceptance.
+This handoff covers **v0.4.0 development**, application version **0.4.0**, mobile build **8**. The fourth mode adds fixed-square GPU projection and explicit enhanced capability negotiation. The Android core AAR changes for settings, geometry and rendering; do not reuse the unchanged v0.3.4 AAR as the new core. New checks are pending in [validation](docs/VALIDATION.md). The [published v0.3.4 notes](docs/releases/v0.3.4-alpha.md) retain their exact completed evidence; earlier source/build success does not prove the new mode. All files and historical releases must be preserved, and a separate SteamVR experimental version remains planned.
 
 Use the Git checkout containing `desktop/`, `android/`, `ios/` and tracked source as the source root. Run `git status --short` and `git ls-files` before editing; an empty newly initialized directory is not the complete project. `artifacts/` contains build/test outputs, not the authoritative source. The local runnable archive is normally `%USERPROFILE%/Documents/VRization-Releases/`: `versions/<tag>/` retains each published version, `latest/` is the current extracted copy, and `tools/` holds separately installed USB tools. The repository's release notes and manifest, not folder names alone, identify a binary.
 
@@ -31,6 +31,12 @@ Use the Git checkout containing `desktop/`, `android/`, `ios/` and tracked sourc
 | `ios/Sources/VRizationCore/` | Foundation protocol, framing, settings synchronization, generation gates, pose and fit math. | Reuse the local Swift package without UIKit/Metal/Core Motion. |
 | `ios/VRizationApp/` | URLSession/Network transports, JPEG decoder, Core Motion, UIKit and Metal. | Platform adapters; preserve generation checks and background teardown. |
 | `scripts/`, `.github/workflows/build.yml` | Build, package, archive, checks and publication gates. | Build success and release acceptance are different records. |
+
+### Enhanced projection and capability boundary
+
+The wire mode is `fps_enhanced`. Keep protocol v1/settings schema 2; negotiate `enhanced-first-person` using LAN `enhancedFirstPerson=1` and client hello capabilities. Host hello and every settings reply carry a negotiated boolean, separate from the settings dictionary. Await a true full snapshot after an advertised-but-unnegotiated legacy USB hello before restoring profiles. Old viewers get `fps`; new phones on old hosts retain their local enhanced profile/rendering but send `fps`. See [the full protocol contract](docs/PROTOCOL.md).
+
+Pure mapping lives in Python `enhanced_projection.py` (`source_point`/`texture_uv`), Android `EnhancedProjection.source` and Swift `EnhancedProjection.sample`. The phone GLES/Metal implementations sample the same math on the GPU; PC editor preview is a bounded mesh approximation, not a video codec or extra capture. Square aspect must be resolved in shared core geometry/editor/viewer, not only by hiding a ratio slider. Rendering without a sensor is allowed for enhanced mode; preserve legacy fallback behavior for older modes. Both first-person modes share input policy and reset baselines; mode/capability/settings changes cannot clear a Stop/F8 latch. Preserve the exact OpenCV math-reference credit without claiming bundled code. [Projection guide](docs/ENHANCED_FIRST_PERSON.md).
 
 ### Calls and ownership
 
@@ -64,7 +70,7 @@ Two identities matter on Android: the user's whole connection attempt and an ind
 
 `VrRenderer.submitFrame(bitmap)` transfers Bitmap ownership. Clearing a session rejects new old-session handoffs, recycles the pending slot and invalidates the displayed texture on the GL thread; a GL upload already in progress must not restore a stale texture. Never recycle a Bitmap after handing it to the renderer. iOS likewise invalidates its generation before cancelling transport and rejects old decoded images before display. Keep receive/decode work off the UI thread and queues bounded.
 
-Windows enables First-person gyro mouse control by default. A validated connection, First-person mode, available capture and fresh valid rotation data are required; the first pose sets a baseline before movement. Control works on the desktop, ordinary applications, games and VRization's own window regardless of foreground-window changes, with no five-second target-window deadline. A temporary sensor gap stops output and rebaselines on fresh poses before continuing. **F8**, the PC emergency stop, editor entry, PC Reset all settings, capture-region selection, capture/input failure and stream Stop latch a pause: late poses, settings and reconnecting cannot clear it. Click **Resume gyro control** on the PC, or explicitly turn the control checkbox off and on, to resume. Full screen and Cinema stop mouse output. The PC saves only the enabled preference, never the live armed state or pause latch. `HostServer(..., auto_control=False)` and `PoseController(..., auto_control=False)` preserve manual behavior for embedders; the GUI opts into its saved `input.json` preference (`gyro_control_enabled`, default true). Use `HostServer.set_auto_control()` / `PoseController.configure_auto_control()` for local policy changes and `resume_control()` only for explicit PC resume. Do not persist armed/suspended state. Stop only owned sockets, mappings, capture and timers; do not reset shared ADB, remove foreign mappings or change drivers for routine reconnect.
+Windows enables gyro mouse control in First person and Enhanced first person by default. A validated connection, either first-person mode, available capture and fresh valid rotation data are required; the first pose sets a baseline before movement. Control works on the desktop, ordinary applications, games and VRization's own window regardless of foreground-window changes, with no five-second target-window deadline. A temporary sensor gap stops output and rebaselines on fresh poses before continuing. **F8**, the PC emergency stop, editor entry, PC Reset all settings, capture-region selection, capture/input failure and stream Stop latch a pause: late poses, settings and reconnecting cannot clear it. Click **Resume gyro control** on the PC, or explicitly turn the control checkbox off and on, to resume. Full screen and Cinema stop mouse output. The PC saves only the enabled preference, never the live armed state or pause latch. `HostServer(..., auto_control=False)` and `PoseController(..., auto_control=False)` preserve manual behavior for embedders; the GUI opts into its saved `input.json` preference (`gyro_control_enabled`, default true). Use `HostServer.set_auto_control()` / `PoseController.configure_auto_control()` for local policy changes and `resume_control()` only for explicit PC resume. Do not persist armed/suspended state. Stop only owned sockets, mappings, capture and timers; do not reset shared ADB, remove foreign mappings or change drivers for routine reconnect.
 
 Capture safety follows DXGI semantics: layout / identity changes, access loss and fatal resource failures stop that capture session. `ProtectedContentMaskedOut` reports an image whose protected regions Windows already blacked out; continue only that OS-masked surface and record the condition once. Never unmask pixels or fall back to another backend to recover them. A failed initial hardware run is not a passing connection / video check; retest the final packaged build and record its exact scope. See [capture architecture](docs/ARCHITECTURE.md).
 
@@ -92,7 +98,7 @@ Build Windows using `scripts/build-windows.ps1` with an absolute Python path; it
 
 Before calling a connection fix accepted, exercise the actual packaged launcher and phone app: phone first, PC first, either side's explicit Connect, multiple Disconnect/reconnect cycles with the cable left in place, host close/reopen, timeout, late callbacks and background/foreground. After Disconnect, verify host viewer ownership is released, frame count stops, phone output clears and pose input stops; wait long enough to catch late callbacks. Confirm repeated PC requests do not reset an already active session. Synthetic tests use an original image source and a fake input sink; real screen capture and mouse tests need their authorized scope. Record device/build/hash, exact result and remaining limits in [validation](docs/VALIDATION.md).
 
-All three modes use the same saved per-eye display bounds. Test Full, Cinema and First person after editing, Save/Discard, reconnect and restart. Preserve mirrored horizontal eye spacing, contact at the middle seam, local preferences, PC/phone saved-setting synchronization and English as the default. Link RTT, decoded FPS and local texture-upload time are distinct measurements; none alone is end-to-end latency.
+All four modes honor saved per-eye display bounds. Enhanced mode uses physical 1:1 square fit rather than the source aspect. Test Full, Cinema, First person and Enhanced first person after editing, Save/Discard, reconnect and restart; include rectangular/portrait sources, viewport rotation, FOV limits and no-sensor enhanced viewing. Preserve mirrored horizontal eye spacing, contact at the middle seam, local preferences, PC/phone saved-setting synchronization and English as the default. Link RTT, decoded FPS and local texture-upload time are distinct measurements; none alone is end-to-end latency.
 
 ### Public Android signing gate
 
@@ -139,6 +145,13 @@ and stop pose. Old retries, callbacks and intents must not revive it. Inspect
 iOS independently and do not infer physical-iPhone results from Android or a
 Simulator. Preserve the GUI's default-enabled local gyro preference, manual embedding default, F8 pause latch and explicit PC resume action.
 
+Preserve all four modes. Enhanced first person uses physical 1:1 squares and
+GPU inverse angular mapping; scale/movement must not unlock the aspect ratio.
+Retain saved fit/editor semantics, negotiated enhanced capabilities and legacy
+fps fallback without losing the local enhanced profile. Match all three pure
+projection helpers to their shaders. Preserve existing files; keep any requested
+SteamVR experimental version separate from ordinary VRization and its evidence.
+
 Make the smallest modular fix and run relevant synthetic regressions, then
 test the authorized actual packaged BAT/EXE/APK with repeated reconnects while
 USB stays plugged in. Record what was actually tested and what remains open;
@@ -159,7 +172,7 @@ validation records before handing the result back.
 
 逐文件的生产模块职责、重要入口和移植边界见[模块目录](docs/MODULES.md)。
 
-本指南对应 **v0.3.4-alpha**，应用版本 **0.3.4**、手机构建号 **7**；可复用 Android AAR 不变。Windows 界面默认开启所有前台窗口中的第一人称陀螺仪鼠标，并保留本地紧急停止／编辑器／故障／Stop 暂停锁。已完成软件／打包／原生模拟器检查与未验证真机／高级界面范围见 [验证](docs/VALIDATION.md) 和 [发布说明](docs/RELEASE_NOTES.md)，准确 [发行文件与清单](https://github.com/LexZeon/VRization/releases/tag/v0.3.4-alpha) 用于确认二进制；[v0.3.3 检查](docs/releases/v0.3.3-alpha.md) 仍为历史，源码／构建通过不代表硬件／游戏验收。
+本指南对应 **v0.4.0 开发中**，应用版本 **0.4.0**、手机构建号 **8**；第四模式新增固定正方形 GPU 投影与显式加强能力协商。Android 核心 AAR 的设置、几何与渲染发生变化，不能把 v0.3.4 的未改 AAR 当成新核心。新版检查目前在 [验证](docs/VALIDATION.md) 待完成；[已发布 v0.3.4 说明](docs/releases/v0.3.4-alpha.md) 保留准确已完成证据，旧源码／构建通过不能证明新模式。保留全部文件与历史发布，另行 SteamVR 实验版本仍为计划。
 
 源码根目录应是包含 `desktop/`、`android/`、`ios/` 和受 Git 跟踪源码的 checkout。修改前运行 `git status --short` 与 `git ls-files`；新初始化的空目录不是完整项目。`artifacts/` 是构建／测试产物，不是权威源码。可运行本地档案通常在 `%USERPROFILE%/Documents/VRization-Releases/`：`versions/<tag>/` 保留每个公开版本，`latest/` 是当前已解压副本，`tools/` 放另行安装的 USB 工具。二进制身份以仓库发布说明与校验清单为准，不能只看文件夹名称。
 
@@ -181,6 +194,12 @@ validation records before handing the result back.
 | `ios/Sources/VRizationCore/` | Foundation 协议、分帧、设置同步、代际门控、姿态和适配数学。 | 复用不含 UIKit／Metal／Core Motion 的本地 Swift 包。 |
 | `ios/VRizationApp/` | URLSession／Network 传输、JPEG 解码、Core Motion、UIKit 和 Metal。 | 平台适配层；保留代际检查与后台释放。 |
 | `scripts/`、`.github/workflows/build.yml` | 构建、打包、归档、检查和发布门槛。 | 构建成功与发行验收分别记录。 |
+
+### 加强投影与能力边界
+
+线上模式为 `fps_enhanced`，保留协议 v1／配置 schema 2；用局域网 `enhancedFirstPerson=1` 和客户端 hello capabilities 协商 `enhanced-first-person`。主机 hello 与每条设置回复携带单独协商布尔值，不放入设置字典；声明能力但未协商的旧 USB hello 后，等 true 完整快照才恢复配置。旧观看端收 `fps`，新手机连旧电脑保留本地加强配置／渲染但发 `fps`，见 [完整协议约定](docs/PROTOCOL.md)。
+
+纯映射在 Python `enhanced_projection.py`（`source_point`／`texture_uv`）、Android `EnhancedProjection.source` 和 Swift `EnhancedProjection.sample`；手机 GLES／Metal 在 GPU 上用相同数学，电脑编辑器是有界网格近似，不是新编码器或额外采集。正方形比例须在共享核心几何／编辑器／观看器一致解析，不能只隐藏比例滑块；加强模式允许无传感器渲染，旧模式回退行为保留。两种第一人称共用输入策略并重建基准，模式／能力／设置变化不能解除 Stop／F8 暂停锁。保留准确 OpenCV 数学来源鸣谢，不冒称附带代码，见 [投影教程](docs/ENHANCED_FIRST_PERSON.md)。
 
 ### 调用关系与所有权
 
@@ -214,7 +233,7 @@ Android 有两个身份：用户的整次连接尝试，以及其中单个 socke
 
 `VrRenderer.submitFrame(bitmap)` 转移 Bitmap 所有权。清会话时拒绝旧会话新交付、回收待显示槽，并在 GL 线程使已显示纹理失效；正在进行的旧 GL 上传不能重新恢复过期纹理。提交给渲染器后不要再回收该 Bitmap。iOS 同样先失效代际，再取消传输，并在显示前拒绝旧解码图片。接收／解码不阻塞界面线程，队列保持有界。
 
-Windows 默认开启第一人称陀螺仪鼠标控制。必须有通过校验的连接、第一人称模式、可用采集与新的合法旋转姿态；首条姿态先建立基准，再产生移动。桌面、普通应用、游戏和 VRization 自身窗口均可控制，不受前台窗口切换影响，也不要求五秒内切到目标窗口。传感器短暂间断时停止输出，新姿态先重建基准再继续。**F8**、电脑紧急停止、进入编辑器、电脑重置全部设置、选择采集区域、采集／输入故障和停止串流会锁定暂停；迟到姿态、设置与重连都不能解除。需要在电脑点“**恢复陀螺仪控制**”，或主动关闭再开启控制复选框。全屏和大屏幕停止鼠标输出。电脑只保存启用偏好，不保存实时授权状态或暂停锁。 `HostServer(..., auto_control=False)` 与 `PoseController(..., auto_control=False)` 保留嵌入时手动行为；界面采用 `input.json` 中保存的 `gyro_control_enabled`（默认 true）。本地策略变化用 `HostServer.set_auto_control()`／`PoseController.configure_auto_control()`，只有电脑主动恢复才调用 `resume_control()`；不保存授权／暂停状态。只停止自有 socket、映射、采集与定时器，不以重启共享 ADB、删他人映射或改驱动处理日常重连。
+Windows 默认开启第一人称与加强第一人称的陀螺仪鼠标控制。必须有通过校验的连接、任一第一人称模式、可用采集与新的合法旋转姿态；首条姿态先建立基准，再产生移动。桌面、普通应用、游戏和 VRization 自身窗口均可控制，不受前台窗口切换影响，也不要求五秒内切到目标窗口。传感器短暂间断时停止输出，新姿态先重建基准再继续。**F8**、电脑紧急停止、进入编辑器、电脑重置全部设置、选择采集区域、采集／输入故障和停止串流会锁定暂停；迟到姿态、设置与重连都不能解除。需要在电脑点“**恢复陀螺仪控制**”，或主动关闭再开启控制复选框。全屏和大屏幕停止鼠标输出。电脑只保存启用偏好，不保存实时授权状态或暂停锁。 `HostServer(..., auto_control=False)` 与 `PoseController(..., auto_control=False)` 保留嵌入时手动行为；界面采用 `input.json` 中保存的 `gyro_control_enabled`（默认 true）。本地策略变化用 `HostServer.set_auto_control()`／`PoseController.configure_auto_control()`，只有电脑主动恢复才调用 `resume_control()`；不保存授权／暂停状态。只停止自有 socket、映射、采集与定时器，不以重启共享 ADB、删他人映射或改驱动处理日常重连。
 
 采集遵循 DXGI 语义：布局／身份改变、访问丢失和致命资源失败停止当前采集会话。`ProtectedContentMaskedOut` 表示 Windows 已将图像中受保护区域置黑，只继续使用该系统遮罩 surface、记录一次状态，不解除遮罩，也不换后端恢复这些像素。首次硬件运行失败不等于连接／视频通过，应重新检查最终打包程序并记录准确范围。见[采集架构](docs/ARCHITECTURE.md)。
 
@@ -242,7 +261,7 @@ Windows 用 `scripts/build-windows.ps1` 和绝对 Python 路径构建，输出 `
 
 宣告连接修复验收前，要操作实际打包启动器和手机应用：手机先开、电脑先开、任一端主动连接、USB 不拔线反复断开／重连、电脑端关闭／重开、超时、晚到回调、后台／前台。断开后确认电脑观看端所有权释放、帧数停止、手机画面清空与姿态输入停止，等待足够时间捕捉晚到回调。重复电脑请求不能重置已活动会话。合成测试使用原创图片源和假输入接收器；实际屏幕采集与鼠标测试需在对应已授权范围内。将设备／构建／哈希、准确结果和剩余边界写入 [验证记录](docs/VALIDATION.md)。
 
-三个模式共用已保存的单眼显示范围。编辑、保存／放弃、重连与重启后分别检查全屏、大屏幕和第一人称。保留镜像水平眼间距、中缝接触、本地偏好、电脑／手机保存设置同步和默认英文。链路 RTT、解码 FPS、手机纹理上传时间是不同指标，单独任何一个都不是端到端延迟。
+四个模式都遵守已保存的单眼显示范围；加强模式用物理 1:1 正方形适配而不是源图比例。编辑、保存／放弃、重连与重启后分别检查全屏、大屏幕、第一人称和加强第一人称，包括矩形／竖屏源、视口旋转、FOV 边界和无传感器加强观看。保留镜像水平眼间距、中缝接触、本地偏好、电脑／手机保存设置同步和默认英文。链路 RTT、解码 FPS、手机纹理上传时间是不同指标，单独任何一个都不是端到端延迟。
 
 ### Android 公开签名门槛
 
@@ -285,6 +304,11 @@ CHANGELOG.md。先检查 Git 状态、当前版本与实际发行清单，保留
 关闭传输、释放主机观看端所有权、清画面并停姿态。旧重试、回调和 intent
 不能重新恢复会话。单独核查 iOS，不能从 Android 或模拟器推导真实 iPhone
 结果。保留界面默认开启的本地陀螺仪偏好、嵌入时手动默认、F8 暂停锁和电脑主动恢复操作。
+
+保留四种模式；加强第一人称用物理 1:1 正方形与 GPU 逆角度映射，缩放／移动
+不能解除比例。保留已存适配／编辑语义、协商加强能力和旧 fps 回退，不丢失
+本地加强配置；三端纯投影辅助须匹配着色器。保留已有文件，用户要求的
+SteamVR 实验版本与普通 VRization 及其证据分开。
 
 做最小模块化修复，运行有关合成回归，再按授权操作实际打包的 BAT／EXE／APK，
 在 USB 不拔线情况下反复重连。记录真正完成的测试与待验证内容，不能把未验证

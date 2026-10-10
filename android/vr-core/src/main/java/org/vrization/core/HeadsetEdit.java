@@ -9,7 +9,9 @@ public final class HeadsetEdit {
     private void requireActive() { if (!active) throw new IllegalStateException("Editor already closed"); }
     public VrSettings draft() { requireActive(); return draft.copy(); }
     public VrSettings preview() {
-        VrSettings value = draft(); value.mode = "full"; value.distortion = 0; return value;
+        VrSettings value = draft();
+        if (!VrSettings.ENHANCED_FIRST_PERSON.equals(value.mode)) { value.mode = "full"; value.distortion = 0; }
+        return value;
     }
     public void update(VrSettings geometry) {
         requireActive(); draft.scale = geometry.scale; draft.offsetX = geometry.offsetX; draft.offsetY = geometry.offsetY;

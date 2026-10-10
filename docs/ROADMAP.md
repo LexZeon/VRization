@@ -30,6 +30,14 @@ New GUI users get the 640 / 60 FPS / Q45 low-latency preset; stable, quality and
 
 Cloud builds compile simulator and device SDKs and exercise the native iOS Simulator over a synthetic stream and simulated usbmux service. Physical iPhone installation still needs Apple signing, and real iPhone USB / motion remains unverified. Huawei Android hardware checks are tracked separately in [validation](VALIDATION.md); neither path establishes headset optics, game compatibility or measured motion-to-photon latency.
 
+### v0.4.0 Enhanced first person — development
+
+The fourth mode adds fixed 1:1 eye squares, GPU angular image remapping, scalable/movable fit, mirrored spacing, persistent Save/Discard and explicit compatibility fallback. It keeps both first-person modes on the existing local gyro/F8/Resume policy. New-version validation is pending; the [projection guide](ENHANCED_FIRST_PERSON.md) separates the display effect from native stereo depth.
+
+### Separate SteamVR experiment — planned
+
+Preserve all existing source, files and published downloads before creating a separate experimental version. SteamVR integration needs an explicit engine/driver boundary and its own tests; it is not implemented by the new phone-viewing mode and no SteamVR package is offered here. Keep ordinary VRization usable independently and record experimental results separately.
+
 ### Next candidates
 
 1. Broader physical Android derivative / phone-viewer tests and the first real iPhone USB / motion checks; improved sensor mapping.
@@ -77,6 +85,14 @@ USB 已是默认偏好：Android 经官方 ADB reverse 发现已授权真实设�
 新界面用户默认低延迟 640 / 60 FPS / 质量 45，另有稳定、画质和自定义预设；已有捕获配置继续生效。最新帧处理、Android 按需渲染及接收帧率 / ping RTT 便于诊断，不代表端到端延迟基准或保证游戏帧率。
 
 云端编译模拟器 / 真机 SDK，并经合成串流与模拟 usbmux 服务运行原生 iOS 模拟器。真实 iPhone 安装仍须 Apple 签名，真实 iPhone USB / 姿态尚未验证。华为 Android 实机检查另见 [验证记录](VALIDATION.md)；两条路径均不证明盒子镜片、游戏兼容或运动到光子延迟已经通过。
+
+### v0.4.0 加强第一人称——开发中
+
+第四模式新增固定 1:1 双眼正方形、GPU 角度变形、可缩放／移动适配、镜像间距、本地保存／放弃及显式兼容回退；两种第一人称共用现有本地陀螺仪／F8／恢复策略。新版验证待完成，[投影教程](ENHANCED_FIRST_PERSON.md) 区分显示效果与原生立体深度。
+
+### 独立 SteamVR 实验——计划
+
+先保留全部现有源码、文件和发布下载，再创建独立实验版本；SteamVR 集成需要明确引擎／驱动边界及独立测试，不由新手机观看模式实现，此处没有 SteamVR 下载。普通 VRization 保持可独立使用，实验结果单独记录。
 
 ### 下一阶段候选
 

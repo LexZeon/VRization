@@ -17,6 +17,12 @@ final class SettingsJson {
     static JSONObject encodeForHost(VrSettings value, boolean supportsStabilization) {
         return new JSONObject(SettingsValues.encodeForHost(value, supportsStabilization));
     }
+    static JSONObject encodeForHost(VrSettings value, boolean supportsStabilization, boolean supportsEnhanced) {
+        return new JSONObject(SettingsValues.encodeForHost(value, supportsStabilization, supportsEnhanced));
+    }
+    static VrSettings decodeFromHost(JSONObject json, VrSettings base, boolean supportsEnhanced) {
+        return SettingsValues.decodeFromHost(fields(json), base, supportsEnhanced);
+    }
     static VrSettings decode(JSONObject json, VrSettings base) {
         return SettingsValues.decode(fields(json), base, false);
     }

@@ -7,6 +7,10 @@
 
 Download published assets and `SHA256SUMS.txt` from [GitHub Releases](https://github.com/LexZeon/VRization/releases). Use the application versions listed for that release: a host-only patch can intentionally retain older phone assets. Published alpha builds have the limitations recorded in [release notes](RELEASE_NOTES.md) and [compatibility records](COMPATIBILITY.md).
 
+### v0.4.0 development and preserved downloads
+
+Enhanced first person is being prepared as a separate v0.4.0 release. Until published, use the explicitly identified development build rather than assuming older downloads contain it. Its protocol capability is separate from settings schema 2; see [projection and fallback](ENHANCED_FIRST_PERSON.md). Keep all existing files, published assets, signed APK data and historical checksums. A separate SteamVR experimental version is planned, not an existing download.
+
 ### v0.3.4-alpha: default-enabled First-person control
 
 Windows, Android and iOS applications are **0.3.4**, mobile build **7**; the reusable Android core AAR is unchanged. Protocol v1/settings schema 2 remain compatible, including phone 0.3.3 messages. Windows saves the default-enabled First-person gyro mouse preference across desktop/application/game windows, with latched F8/editor/failure/Stop and explicit PC Resume. The new mobile notices explain that policy. Use [this release's assets/manifest](https://github.com/LexZeon/VRization/releases/tag/v0.3.4-alpha) and [verification limits](RELEASE_NOTES.md). Preserve matching-signer Android data, the complete Windows ZIP, checksums and independent USB tools. iOS remains source/Mac Simulator output, not a signed iPhone installer. The Windows ZIP includes the bilingual [AI handoff](../AI_HANDOFF.md). Use the archive instructions below to save verified versions locally.
@@ -75,6 +79,10 @@ v0.2.0-alpha preceded the v0.3 editor / reset / profile release; v0.3.1-alpha is
 ## 简体中文
 
 从 [GitHub Releases](https://github.com/LexZeon/VRization/releases) 下载已发布产物及 `SHA256SUMS.txt`，使用该次发布明确列出的应用版本；仅修复电脑端的补丁可以有意保留较早手机产物。Alpha 版限制见 [发布说明](RELEASE_NOTES.md) 与 [兼容性记录](COMPATIBILITY.md)。
+
+### v0.4.0 开发与保留下载
+
+加强第一人称准备单独作为 v0.4.0 发布；发布前需使用明确标注的开发构建，不能假定旧下载包含它。模式能力与配置 schema 2 分开，见 [投影与回退](ENHANCED_FIRST_PERSON.md)。保留全部已有文件、发布产物、同签名 APK 数据与历史哈希；另行计划 SteamVR 实验版本，目前没有对应下载。
 
 ### v0.3.4-alpha：默认开启第一人称控制
 

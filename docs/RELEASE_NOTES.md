@@ -1,63 +1,55 @@
-# 🎯 VRization v0.3.4-alpha — release notes / 发布说明
+# 🌀 VRization v0.4.0 — development notes / 开发说明
 
 [English](#english) · [简体中文](#简体中文)
 
 <!-- vrization:english -->
 ## English
 
-Windows, Android and iOS applications are **0.3.4**, mobile build **7**; the reusable Android core AAR is unchanged. Published **2026-10-10 UTC** as [v0.3.4-alpha](https://github.com/LexZeon/VRization/releases/tag/v0.3.4-alpha). Protocol v1/settings schema 2 are unchanged. The [v0.3.3 notes](releases/v0.3.3-alpha.md) preserve the connection repair's earlier checks.
+Windows, Android and iOS applications target **0.4.0**, mobile build **8**. This version is in development; publication and verification are pending. The [published v0.3.4 notes](releases/v0.3.4-alpha.md) and all historical downloads/checksums remain preserved. Protocol v1 and the eleven-field settings schema 2 remain; enhanced-mode support is negotiated separately.
 
-### Default-enabled continuous gyro mouse control
+### Fourth mode: Enhanced first person
 
-Windows enables First-person gyro mouse control by default. A validated connection, First-person mode, available capture and fresh valid rotation data are required; the first pose sets a baseline before movement. Control works on the desktop, ordinary applications, games and VRization's own window regardless of foreground-window changes, with no five-second target-window deadline. A temporary sensor gap stops output and rebaselines on fresh poses before continuing. **F8**, the PC emergency stop, editor entry, PC Reset all settings, capture-region selection, capture/input failure and stream Stop latch a pause: late poses, settings and reconnecting cannot clear it. Click **Resume gyro control** on the PC, or explicitly turn the control checkbox off and on, to resume. Full screen and Cinema stop mouse output. The PC saves only the enabled preference, never the live armed state or pause latch.
+- Every eye has a fixed **1:1 physical square**. The same 2D desktop texture is resampled into it and given a curved wide-angle appearance by original GPU inverse equidistant sampling on Android GLES and iOS Metal.
+- Existing scale, offsets and mirrored eye spacing remain adjustable. Corner resizing preserves the square; **Save/Discard**, local committed preferences and connected PC/phone synchronization retain their existing boundaries.
+- The enhanced editor keeps the square and warp visible. Windows uses an approximate mesh over the existing latest frame at up to 10 preview updates/second; phone rendering uses the actual GPU projection. Older Cinema fitting retains its flat preview.
+- Existing **FOV 50–110° (default 80°)** changes the warp span. Out-of-source samples are black, producing curved/black corners. No new setting field or OpenCV runtime dependency is added. [Projection details and tutorial](ENHANCED_FIRST_PERSON.md).
+- Full screen, Cinema and ordinary First person retain their existing presentations. Enhanced viewing can work without a rotation sensor; that device cannot drive the gyro mouse. Both first-person modes use the same default-enabled Windows policy, sensitivity/stabilization and latched **F8 / PC Resume**. Mode changes, Save and reconnect do not clear a pause latch.
 
-The PC checkbox is **Gyro mouse control in First-person (default on)**. Turning it off disables automatic input; turning it on is an explicit local resume. The saved `gyro_control_enabled` boolean lives in `input.json`, separate from VR settings and phone profiles. Existing valid saved off preferences remain off. PC Reset all settings latches input paused and restores the enabled preference and Full screen, without starting capture. Selecting a capture region also latches a pause. Use PC Resume when ready.
+### Mixed-version negotiation
 
-### Stopping and compatibility
+`fps_enhanced` is sent only after enhanced support is negotiated. LAN clients opt in with `enhancedFirstPerson=1`; client hello can send `capabilities:["enhanced-first-person"]`. Host hello advertises support, and hello/every settings snapshot explicitly confirm the negotiated `enhancedFirstPerson` boolean. After a legacy USB hello, the new phone waits for a true full snapshot before restoring an enhanced profile. A new host maps enhanced settings to ordinary `fps` for an old client; a new phone sends `fps` to an old host while retaining its own enhanced profile/rendering. Schema 2 alone does not grant the new mode. See [Protocol](PROTOCOL.md).
 
-- Cable detection alone does not start capture/control. Explicit Connect on either USB endpoint still coordinates streaming; Disconnect closes its owned transport and stops video/pose output.
-- Full screen/Cinema do not drive the mouse. A reconnect must not clear an existing F8/editor/failure/Stop pause.
-- Reusable `HostServer`/`PoseController` constructors retain `auto_control=False`; the GUI opts into the saved default-enabled policy. Integrations use host-local policy/resume APIs, without a new remote arm/resume message.
-- Android/iOS notices explain the Windows default and F8/PC Resume. Existing phone 0.3.3 remains protocol-compatible. Stabilization stays at 0% by default and its slider cannot clear a pause latch.
-- Games may reject ordinary injected mouse input; this release does not bypass game protections or add native game stereo.
+### Provenance, validation and future work
 
-### Verification and update scope
+The user reference image informed the style only and is not redistributed. The [OpenCV 4.12.0 mathematical reference](../licenses/references/README.md#enhanced-first-person-projection) records authors, exact tag, document/source links and the root Apache/source BSD distinction; no upstream code or binaries are incorporated. VRization's mapping and square-fit implementation are original MIT code.
 
-Source `101174317613520c7d98375332c2a3bd9032cb2d` passed **318 Windows tests** and **116 clean Android tests (67 app + 49 core)**, with no failures/ignored cases. Android APK/AAR/instrumentation builds and lint passed: zero lint errors, nine CI warnings (eight existing local warnings plus OldTargetApi from the CI SDK inventory), with no warning suppression. The frozen EXE source/native/license audit and clean-profile Windows ZIP runtime smoke check passed. Huawei installed **0.3.4 / build 7** with the existing public certificate; its pulled installed APK matches the release APK hash. All four [CI jobs](https://github.com/LexZeon/VRization/actions/runs/38081097956) passed; iOS passed 80 Swift core tests with zero failures, five genuine native UI cases with zero failures/skips, and both Simulator/unsigned device-target SDK builds. Independent screenshot decoding passed 12 color pixel checks and two seam checks; all 12 host checkpoints recorded no mouse moves. The tested app is 0.3.4/build 7/arm64/minimum iOS 15 on an iPhone 17 Pro Max Simulator running iOS 26.2 (Xcode 26.3/macOS 15.7.9); USB was simulated. See [the complete versioned record](VALIDATION.md).
+New-version source/build/package, native rendering and physical-device results are **pending** in [Validation](VALIDATION.md). Earlier test counts and performance results do not establish this mode's GPU output, real-phone frame rate, game feel or latency. iOS source/Simulator outputs are not signed iPhone installers. All existing files and historical releases are retained. A separate SteamVR experimental version is **planned**, not this mode or an implemented SteamVR driver. See [Roadmap](ROADMAP.md).
 
-The advanced Windows GUI check stopped after the user physically pressed Escape; actual GUI Resume/F8 is not claimed. New-version physical gyro control, game feel, video delivery, physical iPhone USB and latency were not tested. Historical performance results retain their own versions and configurations.
-
-Close the old host, extract the complete Windows archive and retain separately installed USB tools. Android matching-signer updates preserve application data; verify with the official public certificate gate and release manifest. iOS source requires Xcode and the owner's Apple signing; the Mac Simulator archive cannot install on an iPhone. Existing published binaries and historical checksums remain immutable.
-
-[Quick start](QUICKSTART.md) · [Security](../SECURITY.md) · [Stabilization](STABILIZATION.md) · [AI handoff](../AI_HANDOFF.md) · [Changelog](../CHANGELOG.md)
+[Quick start](QUICKSTART.md) · [Editor](EDITING.md) · [AI handoff](../AI_HANDOFF.md) · [Changelog](../CHANGELOG.md)
 
 ---
 
 <!-- vrization:chinese -->
 ## 简体中文
 
-Windows、Android 与 iOS 应用为 **0.3.4**、手机构建号 **7**；可复用 Android 核心 AAR 不变。按 **UTC 2026-10-10** 发布为 [v0.3.4-alpha](https://github.com/LexZeon/VRization/releases/tag/v0.3.4-alpha)。协议 v1／配置 schema 2 不变，[v0.3.3 说明](releases/v0.3.3-alpha.md) 保留此前连接修复的检查。
+Windows、Android 与 iOS 应用目标版本 **0.4.0**，手机构建号 **8**。本版开发中，发布与验证待完成；[已发布 v0.3.4 说明](releases/v0.3.4-alpha.md) 和全部历史下载／哈希保持保留。协议仍 v1，十一字段配置 schema 仍 2，新模式能力单独协商。
 
-### 默认开启且持续响应的陀螺仪鼠标
+### 第四模式：加强第一人称
 
-Windows 默认开启第一人称陀螺仪鼠标控制。必须有通过校验的连接、第一人称模式、可用采集与新的合法旋转姿态；首条姿态先建立基准，再产生移动。桌面、普通应用、游戏和 VRization 自身窗口均可控制，不受前台窗口切换影响，也不要求五秒内切到目标窗口。传感器短暂间断时停止输出，新姿态先重建基准再继续。**F8**、电脑紧急停止、进入编辑器、电脑重置全部设置、选择采集区域、采集／输入故障和停止串流会锁定暂停；迟到姿态、设置与重连都不能解除。需要在电脑点“**恢复陀螺仪控制**”，或主动关闭再开启控制复选框。全屏和大屏幕停止鼠标输出。电脑只保存启用偏好，不保存实时授权状态或暂停锁。
+- 每眼固定 **1:1 物理正方形**，把同一张二维桌面纹理重采样后呈现弯曲广角效果；Android GLES 与 iOS Metal 通过原创 GPU 逆等距采样实现。
+- 仍可调缩放、偏移与镜像眼间距，角点缩放保持正方形；**保存／放弃**、本地已提交偏好和连接时电脑／手机同步沿用原边界。
+- 加强模式编辑器保留正方形及变形预览；Windows 在已有最新帧上用网格近似，预览最高每秒十次，手机使用实际 GPU 投影。旧大屏幕适配继续使用平面预览。
+- 已有 **视场角 50–110°（默认 80°）**改变变形范围；超出源图的采样为黑色，形成弯曲／黑角。不新增设置字段或 OpenCV 运行依赖，见 [投影与教程](ENHANCED_FIRST_PERSON.md)。
+- 全屏、大屏幕、普通第一人称保留原有显示；加强模式在无旋转传感器时仍可观看，但该设备无法进行陀螺仪鼠标控制。两种第一人称共用 Windows 默认启用策略、灵敏度／防抖及锁定的 **F8／电脑恢复**；切模式、保存和重连不能解除暂停锁。
 
-电脑复选框为“**第一人称陀螺仪鼠标控制（默认开启）**”。关闭停用自动输入，主动开启相当于电脑明确恢复；`gyro_control_enabled` 布尔值单独保存在 `input.json`，与 VR 设置和手机配置分开。已有合法的关闭偏好仍保持关闭；电脑一键重置锁定输入暂停，恢复启用偏好并选择全屏，不开始采集；选择采集区域也锁定暂停，准备好后在电脑点恢复。
+### 混合版本协商
 
-### 停止与兼容性
+`fps_enhanced` 仅在新模式能力协商完成后发送。局域网客户端以 `enhancedFirstPerson=1` 主动启用，也可在 hello 发送 `capabilities:["enhanced-first-person"]`；主机 hello 声明支持，hello／每条设置快照都以 `enhancedFirstPerson` 布尔值明确确认协商。旧格式 USB hello 后，新手机等待 true 完整快照再恢复加强配置。新版电脑向旧客户端把加强模式映射成普通 `fps`；新版手机对旧电脑发送 `fps`，自身仍保留加强配置／渲染。schema 2 本身不授予新模式，见 [协议](PROTOCOL.md)。
 
-- 单纯插线／发现设备不启动采集或控制；任一 USB 端主动连接仍协调开始串流，断开关闭自有传输并停止视频／姿态输出。
-- 全屏／大屏幕不控制鼠标；重连不能解除已有 F8／编辑器／故障／Stop 暂停锁。
-- 可复用 `HostServer`／`PoseController` 构造器保留 `auto_control=False`，界面采用保存的默认启用策略；集成通过电脑本地策略／恢复 API 操作，不增加远程授权／恢复消息。
-- Android／iOS 提示解释电脑默认启用及 F8／电脑恢复；已有手机 0.3.3 协议仍兼容。防抖默认仍为 0%，滑块不能解除暂停锁。
-- 游戏可能拒绝普通模拟鼠标，本版不绕过游戏保护，也不新增原生游戏立体画面。
+### 来源、验证与后续方向
 
-### 验证与更新范围
+用户参考图仅用于理解风格，不再发布。[OpenCV 4.12.0 数学参考记录](../licenses/references/README.md#enhanced-first-person-projection) 写明作者、准确标签、文档／源码地址及根 Apache／文件 BSD 区别，没有采用上游代码或二进制；VRization 的映射与正方形适配为 MIT 原创实现。
 
-源码 `101174317613520c7d98375332c2a3bd9032cb2d` 通过 **318 项 Windows** 和 **116 项干净 Android 测试（应用 67＋核心 49）**，无失败／忽略。Android APK／AAR／测试工具构建及 lint 通过：零 lint 错误、九项 CI 警告（八项既有本地警告，加 CI SDK 清单产生的 OldTargetApi），未抑制警告。冻结 EXE 源码／原生／许可审计与新偏好 Windows ZIP 运行 smoke 通过；华为使用原公开证书安装 **0.3.4／构建 7**，拉取的已安装 APK 与发布哈希一致。[四项 CI 任务](https://github.com/LexZeon/VRization/actions/runs/38081097956) 通过，iOS 通过 80 项 Swift 核心（零失败）、五项真实原生界面（零失败／跳过）及模拟器／未签名真机目标两种 SDK 构建；独立解码截图通过 12 项颜色像素及两项接缝检查，12 个电脑检查点均无鼠标移动。测试应用为 0.3.4／构建 7／arm64／最低 iOS 15，环境为 iPhone 17 Pro Max 模拟器 iOS 26.2（Xcode 26.3／macOS 15.7.9），USB 为模拟。完整按版本证据见 [验证记录](VALIDATION.md)。
+新版源码／构建／打包、原生渲染与真机结果目前在 [验证](VALIDATION.md) **待完成**；旧测试数量和性能数字不能证明此模式的 GPU 输出、真机帧率、游戏手感或延迟。iOS 源码／模拟器不是签名 iPhone 安装包。全部已有文件和历史发布保留；另行 **计划** SteamVR 实验版本，不是此模式或已实现的 SteamVR 驱动，见 [路线](ROADMAP.md)。
 
-高级 Windows 界面检查因用户实际按 Escape 而停止，不宣称实际界面 Resume／F8 已验收。新版真机陀螺仪控制、游戏手感、视频传输、真实 iPhone USB 和延迟未测试；历史性能结果仍对应原版本与配置。
-
-关闭旧主机，完整解压 Windows 包并保留另行安装的 USB 工具；同签名 Android 覆盖升级保留应用数据，按官方公开证书门槛及清单验证。iOS 源码需 Xcode 与自己的 Apple 签名，Mac 模拟器包不能安装到 iPhone；已发布二进制和历史校验值保持不变。
-
-[快速开始](QUICKSTART.md) · [安全](../SECURITY.md) · [防抖](STABILIZATION.md) · [AI 接手](../AI_HANDOFF.md) · [版本日志](../CHANGELOG.md)
+[快速开始](QUICKSTART.md) · [编辑器](EDITING.md) · [AI 接手](../AI_HANDOFF.md) · [版本日志](../CHANGELOG.md)

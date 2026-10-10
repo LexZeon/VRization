@@ -32,6 +32,7 @@ import okhttp3.WebSocketListener;
 import okio.ByteString;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.json.JSONArray;
 import org.vrization.core.VrSettings;
 import org.vrization.core.SocketAttempt;
 import org.vrization.core.UsbConnectionAttempt;
@@ -72,6 +73,8 @@ final class StreamClient {
     private volatile boolean connected;
     private volatile boolean connecting;
     private volatile boolean stabilizationSupported;
+    private volatile boolean enhancedSupported;
+    private volatile boolean pendingEnhancedSnapshot;
     private Call discovery;
     private Runnable helloDeadline;
     private Runnable usbRetry, usbDeadline;
@@ -100,6 +103,8 @@ final class StreamClient {
     boolean isActive() { return connected || connecting; }
     boolean isAutomaticUsbAttempt() { return usbAttempt.isAutomatic(); }
     boolean supportsStabilization() { return stabilizationSupported; }
+    boolean supportsEnhancedFirstPerson() { return enhancedSupported; }
+    boolean waitsForEnhancedSnapshot() { return pendingEnhancedSnapshot; }
     /** Phone-local diagnostic: counts real decoded frames handed to the view during this instance. */
     long deliveredFrameCount() { return deliveredFrames.get(); }
 
@@ -235,7 +240,8 @@ final class StreamClient {
 
     private void openSocket(String host, int port, String code, long connectionEpoch, boolean usb) {
         HttpUrl url = new HttpUrl.Builder().scheme("http").host(host).port(port)
-            .addPathSegment("ws").addQueryParameter("token", code).addQueryParameter("settingsSchema", "2").build();
+            .addPathSegment("ws").addQueryParameter("token", code).addQueryParameter("settingsSchema", "2")
+            .addQueryParameter("enhancedFirstPerson", "1").build();
         listener.onStatus(context.getString(R.string.connecting), false);
         final HostSessionGate handshake = new HostSessionGate();
         final long socketEpoch = socketAttempt.start();
@@ -249,7 +255,7 @@ final class StreamClient {
                     main.postDelayed(helloDeadline, 10000);
                     try {
                         JSONObject hello = message("hello").put("client", "android").put("device", Build.MODEL)
-                            .put("settingsSchema", 2);
+                            .put("settingsSchema", 2).put("capabilities", new JSONArray().put("enhanced-first-person"));
                         webSocket.send(hello.toString());
                     } catch (JSONException ignored) { }
                 });
@@ -261,6 +267,8 @@ final class StreamClient {
                     JSONObject json = new JSONObject(text);
                     boolean established = handshake.receive(SettingsJson.fields(json));
                     final boolean supportsStabilization = handshake.supportsStabilization();
+                    final boolean supportsEnhanced = handshake.supportsEnhancedFirstPerson();
+                    final boolean waitsForEnhanced = handshake.waitsForEnhancedSnapshot();
                     String type = json.optString("type");
                     if (established) {
                         dispatchSocket(connectionEpoch, socketEpoch, () -> {
@@ -273,6 +281,8 @@ final class StreamClient {
                             helloDeadline = null; connected = true; connecting = false;
                             // Establish capability before the saved profile is sent by this callback.
                             stabilizationSupported = supportsStabilization;
+                            enhancedSupported = supportsEnhanced;
+                            pendingEnhancedSnapshot = waitsForEnhanced;
                             frameStats.newSession(connectionEpoch);
                             ping.reset(); main.removeCallbacks(pingTick); main.post(pingTick);
                             listener.onSessionStarted();
@@ -283,6 +293,7 @@ final class StreamClient {
                         JSONObject incoming = json.getJSONObject("settings");
                         dispatchSocket(connectionEpoch, socketEpoch, () -> {
                             stabilizationSupported |= supportsStabilization;
+                            pendingEnhancedSnapshot = waitsForEnhanced;
                             listener.onSettings(incoming, optionalSequence(json, "revision"), optionalSequence(json, "clientSeq"));
                         });
                     } else if ("error".equals(type)) {
@@ -435,7 +446,7 @@ final class StreamClient {
         frameStats.clear();
     }
     boolean sendSettings(VrSettings settings, long sequence) {
-        try { return send(message("settings").put("settings", SettingsJson.encodeForHost(settings, stabilizationSupported))
+        try { return send(message("settings").put("settings", SettingsJson.encodeForHost(settings, stabilizationSupported, enhancedSupported))
             .put("clientSeq", sequence)); }
         catch (JSONException ignored) { return false; }
     }
@@ -471,6 +482,8 @@ final class StreamClient {
     void disconnect(boolean report) {
         sessions.invalidate(); connected = false; connecting = false;
         stabilizationSupported = false;
+        enhancedSupported = false;
+        pendingEnhancedSnapshot = false;
         stopUsbAttempt();
         main.removeCallbacks(pingTick); ping.reset();
         Call request = discovery; discovery = null;

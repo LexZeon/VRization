@@ -31,7 +31,7 @@
     <string name="connect">Connect</string>
     <string name="disconnect">Disconnect</string>
     <string name="network_notice">Video and controls are unencrypted. Use a trusted LAN. First-person gyro mouse control uses the PC setting, enabled by default. Press F8 on the PC to stop control; Resume on the PC restores it.</string>
-    <string name="sensor_unavailable">No rotation sensor detected. Full mode remains available; Cinema and First-person are disabled.</string>
+    <string name="sensor_unavailable">No rotation sensor detected. Full and Enhanced first person displays remain available; Cinema and ordinary First-person are disabled. Gyro mouse control is unavailable.</string>
     <string name="watch_mode">Viewing mode</string>
     <string name="headset_fit">Headset fit</string>
     <string name="scale">Image scale</string>
@@ -40,7 +40,7 @@
     <string name="eye_separation">Eye separation</string>
     <string name="distortion">Lens distortion</string>
     <string name="cinema_game">Cinema and game controls</string>
-    <string name="fov">Field of view (Cinema)</string>
+    <string name="fov">Field of view (Cinema / Enhanced warp)</string>
     <string name="distance">Screen distance (Cinema)</string>
     <string name="sensitivity">Mouse sensitivity (First-person)</string>
     <string name="stabilization">Gyro stabilization (First-person)</string>
@@ -51,6 +51,7 @@
     <string name="reset_view">Reset display settings</string>
     <string name="edit_headset">Fit headset visually</string>
     <string name="editor_gestures">Inside either eye: drag outward to separate images, inward until their edges meet; up/down moves both. Corners resize proportionally. Near the seam, position and spacing adjust automatically. Flat preview; head controls paused.</string>
+    <string name="editor_gestures_enhanced">Each eye stays square. Drag inside to move the images symmetrically; inward can join their edges. Corners resize proportionally. The wide-angle warp remains visible; head controls are paused.</string>
     <string name="editor_values">Scale %1$.0f%% · Eye spacing %2$.2f · Horizontal %3$.2f · Vertical %4$.2f</string>
     <string name="editor_save">Save</string>
     <string name="editor_discard">Discard</string>
@@ -58,7 +59,9 @@
     <string name="reset_all_done">All phone settings reset: VR defaults, English and USB. Reconnect to send the defaults to the PC.</string>
     <string name="invalid_host_protocol">The PC did not send a valid VRization handshake. Update both apps and connect again.</string>
     <string name="licenses">About and licenses</string>
-    <string name="mode_help">Full and First-person use a fixed image for both eyes. Cinema places the 2D desktop in virtual space. This is not native stereoscopic game rendering. Audio stays on the computer.\nEntering the background disconnects video and stops control. Use the connection button after returning.</string>
+    <string name="mode_help">Full and First-person use a fixed image for both eyes. Cinema places the 2D desktop in virtual space. Enhanced first person maps the entire desktop into a square per eye with curved wide-angle projection. Both first-person modes use the same gyro mouse controls. This is not native stereoscopic game rendering or VR180. Audio stays on the computer.\nEntering the background disconnects video and stops control. Use the connection button after returning.</string>
+    <string name="enhanced_help">Enhanced first person: fixed 1:1 per eye, proportional scale and mirrored movement. Field of view adjusts the GPU warp (default 80°); curved corners are black. It reshapes the existing picture, without adding scene detail.</string>
+    <string name="enhanced_legacy">This PC app uses ordinary First-person controls for compatibility. The phone keeps its enhanced square display and saved choice; update the PC app for enhanced mode synchronization.</string>
     <string name="invalid_port">Port must be an integer between 1 and 65535.</string>
     <string name="invalid_address">Enter a computer IP or hostname and a valid port, without an http:// prefix.</string>
     <string name="invalid_code">Enter the six-digit pairing code shown on the computer.</string>
@@ -87,7 +90,8 @@
     <string-array name="watch_modes">
         <item>Full · fixed stereo image</item>
         <item>Cinema · head-tracked virtual screen</item>
-        <item>First-person · turn your head to control the game</item>
+        <item>First-person · gyro mouse control</item>
+        <item>Enhanced first person · square wide-angle warp</item>
     </string-array>
     <string-array name="languages"><item>English</item><item>中文</item></string-array>
     <string-array name="connection_methods"><item>USB cable · default</item><item>LAN / Wi-Fi · manual pairing</item></string-array>

@@ -44,13 +44,20 @@ public enum HeadsetFit {
         }
         return FitPoint(x: min(1, imageAspect / eyeAspect), y: min(1, eyeAspect / imageAspect))
     }
+    /// Enhanced first-person stretches the entire source into a physical square.
+    /// Keep this choice shared by rendering, editor handles and seam constraints.
+    public static func fit(settings: VRSettings, imageAspect: Double, eyeAspect: Double) throws -> FitPoint {
+        _ = try settings.validated()
+        _ = try fit(imageAspect: imageAspect, eyeAspect: eyeAspect)
+        return try fit(imageAspect: settings.mode == "fps_enhanced" ? 1 : imageAspect, eyeAspect: eyeAspect)
+    }
     /// Resolve the desired placement against the current per-eye aspect ratio.
     /// Negative separation brings small images inward until their inner edges
     /// meet. A common horizontal offset consumes the remaining gap and reaches
     /// zero at contact. Wire/profile values remain independent of capture size.
     public static func resolvedFit(settings: VRSettings, imageAspect: Double, eyeAspect: Double) throws -> VRSettings {
         _ = try settings.validated()
-        let fitted = try fit(imageAspect: imageAspect, eyeAspect: eyeAspect)
+        let fitted = try fit(settings: settings, imageAspect: imageAspect, eyeAspect: eyeAspect)
         let halfWidth = fitted.x * settings.scale
         var result = settings
         result.eyeSeparation = min(0.2, max(halfWidth - 1, settings.eyeSeparation))
@@ -62,7 +69,7 @@ public enum HeadsetFit {
     public static func eyeRect(settings: VRSettings, imageAspect: Double, eyeAspect: Double, eyeSign: Double) throws -> FitRect {
         let resolved = try resolvedFit(settings: settings, imageAspect: imageAspect, eyeAspect: eyeAspect)
         guard eyeSign == -1 || eyeSign == 1 else { throw VRCoreError.invalid("Invalid eye sign") }
-        let fitted = try fit(imageAspect: imageAspect, eyeAspect: eyeAspect)
+        let fitted = try fit(settings: settings, imageAspect: imageAspect, eyeAspect: eyeAspect)
         return FitRect(center: FitPoint(x: resolved.offsetX + eyeSign * resolved.eyeSeparation, y: resolved.offsetY),
                        halfSize: FitPoint(x: fitted.x * resolved.scale, y: fitted.y * resolved.scale))
     }
@@ -81,7 +88,7 @@ public enum HeadsetFit {
         _ = try entry.validated()
         guard delta.x.isFinite, delta.y.isFinite,
               abs(cornerSign.x) == 1, abs(cornerSign.y) == 1 else { throw VRCoreError.invalid("Invalid corner drag") }
-        let fitted = try fit(imageAspect: imageAspect, eyeAspect: eyeAspect)
+        let fitted = try fit(settings: entry, imageAspect: imageAspect, eyeAspect: eyeAspect)
         let next = entry.scale + (cornerSign.x * delta.x * fitted.x + cornerSign.y * delta.y * fitted.y)
             / (fitted.x * fitted.x + fitted.y * fitted.y)
         guard next.isFinite else { throw VRCoreError.invalid("Invalid resize delta") }

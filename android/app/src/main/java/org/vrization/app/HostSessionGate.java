@@ -7,9 +7,12 @@ import org.vrization.core.VrSettings;
 /** A transport opening is not an established protocol session. Fail closed until reconnect. */
 final class HostSessionGate {
     private boolean established, failed;
-    private boolean stabilization;
+    private boolean stabilization, enhanced;
+    private boolean pendingEnhancedSnapshot;
     boolean isEstablished() { return established && !failed; }
     boolean supportsStabilization() { return isEstablished() && stabilization; }
+    boolean supportsEnhancedFirstPerson() { return isEstablished() && enhanced; }
+    boolean waitsForEnhancedSnapshot() { return isEstablished() && pendingEnhancedSnapshot; }
     void fail() { failed = true; }
     @SuppressWarnings("unchecked")
     private static Map<String, Object> object(Object value) {
@@ -33,6 +36,9 @@ final class HostSessionGate {
             Object type = message.get("type");
             if (!(type instanceof String)) throw new IllegalArgumentException("Expected message type");
             sequence(message, "revision"); sequence(message, "clientSeq");
+            Object negotiated = message.get("enhancedFirstPerson");
+            if (message.containsKey("enhancedFirstPerson") && !(negotiated instanceof Boolean))
+                throw new IllegalArgumentException("Invalid enhanced negotiation state");
             if (!established) {
                 if (!"hello".equals(type) || !(message.get("name") instanceof String)
                     || ((String) message.get("name")).isEmpty() || !(message.get("version") instanceof String)
@@ -51,12 +57,19 @@ final class HostSessionGate {
                 }
                 stabilization = settings.containsKey("stabilization")
                     || (capabilities instanceof List && ((List<?>) capabilities).contains("stabilization"));
+                enhanced = capabilities instanceof List && ((List<?>) capabilities).contains("enhanced-first-person");
+                pendingEnhancedSnapshot = enhanced && !Boolean.TRUE.equals(negotiated);
+                if (VrSettings.ENHANCED_FIRST_PERSON.equals(settings.get("mode")) && !enhanced)
+                    throw new IllegalArgumentException("Enhanced mode without host capability");
                 established = true; return true;
             }
             if ("settings".equals(type)) {
                 Map<String, Object> settings = object(message.get("settings"));
                 SettingsValues.decode(settings, new VrSettings(), false);
+                if (VrSettings.ENHANCED_FIRST_PERSON.equals(settings.get("mode")) && !enhanced)
+                    throw new IllegalArgumentException("Enhanced mode without host capability");
                 if (settings.containsKey("stabilization")) stabilization = true;
+                if (Boolean.TRUE.equals(negotiated)) pendingEnhancedSnapshot = false;
             }
             else if ("error".equals(type)) {
                 if (!(message.get("message") instanceof String)) throw new IllegalArgumentException("Invalid host error");

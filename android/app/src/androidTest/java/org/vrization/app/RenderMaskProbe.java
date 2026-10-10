@@ -16,6 +16,7 @@ import java.nio.ByteBuffer;
 import org.vrization.core.HeadsetGeometry;
 import org.vrization.core.VrRenderer;
 import org.vrization.core.VrSettings;
+import org.vrization.core.EnhancedProjection;
 
 /** Default: offscreen GLES2 probe with synthetic pixels and no Activity/network/device input.
  * Optional -e connectionProbe true exercises real USB buttons and streaming, without mouse output.
@@ -37,9 +38,10 @@ public final class RenderMaskProbe extends Instrumentation {
                 result = ConnectionProbe.run(this, "true".equals(String.valueOf(arguments.get("pcStopProbe"))));
                 finish(Activity.RESULT_OK, result); return;
             }
-            int cases = renderCases();
-            result.putInt("renderCases", cases);
-            result.putString("stream", "\nOK (" + cases + " offscreen GLES mask cases, both eyes)\n");
+            int[] cases = renderCases();
+            result.putInt("renderCases", cases[0]); result.putInt("enhancedProjectionSamples", cases[1]);
+            result.putString("stream", "\nOK (" + cases[0] + " offscreen GLES mask cases, both eyes; "
+                + cases[1] + " enhanced projection color samples)\n");
             finish(Activity.RESULT_OK, result);
         } catch (Throwable error) {
             result.putString("stream", "\nFAIL: " + Log.getStackTraceString(error));
@@ -47,7 +49,7 @@ public final class RenderMaskProbe extends Instrumentation {
         }
     }
 
-    private static int renderCases() {
+    private static int[] renderCases() {
         EGLDisplay display = EGL14.eglGetDisplay(EGL14.EGL_DEFAULT_DISPLAY);
         EGLContext context = EGL14.EGL_NO_CONTEXT;
         EGLSurface surface = EGL14.EGL_NO_SURFACE;
@@ -76,11 +78,12 @@ public final class RenderMaskProbe extends Instrumentation {
             renderer.onSurfaceChanged(null, WIDTH, HEIGHT);
             ByteBuffer pixels = ByteBuffer.allocateDirect(WIDTH * HEIGHT * 4);
             int cases = 0;
-            for (float imageAspect : new float[]{1f, .5f}) {
-                Bitmap image = Bitmap.createBitmap(16, imageAspect == 1f ? 16 : 32, Bitmap.Config.ARGB_8888);
+            for (float imageAspect : new float[]{1f, .5f, 16f / 9}) {
+                Bitmap image = Bitmap.createBitmap(imageAspect > 1 ? 32 : 16,
+                    imageAspect > 1 ? 18 : imageAspect == 1f ? 16 : 32, Bitmap.Config.ARGB_8888);
                 image.eraseColor(Color.WHITE);
                 renderer.submitFrame(image);
-                for (String mode : new String[]{"full", "cinema", "fps"})
+                for (String mode : new String[]{"full", "cinema", "fps", VrSettings.ENHANCED_FIRST_PERSON})
                     for (float scale : new float[]{.5f, .85f})
                         for (float offset : new float[]{0f, .1f})
                             for (float distortion : new float[]{0f, .3f})
@@ -104,7 +107,8 @@ public final class RenderMaskProbe extends Instrumentation {
                                     }
                 require(image.isRecycled(), "Renderer did not release transferred Bitmap");
             }
-            return cases;
+            int enhancedSamples = assertEnhancedProjection(renderer, pixels);
+            return new int[]{cases, enhancedSamples};
         } finally {
             renderer.pauseFrames();
             if (initialized) {
@@ -115,6 +119,52 @@ public final class RenderMaskProbe extends Instrumentation {
             }
             EGL14.eglReleaseThread();
         }
+    }
+
+    /** Compare real shader pixels with normalized source coordinates, without CPU frame warping. */
+    private static int assertEnhancedProjection(VrRenderer renderer, ByteBuffer pixels) {
+        Bitmap image = Bitmap.createBitmap(320, 180, Bitmap.Config.ARGB_8888);
+        for (int y = 0; y < image.getHeight(); y++) for (int x = 0; x < image.getWidth(); x++)
+            image.setPixel(x, y, Color.rgb(Math.round(255f * x / (image.getWidth() - 1)),
+                Math.round(255f * y / (image.getHeight() - 1)), 180));
+        renderer.submitFrame(image);
+        float[][] locations = {{0,0}, {.5f,0}, {-.5f,0}, {0,.5f}, {.25f,.5f}, {.8f,.8f},
+            {-.8f,-.8f}, {.99f,.99f}, {-.99f,.99f}};
+        int samples = 0;
+        for (float fov : new float[]{50, 80, 110}) for (float scale : new float[]{.5f, .85f}) {
+            VrSettings settings = new VrSettings(); settings.mode = VrSettings.ENHANCED_FIRST_PERSON;
+            settings.fov = fov; settings.scale = scale;
+            if (scale == .5f) { settings.offsetX = .1f; settings.offsetY = -.12f; settings.eyeSeparation = -.4f; }
+            renderer.setSettings(settings); renderer.onDrawFrame(null);
+            pixels.clear(); GLES20.glReadPixels(0, 0, WIDTH, HEIGHT, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, pixels);
+            require(GLES20.glGetError() == GLES20.GL_NO_ERROR, "Enhanced GLES error");
+            for (int eye = 0; eye < 2; eye++) {
+                int eyeWidth = eye == 0 ? WIDTH / 2 : WIDTH - WIDTH / 2;
+                int origin = eye == 0 ? 0 : WIDTH / 2;
+                float[] b = HeadsetGeometry.bounds(settings, 16f / 9, eyeWidth / (float)HEIGHT, eye == 0 ? -1 : 1);
+                for (float[] location : locations) {
+                    int x = Math.round(eyeWidth * (1 + b[0] + location[0] * b[2]) / 2 - .5f);
+                    int y = Math.round(HEIGHT * (1 + b[1] + location[1] * b[3]) / 2 - .5f);
+                    require(x >= 0 && x < eyeWidth && y >= 0 && y < HEIGHT, "Bad projection probe position");
+                    float qx = (2f * (x + .5f) / eyeWidth - 1 - b[0]) / b[2];
+                    float qy = (2f * (y + .5f) / HEIGHT - 1 - b[1]) / b[3];
+                    float[] source = EnhancedProjection.source(qx, qy, fov);
+                    int at = (y * WIDTH + origin + x) * 4;
+                    int r = pixels.get(at) & 255, g = pixels.get(at + 1) & 255, blue = pixels.get(at + 2) & 255;
+                    String label = "Enhanced fov=" + fov + " scale=" + scale + " eye=" + eye + " q=" + qx + "," + qy;
+                    if (source == null) require(r <= 3 && g <= 3 && blue <= 3, label + " corner must be black");
+                    else {
+                        int expectedR = Math.round(255 * (.5f + source[0] * .5f));
+                        int expectedG = Math.round(255 * (.5f - source[1] * .5f));
+                        require(Math.abs(r - expectedR) <= 4 && Math.abs(g - expectedG) <= 4 && Math.abs(blue - 180) <= 4,
+                            label + " source orientation/warp mismatch: " + r + "," + g + "," + blue);
+                    }
+                    samples++;
+                }
+            }
+        }
+        require(image.isRecycled(), "Enhanced texture ownership was not released");
+        return samples;
     }
 
     private static void assertMask(ByteBuffer pixels, VrSettings settings, float aspect, String label) {

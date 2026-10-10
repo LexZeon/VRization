@@ -31,7 +31,7 @@
     <string name="connect">连接电脑</string>
     <string name="disconnect">断开连接</string>
     <string name="network_notice">局域网画面与控制未加密，请只在可信网络使用。第一人称陀螺仪鼠标控制使用电脑端设置，默认开启。在电脑按 F8 可停止控制；点击电脑端“恢复”可重新开启。</string>
-    <string name="sensor_unavailable">未检测到旋转传感器：全屏模式仍可使用；大屏幕及第一人称模式已禁用。</string>
+    <string name="sensor_unavailable">未检测到旋转传感器：全屏和加强第一人称画面仍可使用；大屏幕及普通第一人称模式已禁用。陀螺仪鼠标控制不可用。</string>
     <string name="watch_mode">观看模式</string>
     <string name="headset_fit">盒子适配</string>
     <string name="scale">画面缩放</string>
@@ -40,7 +40,7 @@
     <string name="eye_separation">双眼间距</string>
     <string name="distortion">镜头畸变校正</string>
     <string name="cinema_game">大屏幕与游戏</string>
-    <string name="fov">视野角度（大屏幕）</string>
+    <string name="fov">视野角度（大屏幕 / 加强变形）</string>
     <string name="distance">屏幕距离（大屏幕）</string>
     <string name="sensitivity">鼠标灵敏度（第一人称）</string>
     <string name="stabilization">陀螺仪防抖（第一人称）</string>
@@ -51,6 +51,7 @@
     <string name="reset_view">恢复显示设置</string>
     <string name="edit_headset">可视化适配 VR 盒子</string>
     <string name="editor_gestures">任一眼内部向外拖则分开，向内拖可让两眼边缘相接；上下同步，角点等比例缩放。接近接缝时位置和间距自动对齐。平面预览，头部控制已暂停。</string>
+    <string name="editor_gestures_enhanced">每只眼保持正方形。拖动内部可对称移动画面，向内可让两眼边缘相接；角点等比例缩放。保留广角变形预览，头部控制已暂停。</string>
     <string name="editor_values">缩放 %1$.0f%% · 双眼间距 %2$.2f · 水平 %3$.2f · 垂直 %4$.2f</string>
     <string name="editor_save">保存</string>
     <string name="editor_discard">放弃</string>
@@ -58,7 +59,9 @@
     <string name="reset_all_done">已重置全部手机设置：默认 VR 参数、英文和 USB。重新连接后向电脑提交默认参数。</string>
     <string name="invalid_host_protocol">电脑未发送有效的 VRization 握手。请更新两端软件并重新连接。</string>
     <string name="licenses">关于与开源许可</string>
-    <string name="mode_help">全屏和第一人称使用固定双眼画面；大屏幕把二维桌面放在虚拟空间。画面本身并非游戏原生双眼立体。耳机声音请暂用电脑输出。\n应用进入后台时自动断开串流并停止控制；回到前台后点击连接。</string>
+    <string name="mode_help">全屏和第一人称使用固定双眼画面；大屏幕把二维桌面放在虚拟空间。加强第一人称将完整桌面映射为每眼正方形，并进行弯曲广角投影。两种第一人称使用相同的陀螺仪鼠标控制。画面并非游戏原生双眼立体或 VR180。声音暂用电脑输出。\n应用进入后台时自动断开串流并停止控制；回到前台后点击连接。</string>
+    <string name="enhanced_help">加强第一人称：每眼固定 1:1，等比例缩放、对称移动。视野角度调整 GPU 变形（默认 80°），弯曲角落为黑色。只是重新映射已有画面，不增加场景信息。</string>
+    <string name="enhanced_legacy">为兼容此电脑端，控制使用普通第一人称；手机保留加强正方形画面与已保存的模式。更新电脑端后可同步加强模式。</string>
     <string name="invalid_port">端口应为 1 到 65535 的整数。</string>
     <string name="invalid_address">请输入电脑 IP 或主机名，以及正确端口；不需要 http:// 前缀。</string>
     <string name="invalid_code">请输入电脑端显示的六位数字配对码。</string>
@@ -88,6 +91,7 @@
         <item>全屏模式 · 固定双眼画面</item>
         <item>大屏幕模式 · 转头观看虚拟屏幕</item>
         <item>第一人称模式 · 转头控制电脑视角</item>
+        <item>加强第一人称 · 正方形广角变形</item>
     </string-array>
     <string-array name="languages"><item>English</item><item>中文</item></string-array>
     <string-array name="connection_methods"><item>USB 数据线 · 默认</item><item>局域网 / Wi-Fi · 手动配对</item></string-array>

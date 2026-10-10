@@ -60,6 +60,7 @@ Native iOS Simulator receiving the original calibration stream through the **LAN
 - **Full screen:** fixed side-by-side images, no motion sensor needed.
 - **Cinema:** a virtual screen; Core Motion changes the viewing direction. Recenter after placing the phone in the viewer.
 - **First person:** fixed side-by-side images and rotation messages to Windows. Windows defaults gyro mouse control to enabled for a validated First-person session with fresh poses. **F8** pauses until the PC **Resume gyro control** action; the phone cannot clear that latch.
+- **Enhanced first person:** fixed 1:1 physical squares and GPU angular warp, retaining proportional fit and the same gyro/F8/PC Resume policy. No sensor is required to render this mode; rotation control still requires Core Motion. [Tutorial and negotiation](ENHANCED_FIRST_PERSON.md).
 - Adjust scale, horizontal / vertical offset, eye separation, field of view, distance, distortion, sensitivity and invert Y. Drag a slider for larger changes; use its **− / +** buttons for exact one-step adjustments (scale changes by 1%). These are viewing parameters, not a measurement of physical interpupillary distance.
 - Hide the controls for viewing; use the app's recovery gesture to restore them. Double-tap to recenter. Returning to the background, changing language or disconnecting ends the connection and motion updates; reconnect explicitly when ready.
 - A device without usable motion support falls back to fixed viewing. The simulator cannot validate physical gyro axes, drift or headset comfort.
@@ -108,6 +109,10 @@ The unmodified originals below are from that final **native iOS Simulator** run.
 ### v0.3.2 stabilization and settings compatibility
 
 The native client adds a 0–100% First-person stabilization slider, default 0%, with normal profile persistence, PC broadcasts and reset. It sends the setting only to a host advertising support and preserves its local value with older hosts. URLSession uses `settingsSchema=2`; USB requests schema 2 through client hello. A capable host's initial legacy hello is followed by a complete eleven-field snapshot before profile adoption / sensor fallback. The phone performs no duplicate filter. Final [Actions 37991498159](https://github.com/LexZeon/VRization/actions/runs/37991498159) passed **77 Swift core tests and five genuine native UI cases**, with zero failures / skips, on the arm64 iPhone 17 Pro Max Simulator running iOS 26.2 (Xcode 26.3.0 / macOS 15.7.9). Both Simulator and unsigned device-target builds passed. LAN / simulated USB Metal color and row-orientation checks passed for both eyes, as did exact viewport seam-boundary pixel checks. The downloaded Simulator app identifies as **0.3.2 / build 5 / minimum iOS 15.0 / arm64**, and its original MIT license matched. All 65 compared actual source / fixture files in the CI-produced source ZIP matched the tested checkout; generated egg-info metadata was excluded. These are Simulator / software-bridge results, not a physical iPhone, real Apple USB service or signed IPA. See [the actual slider screenshot](STABILIZATION.md#native-ios-simulator-example), [stabilization](STABILIZATION.md) and [protocol](PROTOCOL.md).
+
+### v0.4.0 development
+
+Application 0.4.0/build 8 adds the enhanced Metal shader, fixed-square core/editor math and separate capability negotiation. Native builds/UI/pixel checks for this revision are pending; the completed v0.3.4 results below remain historical. [Current validation](VALIDATION.md).
 
 ### v0.3.4 application and native checks
 
@@ -173,6 +178,7 @@ Windows 安装 Apple 官方 [Apple Devices](https://support.apple.com/guide/devi
 - **全屏**：固定左右眼图像，不需要运动传感器。
 - **大屏幕**：把图像放在虚拟屏幕上，用 Core Motion 改变观看方向；放入盒子后回正。
 - **First person**：固定双眼图像，向 Windows 发送旋转姿态。Windows 在合法第一人称会话和新姿态下默认启用陀螺仪鼠标；**F8** 暂停后须电脑“**恢复陀螺仪控制**”，手机不能解除暂停锁。
+- **加强第一人称**：固定物理 1:1 正方形与 GPU 角度变形，保留等比适配及相同陀螺仪／F8／电脑恢复策略；渲染不要求传感器，旋转控制仍需 Core Motion，见 [教程与协商](ENHANCED_FIRST_PERSON.md)。
 - 可调缩放、水平 / 垂直偏移、眼间距、视场角、距离、畸变、灵敏度和 Y 反转。拖动滑条可大幅调整，使用旁边的 **− / +** 按钮可精确微调一格（缩放每次 1%）。这些是观看参数，不是对实际瞳距的测量。
 - 观看时隐藏操作区，用应用的恢复手势重新显示；双击回正。进入后台、切换语言或断线会终止连接与运动更新，需要时手动重连。
 - 没有可用运动支持时回退固定观看。模拟器不能验证真实陀螺仪轴向、漂移和盒子舒适度。
@@ -222,6 +228,10 @@ xcodebuild -project ios/VRization.xcodeproj -scheme VRization \
 ### v0.3.2 防抖与配置兼容
 
 原生客户端新增 0–100% 第一人称防抖滑块，默认 0%，正常保存配置、接受电脑广播并支持重置。仅向声明支持的主机发送字段，连接旧主机时保留本地值。URLSession 使用 `settingsSchema=2`，USB 经客户端 hello 请求 schema 2；支持防抖的主机最初若发旧格式 hello，先取得完整十一字段快照，再接纳配置 / 缺传感器回退。手机不重复滤波。最终 [Actions 37991498159](https://github.com/LexZeon/VRization/actions/runs/37991498159) 在 arm64 iPhone 17 Pro Max 模拟器、iOS 26.2（Xcode 26.3.0 / macOS 15.7.9）通过 **77 项 Swift 核心与五项真实原生界面用例**，零失败 / 跳过；模拟器与未签名真机目标构建都通过。局域网 / 模拟 USB 的 Metal 双眼颜色与行方向，以及准确视口中缝边界像素检查通过。下载的模拟器应用为 **0.3.2 / build 5 / 最低 iOS 15.0 / arm64**，原创 MIT 许可匹配；CI 源码 ZIP 中比较的 65 个真实源码 / fixture 文件全部匹配已测试仓库，生成的 egg-info 元数据未纳入比较。这是模拟器 / 软件桥接结果，不是 iPhone 真机、真实 Apple USB 服务或已签名 IPA。见 [真实滑块截图](STABILIZATION.md#原生-ios-模拟器示例)、[防抖](STABILIZATION.md) 与 [协议](PROTOCOL.md)。
+
+### v0.4.0 开发中
+
+应用 0.4.0／构建 8 新增加强 Metal 着色器、正方形核心／编辑数学与单独能力协商；此修订原生构建／界面／像素检查待完成，以下 v0.3.4 已完成结果仍是历史，见 [当前验证](VALIDATION.md)。
 
 ### v0.3.4 应用与原生检查
 

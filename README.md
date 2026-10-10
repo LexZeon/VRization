@@ -7,18 +7,18 @@
 
 **Put your PC screen inside a phone VR viewer.**
 
-![Alpha](https://img.shields.io/badge/version-0.3.4--alpha-orange)
+![Alpha](https://img.shields.io/badge/version-0.4.0--development-orange)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Desktop](https://img.shields.io/badge/desktop-Windows%2010%2F11-blue)
 ![Android](https://img.shields.io/badge/Android-6.0%2B-3DDC84)
 ![iOS](https://img.shields.io/badge/iOS%2FiPadOS-15%2B-black)
 [![Build](https://github.com/LexZeon/VRization/actions/workflows/build.yml/badge.svg)](https://github.com/LexZeon/VRization/actions/workflows/build.yml)
 
-[简体中文](#简体中文) · [Quick start](docs/QUICKSTART.md) · [📝 Changelog](CHANGELOG.md) · [🔌 USB setup](docs/USB.md) · [🥽 Edit and save](docs/EDITING.md) · [🎯 Stabilization](docs/STABILIZATION.md) · [⚡ Performance](docs/PERFORMANCE.md) · [📦 Downloads](docs/DOWNLOADS.md) · [🍎 iPhone + Windows](docs/IOS.md) · [Build](docs/BUILD.md) · [Architecture](docs/ARCHITECTURE.md) · [🤝 AI handoff](AI_HANDOFF.md)
+[简体中文](#简体中文) · [Quick start](docs/QUICKSTART.md) · [📝 Changelog](CHANGELOG.md) · [🔌 USB setup](docs/USB.md) · [🥽 Edit and save](docs/EDITING.md) · [🌀 Enhanced view](docs/ENHANCED_FIRST_PERSON.md) · [🎯 Stabilization](docs/STABILIZATION.md) · [⚡ Performance](docs/PERFORMANCE.md) · [📦 Downloads](docs/DOWNLOADS.md) · [🍎 iPhone + Windows](docs/IOS.md) · [Build](docs/BUILD.md) · [Architecture](docs/ARCHITECTURE.md) · [🤝 AI handoff](AI_HANDOFF.md)
 
 VRization streams a Windows desktop or rectangular region to an Android phone, iPhone or iPad, renders the image side by side, and optionally maps phone rotation to PC mouse movement. Its reusable Android library, Swift core package and separated host components provide a starting point for embedding these features in other applications.
 
-**v0.3.4-alpha — default-enabled continuous First-person gyro mouse control.** The host saves the input preference, automatically starts with valid First-person poses, works across all foreground windows and rebaselines after sensor gaps. F8 and explicit stop/failure/editor/reset/region-selection actions remain latched until the PC resumes control. Software checks, package audits and native iOS Simulator checks passed; new physical gyro/game/video/latency and advanced Windows Resume/F8 GUI acceptance remain unverified. See [release notes](docs/RELEASE_NOTES.md), [recorded checks](docs/VALIDATION.md) and [downloads](https://github.com/LexZeon/VRization/releases/tag/v0.3.4-alpha). Developers can use the [AI handoff and module map](AI_HANDOFF.md).
+**v0.4.0 development — Enhanced first person adds a fourth mode.** Each eye keeps a physical 1:1 square with GPU wide-angle deformation, proportional scaling, movement and mirrored spacing. Both first-person modes use the saved default-enabled gyro policy and existing F8/PC Resume boundaries. New-version checks are [recorded separately](docs/VALIDATION.md); published [v0.3.4](https://github.com/LexZeon/VRization/releases/tag/v0.3.4-alpha) remains the previous release. Read the [projection tutorial](docs/ENHANCED_FIRST_PERSON.md), [current notes](docs/RELEASE_NOTES.md) and [AI handoff](AI_HANDOFF.md).
 
 Visual headset fitting and saved phone profiles from v0.3 remain available. An original Windows DXGI / D3D11 backend crops, rotates and scales on the GPU before smaller pixel readback; the CPU encodes JPEG for the existing WebSocket protocol. GDI / MSS remain compatibility paths. Both eyes receive the same 2D source: ordinary games do not acquire stereoscopic depth. See [performance and measurement limits](docs/PERFORMANCE.md).
 
@@ -27,8 +27,9 @@ Visual headset fitting and saved phone profiles from v0.3 remain available. An o
 | 🖥️ Full screen | A fixed image in each eye; no sensor control. |
 | 🎬 Cinema | A virtual screen viewed through phone rotation. |
 | 🎯 First person | Side-by-side viewing with gyro mouse control enabled by default on Windows. Press **F8** to pause; use **Resume gyro control** on the PC to resume. |
+| 🌀 Enhanced first person | Fixed 1:1 square per eye, GPU wide-angle warp, scalable/movable fit and the same gyro control. |
 
-Windows enables First-person gyro mouse control by default. A validated connection, First-person mode, available capture and fresh valid rotation data are required; the first pose sets a baseline before movement. Control works on the desktop, ordinary applications, games and VRization's own window regardless of foreground-window changes, with no five-second target-window deadline. A temporary sensor gap stops output and rebaselines on fresh poses before continuing. **F8**, the PC emergency stop, editor entry, PC Reset all settings, capture-region selection, capture/input failure and stream Stop latch a pause: late poses, settings and reconnecting cannot clear it. Click **Resume gyro control** on the PC, or explicitly turn the control checkbox off and on, to resume. Full screen and Cinema stop mouse output. The PC saves only the enabled preference, never the live armed state or pause latch.
+Windows enables gyro mouse control in First person and Enhanced first person by default. A validated connection, either first-person mode, available capture and fresh valid rotation data are required; the first pose sets a baseline before movement. Control works on the desktop, ordinary applications, games and VRization's own window regardless of foreground-window changes, with no five-second target-window deadline. A temporary sensor gap stops output and rebaselines on fresh poses before continuing. **F8**, the PC emergency stop, editor entry, PC Reset all settings, capture-region selection, capture/input failure and stream Stop latch a pause: late poses, settings and reconnecting cannot clear it. Click **Resume gyro control** on the PC, or explicitly turn the control checkbox off and on, to resume. Full screen and Cinema stop mouse output. The PC saves only the enabled preference, never the live armed state or pause latch.
 
 Adjust image scale and offsets for large phones, eye separation, field of view, screen distance, distortion, recentering, mouse sensitivity, First-person stabilization and vertical inversion. See [how to tune stabilization](docs/STABILIZATION.md); stronger smoothing can add following lag. **USB is the default on both phone platforms and the Windows host**, with authorized-device detection. Profiles use longest edge / target FPS / JPEG quality: low latency **640 / 60 / Q45**, stable **640 / 30 / Q50**, quality **960 / 30 / Q60**, or custom. Targets are not guaranteed achieved frame rates.
 
@@ -48,7 +49,7 @@ The USB screenshots below show **v0.2.0 on a physical HUAWEI Pura 70 Ultra** rec
 
 ### 🚀 Try it
 
-1. Download the Windows archive and Android APK from [Releases](https://github.com/LexZeon/VRization/releases), or [build from source](docs/BUILD.md). Update the host and phone to v0.3.4 for current controls and wording; preserve a matching-signer Android installation's data. For iPhone / iPad, use the [iOS installation guide](docs/IOS.md): source and a Mac Simulator build are provided; physical installation requires your Apple signing in Xcode.
+1. Download the Windows archive and Android APK from [Releases](https://github.com/LexZeon/VRization/releases), or [build from source](docs/BUILD.md). Published v0.3.4 provides continuous gyro control; use matching v0.4.0 builds for Enhanced first person; preserve a matching-signer Android installation's data. For iPhone / iPad, use the [iOS installation guide](docs/IOS.md): source and a Mac Simulator build are provided; physical installation requires your Apple signing in Xcode.
 2. Connect a data USB cable. Android needs official Platform Tools, USB debugging and computer authorization. iPhone needs Apple Devices / its Windows driver, Trust approval and your signed foreground app. See [USB setup](docs/USB.md).
 3. Start the host, choose a display or region, and start streaming. Use **USB connection…** to find the automatic-detection checkbox and official ADB selector; read USB status below the PC address. USB detection configures the authorized connection; multiple Android phones require selection.
 4. Open the phone app in its default USB mode. Android's first foreground session can wait automatically; tap **Detect USB and connect** to start explicitly or after backgrounding / changing language. iOS keeps a foreground control listener ready; click **Connect** on either endpoint to begin video. LAN remains an optional mode with manual IP, port and pairing code.
@@ -126,31 +127,32 @@ The [v0.3.0-alpha notes](docs/releases/v0.3.0-alpha.md) preserve editor / profil
 
 Windows 桌面串流 · Android / 兼容 Android 的系统 · iPhone / iPad · 可复用核心模块
 
-![Alpha](https://img.shields.io/badge/version-0.3.4--alpha-orange)
+![Alpha](https://img.shields.io/badge/version-0.4.0--development-orange)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Desktop](https://img.shields.io/badge/desktop-Windows%2010%2F11-blue)
 ![Android](https://img.shields.io/badge/Android-6.0%2B-3DDC84)
 ![iOS](https://img.shields.io/badge/iOS%2FiPadOS-15%2B-black)
 [![Build](https://github.com/LexZeon/VRization/actions/workflows/build.yml/badge.svg)](https://github.com/LexZeon/VRization/actions/workflows/build.yml)
 
-[🚀 上手教程](docs/QUICKSTART.md) · [📝 版本日志](CHANGELOG.md) · [🔌 USB 连接](docs/USB.md) · [🥽 编辑与保存](docs/EDITING.md) · [🎯 防抖设置](docs/STABILIZATION.md) · [⚡ 性能与测量](docs/PERFORMANCE.md) · [📦 下载与本地备份](docs/DOWNLOADS.md) · [🍎 iPhone 与 Windows](docs/IOS.md) · [🛠️ 开发与构建](docs/BUILD.md) · [🧩 集成指南](docs/ARCHITECTURE.md) · [English](README.en.md)
+[🚀 上手教程](docs/QUICKSTART.md) · [📝 版本日志](CHANGELOG.md) · [🔌 USB 连接](docs/USB.md) · [🥽 编辑与保存](docs/EDITING.md) · [🌀 加强视图](docs/ENHANCED_FIRST_PERSON.md) · [🎯 防抖设置](docs/STABILIZATION.md) · [⚡ 性能与测量](docs/PERFORMANCE.md) · [📦 下载与本地备份](docs/DOWNLOADS.md) · [🍎 iPhone 与 Windows](docs/IOS.md) · [🛠️ 开发与构建](docs/BUILD.md) · [🧩 集成指南](docs/ARCHITECTURE.md) · [English](README.en.md)
 
 
 VRization 是一个开源的电脑 → 手机串流实验项目。Windows 端采集显示器或指定矩形区域，Android、iPhone / iPad 客户端将画面显示在 VR 盒子的左右眼区域。你可以让画面固定在眼前，也可以把它当成一个随头部转动观看的虚拟大屏幕，或者用手机的姿态控制电脑游戏视角。
 
-> **v0.3.4-alpha — 默认开启并持续响应的第一人称陀螺仪鼠标。** 电脑保存控制偏好，在合法第一人称姿态到达后自动开始，所有前台窗口可控制，传感器间断后重建基准。F8 和主动停止／故障／编辑器／重置／选区保持暂停锁，须电脑恢复。软件测试、打包审计与原生 iOS 模拟器检查已通过；新版真机陀螺仪／游戏／视频／延迟及高级 Windows Resume／F8 界面仍未验收。见 [发布说明](docs/RELEASE_NOTES.md)、[检查记录](docs/VALIDATION.md) 和 [下载](https://github.com/LexZeon/VRization/releases/tag/v0.3.4-alpha)；后续开发可使用 [AI 接手指南与模块说明](AI_HANDOFF.md)。
+> **v0.4.0 开发中——加强第一人称新增第四种模式。** 每眼固定物理 1:1 正方形，GPU 广角变形，仍可等比缩放、移动与镜像调节间距；两种第一人称共用已保存的默认开启陀螺仪策略与 F8／电脑恢复边界。新版检查 [单独记录](docs/VALIDATION.md)，已发布 [v0.3.4](https://github.com/LexZeon/VRization/releases/tag/v0.3.4-alpha) 保留为前一版本。见 [投影教程](docs/ENHANCED_FIRST_PERSON.md)、[当前说明](docs/RELEASE_NOTES.md) 与 [AI 接手指南](AI_HANDOFF.md)。
 
 v0.3 的可视盒子适配与手机配置保存继续保留。原创 Windows DXGI / D3D11 后端在 GPU 裁切、旋转和缩放，再回读较小像素；CPU 编码 JPEG，经已有 WebSocket 协议传输，保留 GDI / MSS 兼容路径。左右眼接收同一张二维桌面图像，**不会把普通游戏自动变成立体 3D**。实测范围见 [性能与测量](docs/PERFORMANCE.md)。
 
-### 🎮 三种观看方式
+### 🎮 四种观看方式
 
 | 模式 | 画面表现 | 手机姿态 | 适合做什么 |
 | --- | --- | --- | --- |
 | 🖥️ 全屏模式 | 同一画面分别填入左右眼区域 | 不参与画面或鼠标控制 | 稳定观看桌面、视频和普通游戏 |
 | 🎬 大屏幕模式 | 电脑或选区画面放在虚拟平面上 | 转头改变观看方向 | 像在眼前放了一块大屏幕 |
 | 🎯 第一人称模式 | 左右眼显示所选电脑画面 | 转头映射成电脑鼠标移动 | 控制桌面、普通应用或兼容游戏的鼠标 |
+| 🌀 加强第一人称 | 每眼固定 1:1，GPU 广角变形，可缩放／移动 | 与第一人称共用陀螺仪控制 | 希望弯曲广角显示且保持正方形比例 |
 
-Windows 默认开启第一人称陀螺仪鼠标控制。必须有通过校验的连接、第一人称模式、可用采集与新的合法旋转姿态；首条姿态先建立基准，再产生移动。桌面、普通应用、游戏和 VRization 自身窗口均可控制，不受前台窗口切换影响，也不要求五秒内切到目标窗口。传感器短暂间断时停止输出，新姿态先重建基准再继续。**F8**、电脑紧急停止、进入编辑器、电脑重置全部设置、选择采集区域、采集／输入故障和停止串流会锁定暂停；迟到姿态、设置与重连都不能解除。需要在电脑点“**恢复陀螺仪控制**”，或主动关闭再开启控制复选框。全屏和大屏幕停止鼠标输出。电脑只保存启用偏好，不保存实时授权状态或暂停锁。 不同游戏、独占全屏、原始输入和反作弊机制可能不接受这种输入；实际游戏兼容性需另行验证。
+Windows 默认开启第一人称与加强第一人称的陀螺仪鼠标控制。必须有通过校验的连接、任一第一人称模式、可用采集与新的合法旋转姿态；首条姿态先建立基准，再产生移动。桌面、普通应用、游戏和 VRization 自身窗口均可控制，不受前台窗口切换影响，也不要求五秒内切到目标窗口。传感器短暂间断时停止输出，新姿态先重建基准再继续。**F8**、电脑紧急停止、进入编辑器、电脑重置全部设置、选择采集区域、采集／输入故障和停止串流会锁定暂停；迟到姿态、设置与重连都不能解除。需要在电脑点“**恢复陀螺仪控制**”，或主动关闭再开启控制复选框。全屏和大屏幕停止鼠标输出。电脑只保存启用偏好，不保存实时授权状态或暂停锁。 不同游戏、独占全屏、原始输入和反作弊机制可能不接受这种输入；实际游戏兼容性需另行验证。
 
 ### ✨ 为不同手机与盒子留出调节空间
 
@@ -194,7 +196,7 @@ USB 截图来自 **HUAWEI Pura 70 Ultra 真机运行 v0.2.0**，经真实数据�
 
 ### 🚀 五步把电脑放进盒子
 
-1. 在 [Releases](https://github.com/LexZeon/VRization/releases) 下载 Windows 电脑端压缩包与 Android APK。使用当前控件与说明时将电脑和手机都更新至 v0.3.4，签名一致的 Android 覆盖升级可保留数据。iPhone / iPad 按 [iOS 安装教程](docs/IOS.md) 使用源码和 Mac 模拟器构建；真机安装需要在 Xcode 使用自己的 Apple 签名。
+1. 在 [Releases](https://github.com/LexZeon/VRization/releases) 下载 Windows 电脑端压缩包与 Android APK。已发布 v0.3.4 提供持续陀螺仪控制，加强第一人称需使用匹配的 v0.4.0 构建，签名一致的 Android 覆盖升级可保留数据。iPhone / iPad 按 [iOS 安装教程](docs/IOS.md) 使用源码和 Mac 模拟器构建；真机安装需要在 Xcode 使用自己的 Apple 签名。
 2. 用数据 USB 线连接。Android 需要官方 Platform Tools、USB 调试和电脑授权；iPhone 需要 Windows 的 Apple Devices / 驱动、信任这台电脑，以及自己签名并在前台运行的应用。详见 [USB 教程](docs/USB.md)。
 3. 打开电脑端，选择显示器或矩形区域，再开始串流。点“**USB 连接…**”找到自动检测开关与官方 ADB 选择，USB 状态在电脑地址下方。USB 检测会配置授权后的连接；多台 Android 手机需要选择一台。
 4. 手机应用默认 USB；Android 首次前台可自动等待，点“**检测 USB 并连接**”主动开始，进入后台或切换语言后也需主动连接。iOS 在前台保持控制监听就绪，在任一端点“**连接**”开始视频。局域网作为可选方式，需要填写 IP、端口与配对码。

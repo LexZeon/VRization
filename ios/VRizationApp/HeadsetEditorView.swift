@@ -1,7 +1,7 @@
 import UIKit
 import VRizationCore
 
-/// Transparent controls over the live local full-mode preview. Drafts never
+/// Transparent controls over the live local preview, retaining enhanced warp. Drafts never
 /// touch the connection or preferences; the owner handles Save and Discard.
 final class HeadsetEditorView: UIView, UIGestureRecognizerDelegate {
     private(set) var draft: VRSettings

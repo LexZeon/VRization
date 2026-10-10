@@ -34,6 +34,13 @@ fragment float4 stereoFragment(Raster in [[stage_in]], constant Uniforms &u [[bu
         q=p/fit;
     }
     if(abs(q.x)>1 || abs(q.y)>1) return float4(0,0,0,1);
+    if(u.flags.z>0.5) {
+        // Same bounded inverse projection as VRizationCore.EnhancedProjection.
+        // Source pixels fill a square; their original aspect is not letterboxed.
+        float radius=length(q), angle=fov*(M_PI_F/180.0f)*0.5f;
+        q=radius<1e-6f ? float2(0) : q*tan(radius*angle)/(radius*tan(angle));
+        if(abs(q.x)>1 || abs(q.y)>1) return float4(0,0,0,1);
+    }
     constexpr sampler linearSampler(coord::normalized,address::clamp_to_edge,filter::linear);
     return video.sample(linearSampler,float2(q.x*0.5+0.5,0.5-q.y*0.5));
 }

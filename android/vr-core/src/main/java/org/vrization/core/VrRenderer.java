@@ -20,12 +20,12 @@ public final class VrRenderer implements GLSurfaceView.Renderer {
         void onSubmitted(long session, long receivedAtNanos, long submittedAtNanos);
     }
     private static final String[] UNIFORMS = {"uTexture", "uAspect", "uImageAspect", "uScale", "uOffsetX",
-        "uOffsetY", "uEyeShift", "uEyeSign", "uDistortion", "uFov", "uDistance", "uYaw", "uPitch", "uRoll", "uCinema"};
+        "uOffsetY", "uEyeShift", "uEyeSign", "uDistortion", "uFov", "uDistance", "uYaw", "uPitch", "uRoll", "uCinema", "uEnhanced"};
     private static final String VERTEX =
         "attribute vec2 aPosition; varying vec2 vUv; void main(){vUv=(aPosition+1.0)*0.5; gl_Position=vec4(aPosition,0.0,1.0);}";
     private static final String FRAGMENT =
         "precision mediump float; varying vec2 vUv; uniform sampler2D uTexture;" +
-        "uniform float uAspect,uImageAspect,uScale,uOffsetX,uOffsetY,uEyeShift,uEyeSign,uDistortion,uFov,uDistance,uYaw,uPitch,uRoll,uCinema;" +
+        "uniform float uAspect,uImageAspect,uScale,uOffsetX,uOffsetY,uEyeShift,uEyeSign,uDistortion,uFov,uDistance,uYaw,uPitch,uRoll,uCinema,uEnhanced;" +
         "void main(){" +
         "vec2 p=(vUv-0.5)*2.0;" +
         // The saved headset rectangle is a physical viewport in every mode.
@@ -45,6 +45,11 @@ public final class VrRenderer implements GLSurfaceView.Renderer {
         "vec2 hit=r.xy*(-uDistance/r.z)+vec2(uEyeSign*0.032,0.0); q=hit/vec2(2.0,2.0/uImageAspect);" +
         "}else{q=p/fit;}" +
         "if(abs(q.x)>1.0||abs(q.y)>1.0){gl_FragColor=vec4(0.0,0.0,0.0,1.0);return;}" +
+        // Equidistant angular output to the original rectilinear texture.
+        // Bound q before tan: sqrt(2)*55 degrees stays below its singularity.
+        "if(uEnhanced>0.5){float r=length(q);float a=radians(uFov)*0.5;" +
+        "q=r<0.000001?vec2(0.0):q*tan(r*a)/(r*tan(a));" +
+        "if(abs(q.x)>1.0||abs(q.y)>1.0){gl_FragColor=vec4(0.0,0.0,0.0,1.0);return;}}" +
         "gl_FragColor=texture2D(uTexture,vec2(q.x*0.5+0.5,0.5-q.y*0.5));}";
     private final FloatBuffer vertices = ByteBuffer.allocateDirect(8 * 4).order(ByteOrder.nativeOrder()).asFloatBuffer();
     private final Object frameLock = new Object();
@@ -155,11 +160,12 @@ public final class VrRenderer implements GLSurfaceView.Renderer {
         int position = positionLocation;
         vertices.position(0); GLES20.glEnableVertexAttribArray(position);
         GLES20.glVertexAttribPointer(position, 2, GLES20.GL_FLOAT, false, 0, vertices);
-        uniform("uImageAspect", (float) imageWidth / imageHeight); uniform("uScale", current.scale);
+        uniform("uImageAspect", current.contentAspect((float) imageWidth / imageHeight)); uniform("uScale", current.scale);
         uniform("uOffsetY", current.offsetY);
         uniform("uDistortion", current.distortion); uniform("uFov", current.fov); uniform("uDistance", current.distance);
         uniform("uYaw", yaw); uniform("uPitch", pitch); uniform("uRoll", roll);
         uniform("uCinema", "cinema".equals(current.mode) ? 1 : 0);
+        uniform("uEnhanced", VrSettings.ENHANCED_FIRST_PERSON.equals(current.mode) ? 1 : 0);
         int leftWidth = width / 2;
         for (int eye = 0; eye < 2; eye++) {
             int eyeWidth = eye == 0 ? leftWidth : width - leftWidth;
