@@ -36,7 +36,8 @@ py -3.12 -m venv .venv
 Run core checks and build the executable:
 
 ```powershell
-.\.venv\Scripts\python.exe -m unittest discover -s desktop/tests -v
+.\.venv\Scripts\python.exe -m pip install 'pytest==9.1.1' 'pytest-asyncio==1.4.0'
+.\.venv\Scripts\python.exe -m pytest desktop/tests
 .\scripts\build-windows.ps1 -Python (Resolve-Path .\.venv\Scripts\python.exe).Path
 ```
 
@@ -78,7 +79,7 @@ Physical iPhone installation requires choosing your own Apple signing team and r
 
 Run `python scripts/check_docs.py`. After building both release binaries and `:vr-core:assembleRelease`, run `python scripts/package_release.py` to create `artifacts/release/`; the packager verifies included Markdown file links. CI uses the same packager with a platform selection. Every public project-owned page contains complete English first and complete Chinese below. The check verifies markers, order, nonempty sections and relative file links; it cannot judge translation accuracy. Original third-party license texts remain verbatim.
 
-Actions builds the host on Windows, Android on Linux and iOS on macOS, then retains downloadable artifacts. A `v*` tag waits for all platform checks and triggers an alpha prerelease with SHA-256 checksums. If that release already exists, CI preserves its binaries and signing identity and leaves new outputs in Actions. Passing CI establishes successful checks and builds, not physical-headset or game compatibility.
+Actions builds the host on Windows, Android on Linux and iOS on macOS, then retains downloadable artifacts. A `v*` tag waits for all platform checks and triggers alpha publication with SHA-256 checksums. New publication also requires an APK verified by official `apksigner` against the canonical public certificate; a fresh runner's unrelated debug signature is rejected. See the [Android publication gate](../AI_HANDOFF.md#public-android-signing-gate). If that release already exists, CI preserves its binaries and signing identity and leaves new outputs in Actions. Passing CI establishes successful checks and builds, not physical-headset or game compatibility.
 
 Runtime Python packages are pinned in [requirements-lock.txt](../desktop/requirements-lock.txt); direct Android versions and the Gradle wrapper are specified. This is not a promise of byte-identical reproducibility: runner images, JDK patch versions, Python build isolation (`setuptools>=75`) and some build-tool transitive dependencies can change. Record resolved tools and native inventories when publishing.
 
@@ -134,7 +135,8 @@ py -3.12 -m venv .venv
 运行核心检查：
 
 ```powershell
-.\.venv\Scripts\python.exe -m unittest discover -s desktop/tests -v
+.\.venv\Scripts\python.exe -m pip install 'pytest==9.1.1' 'pytest-asyncio==1.4.0'
+.\.venv\Scripts\python.exe -m pytest desktop/tests
 ```
 
 生成 Windows 程序：
@@ -179,9 +181,9 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 ### CI 与发布
 
-GitHub Actions 分别在 Windows 构建电脑端、Linux 构建 APK、macOS 构建 iOS，并保留产物。`v*` 标签等待所有平台检查后发布 Alpha 预览版，附带 SHA-256；如果同标签 Release 已存在，CI 保留已有二进制和签名，只在 Actions 留下新构建产物。CI 的通过只表示自动检查和构建成功，不代表手机盒子实机体验或全部游戏兼容性已经验证。
+GitHub Actions 分别在 Windows 构建电脑端、Linux 构建 APK、macOS 构建 iOS，并保留产物。`v*` 标签等待所有平台检查后触发 Alpha 发布，附带 SHA-256；新发布还必须用官方 `apksigner` 校验 APK 与公开固定证书一致，拒绝新 runner 的无关调试签名，见 [Android 发布签名门槛](../AI_HANDOFF.md#android-公开签名门槛)。如果同标签 Release 已存在，CI 保留已有二进制和签名，只在 Actions 留下新构建产物。CI 的通过只表示自动检查和构建成功，不代表手机盒子实机体验或全部游戏兼容性已经验证。
 
-运行时 Python 包、Android 直接依赖和 Gradle Wrapper 指定版本；这不承诺字节一致的可重复构建。CI 系统镜像、JDK 补丁版本、Python 隔离构建使用的 `setuptools>=75` 和部分构建工具传递依赖仍可能变化，发布时应记录实际解析工具与原生组件。运行 `python scripts/check_docs.py` 检查公共页面英文在上、中文在下的分区、非空内容和相对文件链接；该检查不能判断翻译质量。升级时同步核查 [第三方声明](../THIRD_PARTY_NOTICES.md) 与随产物分发的许可文本。Android 依赖解析可以执行：
+运行时 Python 包锁定在 [requirements-lock.txt](../desktop/requirements-lock.txt)，Android 直接依赖和 Gradle Wrapper 指定版本；这不承诺字节一致的可重复构建。CI 系统镜像、JDK 补丁版本、Python 隔离构建使用的 `setuptools>=75` 和部分构建工具传递依赖仍可能变化，发布时应记录实际解析工具与原生组件。运行 `python scripts/check_docs.py` 检查公共页面英文在上、中文在下的分区、非空内容和相对文件链接；该检查不能判断翻译质量。升级时同步核查 [第三方声明](../THIRD_PARTY_NOTICES.md) 与随产物分发的许可文本。Android 依赖解析可以执行：
 
 ```sh
 ./gradlew :app:dependencies --configuration debugRuntimeClasspath

@@ -327,4 +327,3 @@ Directory: `scripts/`
 | `ios/VRizationApp/en.lproj/InfoPlist.strings` | 英文系统权限说明。 | Localized bundle metadata | 平台展示数据。 |
 | `ios/VRizationApp/zh-Hans.lproj/InfoPlist.strings` | 中文系统权限说明。 | Localized bundle metadata | 平台展示数据。 |
 | `.github/workflows/build.yml` | 编排文档、Windows 包冒烟、Android 测试、lint 和构建、iOS 模拟器检查及受门槛约束的标签发布。 | `documentation`, `windows`, `android`, `ios`, `release` jobs | CI 总装；工作流产物与正式发布门槛各司其职。 |
-

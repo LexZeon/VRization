@@ -9,7 +9,7 @@ This is a technical handoff for continuing VRization or integrating its componen
 
 ### Status and source of truth
 
-The last published baseline is **v0.3.2-alpha**. The next connection repair is a candidate under development; its existence in source does not establish a completed release, a hardware pass or a latency measurement. The reported regression is: USB sometimes connects only after unplugging/replugging, and Android's Disconnect button changes back while live frames continue. Acceptance must prove transport closure and rendering stop, rather than checking button text alone.
+This handoff targets **v0.3.3-alpha**, application version **0.3.3**, mobile build **6**. The connection repair addresses USB requiring unplugging/replugging, live frames surviving phone Disconnect and stale host connection state. Final Windows / Huawei checks and Mac native acceptance are recorded in [validation](docs/VALIDATION.md); obtain exact published binaries and checksums from [Releases](https://github.com/LexZeon/VRization/releases/tag/v0.3.3-alpha). Acceptance must prove transport closure and rendering stop, rather than checking button text alone. Source code or a successful build alone never establishes a future hardware pass or latency measurement.
 
 Use the Git checkout containing `desktop/`, `android/`, `ios/` and tracked source as the source root. Run `git status --short` and `git ls-files` before editing; an empty newly initialized directory is not the complete project. `artifacts/` contains build/test outputs, not the authoritative source. The local runnable archive is normally `%USERPROFILE%/Documents/VRization-Releases/`: `versions/<tag>/` retains each published version, `latest/` is the current extracted copy, and `tools/` holds separately installed USB tools. The repository's release notes and manifest, not folder names alone, identify a binary.
 
@@ -19,13 +19,13 @@ Use the Git checkout containing `desktop/`, `android/`, `ios/` and tracked sourc
 | --- | --- | --- |
 | `desktop/src/vrization_host/capture.py`, `windows_gpu.py`, `windows_capture.py` | Capture source, frame pacing, GPU/CPU capture and JPEG output. | Replace `CaptureSource.read(config)` / `close()` with your application's image source. |
 | `desktop/src/vrization_host/server.py`, `protocol.py` | Validated v1 messages, one viewer session, settings revisions and latest-frame transport. | Embed `HostServer`; keep authorization separate from image delivery. |
-| `desktop/src/vrization_host/connection.py` | Candidate connection coordinator and independent loopback USB control service. | Let an explicit Connect on either device coordinate host startup; inspect final callback names before integrating. |
+| `desktop/src/vrization_host/connection.py` | Connection coordinator and independent loopback USB control service. | Let an explicit Connect on either device coordinate host startup through `request` / `accept` / `complete` / `cancel`. |
 | `desktop/src/vrization_host/usb.py`, `usb_tools.py` | Device detection, owned ADB mappings, AppleMux pairing and official tools lookup/import. | Supply authorized adapters; stop only owned resources. |
 | `desktop/src/vrization_host/ios_usb.py` | Explicit PC Connect / acknowledged Stop and bounded paired iOS video readiness / relay. | Inject `start_request`; retain its identity until startup or cancellation. |
 | `desktop/src/vrization_host/input.py`, `pose_filter.py` | Local input authorization, pose validation, deltas and optional stabilization. | Replace `InputSink.move`; a game camera can consume pose without system mouse injection. |
 | `desktop/src/vrization_host/view_edit.py`, `view_editor.py`, `storage.py` | Fit geometry, preview/commit and local preferences. | Reuse pure geometry; keep draft and committed settings distinct. |
 | `desktop/src/vrization_host/gui.py`, `i18n.py` | Tk controls, user actions and English/Chinese presentation. | UI adapter; keep connection policy out of button labels. |
-| `android/vr-core/src/main/java/org/vrization/core/` | `VrSettings`, pose/fit mathematics, `VrRenderer` and sensors. Candidate `SocketAttempt`, `UsbConnectRequest`, `UsbConnectionAttempt`, `TransportEndpoints` separate pure connection policy. | Reuse the AAR on Android. Pure helpers have no Android/OkHttp dependency; the renderer and sensors still require Android. |
+| `android/vr-core/src/main/java/org/vrization/core/` | `VrSettings`, pose/fit mathematics, `VrRenderer` and sensors. `SocketAttempt`, `UsbConnectRequest`, `UsbConnectionAttempt`, `TransportEndpoints` separate pure connection policy. | Reuse the AAR on Android. Pure helpers have no Android/OkHttp dependency; the renderer and sensors still require Android. |
 | `android/app/src/main/java/org/vrization/app/StreamClient.java` | Thin OkHttp/Handler transport adapter, bootstrap, decoding and session-gated delivery. | Supply your UI listener; do not manipulate UI from its decoder-thread `onFrame` callback. |
 | `android/app/src/main/java/org/vrization/app/MainActivity.java` | Phone UI, explicit connection requests, local profile, editor and foreground lifecycle. | Replace UI while retaining stop, settings and renderer ownership contracts. |
 | `ios/Sources/VRizationCore/` | Foundation protocol, framing, settings synchronization, generation gates, pose and fit math. | Reuse the local Swift package without UIKit/Metal/Core Motion. |
@@ -56,7 +56,7 @@ flowchart TD
     Invalidate --> PoseGate
 ```
 
-The candidate Android endpoints keep control and video separate: phone loopback `18764` uses one explicit `POST /connect`, and phone loopback `18765` uses `/usb-bootstrap` followed by authenticated `/ws`. The independent PC control listener stays loopback-only when capture stops. `ConnectionCoordinator.request()` returns a request identity / Future; the GUI must `accept()` that identity before starting capture, then `complete()` it, and Stop must `cancel()` pending identities. Native iOS uses foreground control `18767` and explicit-attempt video `18766`. `ios_usb.py` exports `request_ios_connect(mux, device)` for one PC request and `IosRelay(..., start_request=coordinator.request)`. A paired video connection must first send bounded framed `{v:1,type:"connect"}` readiness; TCP acceptance alone cannot start capture. The relay consumes readiness, waits for that same Future and host startup, and fails a pending identity when its bounded wait or peer ends. Disconnect closes video and clears decoded output; foreground control survives until background/destruction. PC Stop gates relay startup and sends `request_ios_stop(mux, device)`: native video cleanup precedes the bounded stopped acknowledgment. A paired explicit video-port refusal can also confirm absence; service/trust failures cannot. Late ACK/absence results retain their Stop epoch, and new PC Connect can replace it. PC control cannot launch a background iOS app. Control requests never choose a capture target or arm mouse input. The new iOS USB pre-handshake requires a matching native viewer; see [protocol](docs/PROTOCOL.md) for version boundaries.
+Android endpoints keep control and video separate: phone loopback `18764` uses one explicit `POST /connect`, and phone loopback `18765` uses `/usb-bootstrap` followed by authenticated `/ws`. The independent PC control listener stays loopback-only when capture stops. `ConnectionCoordinator.request()` returns a request identity / Future; the GUI must `accept()` that identity before starting capture, then `complete()` it, and Stop must `cancel()` pending identities. Native iOS uses foreground control `18767` and explicit-attempt video `18766`. `ios_usb.py` exports `request_ios_connect(mux, device)` for one PC request and `IosRelay(..., start_request=coordinator.request)`. A paired video connection must first send bounded framed `{v:1,type:"connect"}` readiness; TCP acceptance alone cannot start capture. The relay consumes readiness, waits for that same Future and host startup, and fails a pending identity when its bounded wait or peer ends. Disconnect closes video and clears decoded output; foreground control survives until background/destruction. PC Stop gates relay startup and sends `request_ios_stop(mux, device)`: native video cleanup precedes the bounded stopped acknowledgment. A paired explicit video-port refusal can also confirm absence; service/trust failures cannot. Late ACK/absence results retain their Stop epoch, and new PC Connect can replace it. PC control cannot launch a background iOS app. Control requests never choose a capture target or arm mouse input. The new iOS USB pre-handshake requires a matching native viewer; see [protocol](docs/PROTOCOL.md) for version boundaries.
 
 `IosRelay.start(device, start_request=..., on_video_absent=...)` captures both callbacks per attempt. `UsbManager` binds readiness to the selected device and Stop epoch; changing the selected phone, acknowledging Stop or pressing Connect later cannot authorize a delayed old readiness callback. Stop notification resolves the selected phone's serial against a fresh USB device list because mux device IDs can change or be reused.
 
@@ -78,6 +78,7 @@ python -m pytest
 Pop-Location
 python -m unittest discover -s scripts -p test_archive_releases.py -v
 python -m unittest discover -s scripts -p test_verify_android_release.py -v
+python -m unittest discover -s scripts -p test_ios_fixture_readiness.py -v
 python scripts/check_docs.py
 ```
 
@@ -158,7 +159,7 @@ validation records before handing the result back.
 
 逐文件的生产模块职责、重要入口和移植边界见[模块目录](docs/MODULES.md)。
 
-最近已发布基线为 **v0.3.2-alpha**。下一版连接修复仍是开发候选；源码里出现实现，不代表发布完成、硬件测试通过或已有延迟测量。用户报告的回归是：USB 有时必须拔插才能连接，Android 的断开按钮恢复后实时画面仍继续。验收必须证明传输关闭与渲染停止，不能只检查按钮文字。
+本指南对应 **v0.3.3-alpha**，应用版本 **0.3.3**、手机构建号 **6**。连接修复处理 USB 有时必须拔插、手机断开后实时帧继续及电脑连接状态未更新的问题。最终 Windows / 华为真机和 Mac 原生验收见 [验证记录](docs/VALIDATION.md)，准确公开二进制与校验值见 [Releases](https://github.com/LexZeon/VRization/releases/tag/v0.3.3-alpha)。验收必须证明传输关闭与渲染停止，不能只检查按钮文字；源码或构建成功本身也不能证明未来硬件测试通过或已有延迟测量。
 
 源码根目录应是包含 `desktop/`、`android/`、`ios/` 和受 Git 跟踪源码的 checkout。修改前运行 `git status --short` 与 `git ls-files`；新初始化的空目录不是完整项目。`artifacts/` 是构建／测试产物，不是权威源码。可运行本地档案通常在 `%USERPROFILE%/Documents/VRization-Releases/`：`versions/<tag>/` 保留每个公开版本，`latest/` 是当前已解压副本，`tools/` 放另行安装的 USB 工具。二进制身份以仓库发布说明与校验清单为准，不能只看文件夹名称。
 
@@ -168,13 +169,13 @@ validation records before handing the result back.
 | --- | --- | --- |
 | `desktop/src/vrization_host/capture.py`、`windows_gpu.py`、`windows_capture.py` | 图像来源、帧节奏、GPU／CPU 采集与 JPEG 输出。 | 用宿主图像来源替换 `CaptureSource.read(config)`／`close()`。 |
 | `desktop/src/vrization_host/server.py`、`protocol.py` | 协议 v1 校验、单观看端会话、设置修订与最新帧传输。 | 嵌入 `HostServer`，输入授权与画面发送分开。 |
-| `desktop/src/vrization_host/connection.py` | 候选连接协调器与独立本机 USB 控制服务。 | 任一端显式连接协调电脑启动；集成前检查最终回调名称。 |
+| `desktop/src/vrization_host/connection.py` | 连接协调器与独立本机 USB 控制服务。 | 任一端显式连接通过 `request` / `accept` / `complete` / `cancel` 协调电脑启动。 |
 | `desktop/src/vrization_host/usb.py`、`usb_tools.py` | 设备检测、自有 ADB 映射、AppleMux 配对和官方工具查找／导入。 | 提供已授权适配器，只停止自有资源。 |
 | `desktop/src/vrization_host/ios_usb.py` | 已配对 iOS 主动连接／确认停止和有限等待的视频就绪／中继。 | 注入 `start_request`，保留请求身份至启动或取消。 |
 | `desktop/src/vrization_host/input.py`、`pose_filter.py` | 电脑主动输入授权、姿态校验、增量与可选防抖。 | 替换 `InputSink.move`；游戏相机可直接消费姿态而不注入系统鼠标。 |
 | `desktop/src/vrization_host/view_edit.py`、`view_editor.py`、`storage.py` | 适配几何、预览／提交与本地偏好。 | 复用纯几何，区分草稿和已提交设置。 |
 | `desktop/src/vrization_host/gui.py`、`i18n.py` | Tk 控件、用户动作与中英文显示。 | 界面适配层；连接策略不依赖按钮文字。 |
-| `android/vr-core/src/main/java/org/vrization/core/` | `VrSettings`、姿态／适配数学、`VrRenderer` 与传感器。候选 `SocketAttempt`、`UsbConnectRequest`、`UsbConnectionAttempt`、`TransportEndpoints` 独立纯连接策略。 | Android 复用 AAR；纯辅助模块不依赖 Android／OkHttp，渲染器和传感器仍需 Android。 |
+| `android/vr-core/src/main/java/org/vrization/core/` | `VrSettings`、姿态／适配数学、`VrRenderer` 与传感器。`SocketAttempt`、`UsbConnectRequest`、`UsbConnectionAttempt`、`TransportEndpoints` 独立纯连接策略。 | Android 复用 AAR；纯辅助模块不依赖 Android／OkHttp，渲染器和传感器仍需 Android。 |
 | `android/app/src/main/java/org/vrization/app/StreamClient.java` | 薄 OkHttp／Handler 传输适配、bootstrap、解码和会话门控交付。 | 提供自己的界面监听器，解码线程 `onFrame` 不操作界面。 |
 | `android/app/src/main/java/org/vrization/app/MainActivity.java` | 手机界面、主动连接请求、本地配置、编辑器与前台生命周期。 | 可以替换界面，保留停止、设置和渲染所有权合同。 |
 | `ios/Sources/VRizationCore/` | Foundation 协议、分帧、设置同步、代际门控、姿态和适配数学。 | 复用不含 UIKit／Metal／Core Motion 的本地 Swift 包。 |
@@ -205,7 +206,7 @@ flowchart TD
     Invalidate --> PoseGate
 ```
 
-候选 Android 控制和视频分开：手机回环 `18764` 用一次显式 `POST /connect`，`18765` 经 `/usb-bootstrap` 后连接鉴权 `/ws`。电脑独立控制监听仅绑定本机，采集停止后仍可接收主动动作。`ConnectionCoordinator.request()` 返回请求身份／Future；GUI 开始采集前须 `accept()` 该身份，再 `complete()`，停止时 `cancel()` 待处理身份。原生 iOS 在前台监听控制 `18767`，主动连接才开放视频 `18766`；`ios_usb.py` 提供电脑一次请求 `request_ios_connect(mux, device)` 和 `IosRelay(..., start_request=coordinator.request)`。已配对视频连接先发有限长 framed `{v:1,type:"connect"}` 就绪消息，仅 TCP 接受不能启动采集。中继消费就绪消息，等待同一 Future 和主机启动；等待超时或连接终止使待处理身份失败。断开关闭视频并清解码画面；前台控制保留到后台／销毁。电脑停止先门控中继启动，发送 `request_ios_stop(mux, device)`；原生视频清理后才有限等待回复 stopped。已配对端口明确拒绝也可确认监听消失，服务／信任失败不能；晚到 ACK／端口结果保留停止代际，新电脑主动连接可替代它。电脑控制不能启动后台 iOS 应用，控制请求不能选择采集目标或授权鼠标。新 iOS USB 预握手需要匹配的原生观看端，版本边界见[协议](docs/PROTOCOL.md)。
+Android 控制和视频分开：手机回环 `18764` 用一次显式 `POST /connect`，`18765` 经 `/usb-bootstrap` 后连接鉴权 `/ws`。电脑独立控制监听仅绑定本机，采集停止后仍可接收主动动作。`ConnectionCoordinator.request()` 返回请求身份／Future；GUI 开始采集前须 `accept()` 该身份，再 `complete()`，停止时 `cancel()` 待处理身份。原生 iOS 在前台监听控制 `18767`，主动连接才开放视频 `18766`；`ios_usb.py` 提供电脑一次请求 `request_ios_connect(mux, device)` 和 `IosRelay(..., start_request=coordinator.request)`。已配对视频连接先发有限长 framed `{v:1,type:"connect"}` 就绪消息，仅 TCP 接受不能启动采集。中继消费就绪消息，等待同一 Future 和主机启动；等待超时或连接终止使待处理身份失败。断开关闭视频并清解码画面；前台控制保留到后台／销毁。电脑停止先门控中继启动，发送 `request_ios_stop(mux, device)`；原生视频清理后才有限等待回复 stopped。已配对端口明确拒绝也可确认监听消失，服务／信任失败不能；晚到 ACK／端口结果保留停止代际，新电脑主动连接可替代它。电脑控制不能启动后台 iOS 应用，控制请求不能选择采集目标或授权鼠标。新 iOS USB 预握手需要匹配的原生观看端，版本边界见[协议](docs/PROTOCOL.md)。
 
 `IosRelay.start(device, start_request=..., on_video_absent=...)` 为每次尝试固定两个回调。`UsbManager` 把就绪请求绑定到选定设备和停止代际；更换手机、确认停止或后续再按连接，都不能授权晚到的旧就绪回调。停止通知按选定手机序列号查询最新 USB 列表，因为 mux 设备编号可能变化或复用。
 
@@ -227,6 +228,7 @@ python -m pytest
 Pop-Location
 python -m unittest discover -s scripts -p test_archive_releases.py -v
 python -m unittest discover -s scripts -p test_verify_android_release.py -v
+python -m unittest discover -s scripts -p test_ios_fixture_readiness.py -v
 python scripts/check_docs.py
 ```
 

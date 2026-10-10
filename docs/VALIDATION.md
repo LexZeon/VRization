@@ -5,7 +5,16 @@
 <!-- vrization:english -->
 ## English
 
-Updated 2026-10-09. Automated checks, desktop capture and emulator observations are distinguished from hardware capabilities that remain untested.
+Updated 2026-10-10. Automated checks, desktop capture and emulator observations are distinguished from hardware capabilities that remain untested.
+
+### v0.3.3-alpha — current checks
+
+- Source `76639de380c2b4dd26ce860dada30a24323874e8`: the complete local Windows suite passed **287 tests plus 135 subcases**. Cases include sender cleanup blocked after a real localhost WebSocket disconnect: host status/input are revoked before cleanup, a new session can connect, and old cleanup cannot affect the new owner. Android passed **116 unit tests**, APK / release AAR builds, lint and instrumentation compilation. Signature-gate tests passed six cases; documentation checked 36 complete bilingual pages and local links.
+- The final frozen Windows EXE matches all **21 project modules**, all **38 recorded native hashes**, and includes **44 files under `licenses/` plus the three root notices**. SHA-256: `50d631ab2dfc0f0220b6da4d993fa5b916d8615ff87c19d5fa6773d96d50cf8c`. The public ZIP passed its independent clean-profile runtime check with SDK environment variables removed; no capture/input ran in that check. Official Android tools remain separate.
+- The physical Huawei installed version **0.3.3 / build 6**, visible in its Chinese UI. Its installed APK matches the local publication APK, SHA-256 `2ae72ee5180b6b918f88680c87edb30d0dc3d12bd1cb7a87eab8b3e38ade58da`, verified by the official `apksigner` against the existing public certificate. The update kept application data.
+- With the final EXE capturing **ASUS PA279**, six real phone Connect / Disconnect cycles each received at least five decoded desktop frames; each Disconnect stopped delivered frames for a full second and cleared both eye pixels and renderer texture. A concurrent host-health timeline returned disconnected. A real PC **Stop** closed the viewing session; the phone cleared its frame and received no new frames for a second. An explicit phone Connect then started the stopped host and received at least five new frames. Closing the EXE released its two owned reverse maps; the ordinary `Start-Windows.bat` restarted the same EXE and passed two of these cycles with fresh isolated PC preferences and SDK variables inherited only from that launcher. No cable unplug or ADB daemon reset was used. The probe's read-only preference wrapper verified saved phone settings unchanged and disabled pose output.
+- A separate click of the actual PC **Connect / Start streaming** button connected the open phone app. Host UI showed a bounded 60 FPS sending sample; this is not a new end-to-end latency benchmark or performance guarantee. Windows already masks protected regions; the corrected DXGI path streams that masked surface and retains fatal layout/access/resource guards.
+- Final [Actions 38035750560](https://github.com/LexZeon/VRization/actions/runs/38035750560), source `cb22ebb1727846cdffea491d553ad4f52df4774f`, passed Windows, Android, documentation and iOS jobs. Mac passed **80 Swift core tests and five genuine native UI cases**, with **zero failures / skips**, on the arm64 iPhone 17 Pro Max Simulator, iOS 26.2 (Xcode 26.3 / macOS 15.7.9). Both Simulator and unsigned device-target builds passed. LAN / simulated USB Metal color checks passed 16 samples; exact seam checks passed two samples. All 12 host checkpoints were present and OS mouse moves were zero. Native cases exercised held LAN upgrades, cancellation / timeout clearing, replacement sessions, USB Stop acknowledgments and fresh reconnects. The fixture's 12 startup / lifecycle tests also passed. Physical iPhone USB, actual game input and motion-to-photon timing remain unverified for this change.
 
 ### v0.3.2-alpha — archived checks
 
@@ -136,7 +145,16 @@ Final [GitHub Actions 37897738507](https://github.com/LexZeon/VRization/actions/
 <!-- vrization:chinese -->
 ## 简体中文
 
-更新日期：2026-10-09。这里区分自动检查、电脑采集和模拟器观察；未验证的硬件能力不以截图或单元测试代替。
+更新日期：2026-10-10。这里区分自动检查、电脑采集和模拟器观察；未验证的硬件能力不以截图或单元测试代替。
+
+### v0.3.3-alpha — 当前检查
+
+- 源码 `76639de380c2b4dd26ce860dada30a24323874e8` 的完整本地 Windows 测试通过 **287 项及 135 个子用例**。其中用真实 localhost WebSocket 测试断线后的发送清理阻塞：清理前撤销电脑状态 / 输入，新会话仍可连接，旧清理不能影响新资源归属。Android **116 项单元测试**、APK / release AAR 构建、lint 和测试工具编译通过；签名门槛六项测试通过，文档检查覆盖 36 页完整双语及本地链接。
+- 最终冻结 Windows EXE 匹配全部 **21 个自有模块、38 个已记录原生哈希**，包含 `licenses/` 下 **44 个文件及根目录三份通知**。SHA-256：`50d631ab2dfc0f0220b6da4d993fa5b916d8615ff87c19d5fa6773d96d50cf8c`。公开 ZIP 在清空 SDK 环境变量、新偏好下通过独立运行检查，该检查没有采集 / 输入；Android 官方工具仍独立安装。
+- 华为真机已安装 **0.3.3 / 构建 6**，中文界面可见版本号。安装包与本地发布 APK 一致，SHA-256 为 `2ae72ee5180b6b918f88680c87edb30d0dc3d12bd1cb7a87eab8b3e38ade58da`，官方 `apksigner` 验证与原公开证书一致；覆盖升级保留应用数据。
+- 最终 EXE 采集 **ASUS PA279**，真机六次连接 / 断开循环每次收到至少五帧真实解码桌面；每次断开之后完整一秒没有新帧，两眼像素与渲染纹理均清空。同步电脑健康状态记录显示已断开。实际点击电脑 **Stop** 关闭观看会话，手机清空画面且一秒没有新帧；手机主动连接随后能启动已停止的电脑串流并收到至少五帧。关闭 EXE 后两条自有映射被释放，普通 `Start-Windows.bat` 用隔离的新电脑偏好、仅从启动器继承 SDK 配置，重开同一 EXE 并通过其中两次循环。全程没有拔 USB 或重启 ADB 服务。测试采用只读偏好包装，确认手机原保存设置不变，并禁用姿态输出。
+- 独立点击真实电脑“**连接 / 开始串流**”按钮，也连接了已打开的手机应用。电脑界面出现一次约 60 FPS 的发送样本，不代表新增端到端延迟测量或帧率保证。Windows 已遮罩受保护区域，修正的 DXGI 路径使用该系统遮罩画面，仍保留布局 / 访问 / 资源故障保护。
+- 最终 [Actions 38035750560](https://github.com/LexZeon/VRization/actions/runs/38035750560)，源码 `cb22ebb1727846cdffea491d553ad4f52df4774f`，通过 Windows、Android、文档和 iOS 任务。Mac 在 arm64 iPhone 17 Pro Max 模拟器、iOS 26.2（Xcode 26.3 / macOS 15.7.9）通过 **80 项 Swift 核心与五项真实原生界面用例**，**零失败 / 跳过**；模拟器与未签名真机目标两种构建通过。局域网 / 模拟 USB 的 Metal 颜色检查通过 16 个采样，准确接缝检查通过两个采样；12 个电脑检查点全部存在，操作系统鼠标移动为零。原生用例覆盖延迟局域网升级、取消 / 超时清屏、替换会话、USB 停止确认与重新连接；测试服务的 12 项启动 / 生命周期检查也通过。此次改动仍未验证真实 iPhone USB、实际游戏输入或动作到显示延迟。
 
 ### v0.3.2-alpha — 历史检查
 

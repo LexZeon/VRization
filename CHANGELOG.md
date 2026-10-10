@@ -7,12 +7,18 @@
 
 User-visible changes are listed newest first. Dates are GitHub publication dates in **UTC**. Each version links to its detailed release notes, downloads and verification limits. An FPS target or a successful build is not a hardware-performance guarantee.
 
-### Unreleased
+### [v0.3.3-alpha](https://github.com/LexZeon/VRization/releases/tag/v0.3.3-alpha) — 2026-10-10
 
-- **Connection candidate:** Explicit Connect from either endpoint, separate foreground USB control/video, bounded ADB recovery, owned-map cleanup and actual Android socket cancellation.
-- **Stop:** Immediate session/input invalidation, late-frame rejection and capture cleanup completion before restarting.
-- **Reuse:** Pure Android connection helpers, a PC connection coordinator and bilingual [AI handoff](AI_HANDOFF.md) explaining every module and integration boundary.
-- **Publishing:** Canonical Android signing-certificate gate prevents an unrelated CI debug key from replacing an upgrade-compatible public APK. Final packaged/hardware acceptance is pending.
+Windows, Android and iOS applications: **0.3.3**, mobile build **6**.
+
+- **Fixed:** Actual phone Disconnect and PC Stop; sockets, late frames, statistics, pose authorization and renderer output are released. Closed host sessions are revoked before asynchronous sender cleanup; old cleanup cannot affect a new connection.
+- **Added:** Explicit USB Connect from either endpoint, with separate foreground control/video. PC connection requests preserve an already connected phone's session. iOS Stop acknowledgment and device/generation guards prevent stale readiness from restarting capture.
+- **Fixed:** Bounded ADB startup/recovery and reverse-map ownership retained through temporary failures, allowing reuse without unplugging the cable.
+- **Fixed:** Windows DXGI continues streaming the surface already masked by the OS; protected regions remain black and genuine layout/access/resource failures still stop capture.
+- **Added:** Installed version/build display on both phone clients; reusable connection modules, a complete [module catalogue](docs/MODULES.md) and bilingual [AI handoff](AI_HANDOFF.md).
+- **Fixed:** iOS LAN connection has a 15-second pre-open deadline; cancelled or expired upgrades cannot restore an old session or picture.
+- **Checked:** 80 Swift core tests, five genuine native Simulator UI cases, both iOS SDK builds and color / seam checks passed. Physical iPhone USB remains untested.
+- **Publishing:** The canonical Android certificate gate rejects unrelated CI debug signatures; ordinary-launch and public-ZIP checks supplement source tests.
 
 ### [v0.3.2-alpha](https://github.com/LexZeon/VRization/releases/tag/v0.3.2-alpha) — 2026-10-09
 
@@ -78,12 +84,18 @@ First Windows / Android preview.
 
 按从新到旧记录用户能感受到的变化。日期使用 GitHub 发布日期，时区为 **UTC**。每个版本都链接到详细发布说明、下载与验证范围。目标帧率或构建成功不等于硬件性能保证。
 
-### 未发布
+### [v0.3.3-alpha](https://github.com/LexZeon/VRization/releases/tag/v0.3.3-alpha) — 2026-10-10
 
-- **连接候选：** 两端主动连接、前台 USB 控制 / 视频分离、有限 ADB 恢复、映射归属清理及 Android 实际 socket 取消。
-- **停止：** 即时作废会话 / 输入、拒绝迟到帧，清理采集完成后才能重开。
-- **复用：** Android 纯连接辅助类、电脑连接协调器和说明各模块 / 移植边界的双语 [AI 接手指南](AI_HANDOFF.md)。
-- **发布：** 固定 Android 公开签名证书门槛，避免 CI 随机调试签名替换可覆盖升级的 APK；最终打包 / 真机验收待完成。
+Windows、Android 与 iOS 应用：**0.3.3**，手机构建号 **6**。
+
+- **修复：** 手机真正断开、电脑真正 Stop；释放 socket、迟到帧、统计、姿态授权和渲染输出。异步发送清理之前撤销已关闭会话，旧清理不能影响新连接。
+- **新增：** 任一端主动 USB 连接，前台控制与视频分离；电脑重复连接保留手机既有会话。iOS 停止确认及设备 / 代际保护，阻止旧就绪事件重新启动采集。
+- **修复：** 有限 ADB 启动 / 恢复，临时故障时保留映射归属，支持不拔线重新连接。
+- **修复：** Windows DXGI 继续串流系统已遮罩的画面；受保护区域保持黑色，真实布局 / 访问 / 资源故障仍停止采集。
+- **新增：** 两个手机端显示实际安装版本 / 构建号；可复用连接模块、完整 [模块目录](docs/MODULES.md) 和双语 [AI 接手提示词](AI_HANDOFF.md)。
+- **修复：** iOS 局域网连接在打开前有 15 秒等待上限；取消或过期的升级请求不能恢复旧会话或画面。
+- **验证：** 80 项 Swift 核心、五项真实原生模拟器界面、两种 iOS SDK 构建及颜色 / 接缝检查通过，真实 iPhone USB 尚未实测。
+- **发布：** 固定 Android 证书校验拒绝无关 CI 调试签名；除源码测试外检查普通启动和公开 ZIP。
 
 ### [v0.3.2-alpha](https://github.com/LexZeon/VRization/releases/tag/v0.3.2-alpha) — 2026-10-09
 

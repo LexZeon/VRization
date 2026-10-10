@@ -18,7 +18,7 @@
 
 VRization streams a Windows desktop or rectangular region to an Android phone, iPhone or iPad, renders the image side by side, and optionally maps phone rotation to PC mouse movement. Its reusable Android library, Swift core package and separated host components provide a starting point for embedding these features in other applications.
 
-**v0.3.3-alpha — reliable stop/reconnect and explicit Connect from either end.** The next candidate separates USB connection control from video, cancels owned phone sockets and rejects late frames, preserves reverse-map ownership during temporary ADB failures, and makes PC Stop wait for capture cleanup. See [release evidence and limits](docs/RELEASE_NOTES.md). Developers can use the [AI handoff and module map](AI_HANDOFF.md) to continue or integrate the project.
+**v0.3.3-alpha — reliable stop/reconnect and explicit Connect from either end.** This release separates USB connection control from video, cancels owned phone sockets and rejects late frames, preserves reverse-map ownership during temporary ADB failures, and makes PC Stop wait for capture cleanup. See [release evidence and limits](docs/RELEASE_NOTES.md). Developers can use the [AI handoff and module map](AI_HANDOFF.md) to continue or integrate the project.
 
 Visual headset fitting and saved phone profiles from v0.3 remain available. An original Windows DXGI / D3D11 backend crops, rotates and scales on the GPU before smaller pixel readback; the CPU encodes JPEG for the existing WebSocket protocol. GDI / MSS remain compatibility paths. Both eyes receive the same 2D source: ordinary games do not acquire stereoscopic depth. See [performance and measurement limits](docs/PERFORMANCE.md).
 
@@ -49,7 +49,7 @@ The USB screenshots below show **v0.2.0 on a physical HUAWEI Pura 70 Ultra** rec
 1. Download the Windows archive and Android APK from [Releases](https://github.com/LexZeon/VRization/releases), or [build from source](docs/BUILD.md). Update the host and phone to v0.3.3 for bidirectional USB connection; preserve a matching-signer Android installation's data. For iPhone / iPad, use the [iOS installation guide](docs/IOS.md): source and a Mac Simulator build are provided; physical installation requires your Apple signing in Xcode.
 2. Connect a data USB cable. Android needs official Platform Tools, USB debugging and computer authorization. iPhone needs Apple Devices / its Windows driver, Trust approval and your signed foreground app. See [USB setup](docs/USB.md).
 3. Start the host, choose a display or region, and start streaming. Use **USB connection…** to find the automatic-detection checkbox and official ADB selector; read USB status below the PC address. USB detection configures the authorized connection; multiple Android phones require selection.
-4. Open the phone app in its default USB mode. Its first foreground session tries automatically; after backgrounding or changing language, tap Connect. LAN remains an optional mode with manual IP, port and pairing code.
+4. Open the phone app in its default USB mode. Android's first foreground session can wait automatically; tap **Detect USB and connect** to start explicitly or after backgrounding / changing language. iOS keeps a foreground control listener ready; click **Connect** on either endpoint to begin video. LAN remains an optional mode with manual IP, port and pairing code.
 5. Adjust the image to your viewer, recenter cinema mode, and explicitly arm PC mouse input before trying First-person mode.
 
 Windows 10 / 11 x64 is the desktop target. Android 6.0+ and compatible derivatives need no Google services; derivative-system compatibility depends on their APK, rendering and sensor support. Full-screen viewing does not require a gyroscope. Games may reject simulated mouse input, especially under raw-input or anti-cheat restrictions.
@@ -136,7 +136,7 @@ Windows 桌面串流 · Android / 兼容 Android 的系统 · iPhone / iPad · �
 
 VRization 是一个开源的电脑 → 手机串流实验项目。Windows 端采集显示器或指定矩形区域，Android、iPhone / iPad 客户端将画面显示在 VR 盒子的左右眼区域。你可以让画面固定在眼前，也可以把它当成一个随头部转动观看的虚拟大屏幕，或者用手机的姿态控制电脑游戏视角。
 
-> **v0.3.3-alpha — 修复停止 / 重连，支持两端主动连接。** 本次候选将 USB 连接控制与视频分开，取消手机实际持有的连接并拒绝迟到帧，临时 ADB 查询失败时保留映射归属，电脑 Stop 等待采集清理完成。见 [发布证据与限制](docs/RELEASE_NOTES.md)。后续开发或移植可使用 [AI 接手指南与模块说明](AI_HANDOFF.md)。
+> **v0.3.3-alpha — 修复停止 / 重连，支持两端主动连接。** 本版将 USB 连接控制与视频分开，取消手机实际持有的连接并拒绝迟到帧，临时 ADB 查询失败时保留映射归属，电脑 Stop 等待采集清理完成。见 [发布证据与限制](docs/RELEASE_NOTES.md)。后续开发或移植可使用 [AI 接手指南与模块说明](AI_HANDOFF.md)。
 
 v0.3 的可视盒子适配与手机配置保存继续保留。原创 Windows DXGI / D3D11 后端在 GPU 裁切、旋转和缩放，再回读较小像素；CPU 编码 JPEG，经已有 WebSocket 协议传输，保留 GDI / MSS 兼容路径。左右眼接收同一张二维桌面图像，**不会把普通游戏自动变成立体 3D**。实测范围见 [性能与测量](docs/PERFORMANCE.md)。
 
@@ -195,7 +195,7 @@ USB 截图来自 **HUAWEI Pura 70 Ultra 真机运行 v0.2.0**，经真实数据�
 1. 在 [Releases](https://github.com/LexZeon/VRization/releases) 下载 Windows 电脑端压缩包与 Android APK。使用双端 USB 连接时将电脑和手机都更新至 v0.3.3，签名一致的 Android 覆盖升级可保留数据。iPhone / iPad 按 [iOS 安装教程](docs/IOS.md) 使用源码和 Mac 模拟器构建；真机安装需要在 Xcode 使用自己的 Apple 签名。
 2. 用数据 USB 线连接。Android 需要官方 Platform Tools、USB 调试和电脑授权；iPhone 需要 Windows 的 Apple Devices / 驱动、信任这台电脑，以及自己签名并在前台运行的应用。详见 [USB 教程](docs/USB.md)。
 3. 打开电脑端，选择显示器或矩形区域，再开始串流。点“**USB 连接…**”找到自动检测开关与官方 ADB 选择，USB 状态在电脑地址下方。USB 检测会配置授权后的连接；多台 Android 手机需要选择一台。
-4. 手机应用默认 USB，首次前台会自动尝试连接；进入后台或切换语言后，显式点击连接。局域网作为可选方式，需要填写 IP、端口与配对码。
+4. 手机应用默认 USB；Android 首次前台可自动等待，点“**检测 USB 并连接**”主动开始，进入后台或切换语言后也需主动连接。iOS 在前台保持控制监听就绪，在任一端点“**连接**”开始视频。局域网作为可选方式，需要填写 IP、端口与配对码。
 5. 调整缩放、偏移和眼间距，确认两眼舒适对齐，再放入 VR 盒子。大屏幕模式先重新居中；第一人称模式还需在电脑端授权鼠标控制。
 
 原生 iOS / iPadOS 15+ 客户端使用 URLSession、Core Motion 和 Metal，不引入第三方运行库；与 Android 共用 Windows 主机和协议，保留电脑主动授权鼠标边界。iOS 源码 / 模拟器下载并非已签名的 iPhone IPA，签名步骤和兼容性边界详见 [iOS 教程](docs/IOS.md)。

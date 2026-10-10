@@ -5,7 +5,7 @@
 <!-- vrization:english -->
 ## English
 
-Windows, Android and iOS application labels are **0.3.3** (mobile build **6**). Protocol v1, saved profiles, viewer fitting, all-mode bounds and default-off stabilization remain compatible. **Candidate: final packaged and hardware acceptance is pending.**
+Windows, Android and iOS application labels are **0.3.3** (mobile build **6**). Protocol v1, saved profiles, viewer fitting, all-mode bounds and default-off stabilization remain compatible.
 
 ### Connection and stopping
 
@@ -13,6 +13,7 @@ Windows, Android and iOS application labels are **0.3.3** (mobile build **6**). 
 - Control is separate from video: Android control `18764` and video `18765`; iOS foreground control `18767` and video `18766`. The PC video listener still stops when Stop is pressed. These ports are local USB endpoints, not additional public LAN listeners.
 - ADB cold startup and recovery receive an eight-second budget, with bounded failure backoff; successful normal queries retain the shorter budget. A failed reverse-map query keeps the instance's ownership claim until cleanup is conclusively known. Foreign mappings are never overwritten or removed.
 - Android owns and cancels every actual socket. Connection-attempt and socket generations reject late callbacks, retries and decoded frames; explicit Disconnect clears output and stops pose transmission. USB requests bypass HTTP proxies without changing LAN behavior.
+- iOS LAN connection has its own 15-second pre-open deadline, followed by the bounded protocol handshake. A cancelled or timed-out upgrade cannot restore an old session or picture.
 - PC Stop immediately disables sending and input, closes the viewer, and waits for capture/network cleanup. Restart remains unavailable while cleanup is incomplete. Disconnection clears displayed statistics; late events from older sessions cannot restore them.
 - A repeated PC Connect must preserve an already connected phone's session and pose center. A queued or failed connection request cannot revive a later explicit stop.
 
@@ -30,11 +31,13 @@ The observed ADB log repeatedly showed startup-handshake failure after approxima
 
 At the inspected old PC Stop, port 8765 was closed even though old FPS/bitrate text remained. A separate synthetic slow-capture-close test reproduced the old host returning Stopped while its capture worker still existed. Button text, stale statistics and a successful build alone are insufficient acceptance evidence.
 
-Final acceptance results will be recorded here before publication. Physical iPhone USB and real game input are not established by Simulator or synthetic tests. No new end-to-end latency/FPS guarantee follows from these lifecycle changes. See [validation](VALIDATION.md), [compatibility](COMPATIBILITY.md) and [performance](PERFORMANCE.md).
+The final Windows executable and installed Android 0.3.3 / build 6 passed six real USB Connect / Disconnect cycles on the HUAWEI Pura 70 Ultra without unplugging or restarting ADB. Each connection decoded at least five desktop frames; each Disconnect stopped new frames for one second, cleared both-eye output and changed the host to waiting for a phone. PC Stop also cleared phone output; explicit phone Connect restarted the stopped host. Closing and reopening the ordinary BAT launcher passed two of those cycles, and application preferences were preserved. The Windows suite passed 287 tests plus 135 subcases; Android passed 116 unit tests, builds and lint. Final Mac checks passed 80 Swift core tests, five genuine native UI cases with zero failures / skips, both SDK builds and Metal color / seam checks. Native cases covered LAN upgrade cancellation / timeout and simulated USB Stop acknowledgment, disconnection and reconnection.
+
+Physical iPhone USB and real game input are not established by Simulator or synthetic tests. No new end-to-end latency/FPS guarantee follows from these lifecycle changes. See [validation](VALIDATION.md), [compatibility](COMPATIBILITY.md) and [performance](PERFORMANCE.md).
 
 ### Updating and publication
 
-Close the earlier host, extract the complete Windows ZIP and use its launcher. Update Android in place with the same public certificate; keep application data. The publication gate uses official `apksigner` and rejects a different/random CI debug signer. Only the public fingerprint is stored in source; private signing keys are never published. Keep verified checksums, historical releases and separately installed USB tools. iOS source requires Xcode/Apple signing; the Mac Simulator archive is not an iPhone installer.
+Update both host and phone to 0.3.3 for the new bidirectional USB control and iOS readiness handshake. Close the earlier host, extract the complete Windows ZIP and use its launcher. Update Android in place with the same public certificate; keep application data. The publication gate uses official `apksigner` and rejects a different/random CI debug signer. Only the public fingerprint is stored in source; private signing keys are never published. Keep verified checksums, historical releases and separately installed USB tools. iOS source requires Xcode/Apple signing; the Mac Simulator archive is not an iPhone installer.
 
 [USB guide](USB.md) · [iOS guide](IOS.md) · [v0.3.2 archived notes](releases/v0.3.2-alpha.md) · [Changelog](../CHANGELOG.md)
 
@@ -43,7 +46,7 @@ Close the earlier host, extract the complete Windows ZIP and use its launcher. U
 <!-- vrization:chinese -->
 ## 简体中文
 
-Windows、Android 与 iOS 应用版本均为 **0.3.3**，手机构建号 **6**。协议 v1、保存的配置、画面编辑、所有模式的显示范围和默认关闭的防抖继续兼容。**当前为候选，最终打包与真机验收待完成。**
+Windows、Android 与 iOS 应用版本均为 **0.3.3**，手机构建号 **6**。协议 v1、保存的配置、画面编辑、所有模式的显示范围和默认关闭的防抖继续兼容。
 
 ### 连接与停止
 
@@ -51,6 +54,7 @@ Windows、Android 与 iOS 应用版本均为 **0.3.3**，手机构建号 **6**�
 - 控制与视频分离：Android 控制 `18764`、视频 `18765`；iOS 前台控制 `18767`、视频 `18766`。电脑 Stop 仍关闭视频监听。这些是本地 USB 端点，不是新增局域网公开监听。
 - ADB 冷启动 / 恢复最多等待八秒，失败采用有限退避，正常成功查询保留较短等待。映射查询失败时保留本实例的归属记录，直到确定清理结果；不会覆盖或删除其他程序的映射。
 - Android 持有并取消每个真实 socket；连接尝试和 socket 两层代际校验拒绝迟到回调、重试与解码帧。主动断开清空画面并停止姿态发送；仅 USB 请求绕过 HTTP 代理，局域网策略保留。
+- iOS 局域网连接在 WebSocket 打开前有独立的 15 秒等待上限，之后继续使用有限等待的协议握手；取消或超时的旧升级请求不能恢复旧会话和画面。
 - 电脑 Stop 即时停止发送 / 输入并关闭观看会话，等待采集与网络清理完成后才能重开。断线清空统计，旧会话迟到事件不能重新填回。
 - 重复电脑连接请求应保留手机已连接的会话与姿态中心。排队或失败的旧连接请求不能复活之后的主动停止。
 
@@ -68,10 +72,12 @@ Windows 已在 DXGI 画面中把受保护区域遮黑，旧电脑端却把 `Prot
 
 检查旧电脑 Stop 时，8765 已关闭，但旧帧率 / 码率文字仍在。独立的合成慢采集清理测试复现旧版宣布停止时采集线程仍未结束。按钮文字、旧统计和构建通过都不足以证明验收成功。
 
-发布前会在这里补齐最终验收结果。模拟器与合成测试不代表真实 iPhone USB 或实际游戏输入，本次生命周期修复没有新增端到端延迟 / 帧率保证。见 [验证](VALIDATION.md)、[兼容性](COMPATIBILITY.md) 与 [性能](PERFORMANCE.md)。
+最终 Windows EXE 与已安装的 Android 0.3.3 / 构建 6 在 HUAWEI Pura 70 Ultra 上通过六轮真实 USB 连接 / 断开，没有拔插线或重启 ADB。每轮连接至少解码五帧电脑画面；每次断开后检查一秒无新帧、双眼画面清空、电脑变为等待手机。电脑 Stop 也清空手机画面，手机主动连接可重开已停止的电脑串流；六轮中包括关闭电脑端后通过普通 BAT 重开再测的两轮，应用偏好保持不变。Windows 通过 287 项及 135 个子用例，Android 通过 116 项单元测试、构建和 lint。最终 Mac 检查通过 80 项 Swift 核心、五项真实原生界面（零失败 / 跳过）、两种 SDK 构建及 Metal 颜色 / 接缝检查。原生用例覆盖局域网升级取消 / 超时、模拟 USB 停止确认、断开和重新连接。
+
+模拟器与合成测试不代表真实 iPhone USB 或实际游戏输入，本次生命周期修复没有新增端到端延迟 / 帧率保证。见 [验证](VALIDATION.md)、[兼容性](COMPATIBILITY.md) 与 [性能](PERFORMANCE.md)。
 
 ### 更新与发布
 
-关闭旧电脑端，完整解压 Windows ZIP 后运行启动器。Android 使用相同公开证书覆盖升级，保留应用数据；发布门槛调用官方 `apksigner`，拒绝不同 / 随机 CI 调试签名。仓库仅保存公开指纹，不公开私有签名密钥。保留校验值、历史版与独立 USB 工具。iOS 源码需要 Xcode / Apple 签名，Mac 模拟器包不能作为 iPhone 安装器。
+新版双端 USB 控制与 iOS 就绪握手需要电脑和手机都更新至 0.3.3。关闭旧电脑端，完整解压 Windows ZIP 后运行启动器。Android 使用相同公开证书覆盖升级，保留应用数据；发布门槛调用官方 `apksigner`，拒绝不同 / 随机 CI 调试签名。仓库仅保存公开指纹，不公开私有签名密钥。保留校验值、历史版与独立 USB 工具。iOS 源码需要 Xcode / Apple 签名，Mac 模拟器包不能作为 iPhone 安装器。
 
 [USB 教程](USB.md) · [iOS 教程](IOS.md) · [v0.3.2 历史说明](releases/v0.3.2-alpha.md) · [版本日志](../CHANGELOG.md)
