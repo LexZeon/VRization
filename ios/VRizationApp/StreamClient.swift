@@ -82,6 +82,9 @@ final class StreamClient: NSObject, URLSessionWebSocketDelegate {
         let task = session.webSocketTask(with: url)
         task.maximumMessageSize = 8 * 1024 * 1024
         self.session = session; socket = task
+        // A WebSocket can stall before didOpen. The platform request timeout
+        // alone must not leave the viewer in an unbounded connecting state.
+        startLANHandshakeDeadline(task, epoch: generation, seconds: 15)
         state = .connecting; onState?(state, "connecting")
         task.resume()
         return true
@@ -163,6 +166,14 @@ final class StreamClient: NSObject, URLSessionWebSocketDelegate {
 
     private func matches(_ task: URLSessionWebSocketTask, _ epoch: UInt64) -> Bool {
         socket === task && generation == epoch
+    }
+    private func startLANHandshakeDeadline(_ task: URLSessionWebSocketTask, epoch: UInt64, seconds: TimeInterval) {
+        handshakeTimeout?.invalidate()
+        let timer = Timer(timeInterval: seconds, repeats: false) { [weak self, weak task] _ in
+            guard let self = self, let task = task, self.matches(task, epoch), self.state == .connecting else { return }
+            self.disconnect(reason: "handshakeTimeout")
+        }
+        handshakeTimeout = timer; RunLoop.main.add(timer, forMode: .common)
     }
     private func receive(_ task: URLSessionWebSocketTask, epoch: UInt64) {
         task.receive { [weak self, weak task] result in
@@ -279,11 +290,7 @@ final class StreamClient: NSObject, URLSessionWebSocketDelegate {
         DispatchQueue.main.async { [weak self, weak webSocketTask] in
             guard let self = self, let task = webSocketTask, self.socket === task, self.state == .connecting else { return }
             let epoch = self.generation
-            let timer = Timer(timeInterval: 10, repeats: false) { [weak self, weak task] _ in
-                guard let self = self, let task = task, self.matches(task, epoch), self.state == .connecting else { return }
-                self.disconnect(reason: "handshakeTimeout")
-            }
-            self.handshakeTimeout = timer; RunLoop.main.add(timer, forMode: .common)
+            self.startLANHandshakeDeadline(task, epoch: epoch, seconds: 10)
             self.receive(task, epoch: epoch)
         }
     }

@@ -13,6 +13,7 @@ final class ViewerSmokeTests: XCTestCase {
     }
     override func tearDownWithError() throws {
         app.terminate()
+        try requestFixtureAction("release-lan-handshake")
         try requestFixtureAction("resume-relay")
     }
     private func launchViewer() {
@@ -139,9 +140,27 @@ final class ViewerSmokeTests: XCTestCase {
         waitLabel(app.staticTexts["setting.scale.label"], contains: "85%")
     }
     private func waitLabel(_ element: XCUIElement, contains text: String, timeout: TimeInterval = 20) {
-        let match = NSPredicate(format: "label CONTAINS %@", text)
-        expectation(for: match, evaluatedWith: element)
-        waitForExpectations(timeout: timeout)
+        let identifier = element.identifier, type = element.elementType
+        XCTAssertFalse(identifier.isEmpty)
+        // Re-resolve the identifier every poll. A captured Cancel snapshot once
+        // timed out while the actual screen and a fresh query showed Disconnect.
+        let match = NSPredicate { [unowned self] _, _ in
+            let current = self.app.descendants(matching: type).matching(identifier: identifier).firstMatch
+            return current.exists && current.label.contains(text)
+        }
+        let expected = XCTNSPredicateExpectation(predicate: match, object: nil)
+        guard XCTWaiter.wait(for: [expected], timeout: timeout) == .completed else {
+            let current = app.descendants(matching: type).matching(identifier: identifier).firstMatch
+            let status = app.staticTexts["connection.status"].label
+            let frames = app.staticTexts["frame.status"].label
+            let surface = app.otherElements["vr.surface"].value as? String ?? "unavailable"
+            let details = "identifier=\(identifier); expected=\(text); current=\(current.label); status=\(status); frames=\(frames); surface=\(surface)\n\(current.debugDescription)"
+            let attachment = XCTAttachment(string: details)
+            attachment.name = "failed-label-state"; attachment.lifetime = .keepAlways; add(attachment)
+            screenshot("failed-label-screen")
+            XCTFail("\(identifier) did not contain '\(text)' within \(timeout) seconds")
+            return
+        }
     }
 
     func testLanguageNetworkRendererAndReconnect() throws {
@@ -194,6 +213,28 @@ final class ViewerSmokeTests: XCTestCase {
         reveal(toggle); toggle.tap(); waitLabel(toggle, contains: "Disconnect")
         waitLabel(frames, contains: "1280")
         screenshot("07-background-reconnect")
+        reveal(toggle); toggle.tap(); try assertDisconnected()
+
+        // Hold a real HTTP upgrade before URLSession didOpen. A bounded failure
+        // must clear the native renderer; releasing the old upgrade must not
+        // establish a cancelled generation or revive its texture/host session.
+        try requestFixtureAction("hold-lan-handshake")
+        defer { try? requestFixtureAction("release-lan-handshake") }
+        toggle.tap(); waitLabel(toggle, contains: "Cancel")
+        for _ in 0..<20 {
+            if try observeHost().heldLANRequests > 0 { break }
+            Thread.sleep(forTimeInterval: 0.1)
+        }
+        XCTAssertGreaterThan(try observeHost().heldLANRequests, 0)
+        XCTAssertFalse(try observeHost().connected)
+        waitLabel(toggle, contains: "Connect", timeout: 20)
+        try assertDisconnected()
+        screenshot("08-pre-open-timeout-cleared")
+        try requestFixtureAction("release-lan-handshake")
+        Thread.sleep(forTimeInterval: 1); try assertDisconnected()
+        toggle.tap(); waitLabel(toggle, contains: "Disconnect")
+        waitLabel(frames, contains: "1280")
+        screenshot("09-after-pre-open-timeout-reconnected")
         reveal(toggle); toggle.tap(); try assertDisconnected()
     }
 
@@ -264,6 +305,7 @@ final class ViewerSmokeTests: XCTestCase {
     private struct HostObservation: Decodable {
         let settingsCount: Int
         let connected: Bool
+        let heldLANRequests: Int
         let settings: SavedSettings
         let mouseMoves: [[Int]]
     }

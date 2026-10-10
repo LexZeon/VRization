@@ -4,12 +4,39 @@ This validates the original relay and native framed-TCP client, not a USB cable,
 Apple driver, physical iPhone, trust prompt or USB throughput.
 """
 from contextlib import suppress
+import asyncio
 from http.server import ThreadingHTTPServer
 import plistlib
 import socket
 import socketserver
 import struct
 import threading
+
+
+class LANHandshakeHold:
+    """Delay only synthetic /ws upgrades, so native pre-open deadlines are tested."""
+    def __init__(self):
+        self.held = threading.Event()
+        self._lock = threading.Lock()
+        self._pending = 0
+
+    @property
+    def pending(self):
+        with self._lock:
+            return self._pending
+
+    async def handle(self, request, handler):
+        if request.path != "/ws" or not self.held.is_set():
+            return await handler(request)
+        with self._lock:
+            self._pending += 1
+        try:
+            while self.held.is_set():
+                await asyncio.sleep(.025)
+        finally:
+            with self._lock:
+                self._pending -= 1
+        return await handler(request)
 
 
 class LoopbackObservationServer(ThreadingHTTPServer):

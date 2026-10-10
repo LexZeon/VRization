@@ -1,4 +1,5 @@
 """Fixture readiness failures must end before native UI tests can run."""
+import asyncio
 from io import BytesIO
 from http.server import BaseHTTPRequestHandler
 import json
@@ -10,7 +11,51 @@ from unittest.mock import patch
 from urllib.response import addinfourl
 
 import build_ios
-from ios_usb_fixture import LoopbackObservationServer
+from ios_usb_fixture import LANHandshakeHold, LoopbackObservationServer
+
+
+class LANHandshakeHoldTests(unittest.IsolatedAsyncioTestCase):
+    async def test_real_hold_does_not_run_upgrade_until_explicit_release(self):
+        gate = LANHandshakeHold()
+        gate.held.set()
+        calls = []
+        async def handler(request):
+            calls.append(request.path)
+            return "upgraded"
+        pending = asyncio.create_task(gate.handle(SimpleNamespace(path="/ws"), handler))
+        await asyncio.sleep(.04)
+        self.assertEqual(gate.pending, 1)
+        self.assertEqual(calls, [])
+        gate.held.clear()
+        self.assertEqual(await asyncio.wait_for(pending, .2), "upgraded")
+        self.assertEqual(gate.pending, 0)
+        self.assertEqual(calls, ["/ws"])
+
+    async def test_cancellation_releases_count_and_cannot_run_stale_upgrade(self):
+        gate = LANHandshakeHold()
+        gate.held.set()
+        calls = []
+        async def handler(request):
+            calls.append(request.path)
+            return "upgraded"
+        pending = asyncio.create_task(gate.handle(SimpleNamespace(path="/ws"), handler))
+        await asyncio.sleep(.04)
+        pending.cancel()
+        with self.assertRaises(asyncio.CancelledError):
+            await pending
+        gate.held.clear()
+        self.assertEqual(gate.pending, 0)
+        self.assertEqual(calls, [])
+        self.assertEqual(await gate.handle(SimpleNamespace(path="/ws"), handler), "upgraded")
+        self.assertEqual(calls, ["/ws"])
+
+    async def test_health_is_available_while_upgrade_is_held(self):
+        gate = LANHandshakeHold()
+        gate.held.set()
+        async def handler(request):
+            return request.path
+        self.assertEqual(await asyncio.wait_for(gate.handle(SimpleNamespace(path="/health"), handler), .2), "/health")
+        self.assertEqual(gate.pending, 0)
 
 
 class FixtureReadinessTests(unittest.TestCase):

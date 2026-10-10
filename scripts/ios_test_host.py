@@ -16,13 +16,14 @@ import signal
 import re
 import sys
 import threading
-from ios_usb_fixture import LoopbackObservationServer
+from ios_usb_fixture import LANHandshakeHold, LoopbackObservationServer
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "examples"))
 from embedded_host import CalibrationCard  # noqa: E402
 from vrization_host import HostServer  # noqa: E402
 from vrization_host.capture import CaptureConfig  # noqa: E402
+from aiohttp import web  # noqa: E402
 
 
 class NoMouse:
@@ -44,6 +45,7 @@ def main():
     guard = threading.Lock()
     stop = threading.Event()
     ready = threading.Event()
+    handshakes = LANHandshakeHold()
     sink = NoMouse()
     usb = mux_fixture = None
     control = None
@@ -55,7 +57,16 @@ def main():
             with guard:
                 events.append(event)
 
-    host = HostServer(capture_source=CalibrationCard(), input_sink=sink,
+    class FixtureHost(HostServer):
+        def make_app(self):
+            app = super().make_app()
+            @web.middleware
+            async def hold_upgrade(request, handler):
+                return await handshakes.handle(request, handler)
+            app.middlewares.append(hold_upgrade)
+            return app
+
+    host = FixtureHost(capture_source=CalibrationCard(), input_sink=sink,
                       capture_config=CaptureConfig(width=1280, fps=12),
                       host="127.0.0.1", port=args.port, on_event=on_event)
 
@@ -63,7 +74,7 @@ def main():
         with guard:
             count = sum(event["event"] == "settings" for event in events)
         return {"settingsCount": count, "settings": host.get_settings_snapshot()[0].to_dict(), "mouseMoves": list(sink.moves), "connected": host.controller.connected,
-                "fixtureReady": ready.is_set()}
+                "fixtureReady": ready.is_set(), "heldLANRequests": handshakes.pending}
 
     class ObservationHandler(BaseHTTPRequestHandler):
         # Snapshot/checkpoints only observe. Explicit phone-connect uses the real
@@ -87,6 +98,13 @@ def main():
                 self.respond({"error": "unknown observation"}, 404)
 
         def do_POST(self):
+            if self.path in ("/hold-lan-handshake", "/release-lan-handshake"):
+                if self.path == "/hold-lan-handshake":
+                    handshakes.held.set()
+                else:
+                    handshakes.held.clear()
+                self.respond(snapshot())
+                return
             if self.path in ("/pause-relay", "/resume-relay"):
                 if usb is None:
                     self.respond({"error": "simulated USB is unavailable"}, 503)
@@ -165,6 +183,7 @@ def main():
         stop.wait()
     finally:
         faulthandler.cancel_dump_traceback_later()
+        handshakes.held.clear()
         if control:
             control.shutdown(); control.server_close()
         if usb:
