@@ -89,7 +89,10 @@ class AdbDiscoveryTests(unittest.TestCase):
             sdk.parent.mkdir(parents=True)
             sdk.touch()  # A path fixture only, never executed.
             for layout in ("latest/Windows", "versions/v0.3.1-alpha/Windows",
-                           "previous-latest-20261009-123456-abc123/Windows"):
+                           "previous-latest-20261009-123456-abc123/Windows",
+                           "steamvr-experimental/latest/Windows",
+                           "steamvr-experimental/versions/v0.5.0-steamvr-preview/Windows",
+                           "steamvr-experimental/previous-latest-20261009-123456-abc123/Windows"):
                 executable = base / layout / "VRization-Host.exe"
                 executable.parent.mkdir(parents=True)
                 executable.touch()

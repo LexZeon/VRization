@@ -51,6 +51,8 @@ def default_tools_directory() -> Path:
         elif container.parent.name.casefold() == "versions" and re.fullmatch(
                 r"v\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?", container.name):
             root = container.parent.parent
+    if root.name.casefold() == "steamvr-experimental":
+        root = root.parent
     return root / "tools" / "android-sdk"
 
 

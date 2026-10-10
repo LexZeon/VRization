@@ -28,6 +28,9 @@ class PreviewHost(HostServer):
     def _host_capabilities(self):
         return super()._host_capabilities()+[STEREO,ORIENTATION]
 
+    def _host_version(self):
+        return __version__
+
     def _outgoing_session_fields(self):
         return {"streamSession":self.stream_session.descriptor(),"previewVersion":__version__}
 

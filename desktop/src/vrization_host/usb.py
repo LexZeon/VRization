@@ -62,6 +62,8 @@ def portable_adb_candidates() -> list[Path]:
         elif container.parent.name.casefold() == "versions" and re.fullmatch(
                 r"v\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?", container.name):
             roots.append(container.parent.parent)
+    if roots[-1].name.casefold() == "steamvr-experimental":
+        roots.append(roots[-1].parent)  # Explicit release channel, shared installed SDK.
     return [root / "tools" / "android-sdk" / "platform-tools" / "adb.exe" for root in roots]
 
 

@@ -10,6 +10,14 @@ from vrization_steamvr.ipc import FRAME,decode_frame
 
 
 class RuntimeTests(unittest.TestCase):
+    def test_preview_reports_its_own_version_without_changing_stable(self):
+        from vrization_steamvr import __version__
+        from vrization_host._version import __version__ as stable_version
+        from vrization_steamvr.host import PreviewHost
+        from vrization_host.server import HostServer
+        self.assertEqual(PreviewHost(route="direct-phone")._host_version(),__version__)
+        self.assertEqual(HostServer()._host_version(),stable_version)
+
     def test_graceful_child_close_signals_then_waits_and_never_terminates(self):
         order=[];event=Mock(name="event");event.name="Local\\VRizationStop-"+"a"*32
         event.signal.side_effect=lambda:order.append("signal")

@@ -167,7 +167,7 @@ class HostServer:
 
     async def _health(self, request):
         ws = self._ws
-        return web.json_response({"name": "VRization", "version": __version__, "protocol": 1,
+        return web.json_response({"name": "VRization", "version": self._host_version(), "protocol": 1,
                                   "connected": ws is not None and not ws.closed and not self._stopping.is_set(),
                                   "running": self.running, "stopping": self._stopping.is_set()})
 
@@ -194,7 +194,7 @@ class HostServer:
             return web.json_response({"error": "USB unauthorized"}, status=403, headers=headers)
         if not self.running or self._stopping.is_set():
             return web.json_response({"error": "Streaming not running"}, status=503, headers=headers)
-        return web.json_response({"v": 1, "name": "VRization", "version": __version__,
+        return web.json_response({"v": 1, "name": "VRization", "version": self._host_version(),
                                   "port": self.port, "token": self.token}, headers=headers)
 
     def _capture_error(self, error):
@@ -251,6 +251,9 @@ class HostServer:
         """Optional transport metadata for a separately negotiated embedder."""
         return {}
 
+    def _host_version(self):
+        return __version__
+
     def _host_capabilities(self):
         return ["stabilization", ENHANCED_FIRST_PERSON_CAPABILITY]
 
@@ -306,7 +309,7 @@ class HostServer:
             self._emit("connection", connected=True, address=address, session=session_generation)
             settings, revision = self.get_settings_snapshot()
             await ws.send_json({"v": 1, "type": "hello", "name": "VRization",
-                                "version": __version__, "settings": self._wire_settings(settings), "revision": revision,
+                                "version": self._host_version(), "settings": self._wire_settings(settings), "revision": revision,
                                 "capabilities": self._host_capabilities(),
                                 "enhancedFirstPerson": self._enhanced_first_person,
                                 "stream": {"codec": "jpeg", "fps": self.capture_config.fps,

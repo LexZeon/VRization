@@ -188,7 +188,9 @@ class UsbToolsTests(unittest.TestCase):
     def test_portable_and_archive_default_locations_do_not_use_appdata(self):
         for layout, root in (("VRization", "VRization"), ("latest/Windows", ""),
                              ("versions/v0.3.2-alpha/Windows", ""),
-                             ("previous-latest-20261009-123456-abc123/Windows", "")):
+                             ("previous-latest-20261009-123456-abc123/Windows", ""),
+                             ("steamvr-experimental/latest/Windows", ""),
+                             ("steamvr-experimental/versions/v0.5.0-steamvr-preview/Windows", "")):
             with self.subTest(layout=layout), \
                     patch.object(usb_tools.sys, "frozen", True, create=True), \
                     patch.object(usb_tools.sys, "executable", str(self.base / layout / "VRization-Host.exe")), \
