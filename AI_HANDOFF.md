@@ -9,7 +9,7 @@ This is a technical handoff for continuing VRization or integrating its componen
 
 ### Status and source of truth
 
-This handoff targets **v0.3.4-alpha**, application version **0.3.4**, mobile build **7**, during development. The Windows GUI now defaults First-person gyro mouse control to enabled and keeps emergency/editor/failure/Stop pauses latched. New-version tests and publication remain pending in [validation](docs/VALIDATION.md) and [current notes](docs/RELEASE_NOTES.md); [v0.3.3 checks](docs/releases/v0.3.3-alpha.md) remain historical. Source code or a successful build alone does not establish hardware or game acceptance.
+This handoff covers **v0.3.4-alpha**, application version **0.3.4**, mobile build **7**. The reusable Android AAR is unchanged. The Windows GUI defaults First-person gyro mouse control to enabled across all foreground windows and retains local emergency/editor/failure/Stop pauses. Completed software/package/native Simulator checks and untested physical/advanced GUI boundaries are recorded in [validation](docs/VALIDATION.md) and [release notes](docs/RELEASE_NOTES.md); use the exact [release assets and manifest](https://github.com/LexZeon/VRization/releases/tag/v0.3.4-alpha). [v0.3.3 checks](docs/releases/v0.3.3-alpha.md) remain historical. Source/build success does not establish hardware/game acceptance.
 
 Use the Git checkout containing `desktop/`, `android/`, `ios/` and tracked source as the source root. Run `git status --short` and `git ls-files` before editing; an empty newly initialized directory is not the complete project. `artifacts/` contains build/test outputs, not the authoritative source. The local runnable archive is normally `%USERPROFILE%/Documents/VRization-Releases/`: `versions/<tag>/` retains each published version, `latest/` is the current extracted copy, and `tools/` holds separately installed USB tools. The repository's release notes and manifest, not folder names alone, identify a binary.
 
@@ -159,7 +159,7 @@ validation records before handing the result back.
 
 逐文件的生产模块职责、重要入口和移植边界见[模块目录](docs/MODULES.md)。
 
-本指南对应开发中的 **v0.3.4-alpha**，应用版本 **0.3.4**、手机构建号 **7**。Windows 界面现默认启用第一人称陀螺仪鼠标，紧急停止／编辑器／故障／Stop 维持暂停锁。新版测试与发布仍待完成，见 [验证记录](docs/VALIDATION.md) 和 [当前说明](docs/RELEASE_NOTES.md)；[v0.3.3 检查](docs/releases/v0.3.3-alpha.md) 保留为历史。源码或构建成功本身不证明硬件／游戏验收。
+本指南对应 **v0.3.4-alpha**，应用版本 **0.3.4**、手机构建号 **7**；可复用 Android AAR 不变。Windows 界面默认开启所有前台窗口中的第一人称陀螺仪鼠标，并保留本地紧急停止／编辑器／故障／Stop 暂停锁。已完成软件／打包／原生模拟器检查与未验证真机／高级界面范围见 [验证](docs/VALIDATION.md) 和 [发布说明](docs/RELEASE_NOTES.md)，准确 [发行文件与清单](https://github.com/LexZeon/VRization/releases/tag/v0.3.4-alpha) 用于确认二进制；[v0.3.3 检查](docs/releases/v0.3.3-alpha.md) 仍为历史，源码／构建通过不代表硬件／游戏验收。
 
 源码根目录应是包含 `desktop/`、`android/`、`ios/` 和受 Git 跟踪源码的 checkout。修改前运行 `git status --short` 与 `git ls-files`；新初始化的空目录不是完整项目。`artifacts/` 是构建／测试产物，不是权威源码。可运行本地档案通常在 `%USERPROFILE%/Documents/VRization-Releases/`：`versions/<tag>/` 保留每个公开版本，`latest/` 是当前已解压副本，`tools/` 放另行安装的 USB 工具。二进制身份以仓库发布说明与校验清单为准，不能只看文件夹名称。
 

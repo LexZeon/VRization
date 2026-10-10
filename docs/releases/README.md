@@ -7,7 +7,7 @@
 
 Read the [version changelog](../../CHANGELOG.md) for a newest-first summary of every published version and upcoming implemented changes.
 
-- [Current v0.3.4-alpha development notes](../RELEASE_NOTES.md): default-enabled First-person gyro mouse control across desktop/apps/games, saved local preference and latched PC stop/resume. Validation/publication pending.
+- [Current v0.3.4-alpha](../RELEASE_NOTES.md): default-enabled First-person gyro mouse control across desktop/apps/games, saved local preference and latched PC stop/resume. Software/package/native Simulator checks passed; physical gyro/game/video/latency and advanced Windows GUI acceptance remain unverified.
 - [v0.3.3-alpha](v0.3.3-alpha.md): actual stop/reconnect, explicit Connect on either USB endpoint and reusable connection modules.
 - [v0.3.2-alpha](v0.3.2-alpha.md): default-off first-person stabilization, compatible settings negotiation and portable USB tool lookup.
 - [v0.3.1-alpha](v0.3.1-alpha.md): Windows USB connection patch; Android and iOS applications retain version 0.3.0.
@@ -26,7 +26,7 @@ Keep historical version notes and download checksums with each release. Measurem
 
 在 [版本日志](../../CHANGELOG.md) 查看全部已发布版本及后续已实现改动的摘要，按从新到旧排列。
 
-- [当前 v0.3.4-alpha 开发说明](../RELEASE_NOTES.md)：默认开启第一人称陀螺仪鼠标，桌面／应用／游戏均可控制，保存本地偏好并保留电脑停止锁／主动恢复；验证与发布待完成。
+- [当前 v0.3.4-alpha](../RELEASE_NOTES.md)：默认开启第一人称陀螺仪鼠标，桌面／应用／游戏均可控制，保存本地偏好并保留电脑停止锁／主动恢复；软件／打包／原生模拟器检查通过，真机陀螺仪／游戏／视频／延迟和高级 Windows 界面仍未验证。
 - [v0.3.3-alpha](v0.3.3-alpha.md)：真实停止／重连、USB 双端主动连接及可复用连接模块。
 - [v0.3.2-alpha](v0.3.2-alpha.md)：默认关闭的第一人称防抖、兼容配置协商与便携 USB 工具查找。
 - [v0.3.1-alpha](v0.3.1-alpha.md)：Windows USB 连接补丁；Android 与 iOS 应用仍为 0.3.0。

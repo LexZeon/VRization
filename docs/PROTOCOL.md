@@ -55,7 +55,7 @@ Inside this tunnel, each VRization frame is:
 
 The length includes the kind and excludes the four-byte prefix; valid length is `1…8 MiB`. Kind `1` carries UTF-8 v1 JSON and kind `2` carries one JPEG. JSON payloads are limited to 16 KiB. Phone → host accepts JSON only. Reject invalid lengths / kinds before allocating a payload; handle partial headers, fragmented payloads and multiple frames in one read. The first host JSON is the normal `hello`; the app requires it before treating the session as connected. Closing either side closes the relay's WebSocket and revokes host input authorization. This envelope is separate from usbmux's own little-endian plist service protocol; it does not change WebSocket v1.
 
-Fresh Android startup can wait for an existing stream; fresh iOS startup opens only foreground control. An explicit Connect on either supported device can establish USB. Backgrounding, language changes and Disconnect invalidate video and require another explicit action. The v0.3.3 native acceptance is recorded; v0.3.4 policy checks are pending. iOS evidence covers simulated usbmux and the native Simulator, not a physical iPhone / Apple driver. See version-scoped [validation](VALIDATION.md).
+Fresh Android startup can wait for an existing stream; fresh iOS startup opens only foreground control. An explicit Connect on either supported device can establish USB. Backgrounding, language changes and Disconnect invalidate video and require another explicit action. The v0.3.3 native acceptance is recorded; v0.3.4 software/native Simulator checks passed, with physical input/USB limits recorded separately. iOS evidence covers simulated usbmux and the native Simulator, not a physical iPhone / Apple driver. See version-scoped [validation](VALIDATION.md).
 
 ### Message directions
 
@@ -231,7 +231,7 @@ iOS 前台在手机回环 `127.0.0.1:18767` 保留控制，主动连接才开放
 
 长度包含类型字节、不包含四字节头，有效范围 `1…8 MiB`。类型 `1` 为 UTF-8 v1 JSON，类型 `2` 为一个 JPEG；JSON 内容最多 16 KiB，手机向主机只发 JSON。分配内容前先拒绝非法长度 / 类型；支持分段头、分段内容及一次读取多个帧。首条主机 JSON 为普通 `hello`，应用收到合法握手才认为连接成功。任意一侧关闭会关闭中继 WebSocket，并撤销主机输入授权。此分帧独立于 usbmux 自身的小端 plist 服务协议，不改变 WebSocket v1。
 
-全新 Android 启动可等待已有串流，全新 iOS 仅开放前台控制；受支持任一端主动连接可建立 USB，后台、切换语言和断线使视频失效，需再次主动连接。v0.3.3 原生验收已有记录，v0.3.4 策略检查仍待完成；iOS 证据只包含模拟 usbmux 和原生模拟器，不代表真实 iPhone／Apple 驱动。见按版本记录的[验证](VALIDATION.md)。
+全新 Android 启动可等待已有串流，全新 iOS 仅开放前台控制；受支持任一端主动连接可建立 USB，后台、切换语言和断线使视频失效，需再次主动连接。v0.3.3 原生验收已有记录，v0.3.4 软件／原生模拟器检查通过，真机输入／USB 范围另行记录；iOS 证据只包含模拟 usbmux 和原生模拟器，不代表真实 iPhone／Apple 驱动。见按版本记录的[验证](VALIDATION.md)。
 
 ### 消息方向
 

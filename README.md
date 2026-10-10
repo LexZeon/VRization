@@ -18,7 +18,7 @@
 
 VRization streams a Windows desktop or rectangular region to an Android phone, iPhone or iPad, renders the image side by side, and optionally maps phone rotation to PC mouse movement. Its reusable Android library, Swift core package and separated host components provide a starting point for embedding these features in other applications.
 
-**v0.3.4-alpha — default-enabled continuous First-person gyro mouse control.** The host saves the input preference, automatically starts with valid First-person poses and works across all foreground windows and rebaselines after sensor gaps. F8 and explicit stop/failure/editor events remain latched until the PC resumes control. Validation and publication are pending; see [current notes](docs/RELEASE_NOTES.md) and [recorded checks](docs/VALIDATION.md). Developers can use the [AI handoff and module map](AI_HANDOFF.md).
+**v0.3.4-alpha — default-enabled continuous First-person gyro mouse control.** The host saves the input preference, automatically starts with valid First-person poses, works across all foreground windows and rebaselines after sensor gaps. F8 and explicit stop/failure/editor/reset/region-selection actions remain latched until the PC resumes control. Software checks, package audits and native iOS Simulator checks passed; new physical gyro/game/video/latency and advanced Windows Resume/F8 GUI acceptance remain unverified. See [release notes](docs/RELEASE_NOTES.md), [recorded checks](docs/VALIDATION.md) and [downloads](https://github.com/LexZeon/VRization/releases/tag/v0.3.4-alpha). Developers can use the [AI handoff and module map](AI_HANDOFF.md).
 
 Visual headset fitting and saved phone profiles from v0.3 remain available. An original Windows DXGI / D3D11 backend crops, rotates and scales on the GPU before smaller pixel readback; the CPU encodes JPEG for the existing WebSocket protocol. GDI / MSS remain compatibility paths. Both eyes receive the same 2D source: ordinary games do not acquire stereoscopic depth. See [performance and measurement limits](docs/PERFORMANCE.md).
 
@@ -138,7 +138,7 @@ Windows 桌面串流 · Android / 兼容 Android 的系统 · iPhone / iPad · �
 
 VRization 是一个开源的电脑 → 手机串流实验项目。Windows 端采集显示器或指定矩形区域，Android、iPhone / iPad 客户端将画面显示在 VR 盒子的左右眼区域。你可以让画面固定在眼前，也可以把它当成一个随头部转动观看的虚拟大屏幕，或者用手机的姿态控制电脑游戏视角。
 
-> **v0.3.4-alpha — 默认开启并持续响应的第一人称陀螺仪鼠标。** 电脑保存控制偏好，在合法第一人称姿态到达后自动开始；桌面、应用、游戏与自身界面都可控制，传感器短暂停顿后重建基准。F8、主动停止、故障和进入编辑器保持暂停锁，须在电脑恢复。验证与发布尚待完成，见 [当前说明](docs/RELEASE_NOTES.md) 与 [检查记录](docs/VALIDATION.md)。后续开发可使用 [AI 接手指南与模块说明](AI_HANDOFF.md)。
+> **v0.3.4-alpha — 默认开启并持续响应的第一人称陀螺仪鼠标。** 电脑保存控制偏好，在合法第一人称姿态到达后自动开始，所有前台窗口可控制，传感器间断后重建基准。F8 和主动停止／故障／编辑器／重置／选区保持暂停锁，须电脑恢复。软件测试、打包审计与原生 iOS 模拟器检查已通过；新版真机陀螺仪／游戏／视频／延迟及高级 Windows Resume／F8 界面仍未验收。见 [发布说明](docs/RELEASE_NOTES.md)、[检查记录](docs/VALIDATION.md) 和 [下载](https://github.com/LexZeon/VRization/releases/tag/v0.3.4-alpha)；后续开发可使用 [AI 接手指南与模块说明](AI_HANDOFF.md)。
 
 v0.3 的可视盒子适配与手机配置保存继续保留。原创 Windows DXGI / D3D11 后端在 GPU 裁切、旋转和缩放，再回读较小像素；CPU 编码 JPEG，经已有 WebSocket 协议传输，保留 GDI / MSS 兼容路径。左右眼接收同一张二维桌面图像，**不会把普通游戏自动变成立体 3D**。实测范围见 [性能与测量](docs/PERFORMANCE.md)。
 

@@ -7,9 +7,16 @@
 
 Updated 2026-10-10. Automated checks, desktop capture and emulator observations are distinguished from hardware capabilities that remain untested.
 
-### Unreleased v0.3.4-alpha — validation pending
+### [v0.3.4-alpha](https://github.com/LexZeon/VRization/releases/tag/v0.3.4-alpha) — completed software/package checks
 
-The implementation targets Windows/Android/iOS **0.3.4**, mobile build **7**. The new GUI policy enables gyro mouse control by default in First-person mode across every foreground window. Planned acceptance covers a fake sink for first-pose activation, repeated motion, desktop/app/own-window control, stale-pose rebaseline, F8/editor/failure/Stop latches, PC Resume, disabled preference and persistence. Packaged runtime, Android signing/build and iOS native checks must be recorded after execution. No v0.3.4 hardware/game/latency result is claimed yet; prior passes below retain their versions.
+Windows, Android and iOS applications are **0.3.4**, mobile build **7**; the reusable Android core AAR is unchanged. The Windows GUI enables First-person gyro mouse control across all foreground windows by default. The completed software/package/native Simulator results below do not establish physical gyro/game/video/latency or advanced Windows GUI acceptance.
+
+- Source `101174317613520c7d98375332c2a3bd9032cb2d`: the Windows build script's complete suite passed **318 tests**. The **31 new tests** comprise 17 controller cases and 14 GUI/storage/real-loopback cases, including Stop/restart. They use fake input and synthetic capture; no actual operating-system mouse input or desktop capture ran in these tests. They establish software policy/lifecycle behavior, not physical gyro/game feel.
+- The frozen v0.3.4 EXE matches all **21 project modules** and all **38 native hashes** against the current recorded origins, and includes **44 license files plus three root notices**. SHA-256: `19f19409cb1331e42b988e7a3f9b32920bd2c33397eb7fe687933abeca024a5d`. Compared with v0.3.3, 22 CPython native-file hashes changed solely because of valid re-signing; their PE code and resources are unchanged. The first-release historical audit remains immutable. The release Windows ZIP passed the clean-profile runtime smoke check without SDK environment variables; that diagnostic check performed no capture/input.
+- The user confirmed the physical Huawei upgrade to **0.3.4 / build 7**, without uninstalling or clearing data. The pulled installed APK matches the release APK SHA-256 `c1be9b8ba11f8941844dbb9b84ebc463b695807874605a93c94dc238f32c70ad`; its certificate matches the existing public SHA-256 fingerprint `c8221633041e9b4551cd6e9f4f657e7beeb0901a4b77999d1bfc11d3825b6d74`.
+- The new Windows GUI's initial startup and visible **0.3.4** version were observed. The advanced GUI check stopped when the user physically pressed Escape; actual GUI Resume/F8 acceptance is therefore **not claimed**. New-version physical gyro control, game feel, video delivery and latency were not tested.
+- Clean Android tests passed **116 cases (67 app + 49 core)**, with zero failures/ignored cases. APK, unchanged reusable AAR, instrumentation compilation and lint passed. Lint reported **zero errors and nine CI warnings**: eight existing local warnings plus OldTargetApi from the CI SDK inventory; no warnings were suppressed.
+- All four [Actions 38081097956](https://github.com/LexZeon/VRization/actions/runs/38081097956) jobs passed at source `101174317613520c7d98375332c2a3bd9032cb2d`. Independent iOS verification confirmed **80 Swift core tests with zero failures**, **five genuine native UI tests with zero failures/skips**, and successful Simulator and unsigned device-target SDK builds. The arm64 iPhone 17 Pro Max Simulator ran iOS 26.2 with Xcode 26.3 on macOS 15.7.9. Independently decoded screenshots passed **12 color pixel checks and two seam checks**; all **12 host checkpoints** had empty mouse-move lists. USB was explicitly simulated; no physical iPhone USB was tested. The Simulator app identifies as **0.3.4 / build 7 / minimum iOS 15 / arm64**, and is not an installable iPhone IPA. Earlier results below retain their published versions.
 
 ### v0.3.3-alpha — published checks
 
@@ -151,9 +158,16 @@ Final [GitHub Actions 37897738507](https://github.com/LexZeon/VRization/actions/
 
 更新日期：2026-10-10。这里区分自动检查、电脑采集和模拟器观察；未验证的硬件能力不以截图或单元测试代替。
 
-### 未发布 v0.3.4-alpha — 验证待完成
+### [v0.3.4-alpha](https://github.com/LexZeon/VRization/releases/tag/v0.3.4-alpha) — 已完成软件／打包检查
 
-实现目标为 Windows／Android／iOS **0.3.4**、手机构建号 **7**。新界面策略默认开启第一人称陀螺仪鼠标，在所有前台窗口可控制。计划用假输入检查首姿态启用、连续移动、桌面／应用／自身窗口控制、姿态超时重建基准、F8／编辑器／故障／Stop 暂停锁、电脑恢复、关闭偏好与持久保存。实际打包运行、Android 签名／构建及 iOS 原生检查须执行后再记录；尚不宣称 v0.3.4 硬件／游戏／延迟结果，以下通过记录仍对应旧版本。
+Windows、Android 与 iOS 应用为 **0.3.4**、手机构建号 **7**，可复用 Android 核心 AAR 不变。Windows 界面默认启用所有前台窗口中的第一人称陀螺仪鼠标；以下已完成软件／打包／原生模拟器结果，不代表真机陀螺仪／游戏／视频／延迟或高级 Windows 界面验收。
+
+- 源码 `101174317613520c7d98375332c2a3bd9032cb2d`：Windows 构建脚本的完整测试通过 **318 项**。其中 **31 项新增测试**为 17 项控制器和 14 项 GUI／存储／真实回环连接用例，包含 Stop／重开；使用假输入与合成采集，没有执行操作系统鼠标或真实桌面采集。它们证明软件策略／生命周期，不代表真机陀螺仪或游戏手感。
+- 冻结 v0.3.4 EXE 匹配全部 **21 个自有模块**，按当前记录来源匹配全部 **38 个原生哈希**，包含 **44 个许可文件及根目录三份通知**。SHA-256：`19f19409cb1331e42b988e7a3f9b32920bd2c33397eb7fe687933abeca024a5d`。相对 v0.3.3，22 个 CPython 原生文件哈希仅因有效重新签名变化，PE 代码与资源保持不变；首版历史审计记录未改。发布 Windows ZIP 在新偏好、没有 SDK 环境变量下通过运行 smoke 检查；该诊断没有采集／输入。
+- 用户确认华为真机覆盖升级至 **0.3.4／构建 7**，没有卸载或清除数据。拉取的已安装 APK 与发布 SHA-256 `c1be9b8ba11f8941844dbb9b84ebc463b695807874605a93c94dc238f32c70ad` 一致；证书匹配原公开 SHA-256 指纹 `c8221633041e9b4551cd6e9f4f657e7beeb0901a4b77999d1bfc11d3825b6d74`。
+- 已观察新版 Windows 界面初次启动与可见的 **0.3.4** 版本。高级界面检查因用户实际按下 Escape 而停止，因此**不宣称**实际界面 Resume／F8 已验收；新版真机陀螺仪控制、游戏手感、视频传输与延迟未测试。
+- 干净 Android 测试通过 **116 项（应用 67＋核心 49）**，零失败／忽略；APK、不变的可复用 AAR、测试工具编译和 lint 通过。Lint **零错误、九项 CI 警告**：八项既有本地警告，加 CI SDK 清单产生的 OldTargetApi；没有抑制警告。
+- [Actions 38081097956](https://github.com/LexZeon/VRization/actions/runs/38081097956) 四项任务在源码 `101174317613520c7d98375332c2a3bd9032cb2d` 全部通过。独立 iOS 核验确认 **80 项 Swift 核心零失败**、**五项真实原生界面零失败／跳过**，模拟器和未签名真机目标两种 SDK 构建通过；环境为 arm64 iPhone 17 Pro Max 模拟器、iOS 26.2、Xcode 26.3、macOS 15.7.9。独立解码截图通过 **12 项颜色像素与两项接缝检查**，全部 **12 个电脑检查点**鼠标移动列表为空。USB 明确为模拟，未测试真实 iPhone USB；模拟器应用标识 **0.3.4／构建 7／最低 iOS 15／arm64**，不是可安装到 iPhone 的 IPA。以下旧结果仍对应已发布版本。
 
 ### v0.3.3-alpha — 已发布检查
 

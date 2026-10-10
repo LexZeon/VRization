@@ -5,7 +5,7 @@
 <!-- vrization:english -->
 ## English
 
-**Development candidate: validation and publication are pending.** Windows, Android and iOS application versions target **0.3.4**, mobile build **7**. Protocol v1 and settings schema 2 are unchanged. The [v0.3.3 notes](releases/v0.3.3-alpha.md) preserve the connection repair's published checks.
+Windows, Android and iOS applications are **0.3.4**, mobile build **7**; the reusable Android core AAR is unchanged. Published **2026-10-10 UTC** as [v0.3.4-alpha](https://github.com/LexZeon/VRization/releases/tag/v0.3.4-alpha). Protocol v1/settings schema 2 are unchanged. The [v0.3.3 notes](releases/v0.3.3-alpha.md) preserve the connection repair's earlier checks.
 
 ### Default-enabled continuous gyro mouse control
 
@@ -23,7 +23,9 @@ The PC checkbox is **Gyro mouse control in First-person (default on)**. Turning 
 
 ### Verification and update scope
 
-New-version synthetic, package, signing/build and native Simulator acceptance is pending in [validation](VALIDATION.md). Historical Huawei/Windows/iOS results remain scoped to their published versions. No new physical iPhone USB, real-game compatibility, unique-frame-rate or end-to-end latency result is claimed.
+Source `101174317613520c7d98375332c2a3bd9032cb2d` passed **318 Windows tests** and **116 clean Android tests (67 app + 49 core)**, with no failures/ignored cases. Android APK/AAR/instrumentation builds and lint passed: zero lint errors, nine CI warnings (eight existing local warnings plus OldTargetApi from the CI SDK inventory), with no warning suppression. The frozen EXE source/native/license audit and clean-profile Windows ZIP runtime smoke check passed. Huawei installed **0.3.4 / build 7** with the existing public certificate; its pulled installed APK matches the release APK hash. All four [CI jobs](https://github.com/LexZeon/VRization/actions/runs/38081097956) passed; iOS passed 80 Swift core tests with zero failures, five genuine native UI cases with zero failures/skips, and both Simulator/unsigned device-target SDK builds. Independent screenshot decoding passed 12 color pixel checks and two seam checks; all 12 host checkpoints recorded no mouse moves. The tested app is 0.3.4/build 7/arm64/minimum iOS 15 on an iPhone 17 Pro Max Simulator running iOS 26.2 (Xcode 26.3/macOS 15.7.9); USB was simulated. See [the complete versioned record](VALIDATION.md).
+
+The advanced Windows GUI check stopped after the user physically pressed Escape; actual GUI Resume/F8 is not claimed. New-version physical gyro control, game feel, video delivery, physical iPhone USB and latency were not tested. Historical performance results retain their own versions and configurations.
 
 Close the old host, extract the complete Windows archive and retain separately installed USB tools. Android matching-signer updates preserve application data; verify with the official public certificate gate and release manifest. iOS source requires Xcode and the owner's Apple signing; the Mac Simulator archive cannot install on an iPhone. Existing published binaries and historical checksums remain immutable.
 
@@ -34,7 +36,7 @@ Close the old host, extract the complete Windows archive and retain separately i
 <!-- vrization:chinese -->
 ## 简体中文
 
-**开发候选：验证与发布尚待完成。** Windows、Android 和 iOS 应用目标版本为 **0.3.4**、手机构建号 **7**；协议 v1 与配置 schema 2 不变。[v0.3.3 说明](releases/v0.3.3-alpha.md) 保留连接修复的已发布检查。
+Windows、Android 与 iOS 应用为 **0.3.4**、手机构建号 **7**；可复用 Android 核心 AAR 不变。按 **UTC 2026-10-10** 发布为 [v0.3.4-alpha](https://github.com/LexZeon/VRization/releases/tag/v0.3.4-alpha)。协议 v1／配置 schema 2 不变，[v0.3.3 说明](releases/v0.3.3-alpha.md) 保留此前连接修复的检查。
 
 ### 默认开启且持续响应的陀螺仪鼠标
 
@@ -52,7 +54,9 @@ Windows 默认开启第一人称陀螺仪鼠标控制。必须有通过校验的
 
 ### 验证与更新范围
 
-新版合成、打包、签名／构建与原生模拟器验收仍待完成，见 [验证记录](VALIDATION.md)。历史华为／Windows／iOS 结果仍对应发布版本，不新增真实 iPhone USB、实际游戏兼容、不同帧率或端到端延迟结论。
+源码 `101174317613520c7d98375332c2a3bd9032cb2d` 通过 **318 项 Windows** 和 **116 项干净 Android 测试（应用 67＋核心 49）**，无失败／忽略。Android APK／AAR／测试工具构建及 lint 通过：零 lint 错误、九项 CI 警告（八项既有本地警告，加 CI SDK 清单产生的 OldTargetApi），未抑制警告。冻结 EXE 源码／原生／许可审计与新偏好 Windows ZIP 运行 smoke 通过；华为使用原公开证书安装 **0.3.4／构建 7**，拉取的已安装 APK 与发布哈希一致。[四项 CI 任务](https://github.com/LexZeon/VRization/actions/runs/38081097956) 通过，iOS 通过 80 项 Swift 核心（零失败）、五项真实原生界面（零失败／跳过）及模拟器／未签名真机目标两种 SDK 构建；独立解码截图通过 12 项颜色像素及两项接缝检查，12 个电脑检查点均无鼠标移动。测试应用为 0.3.4／构建 7／arm64／最低 iOS 15，环境为 iPhone 17 Pro Max 模拟器 iOS 26.2（Xcode 26.3／macOS 15.7.9），USB 为模拟。完整按版本证据见 [验证记录](VALIDATION.md)。
+
+高级 Windows 界面检查因用户实际按 Escape 而停止，不宣称实际界面 Resume／F8 已验收。新版真机陀螺仪控制、游戏手感、视频传输、真实 iPhone USB 和延迟未测试；历史性能结果仍对应原版本与配置。
 
 关闭旧主机，完整解压 Windows 包并保留另行安装的 USB 工具；同签名 Android 覆盖升级保留应用数据，按官方公开证书门槛及清单验证。iOS 源码需 Xcode 与自己的 Apple 签名，Mac 模拟器包不能安装到 iPhone；已发布二进制和历史校验值保持不变。
 

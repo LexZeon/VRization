@@ -43,7 +43,7 @@ flowchart LR
 
 `vr-core` is written in Java but depends on Android OpenGL ES, Bitmap and sensor APIs. Its AAR embeds in Android software; it is not a platform-independent Java / Unity / Unreal library. Other platforms can implement the protocol and adapt pose / rendering to their engine.
 
-The coordinator owns connection policy, while USB/OkHttp and UI layers adapt platform I/O and user actions. Explicit Stop invalidates connection/socket identities, cancels owned resources and clears displayed video; late retries and callbacks must not revive it. These connection modules were published in v0.3.3; the v0.3.4 default-enabled gyro policy still requires its own acceptance. See [AI handoff and module calls](../AI_HANDOFF.md) for source/build/archive locations, portable seams, signing checks and acceptance. Older evidence remains scoped to its version.
+The coordinator owns connection policy, while USB/OkHttp and UI layers adapt platform I/O and user actions. Explicit Stop invalidates connection/socket identities, cancels owned resources and clears displayed video; late retries and callbacks must not revive it. These connection modules were published in v0.3.3; the v0.3.4 default-enabled gyro policy has software/package/native Simulator checks documented separately from unverified physical/game/advanced GUI behavior. See [AI handoff and module calls](../AI_HANDOFF.md) for source/build/archive locations, portable seams, signing checks and acceptance. Older evidence remains scoped to its version.
 
 ### Replace the host image source
 
@@ -215,7 +215,7 @@ flowchart LR
 
 `vr-core` 使用 Java 编写，但依赖 Android 的 OpenGL ES、Bitmap 与传感器 API。它可生成 AAR 并嵌入其他 Android 软件；不能直接作为无平台依赖的 Java / Unity / Unreal 库使用。跨平台客户端可以独立实现协议，将姿态与显示逻辑适配到目标引擎。
 
-协调器拥有连接策略，USB／OkHttp 和界面层适配平台 I/O 与用户动作；主动停止使连接／socket 身份失效，取消自有资源并清掉显示画面，晚到重试和回调不能恢复。连接模块已随 v0.3.3 发布，v0.3.4 默认启用陀螺仪策略仍需独立验收。[AI 接手与模块调用](../AI_HANDOFF.md) 说明源码／构建／归档位置、移植切口、签名门槛与验收清单；旧证据仍对应旧版。
+协调器拥有连接策略，USB／OkHttp 和界面层适配平台 I/O 与用户动作；主动停止使连接／socket 身份失效，取消自有资源并清掉显示画面，晚到重试和回调不能恢复。连接模块已随 v0.3.3 发布，v0.3.4 默认启用陀螺仪策略的软件／打包／原生模拟器检查与未验证真机／游戏／高级界面行为分开记录。[AI 接手与模块调用](../AI_HANDOFF.md) 说明源码／构建／归档位置、移植切口、签名门槛与验收清单；旧证据仍对应旧版。
 
 ### 替换电脑画面来源
 
