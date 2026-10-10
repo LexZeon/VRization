@@ -48,7 +48,7 @@ Stop closes the current host session and owned native helper, clears old frames 
 
 Native Windows targets are built on a Windows x64 MSVC runner:
 
-The four native targets and 365 runtime-independent fixture checks passed in the native build/CTest step of [CI 38092149008](https://github.com/LexZeon/VRization/actions/runs/38092149008/job/114330601507), source `045ae23745f47b41ce3542a69f1f4edc17f31fd1`; the exact binaries also passed a local software-WARP replay. Six SDK provenance/fetch tests passed locally. These results do not validate real SteamVR or physical phones.
+The four native targets and 365 runtime-independent fixture checks passed in [CI 38093072466](https://github.com/LexZeon/VRization/actions/runs/38093072466/job/114333306286), source `550f845f5b551f2c52c36491e3d0c37f313b0ff9`; its complete native bundle was independently audited against exact SDK/asset hashes. An earlier build of identical native source also passed a local software-WARP replay. Local Windows/Python 387 cases plus 312 subtests, 40 script cases and Android 176 cases passed; iOS preview passed both SDK builds, 95+21 Swift cases, two UI cases and 50 pixel samples. The complete Windows ZIP's isolated startup/owned IPC passed and now runs in future preview CI. See [verification and limits](docs/VALIDATION.md) and the [illustrated connection tutorial](docs/TUTORIAL.md). These results do not validate real SteamVR or physical phones.
 
 ```powershell
 python scripts/build_steamvr_native.py --configuration Release --test
@@ -110,7 +110,7 @@ SBS 为每眼使用各自半幅源图及自身比例，仍可缩放、移动、�
 
 原生 Windows 目标在 Windows x64 MSVC runner 构建：
 
-四个原生目标及 365 项不依赖运行环境的检查已在 [CI 38092149008](https://github.com/LexZeon/VRization/actions/runs/38092149008/job/114330601507) 的原生构建／CTest 步骤通过，源码 `045ae23745f47b41ce3542a69f1f4edc17f31fd1`；同一二进制的本地软件 WARP 复跑也通过。六项 SDK 来源／下载测试在本机通过。这些结果不验证真实 SteamVR 或实体手机。
+四个原生目标及 365 项不依赖运行环境的检查在 [CI 38093072466](https://github.com/LexZeon/VRization/actions/runs/38093072466/job/114333306286) 通过，源码 `550f845f5b551f2c52c36491e3d0c37f313b0ff9`；完整原生包另核对 SDK／文件固定哈希，相同源码的较早构建也通过本地软件 WARP 复跑。本机 Windows／Python 387 项加 312 子检查、40 脚本测试、Android 176 项通过；iOS 实验版通过双 SDK、95+21 Swift、2 UI、50 像素采样。完整 Windows ZIP 的独立启动／自有 IPC 通过，并纳入未来实验 CI。见[验证及范围](docs/VALIDATION.md)和[连接图文教程](docs/TUTORIAL.md)。这些结果不验证真实 SteamVR 或实体手机。
 
 ```powershell
 python scripts/build_steamvr_native.py --configuration Release --test

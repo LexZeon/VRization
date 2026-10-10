@@ -31,6 +31,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Build and package helper tests failed' }
           python scripts/package_steamvr.py --windows-only
           if ($LASTEXITCODE -ne 0) { throw 'Preview Windows packaging failed' }
+          python scripts/smoke_steamvr_package.py --zip artifacts/steamvr/release/VRization-SteamVR-Windows-x64.zip --report artifacts/steamvr/windows-package-smoke.json
+          if ($LASTEXITCODE -ne 0) { throw 'Complete preview ZIP startup and owned IPC failed' }
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: SteamVR-native
@@ -45,7 +47,9 @@ jobs:
         if: always()
         with:
           name: SteamVR-native-reports
-          path: artifacts/steamvr/native-build/
+          path: |
+            artifacts/steamvr/native-build/
+            artifacts/steamvr/windows-package-smoke.json
           if-no-files-found: ignore
   android:
     name: Android variants / Android 两个版本
