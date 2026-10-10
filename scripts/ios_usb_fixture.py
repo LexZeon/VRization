@@ -4,11 +4,25 @@ This validates the original relay and native framed-TCP client, not a USB cable,
 Apple driver, physical iPhone, trust prompt or USB throughput.
 """
 from contextlib import suppress
+from http.server import ThreadingHTTPServer
 import plistlib
 import socket
 import socketserver
 import struct
 import threading
+
+
+class LoopbackObservationServer(ThreadingHTTPServer):
+    """Numeric local fixture binding must not depend on reverse DNS readiness."""
+    def server_bind(self):
+        if self.server_address[0] != "127.0.0.1":
+            raise ValueError("The iOS observation fixture must stay on loopback")
+        # HTTPServer.server_bind calls getfqdn/gethostbyaddr even for 127.0.0.1.
+        # A captured Mac startup stack stalled there; this local server needs
+        # neither a system hostname nor an external DNS lookup.
+        socketserver.TCPServer.server_bind(self)
+        self.server_name = "localhost"
+        self.server_port = self.server_address[1]
 
 
 def receive_exact(stream, size):

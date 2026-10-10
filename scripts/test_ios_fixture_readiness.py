@@ -1,16 +1,58 @@
 """Fixture readiness failures must end before native UI tests can run."""
 from io import BytesIO
+from http.server import BaseHTTPRequestHandler
 import json
 import os
+import threading
 from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 from urllib.response import addinfourl
 
 import build_ios
+from ios_usb_fixture import LoopbackObservationServer
 
 
 class FixtureReadinessTests(unittest.TestCase):
+    def test_real_loopback_health_and_snapshot_complete_readiness_without_dns(self):
+        class Handler(BaseHTTPRequestHandler):
+            def log_message(self, *_):
+                pass
+            def do_GET(self):
+                value = {"name": "VRization", "protocol": 1, "running": True} if self.path == "/health" \
+                    else {"fixtureReady": True}
+                body = json.dumps(value).encode()
+                self.send_response(200); self.send_header("Content-Length", str(len(body)))
+                self.end_headers(); self.wfile.write(body)
+        with patch("socket.getfqdn", side_effect=AssertionError("unexpected reverse DNS")):
+            server = LoopbackObservationServer(("127.0.0.1", 0), Handler)
+            worker = threading.Thread(target=server.serve_forever, daemon=True)
+            worker.start()
+            opening = build_ios._loopback_opener.open
+            def local_response(url, timeout):
+                path = url.rsplit("/", 1)[1]
+                return opening(f"http://127.0.0.1:{server.server_port}/{path}", timeout=timeout)
+            try:
+                self.wait(local_response)
+            finally:
+                server.shutdown(); server.server_close(); worker.join(timeout=1)
+        self.assertFalse(worker.is_alive())
+
+    def test_local_observer_starts_even_when_system_reverse_dns_is_unavailable(self):
+        with patch("socket.getfqdn", side_effect=AssertionError("unexpected reverse DNS")), \
+             patch("socket.gethostbyaddr", side_effect=AssertionError("unexpected DNS resolver")):
+            server = LoopbackObservationServer(("127.0.0.1", 0), BaseHTTPRequestHandler)
+        try:
+            self.assertEqual(server.server_address[0], "127.0.0.1")
+            self.assertGreater(server.server_port, 0)
+            self.assertEqual(server.server_name, "localhost")
+        finally:
+            server.server_close()
+
+    def test_observation_fixture_rejects_broad_network_binding(self):
+        with self.assertRaises(ValueError):
+            LoopbackObservationServer(("0.0.0.0", 0), BaseHTTPRequestHandler)
+
     def setUp(self):
         self.now = 0
         self.fixture = SimpleNamespace(poll=lambda: None)

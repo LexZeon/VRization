@@ -243,7 +243,7 @@ final class ViewerSmokeTests: XCTestCase {
         // The production stop control must close the pending video listener;
         // restoring automatic scanning must not resurrect its old action.
         try requestFixtureAction("pause-relay")
-        reveal(toggle); toggle.tap(); waitLabel(toggle, contains: "Cancel")
+        reveal(toggle); toggle.tap(); waitLabel(toggle, contains: "Stop waiting")
         try requestFixtureAction("phone-stop")
         try assertDisconnected()
         try requestFixtureAction("resume-relay")

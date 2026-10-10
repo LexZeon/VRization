@@ -9,13 +9,14 @@ if __name__ == "__main__":
     print("Synthetic iOS fixture: loading modules.", flush=True)
 
 import argparse
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from http.server import BaseHTTPRequestHandler
 import json
 from pathlib import Path
 import signal
 import re
 import sys
 import threading
+from ios_usb_fixture import LoopbackObservationServer
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "examples"))
@@ -148,7 +149,7 @@ def main():
         host.start()
         host.token = "123456"  # Public loopback fixture, after start() rotates the real code.
         print("Synthetic iOS fixture: starting observation service.", flush=True)
-        control = ThreadingHTTPServer(("127.0.0.1", args.control_port), ObservationHandler)
+        control = LoopbackObservationServer(("127.0.0.1", args.control_port), ObservationHandler)
         threading.Thread(target=control.serve_forever, daemon=True).start()
         if args.usb_fixture:
             print("Synthetic iOS fixture: starting simulated USB service.", flush=True)
