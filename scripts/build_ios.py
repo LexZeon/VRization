@@ -11,10 +11,19 @@ from statistics import median
 import subprocess
 import sys
 import time
-from urllib.request import urlopen
+from urllib.request import ProxyHandler, build_opener
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "artifacts/ios"
+
+
+def make_loopback_opener():
+    # Fixture traffic stays local and must not discover macOS system proxies.
+    # Proxy discovery occurs before socket timeouts and may block startup.
+    return build_opener(ProxyHandler({}))
+
+
+_loopback_opener = make_loopback_opener()
 
 
 def run(*args, **kwargs):
@@ -68,6 +77,39 @@ def export_ui_report():
         (screenshots / "test-summary.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired, ValueError) as error:
         print(f"Warning: could not export UI summary: {type(error).__name__}", flush=True)
+
+
+def wait_for_fixture_ready(fixture, timeout=120):
+    """Bound cold-start readiness and require all fixture services, not just TCP."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        code = fixture.poll()
+        if code is not None:
+            raise RuntimeError(f"Synthetic fixture stopped before test startup (exit {code})")
+        ready = True
+        for url, endpoint in (("http://127.0.0.1:18765/health", "health"),
+                              ("http://127.0.0.1:18769/snapshot", "observation")):
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                ready = False
+                break
+            try:
+                with _loopback_opener.open(url, timeout=min(1, remaining)) as response:
+                    payload = json.loads(response.read(8192))
+                if not isinstance(payload, dict):
+                    raise ValueError("Unexpected fixture response")
+                valid = (payload.get("name") == "VRization" and payload.get("running") is True
+                         and type(payload.get("protocol")) is int and payload["protocol"] == 1) if endpoint == "health" \
+                    else payload.get("fixtureReady") is True
+                if not valid:
+                    raise ValueError("Fixture initialization is incomplete")
+            except (OSError, ValueError):
+                ready = False
+                break
+        if ready:
+            return
+        time.sleep(min(.5, max(0, deadline - time.monotonic())))
+    raise RuntimeError(f"Synthetic fixture did not become ready within {timeout:g} seconds; see fixture.log")
 
 
 def check_rendered_card_colors():
@@ -213,32 +255,27 @@ def main():
     run("xcrun", "simctl", "bootstatus", device, "-b", timeout=180)
     simulator_app = Path(os.environ.get("DEVELOPER_DIR", "/Applications/Xcode.app/Contents/Developer")) / "Applications/Simulator.app"
     run("open", "-a", simulator_app, "--args", "-CurrentDeviceUDID", device, timeout=30)
-    fixture = subprocess.Popen([sys.executable, str(ROOT / "scripts/ios_test_host.py"),
-        "--report", str(OUT / "host-report.json"), "--usb-fixture"], cwd=ROOT)
-    try:
-        for _ in range(60):
-            if fixture.poll() is not None:
-                raise RuntimeError("Synthetic fixture stopped before test startup")
-            try:
-                with urlopen("http://127.0.0.1:18765/health", timeout=1):
-                    break
-            except OSError:
-                time.sleep(0.5)
-        else:
-            raise RuntimeError("Synthetic fixture did not become ready")
-        run_with_deadline(*common, f"ARCHS={simulator_arch}", "ONLY_ACTIVE_ARCH=YES", "-destination", f"platform=iOS Simulator,id={device},arch={simulator_arch}",
-            "-derivedDataPath", OUT / "simulator", "-parallel-testing-enabled", "NO",
-            "-test-timeouts-enabled", "YES", "-default-test-execution-time-allowance", "300",
-            "-maximum-test-execution-time-allowance", "300", "-destination-timeout", "120",
-            "-resultBundlePath", OUT / "UI.xcresult", "test", timeout=900)
-    finally:
-        fixture.terminate()
+    fixture_log = OUT / "fixture.log"
+    with fixture_log.open("w", encoding="utf-8") as output:
+        fixture = subprocess.Popen([sys.executable, "-u", str(ROOT / "scripts/ios_test_host.py"),
+            "--report", str(OUT / "host-report.json"), "--usb-fixture"], cwd=ROOT,
+            stdout=output, stderr=subprocess.STDOUT)
         try:
-            fixture.wait(timeout=15)
-        except subprocess.TimeoutExpired:
-            fixture.kill()
-            fixture.wait()
-        export_ui_report()
+            wait_for_fixture_ready(fixture)
+            run_with_deadline(*common, f"ARCHS={simulator_arch}", "ONLY_ACTIVE_ARCH=YES", "-destination", f"platform=iOS Simulator,id={device},arch={simulator_arch}",
+                "-derivedDataPath", OUT / "simulator", "-parallel-testing-enabled", "NO",
+                "-test-timeouts-enabled", "YES", "-default-test-execution-time-allowance", "300",
+                "-maximum-test-execution-time-allowance", "300", "-destination-timeout", "120",
+                "-resultBundlePath", OUT / "UI.xcresult", "test", timeout=900)
+        finally:
+            fixture.terminate()
+            try:
+                fixture.wait(timeout=15)
+            except subprocess.TimeoutExpired:
+                fixture.kill()
+                fixture.wait()
+            export_ui_report()
+            print("Synthetic fixture log (last 12 KiB):\n" + fixture_log.read_text(encoding="utf-8", errors="replace")[-12288:], flush=True)
     report = json.loads((OUT / "host-report.json").read_text(encoding="utf-8"))
     assert not report["mouseMoves"], "The fixture must never move the OS mouse"
     assert any(event["event"] == "connection" and event.get("connected") for event in report["events"]), "UI tests never connected to the host"

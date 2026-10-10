@@ -27,6 +27,8 @@ jobs:
         run: python -m unittest discover -s scripts -p test_archive_releases.py -v
       - name: Test Android publication signature gate / 测试 Android 发布签名门槛
         run: python -m unittest discover -s scripts -p test_verify_android_release.py -v
+      - name: Test bounded iOS fixture startup / 测试 iOS 环境启动边界
+        run: python -m unittest discover -s scripts -p test_ios_fixture_readiness.py -v
 
   windows:
     name: Windows host / 电脑端
@@ -128,6 +130,7 @@ jobs:
             artifacts/ios/screenshots/
             artifacts/ios/environment.json
             artifacts/ios/host-report.json
+            artifacts/ios/fixture.log
           if-no-files-found: ignore
 
   release:

@@ -1,6 +1,13 @@
 """Loopback-only iOS UI-test fixture. Never captures a display or arms input."""
 from __future__ import annotations
 
+import faulthandler
+if __name__ == "__main__":
+    # Diagnose imports as well as service startup, before loading app libraries.
+    faulthandler.enable()
+    faulthandler.dump_traceback_later(30, repeat=True)
+    print("Synthetic iOS fixture: loading modules.", flush=True)
+
 import argparse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
@@ -35,6 +42,7 @@ def main():
     events = []
     guard = threading.Lock()
     stop = threading.Event()
+    ready = threading.Event()
     sink = NoMouse()
     usb = mux_fixture = None
     control = None
@@ -53,7 +61,8 @@ def main():
     def snapshot():
         with guard:
             count = sum(event["event"] == "settings" for event in events)
-        return {"settingsCount": count, "settings": host.get_settings_snapshot()[0].to_dict(), "mouseMoves": list(sink.moves), "connected": host.controller.connected}
+        return {"settingsCount": count, "settings": host.get_settings_snapshot()[0].to_dict(), "mouseMoves": list(sink.moves), "connected": host.controller.connected,
+                "fixtureReady": ready.is_set()}
 
     class ObservationHandler(BaseHTTPRequestHandler):
         # Snapshot/checkpoints only observe. Explicit phone-connect uses the real
@@ -135,20 +144,26 @@ def main():
     for number in (signal.SIGINT, signal.SIGTERM):
         signal.signal(number, lambda *_: stop.set())
     try:
+        print("Synthetic iOS fixture: starting video host.", flush=True)
         host.start()
         host.token = "123456"  # Public loopback fixture, after start() rotates the real code.
+        print("Synthetic iOS fixture: starting observation service.", flush=True)
         control = ThreadingHTTPServer(("127.0.0.1", args.control_port), ObservationHandler)
         threading.Thread(target=control.serve_forever, daemon=True).start()
         if args.usb_fixture:
+            print("Synthetic iOS fixture: starting simulated USB service.", flush=True)
             from ios_usb_fixture import NoAndroid, SimulatedAppleMux
             from vrization_host.usb import AppleMux, UsbManager
             mux_fixture = SimulatedAppleMux()
             mux_fixture.start()
             usb = UsbManager(host, adb=NoAndroid(), mux=AppleMux(address=mux_fixture.address), on_event=on_event)
             usb.start()
+        ready.set()
+        faulthandler.cancel_dump_traceback_later()
         print("Synthetic iOS fixture ready on loopback.", flush=True)
         stop.wait()
     finally:
+        faulthandler.cancel_dump_traceback_later()
         if control:
             control.shutdown(); control.server_close()
         if usb:
