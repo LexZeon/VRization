@@ -8,6 +8,7 @@ import subprocess
 import zipfile
 from package_release import check_document_links
 from build_steamvr_native import COMMIT,PINS,validate_phone_driver_manifest
+from verify_android_release import verify_apk
 
 ROOT=Path(__file__).resolve().parents[1]
 OUT=ROOT/"artifacts/steamvr/release"
@@ -65,9 +66,10 @@ def windows():
     check_document_links(archive_path)
 
 
-def android():
+def android(apksigner: Path):
     apk=ROOT/"android/steamvr-app/build/outputs/apk/steamvr/debug/steamvr-app-steamvr-debug.apk"
     aar=ROOT/"android/vr-core/build/outputs/aar/vr-core-debug.aar"
+    verify_apk(apk,apksigner)
     shutil.copyfile(apk,OUT/"VRization-SteamVR-Android-debug.apk")
     shutil.copyfile(aar,OUT/"VRization-SteamVR-vr-core.aar")
 
@@ -84,12 +86,17 @@ def main():
     parser.add_argument("--windows-only",action="store_true")
     parser.add_argument("--android-only",action="store_true")
     parser.add_argument("--source-only",action="store_true")
-    args=parser.parse_args();OUT.mkdir(parents=True,exist_ok=True)
+    parser.add_argument("--apksigner",type=Path,
+                        help="Official Android SDK apksigner; required when packaging Android")
+    args=parser.parse_args()
+    if not args.windows_only and (args.android_only or not args.source_only) and args.apksigner is None:
+        parser.error("--apksigner is required when packaging Android")
+    OUT.mkdir(parents=True,exist_ok=True)
     if args.windows_only:windows()
-    elif args.android_only:android()
+    elif args.android_only:android(args.apksigner)
     elif args.source_only:source()
     else:
-        windows();android();source()
+        windows();android(args.apksigner);source()
         shutil.copyfile(ROOT/"artifacts/ios-steamvr/VRization-SteamVR-iOS-Simulator.zip",OUT/"VRization-SteamVR-iOS-Simulator.zip")
         with zipfile.ZipFile(OUT/"VRization-SteamVR-Licenses.zip","w",zipfile.ZIP_DEFLATED) as archive:docs(archive)
         check_document_links(OUT/"VRization-SteamVR-Licenses.zip")

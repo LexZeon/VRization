@@ -1,13 +1,18 @@
 """Original isolated package gates: no network, executable, driver or runtime use."""
 import hashlib
+import io
 import json
 from pathlib import Path
+import shutil
+import subprocess
+import sys
 import tempfile
 import unittest
 from unittest.mock import patch
 import zipfile
 
 import package_steamvr as package
+import verify_android_release as verifier
 
 
 class SteamVrPackageTests(unittest.TestCase):
@@ -180,6 +185,106 @@ class SteamVrPackageTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "explicit empty list"):
                     package.windows()
                 self.assertFalse((self.out / "VRization-SteamVR-Windows-x64.zip").exists())
+
+
+class SteamVrAndroidPackageTests(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory(prefix="vrization-android-package-fixture-")
+        self.addCleanup(self.temporary.cleanup)
+        self.root = Path(self.temporary.name)
+        self.out = self.root / "artifacts/steamvr/release"
+        self.apk = self.root / "android/steamvr-app/build/outputs/apk/steamvr/debug/steamvr-app-steamvr-debug.apk"
+        self.aar = self.root / "android/vr-core/build/outputs/aar/vr-core-debug.aar"
+        for path, data in ((self.apk, b"inert APK fixture"), (self.aar, b"inert AAR fixture")):
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(data)
+        self.apksigner = self.root / "sdk with spaces/apksigner.exe"
+        self.apksigner.parent.mkdir()
+        self.apksigner.write_bytes(b"inert verifier fixture - never executed")
+        self.fingerprint = verifier.read_fingerprint(verifier.CANONICAL_CERTIFICATE)
+        self.valid_output = self.signer_output(self.fingerprint)
+        for replacement in (patch.object(package, "ROOT", self.root), patch.object(package, "OUT", self.out)):
+            replacement.start()
+            self.addCleanup(replacement.stop)
+
+    @staticmethod
+    def signer_output(fingerprint):
+        return f"Number of signers: 1\nSigner #1 certificate SHA-256 digest: {fingerprint}\n"
+
+    def test_wrong_signer_preserves_existing_public_apk_and_aar(self):
+        self.out.mkdir(parents=True)
+        assets = (self.out / "VRization-SteamVR-Android-debug.apk", self.out / "VRization-SteamVR-vr-core.aar")
+        for path in assets:
+            path.write_bytes(b"verified prior publication sentinel")
+        wrong = "0" * 64 if self.fingerprint != "0" * 64 else "1" * 64
+        result = subprocess.CompletedProcess([], 0, self.signer_output(wrong), "")
+        with patch.object(verifier.subprocess, "run", return_value=result), patch.object(package.shutil, "copyfile") as copy:
+            with self.assertRaisesRegex(ValueError, "public upgrade identity"):
+                package.android(self.apksigner)
+            copy.assert_not_called()
+        for path in assets:
+            self.assertEqual(path.read_bytes(), b"verified prior publication sentinel")
+
+    def test_invalid_verifier_or_output_cannot_create_public_android_assets(self):
+        cases = (
+            ("missing verifier", self.root / "missing-apksigner.exe", 0, self.valid_output, FileNotFoundError),
+            ("verifier rejects signature", self.apksigner, 1, self.valid_output, ValueError),
+            ("missing certificate output", self.apksigner, 0, "", ValueError),
+            ("ambiguous signer output", self.apksigner, 0, self.valid_output + self.valid_output, ValueError),
+        )
+        for name, tool, code, output, error in cases:
+            with self.subTest(name=name):
+                result = subprocess.CompletedProcess([], code, output, "")
+                with patch.object(verifier.subprocess, "run", return_value=result) as run, patch.object(package.shutil, "copyfile") as copy:
+                    with self.assertRaises(error):
+                        package.android(tool)
+                    copy.assert_not_called()
+                    if error is FileNotFoundError:
+                        run.assert_not_called()
+                self.assertFalse(self.out.exists())
+
+    def test_full_and_android_only_require_explicit_verifier_before_any_packaging(self):
+        for args in ([], ["--android-only"]):
+            with self.subTest(args=args), patch.object(sys, "argv", ["package_steamvr.py", *args]), patch.object(sys, "stderr", io.StringIO()), patch.object(package, "windows") as windows, patch.object(package, "source") as source, patch.object(package.shutil, "copyfile") as copy:
+                with self.assertRaises(SystemExit) as stopped:
+                    package.main()
+                self.assertEqual(stopped.exception.code, 2)
+                windows.assert_not_called()
+                source.assert_not_called()
+                copy.assert_not_called()
+                self.assertFalse(self.out.exists())
+
+    def test_verified_android_only_copies_exact_assets_after_official_verification(self):
+        events = []
+        real_copy = shutil.copyfile
+
+        def verified(command, **options):
+            events.append("verify")
+            return subprocess.CompletedProcess(command, 0, self.valid_output, "")
+
+        def copy(source, destination):
+            events.append(destination.name)
+            return real_copy(source, destination)
+
+        with patch.object(sys, "argv", ["package_steamvr.py", "--android-only", "--apksigner", str(self.apksigner)]), patch.object(verifier.subprocess, "run", side_effect=verified) as run, patch.object(package.shutil, "copyfile", side_effect=copy) as copies:
+            package.main()
+            run.assert_called_once_with([str(self.apksigner.resolve()), "verify", "--verbose", "--print-certs", str(self.apk.resolve())], stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding="utf-8", errors="replace", check=False, timeout=60)
+            self.assertEqual(copies.call_args_list, [
+                unittest.mock.call(self.apk, self.out / "VRization-SteamVR-Android-debug.apk"),
+                unittest.mock.call(self.aar, self.out / "VRization-SteamVR-vr-core.aar"),
+            ])
+        self.assertEqual(events, ["verify", "VRization-SteamVR-Android-debug.apk", "VRization-SteamVR-vr-core.aar"])
+        self.assertEqual((self.out / "VRization-SteamVR-Android-debug.apk").read_bytes(), self.apk.read_bytes())
+        self.assertEqual((self.out / "VRization-SteamVR-vr-core.aar").read_bytes(), self.aar.read_bytes())
+        self.assertEqual({path.name for path in self.out.iterdir()}, {"VRization-SteamVR-Android-debug.apk", "VRization-SteamVR-vr-core.aar"})
+
+    def test_windows_and_source_only_remain_independent_of_android_sdk(self):
+        for flag, expected in (("--windows-only", "windows"), ("--source-only", "source")):
+            with self.subTest(flag=flag), patch.object(sys, "argv", ["package_steamvr.py", flag]), patch.object(package, "windows") as windows, patch.object(package, "source") as source, patch.object(package, "verify_apk") as verify:
+                package.main()
+                (windows if expected == "windows" else source).assert_called_once_with()
+                (source if expected == "windows" else windows).assert_not_called()
+                verify.assert_not_called()
 
 
 if __name__ == "__main__":
