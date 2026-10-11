@@ -9,6 +9,8 @@ Contributions to quality, compatibility, controls, tutorials and reusable interf
 
 ### Report a problem
 
+For questions or collaboration, contact [lexzeonstudio@gmail.com](mailto:lexzeonstudio@gmail.com). Use Issues for ordinary bug reports and follow [Security](SECURITY.md) for private vulnerability reports.
+
 Include the release version, PC OS / GPU, phone and Android / derivative or iOS version, mode, dimensions, transport and reproduction steps. For USB, describe the cable, authorization, official SDK / Apple Devices version and device-count / port-conflict symptoms. Explain performance measurement methods: received FPS and ping RTT are not end-to-end video latency. Separate physical Huawei / other hardware evidence from emulators, simulated usbmux and unsigned device-SDK compilation. Remove private screens, addresses, pairing codes, serials and signing / pairing material from logs or screenshots.
 
 ### Submit code
@@ -65,6 +67,8 @@ Keep the shared y-up per-eye geometry, linked mirrored horizontal spacing with a
 欢迎改进画质、兼容性、设置、教程和移植接口。先读 [构建指南](docs/BUILD.md) 与 [架构](docs/ARCHITECTURE.md)；协议变更还需更新 [协议 v1](docs/PROTOCOL.md)。
 
 ### 提交问题
+
+咨询或合作请联系 [lexzeonstudio@gmail.com](mailto:lexzeonstudio@gmail.com)。普通功能问题请提交 Issue，私密漏洞报告请按 [安全说明](SECURITY.md) 处理。
 
 请提供发行版本、电脑系统 / GPU、手机及 Android / 衍生系统或 iOS 版本、模式、尺寸、传输与复现步骤。USB 问题说明数据线、授权、官方 SDK / Apple Devices 版本，以及设备数量 / 端口冲突。性能反馈区分接收帧率、ping RTT 与端到端视频延迟。华为 / 其他真机证据应与模拟器、模拟 usbmux、未签名真机 SDK 编译分开。日志 / 截图移除个人画面、地址、配对码、序列号和签名 / 配对材料。
 

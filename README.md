@@ -179,6 +179,10 @@ The v0.3 physical Android editor below shows an original card over USB on a HUAW
 
 The [v0.3.0-alpha notes](docs/releases/v0.3.0-alpha.md) preserve editor / profile acceptance, and v0.2.0-alpha retains its earlier measurements. Existing screenshots / performance measurements keep their stated version; the [v0.3.1 connection result](docs/releases/v0.3.1-alpha.md) is historical and does not establish the new stabilization checks. See [release history](docs/releases/README.md) and [current release notes](docs/RELEASE_NOTES.md).
 
+### Contact
+
+For questions or collaboration, email [lexzeonstudio@gmail.com](mailto:lexzeonstudio@gmail.com). Report bugs through [Issues](https://github.com/LexZeon/VRization/issues); see [Security](SECURITY.md) for private vulnerability reports.
+
 ---
 
 <!-- vrization:chinese -->
@@ -377,3 +381,7 @@ Alpha 版尚未提供音频、硬件视频编码、WebRTC、原生立体渲染�
 ![v0.3 Android 真机盒子编辑器，小画面内边相接](docs/images/android-v03-small-joined.png)
 
 [v0.3.0-alpha 原说明](docs/releases/v0.3.0-alpha.md) 保留编辑器 / 配置验收，v0.2.0-alpha 保留较早测量。现有截图 / 性能测量继续注明对应版本，v0.3.1 连接结果另行保留，新防抖验收单独记录，见 [发布历史](docs/releases/README.md) 与 [当前发布说明](docs/RELEASE_NOTES.md)。
+
+### 联系
+
+咨询或合作请发邮件至 [lexzeonstudio@gmail.com](mailto:lexzeonstudio@gmail.com)。普通功能问题请提交 [Issue](https://github.com/LexZeon/VRization/issues)，私密漏洞报告请查看 [安全说明](SECURITY.md)。

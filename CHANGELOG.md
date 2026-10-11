@@ -9,7 +9,7 @@ User-visible changes are listed newest first. Dates are GitHub publication dates
 
 ### Unreleased
 
-No new changes recorded.
+- **Documentation only:** Added the LexZeon contact email, [lexzeonstudio@gmail.com](mailto:lexzeonstudio@gmail.com), to the root and SteamVR experiment README pages and the contribution and private security-reporting guidance.
 
 ### [v0.5.1-steamvr-preview](https://github.com/LexZeon/VRization/releases/tag/v0.5.1-steamvr-preview) — 2026-10-11
 
@@ -138,7 +138,7 @@ First Windows / Android preview.
 
 ### 未发布
 
-暂无新增变更。
+- **纯文档：** 在根目录和 SteamVR 实验版 README、贡献指南及私密安全报告说明中补充 LexZeon 联系邮箱 [lexzeonstudio@gmail.com](mailto:lexzeonstudio@gmail.com)。
 
 ### [v0.5.1-steamvr-preview](https://github.com/LexZeon/VRization/releases/tag/v0.5.1-steamvr-preview) — 2026-10-11
 

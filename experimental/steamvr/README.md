@@ -119,6 +119,10 @@ Valve OpenVR v2.15.6 is pinned to commit `0924064316de3effbcd1acf1e309182a2deb1c
 
 Remaining hardware work must extend the observed USB Phone HMD chain to repeated cold launch/connect/Stop/reconnect without cable replug, idle/active viewing, physical yaw/pitch/roll and recenter across phone orientations, both-eye source isolation and optics, a real VR game, virtual/native-HMD switching and existing-headset overlay cleanup. F8/editor/Save/Discard must retain their local Resume boundary. Measure FPS/round-trip separately from physical motion-to-photon latency and preserve the existing DPVR setup throughout.
 
+### Contact
+
+For questions or collaboration, email [lexzeonstudio@gmail.com](mailto:lexzeonstudio@gmail.com). Report bugs through [Issues](https://github.com/LexZeon/VRization/issues); see [Security](../../SECURITY.md) for private vulnerability reports.
+
 ---
 
 <!-- vrization:chinese -->
@@ -237,3 +241,7 @@ Android 实验版任务为 `:steamvr-app:assembleSteamvrDebug`、`:steamvr-app:t
 Valve OpenVR v2.15.6 锁定 commit `0924064316de3effbcd1acf1e309182a2deb1c05`，五个文件校验准确 SHA256，并保留 **BSD-3-Clause** 原许可。VRization 的 IPC、追踪门控、帧拼接和覆盖层是 MIT 原创代码；即使未复制示例源码，也记录官方头显／覆盖层生命周期思路。参见[原生来源](native/licenses/README.md)、[架构](docs/ARCHITECTURE.md)、[AI 接手](docs/AI_HANDOFF.md)。
 
 剩余硬件工作需将已观察的 USB 手机头显链路扩展到不拔线的重复冷启动／连接／停止／重连、静止／活动观看、不同持机方向的物理 yaw／pitch／roll 与居中、手机分眼源隔离与光学、真实 VR 游戏、虚拟／实体头显切换及已有头显覆盖层清理。F8／编辑／保存／弃用继续保留本地恢复边界。帧率／往返时间与运动到显示的物理延迟分开测量，全程保留既有 DPVR 配置。
+
+### 联系
+
+咨询或合作请发邮件至 [lexzeonstudio@gmail.com](mailto:lexzeonstudio@gmail.com)。普通功能问题请提交 [Issue](https://github.com/LexZeon/VRization/issues)，私密漏洞报告请查看 [安全说明](../../SECURITY.md)。

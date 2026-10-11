@@ -29,7 +29,7 @@ The Windows target is 10 / 11 x64. Recorded local tests use Windows 11. Huawei A
 
 ### Reporting
 
-Use Issues for ordinary bugs. For pairing bypass, unauthorized input, code execution or screen leakage, prefer **Security → Report a vulnerability** when the maintainer enables private reporting. If unavailable, open an Issue requesting a private contact only; do not publish exploits, private data or pairing codes.
+Use Issues for ordinary bugs. For pairing bypass, unauthorized input, code execution or screen leakage, prefer **Security → Report a vulnerability** when the maintainer enables private reporting. If unavailable, email [lexzeonstudio@gmail.com](mailto:lexzeonstudio@gmail.com) privately; do not publish exploits, private data or pairing codes in public Issues.
 
 This alpha has no formal security-maintenance SLA. Include version, OS, minimal reproduction conditions and possible impact, with real IP addresses, codes and private screens removed.
 
@@ -66,7 +66,7 @@ Windows 目标为 10 / 11 x64，本地已记录测试来自 Windows 11。华为 
 
 ### 报告问题
 
-普通功能问题请开 Issue。涉及绕过配对、未授权输入、远程代码执行或画面泄漏的问题，请优先使用 GitHub 仓库 **Security → Report a vulnerability**（仓库维护者启用私密报告后可用）。若入口尚未启用，可先开一个仅请求私密联系渠道的 Issue，不公开利用步骤、个人数据或配对码。
+普通功能问题请开 Issue。涉及绕过配对、未授权输入、远程代码执行或画面泄漏的问题，请优先使用 GitHub 仓库 **Security → Report a vulnerability**（仓库维护者启用私密报告后可用）。若入口尚未启用，请私下发邮件至 [lexzeonstudio@gmail.com](mailto:lexzeonstudio@gmail.com)，不要在公开 Issue 中发布利用步骤、个人数据或配对码。
 
 该 Alpha 没有正式安全维护 SLA。报告中请包含版本、操作系统、最小复现条件和可能影响，移除真实 IP、配对码和屏幕私密内容。
 
