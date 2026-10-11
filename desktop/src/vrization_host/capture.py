@@ -277,7 +277,7 @@ class LatestFrameBuffer:
 
 
 class CaptureWorker:
-    def __init__(self, source, get_config, loop, buffer, on_error):
+    def __init__(self, source, get_config, loop, buffer, on_error, *, on_source_reset=None):
         self.source, self.get_config = source, get_config
         self.loop, self.buffer, self.on_error = loop, buffer, on_error
         self.active = threading.Event()
@@ -286,9 +286,20 @@ class CaptureWorker:
         self._handoff_lock = threading.Lock()
         self._pending: Frame | None = None
         self._scheduled = False
+        self._source_reset = threading.Event()
+        self.on_source_reset = on_source_reset
 
     def start(self):
         self.thread.start()
+
+    def request_source_reset(self):
+        """Close/recreate capture on its owning thread, dropping queued old frames."""
+        if self.stop_event.is_set():
+            return False
+        with self._handoff_lock:
+            self._source_reset.set()
+            self._pending = None
+        return True
 
     def _publish(self):
         with self._handoff_lock:
@@ -312,10 +323,22 @@ class CaptureWorker:
                     next_frame_at = started
                 previous_fps = config.fps
                 try:
+                    if self._source_reset.is_set():
+                        self._source_reset.clear()
+                        self.source.close()
+                        if self.stop_event.is_set():
+                            break
+                        next_frame_at = started
+                        if self.on_source_reset:
+                            self.on_source_reset()
+                    if self.stop_event.is_set():
+                        break
                     frame = self.source.read(config)
                     # At most one callback in the event-loop queue, even if it stalls.
                     if frame is not None:
                         with self._handoff_lock:
+                            if self._source_reset.is_set():
+                                continue
                             self._pending = frame
                             if not self._scheduled:
                                 self._scheduled = True

@@ -153,9 +153,11 @@ def main():
                        capture_config=CaptureConfig(width=1280, fps=12), on_event=on_event)
     def snapshot():
         with guard: count = sum(event.get("event") == "settings" for event in events)
+        with host.hmd.lock:
+            epoch, paused = host.hmd.epoch, host.hmd.paused
         return {"fixtureReady": ready.is_set(), "connected": host.controller.connected,
                 "settingsCount": count, "settings": host.get_settings_snapshot()[0].to_dict(),
-                "mouseMoves": list(sink.moves), "poses": poses.snapshot()}
+                "mouseMoves": list(sink.moves), "poses": poses.snapshot(), "epoch": epoch, "paused": paused}
     class ObservationHandler(BaseHTTPRequestHandler):
         def log_message(self, *_): pass
         def respond(self, payload, status=200):
@@ -166,7 +168,10 @@ def main():
             if self.path == "/snapshot": self.respond(snapshot())
             else: self.respond({"error": "unknown observation"}, 404)
         def do_POST(self):
-            if self.path == "/checkpoint":
+            if self.path == "/pause-tracking":
+                host.disarm("native UI Refresh preserves the emergency latch")
+                self.respond(snapshot())
+            elif self.path == "/checkpoint":
                 try:
                     length = int(self.headers.get("Content-Length", "0"))
                     if not 0 < length <= 1024: raise ValueError

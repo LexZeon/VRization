@@ -25,7 +25,9 @@ class StereoPixelOracleTests(unittest.TestCase):
             {"name": name, "settings": settings}
             for name, settings in (("steamvr-lan-connected", self.profile),
                                     ("steamvr-editor-saved", self.saved),
-                                    ("steamvr-usb-connected", self.profile))]}
+                                    ("steamvr-usb-connected", self.profile),
+                                    ("steamvr-lan-refreshed", self.saved),
+                                    ("steamvr-usb-refreshed", self.profile))]}
     def tearDown(self):
         build.OUT = self.previous; self.temporary.cleanup()
 
@@ -67,7 +69,9 @@ class StereoPixelOracleTests(unittest.TestCase):
                   ("STEAMVR-04-SBS-saved-profile", self.saved),
                   ("STEAMVR-05-disconnected-clears-Metal", None),
                   ("STEAMVR-06-USB-independent-eyes", self.profile),
-                  ("STEAMVR-07-USB-disconnected-clears-Metal", None))
+                  ("STEAMVR-07-USB-disconnected-clears-Metal", None),
+                  ("STEAMVR-08-LAN-refreshed-independent-eyes", self.saved),
+                  ("STEAMVR-09-USB-refreshed-independent-eyes", self.profile))
         attachments = []
         for index, (name, profile) in enumerate(phases):
             image = self.render(profile, defect) if profile else Image.new("RGB", (1400,700))
@@ -75,11 +79,11 @@ class StereoPixelOracleTests(unittest.TestCase):
             attachments.append({"suggestedHumanReadableName":name+"_CPU-only", "exportedFileName":filename})
         (self.shots/"manifest.json").write_text(json.dumps([{"attachments":attachments}]),encoding="utf-8")
 
-    def testCorrectIndependentRectangularEyesPassFiftySamples(self):
+    def testCorrectIndependentRectangularEyesAndRefreshPassSeventySamples(self):
         self.exports()
         with redirect_stdout(StringIO()): build.check_stereo_pixels(self.report)
         report = json.loads((self.shots/"stereo-check.json").read_text())
-        self.assertEqual(len(report["samples"]), 50); self.assertEqual(report["failures"], [])
+        self.assertEqual(len(report["samples"]), 70); self.assertEqual(report["failures"], [])
 
     def testEyeDuplicationSwapAspectSquareAndSecondWarpAreRejected(self):
         for defect in ("duplicated-left", "swapped-eyes", "packed-aspect", "square-projection", "second-warp"):

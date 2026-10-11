@@ -117,6 +117,8 @@ class HostWindow:
                                  on_event=self.events.put)
         self._stop_in_progress = False
         self._stop_generation = 0
+        self._refresh_after_stop = False
+        self._refresh_cleanup_pending = False
         self.connection = ConnectionCoordinator(self.events.put, lambda: self.server.running,
                                                  lambda: self._stop_in_progress)
         self.usb = (usb_factory or UsbManager)(self.server, self.events.put, adb_path=self.usb_preferences["adb_path"],
@@ -184,7 +186,7 @@ class HostWindow:
         self.notebook.select(min(selected_tab, self.notebook.index("end") - 1))
         if self._stop_in_progress:
             self.start_button.configure(state="disabled")
-            self.stop_button.configure(state="disabled")
+            self.stop_button.configure(state="normal" if getattr(self,"_refresh_after_stop",False) else "disabled")
             self.code_label.configure(text="— — — — — —")
             self.status.configure(text=self.tr("Stopping streaming; waiting for cleanup"), fg=MUTED)
             self.stats.configure(text="—")
@@ -284,6 +286,9 @@ class HostWindow:
         ttk.Button(row, text=self.tr("复制连接"), command=self.copy_link).pack(side="left", fill="x", expand=True)
         ttk.Button(actions, text=self.tr("USB connection…"),
                    command=self.show_usb_settings).pack(fill="x", pady=(8, 0))
+        self.refresh_button = ttk.Button(actions, text=self.tr("Refresh / Rebuild connection"),
+                                         command=self.refresh_connection)
+        self.refresh_button.pack(fill="x", pady=(8, 0))
 
         modes = ttk.Frame(outer, padding=(16, 10))
         modes.pack(fill="x", pady=(0, 12))
@@ -773,10 +778,26 @@ class HostWindow:
             messagebox.showerror(self.tr("无法启动"), str(exc), parent=self.root)
             return False
 
-    def stop(self):
+    def refresh_connection(self):
         if self._stop_in_progress:
+            return False
+        if self.editor is not None:
+            self._log(self.tr("Save or discard the headset editor before rebuilding the connection"))
+            return False
+        self._refresh_after_stop = True
+        self.stop(for_refresh=True)
+        self._log(self.tr("Rebuilding connection; settings are kept and control stays paused"))
+        return True
+
+    def stop(self, *, for_refresh=False):
+        if not for_refresh:
+            self._refresh_after_stop = False
+        if self._stop_in_progress:
+            if not for_refresh:
+                self.stop_button.configure(state="disabled")
             return
         self._stop_in_progress = True
+        self._refresh_cleanup_pending = for_refresh
         self._stop_generation += 1
         generation = self._stop_generation
         self.server.request_stop()
@@ -784,17 +805,28 @@ class HostWindow:
         self.connection.cancel()
         self.code_label.configure(text="— — — — — —")
         self.start_button.configure(state="disabled")
-        self.stop_button.configure(state="disabled")
+        self.stop_button.configure(state="normal" if for_refresh else "disabled")
         self.status.configure(text=self.tr("Stopping streaming; waiting for cleanup"), fg=MUTED)
         self.stats.configure(text="—")
 
         def finish():
-            try:
-                self.usb.relay.stop()
-                complete = self.server.stop()
-                self.events.put({"event": "stop_result", "complete": complete, "generation": generation})
-            except Exception:
-                self.events.put({"event": "stop_result", "complete": False, "generation": generation})
+            reported_waiting=False
+            while True:
+                try:
+                    self.usb.relay.stop()
+                    complete = self.server.stop()
+                except Exception:
+                    complete = False
+                if complete or not for_refresh:
+                    self.events.put({"event":"stop_result","complete":complete,"generation":generation})
+                    break
+                if not reported_waiting:
+                    self.events.put({"event":"stop_result","complete":False,"generation":generation})
+                    reported_waiting=True
+                # Cleanup can finish after a bounded join timed out. Continue
+                # checking off the GUI thread. Stop cancels only the automatic
+                # restart; cleanup still has to retire with a complete result.
+                threading.Event().wait(.25)
         threading.Thread(target=finish, name="vr-stop", daemon=True).start()
 
     def copy_link(self):
@@ -958,15 +990,25 @@ class HostWindow:
                 self.status.configure(text=self.tr("Stopping streaming; waiting for cleanup"), fg=MUTED)
                 self._log(self.tr("Streaming cleanup is still in progress; Start stays disabled"))
             elif (kind == "server" and not event["running"]) or (kind == "stop_result" and event["complete"]):
+                # Refresh waits for the stop job, including USB relay cleanup,
+                # rather than restarting on an earlier server-thread event.
+                if kind == "server" and getattr(self,"_refresh_cleanup_pending",False):
+                    continue
+                refresh = getattr(self,"_refresh_after_stop",False)
+                self._refresh_after_stop = False
+                self._refresh_cleanup_pending = False
                 self._stop_in_progress = False
                 self.start_button.configure(state="normal")
                 self.stop_button.configure(state="disabled")
                 self.status.configure(text=self.tr("●  已停止  /  STOPPED"), fg=MUTED)
                 self.stats.configure(text="—")
+                if refresh:
+                    self.start()
         self._refresh_input_status()
         self.root.after(100, self._pump)
 
     def close(self):
+        self._refresh_after_stop = False
         if self.editor is not None:
             self.editor.discard()
         self.connection.cancel(close=True)

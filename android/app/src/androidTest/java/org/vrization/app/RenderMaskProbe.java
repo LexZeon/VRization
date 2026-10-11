@@ -21,6 +21,8 @@ import org.vrization.core.StereoProjection;
 
 /** Default: offscreen GLES2 probe with synthetic pixels and no Activity/network/device input.
  * Optional -e connectionProbe true exercises real USB buttons and streaming, without mouse output.
+ * Add -e performanceSeconds 15 for a passive decoded-delivery FPS sample on its first connection.
+ * Add -e refreshProbe true to retry a live connection and verify fit/session cancellation.
  * Run the separately built test APK through platform Instrumentation. A compilation
  * pass alone does not establish a real-driver rendering pass.
  */
@@ -32,25 +34,45 @@ public final class RenderMaskProbe extends Instrumentation {
         super.onCreate(arguments); this.arguments = arguments == null ? new Bundle() : new Bundle(arguments); start();
     }
 
+    @Override public void callActivityOnCreate(Activity activity, Bundle state) {
+        super.callActivityOnCreate(activity, state);
+        if (activity instanceof MainActivity
+            && "true".equals(String.valueOf(arguments.get("connectionProbe")))) {
+            ConnectionProbe.protectActivity(this, (MainActivity) activity);
+        }
+    }
+
     @Override public void onStart() {
         Bundle result = new Bundle();
         try {
             if ("true".equals(String.valueOf(arguments.get("connectionProbe")))) {
-                result = ConnectionProbe.run(this, "true".equals(String.valueOf(arguments.get("pcStopProbe"))));
+                result = ConnectionProbe.run(this, "true".equals(String.valueOf(arguments.get("pcStopProbe"))),
+                    performanceSeconds(), "true".equals(String.valueOf(arguments.get("refreshProbe"))));
                 finish(Activity.RESULT_OK, result); return;
             }
             int[] cases = renderCases();
             result.putInt("renderCases", cases[0]); result.putInt("enhancedProjectionSamples", cases[1]);
             result.putInt("nativeStereoColorSamples", cases[2]); result.putInt("nativeStereoLifecycleCases", cases[3]);
             result.putInt("orientationRemapGoldens", cases[4]);
+            result.putInt("contextRecreationCases", cases[5]);
             result.putString("stream", "\nOK (" + cases[0] + " offscreen GLES mask cases, both eyes; "
                 + cases[1] + " enhanced projection color samples; " + cases[2] + " native stereo color samples; "
-                + cases[3] + " native stereo lifecycle cases; " + cases[4] + " Android orientation remap goldens)\n");
+                + cases[3] + " native stereo lifecycle cases; " + cases[4] + " Android orientation remap goldens; "
+                + cases[5] + " GLES context recreation cases)\n");
             finish(Activity.RESULT_OK, result);
         } catch (Throwable error) {
             result.putString("stream", "\nFAIL: " + Log.getStackTraceString(error));
             finish(Activity.RESULT_CANCELED, result);
         }
+    }
+
+    private int performanceSeconds() {
+        if (!arguments.containsKey("performanceSeconds")) return 0;
+        String value = String.valueOf(arguments.get("performanceSeconds"));
+        if (!value.matches("[0-9]{1,2}")) throw new IllegalArgumentException("performanceSeconds must be an integer from 1 to 60");
+        int seconds = Integer.parseInt(value);
+        if (seconds < 1 || seconds > 60) throw new IllegalArgumentException("performanceSeconds must be from 1 to 60");
+        return seconds;
     }
 
     private static int[] renderCases() {
@@ -115,7 +137,31 @@ public final class RenderMaskProbe extends Instrumentation {
             int stereoSamples = ClientVariant.EXPERIMENTAL ? assertNativeStereo(renderer, pixels) : 0;
             int stereoLifecycle = ClientVariant.EXPERIMENTAL ? assertStereoLifecycle(renderer, pixels) : 0;
             int orientationGoldens = ClientVariant.EXPERIMENTAL ? OrientationProbe.run() : 0;
-            return new int[]{cases, enhancedSamples, stereoSamples, stereoLifecycle, orientationGoldens};
+            int contextCases = 0;
+            if (ClientVariant.EXPERIMENTAL) {
+                VrSettings fitted = new VrSettings(); fitted.mode = VrSettings.ENHANCED_FIRST_PERSON;
+                fitted.scale = .65f; fitted.offsetX = .08f; fitted.offsetY = -.12f; fitted.eyeSeparation = -.4f;
+                renderer.resumeFrames(); renderer.setStreamLayout(true, true); renderer.setSettings(fitted);
+                renderer.submitFrame(stereoColors(Color.RED, Color.BLUE)); renderer.onDrawFrame(null); readPixels(pixels);
+                assertEyeCenters(pixels, fitted, Color.RED, Color.BLUE); contextCases++;
+                // An Activity pause may destroy its EGL context but keep the Java renderer.
+                // An unshared replacement must allocate a fresh texture, then accept new frames.
+                renderer.pauseFrames();
+                require(EGL14.eglMakeCurrent(display, EGL14.EGL_NO_SURFACE, EGL14.EGL_NO_SURFACE,
+                    EGL14.EGL_NO_CONTEXT), "Unbind original EGL context");
+                require(EGL14.eglDestroyContext(display, context), "Destroy original EGL context");
+                context = EGL14.EGL_NO_CONTEXT;
+                context = EGL14.eglCreateContext(display, configs[0], EGL14.EGL_NO_CONTEXT,
+                    new int[]{EGL14.EGL_CONTEXT_CLIENT_VERSION, 2, EGL14.EGL_NONE}, 0);
+                require(context != EGL14.EGL_NO_CONTEXT, "Recreate unshared EGL context");
+                require(EGL14.eglMakeCurrent(display, surface, surface, context), "Bind restored EGL context");
+                renderer.onSurfaceCreated(null, null); renderer.onSurfaceChanged(null, WIDTH, HEIGHT);
+                renderer.resumeFrames(); renderer.onDrawFrame(null); readPixels(pixels);
+                requireBlack(pixels, "Context recreation retained the previous texture"); contextCases++;
+                renderer.submitFrame(stereoColors(Color.GREEN, Color.YELLOW)); renderer.onDrawFrame(null); readPixels(pixels);
+                assertEyeCenters(pixels, fitted, Color.GREEN, Color.YELLOW); contextCases++;
+            }
+            return new int[]{cases, enhancedSamples, stereoSamples, stereoLifecycle, orientationGoldens, contextCases};
         } finally {
             renderer.pauseFrames();
             if (initialized) {
@@ -278,6 +324,26 @@ public final class RenderMaskProbe extends Instrumentation {
     private static void requireBlack(ByteBuffer pixels,String label) {
         for(int at=0;at<WIDTH*HEIGHT*4;at+=4)
             require((pixels.get(at)&255)<=3&&(pixels.get(at+1)&255)<=3&&(pixels.get(at+2)&255)<=3,label);
+    }
+
+    private static Bitmap stereoColors(int left, int right) {
+        Bitmap image = Bitmap.createBitmap(64, 32, Bitmap.Config.ARGB_8888);
+        for (int y = 0; y < 32; y++) for (int x = 0; x < 64; x++) image.setPixel(x, y, x < 32 ? left : right);
+        return image;
+    }
+    private static void assertEyeCenters(ByteBuffer pixels, VrSettings saved, int left, int right) {
+        VrSettings fitted = StereoProjection.viewingSettings(saved);
+        for (int eye = 0; eye < 2; eye++) {
+            int width = eye == 0 ? WIDTH / 2 : WIDTH - WIDTH / 2, origin = eye == 0 ? 0 : WIDTH / 2;
+            float[] bounds = HeadsetGeometry.bounds(fitted, 1, width / (float) HEIGHT, eye == 0 ? -1 : 1);
+            int x = Math.round(width * (1 + bounds[0]) / 2 - .5f);
+            int y = Math.round(HEIGHT * (1 + bounds[1]) / 2 - .5f), at = (y * WIDTH + origin + x) * 4;
+            int expected = eye == 0 ? left : right;
+            require(Math.abs((pixels.get(at) & 255) - Color.red(expected)) <= 3
+                && Math.abs((pixels.get(at + 1) & 255) - Color.green(expected)) <= 3
+                && Math.abs((pixels.get(at + 2) & 255) - Color.blue(expected)) <= 3,
+                "Context recreation lost fitted stereo eye " + eye);
+        }
     }
 
     private static void require(boolean condition, String message) {

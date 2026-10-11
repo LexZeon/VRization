@@ -141,6 +141,7 @@ class StopEvent:
 class FrameReader:
     def __init__(self,name,*,stereo=False):self.name=name;self.stereo=stereo;self.mapping=None
     def read(self):
+        """Return (width, height, BGRA, tickMs, coherent publication sequence)."""
         if self.mapping is None:
             try:self.mapping=WindowsMap(self.name,FRAME_SIZE)
             except OSError:return None
@@ -152,7 +153,11 @@ class FrameReader:
                 return decode_frame(header,b"",tick_ms(),stereo=self.stereo)
             data=self.mapping.snapshot(64+stride*height)
             if data is None or data[:64]!=header:continue
-            return decode_frame(data[:64],data[64:],tick_ms(),stereo=self.stereo)
+            sample=decode_frame(data[:64],data[64:],tick_ms(),stereo=self.stereo)
+            # The complete payload header equals the first coherent header;
+            # expose its verified sequence without changing the native ABI or
+            # the pure decode_frame four-value contract.
+            return (*sample,fields[3]) if sample is not None else None
         return None
     def close(self):
         if self.mapping:self.mapping.close();self.mapping=None

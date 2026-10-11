@@ -53,7 +53,9 @@ def check_stereo_pixels(report):
     phases = (("STEAMVR-01-LAN-enhanced-independent-eyes", "steamvr-lan-connected"),
               ("STEAMVR-02-LAN-cinema-independent-eyes", "steamvr-lan-connected"),
               ("STEAMVR-04-SBS-saved-profile", "steamvr-editor-saved"),
-              ("STEAMVR-06-USB-independent-eyes", "steamvr-usb-connected"))
+              ("STEAMVR-06-USB-independent-eyes", "steamvr-usb-connected"),
+              ("STEAMVR-08-LAN-refreshed-independent-eyes", "steamvr-lan-refreshed"),
+              ("STEAMVR-09-USB-refreshed-independent-eyes", "steamvr-usb-refreshed"))
     for name, checkpoint in phases:
         image = image_named(name); settings = checkpoints[checkpoint]["settings"]
         width, height = image.size; assert width > height
@@ -182,6 +184,11 @@ def main():
         assert checkpoints[name]["connected"] and not checkpoints[name]["mouseMoves"]
     for name in ("steamvr-lan-disconnected","steamvr-usb-disconnected"):
         assert not checkpoints[name]["connected"]
+    for refreshed, original in (("steamvr-lan-refreshed", "steamvr-editor-saved"),
+                                ("steamvr-usb-refreshed", "steamvr-usb-connected")):
+        assert checkpoints[refreshed]["connected"] and checkpoints[refreshed]["paused"]
+        assert checkpoints[refreshed]["epoch"] > checkpoints[original]["epoch"]
+        assert checkpoints[refreshed]["settings"] == checkpoints[original]["settings"]
     check_stereo_pixels(report)
     package_simulator()
 

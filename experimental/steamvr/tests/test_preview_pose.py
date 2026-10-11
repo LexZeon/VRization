@@ -16,6 +16,12 @@ class HmdPoseTests(unittest.TestCase):
     def setUp(self):
         self.now = 1000
         self.sink = RecordingPoseSink()
+        self.publish_ticks = []
+        publish = self.sink.publish
+        def timed_publish(*args):
+            self.publish_ticks.append(self.now)
+            publish(*args)
+        self.sink.publish = timed_publish
         self.gate = HmdPoseGate(self.sink, lambda: self.now)
 
     def pose(self, seq, q=(0,0,0,1), *, epoch=7, valid=True, time_us=None):
@@ -154,6 +160,105 @@ class HmdPoseTests(unittest.TestCase):
         self.assertFalse(self.sink.last[2])
         self.assertIsNone(self.sink.last[0])
         self.assertFalse(self.pose(2,yaw(.2)))
+
+    def test_paused_active_session_keeps_only_invalid_status_fresh_without_changing_phone_state(self):
+        self.ready()
+        self.pose(20,yaw(.4),time_us=10000)
+        self.gate.pause()
+        state = (self.gate.epoch,self.gate.last_seq,self.gate.last_time,self.gate.last_tick,
+                 self.gate.baseline,self.gate.pending_baseline,self.gate.current)
+        first = len(self.sink.snapshot())
+        self.now += 99
+        self.gate.tick()
+        self.assertEqual(len(self.sink.snapshot()),first)
+        self.now += 1
+        self.gate.tick()
+        self.assertEqual(len(self.sink.snapshot()),first+1)
+        # More than the native driver's 500ms freshness lifetime, sampled at
+        # the real watchdog cadence. Active stays fresh; tracking stays invalid.
+        for _ in range(30):
+            self.now += 50
+            self.gate.tick()
+            self.assertLess(self.now-self.publish_ticks[-1],100)
+            self.assertEqual(self.sink.last,(None,20,True,True))
+        self.assertEqual(state,(self.gate.epoch,self.gate.last_seq,self.gate.last_time,self.gate.last_tick,
+                                self.gate.baseline,self.gate.pending_baseline,self.gate.current))
+        self.assertTrue(self.gate.paused)
+        self.assertTrue(all(record[0] is None for record in self.sink.snapshot()[first:]))
+
+    def test_negotiated_session_without_sensor_never_synthesizes_valid_identity_tracking(self):
+        self.ready()
+        for _ in range(30):
+            self.now += 100
+            self.gate.tick()
+            self.assertEqual(self.sink.last,(None,-1,True,False))
+            self.assertEqual(self.publish_ticks[-1],self.now)
+        self.assertEqual((self.gate.last_seq,self.gate.last_time,self.gate.last_tick),(-1,-1,0))
+        self.assertIsNone(self.gate.current)
+        self.assertIsNone(self.gate.output)
+        self.assertTrue(self.pose(1,None,valid=False))
+        self.now += 600
+        self.gate.tick()
+        self.assertEqual(self.sink.last,(None,1,True,False))
+
+    def test_stale_pose_becomes_fresh_invalid_status_instead_of_replayed_valid_orientation(self):
+        self.ready()
+        self.pose(4,yaw(.4))
+        self.now += 500
+        self.gate.tick()
+        self.assertQ(yaw(.4))
+        self.now += 1
+        self.gate.tick()
+        first = len(self.sink.snapshot())
+        for _ in range(20):
+            self.now += 100
+            self.assertFalse(self.pose(4,yaw(.8)))
+            self.gate.tick()
+            self.assertEqual(self.sink.last,(None,4,True,False))
+            self.assertEqual(self.publish_ticks[-1],self.now)
+        self.assertEqual(self.gate.last_tick,1000)
+        self.assertTrue(all(record[0] is None for record in self.sink.snapshot()[first:]))
+        self.assertTrue(self.pose(5,yaw(.6)))
+        self.assertQ(yaw(.6))
+        count = len(self.sink.snapshot())
+        self.now += 100
+        self.gate.tick()
+        self.assertEqual(len(self.sink.snapshot()),count)
+
+    def test_disabling_tracking_preserves_connected_invalid_heartbeat_and_local_preference(self):
+        self.ready()
+        self.pose(1)
+        self.gate.enable(False)
+        for _ in range(12):
+            self.now += 100
+            self.gate.tick()
+            self.assertEqual(self.sink.last,(None,1,True,True))
+        self.assertFalse(self.gate.enabled)
+        self.assertFalse(self.gate.paused)
+
+    def test_closed_and_unaccepted_sessions_have_no_status_heartbeat(self):
+        self.now += 1000
+        self.gate.tick()
+        self.assertFalse(self.sink.snapshot())
+        self.gate.open(7)
+        count = len(self.sink.snapshot())
+        self.now += 2000
+        self.gate.tick()
+        self.assertEqual(len(self.sink.snapshot()),count)
+        self.gate.negotiate()
+        self.gate.tick()
+        self.assertEqual(self.sink.last,(None,-1,True,False))
+        self.gate.pause()
+        self.gate.close()
+        count = len(self.sink.snapshot())
+        for _ in range(20):
+            self.now += 100
+            self.gate.tick()
+            self.assertFalse(self.pose(1))
+        self.assertEqual(len(self.sink.snapshot()),count)
+        self.assertEqual(self.sink.last,(None,-1,False,True))
+        self.assertFalse(self.gate.accepted)
+        self.assertTrue(self.gate.paused)
 
 
 if __name__ == "__main__":

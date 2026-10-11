@@ -3,5 +3,5 @@
   "name": "vrization_phone",
   "directory": "",
   "resourceOnly": false,
-  "hmd_presence": ["VRizationPhone"]
+  "hmd_presence": []
 }

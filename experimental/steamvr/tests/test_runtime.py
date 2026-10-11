@@ -4,9 +4,9 @@ from pathlib import Path
 import subprocess
 import tempfile
 import unittest
-from unittest.mock import Mock
+from unittest.mock import Mock,patch
 from vrization_steamvr.runtime import OwnedProcess,DriverManager,discover_runtime
-from vrization_steamvr.ipc import FRAME,decode_frame
+from vrization_steamvr.ipc import FRAME,FrameReader,decode_frame
 
 
 class RuntimeTests(unittest.TestCase):
@@ -79,8 +79,36 @@ class RuntimeTests(unittest.TestCase):
         try:
             pixels=bytes([17,29,61,255])*8;writer.publish(4,2,pixels)
             sample=reader.read();self.assertEqual(sample[:3],(4,2,pixels))
+            self.assertEqual(len(sample),5);self.assertEqual(sample[4],2)
+            writer.publish(4,2,pixels)
+            fresh=reader.read();self.assertEqual(fresh[:3],sample[:3]);self.assertEqual(fresh[4],4)
             writer.close();self.assertIsNone(reader.read())
         finally:writer.close();reader.close()
+
+    def test_reader_sequence_belongs_to_the_same_validated_full_payload_header(self):
+        pixels=bytes((1,2,3,255))*8
+        def header(sequence):return FRAME.pack(b"VRF1",1,64,sequence,4,2,16,1,1000,bytes(24))
+        reader=FrameReader("unused-fixture-name",stereo=True);reader.mapping=Mock()
+        # A newer publication intervenes between the header and payload copy;
+        # only the next completely matching coherent snapshot may be returned.
+        reader.mapping.snapshot.side_effect=[header(2),header(4)+pixels,header(6),header(6)+pixels]
+        with patch("vrization_steamvr.ipc.tick_ms",return_value=1000):
+            self.assertEqual(reader.read(),(4,2,pixels,1000,6))
+        self.assertEqual(reader.mapping.snapshot.call_count,4)
+        reader.close()
+
+    def test_reader_never_appends_a_sequence_to_stale_inactive_or_invalid_frames(self):
+        pixels=bytes((1,2,3,255))*8
+        for sequence,flags,now,error in ((2,1,1501,False),(2,0,1000,False),(3,1,1000,True)):
+            with self.subTest(sequence=sequence,flags=flags,now=now):
+                header=FRAME.pack(b"VRF1",1,64,sequence,4,2,16,flags,1000,bytes(24))
+                reader=FrameReader("unused-fixture-name",stereo=True);reader.mapping=Mock()
+                reader.mapping.snapshot.side_effect=[header,header+pixels]
+                with patch("vrization_steamvr.ipc.tick_ms",return_value=now):
+                    if error:
+                        with self.assertRaises(ValueError):reader.read()
+                    else:self.assertIsNone(reader.read())
+                reader.close()
 
     def test_windows_stop_event_can_be_released_twice(self):
         import os

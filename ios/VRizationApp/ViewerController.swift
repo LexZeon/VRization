@@ -210,6 +210,9 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
         sliders = []
         let toolbar = UIStackView(arrangedSubviews: [button("hide", id: "settings.hide", action: #selector(hideSettings)),
             button("recenter", id: "view.recenter", action: #selector(recenter))])
+#if STEAMVR_PREVIEW
+        toolbar.insertArrangedSubview(button("refreshConnection", id: "connection.refresh", action: #selector(refreshConnection)), at: 1)
+#endif
         toolbar.axis = .horizontal; toolbar.spacing = 8; toolbar.distribution = .fillEqually
         toolbar.translatesAutoresizingMaskIntoConstraints = false; overlay.addSubview(toolbar)
         scroll = UIScrollView(); scroll.accessibilityIdentifier = "settings.scroll"; scroll.delegate = self
@@ -275,6 +278,9 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
         content.addArrangedSubview(codeField)
         connectButton = button("connect", id: "connection.toggle", action: #selector(toggleConnection))
         content.addArrangedSubview(connectButton)
+#if STEAMVR_PREVIEW
+        content.addArrangedSubview(label(L.text("refreshConnectionHelp"), size: 12))
+#endif
 #if STEAMVR_PREVIEW
         content.addArrangedSubview(label(L.text(selectedTransport == .usb ? "steamUSBNotice" : "networkNotice"), size: 12))
 #else
@@ -435,6 +441,34 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
         recenter()
         if !client.connect(host: host, port: number, code: code) { statusKey = "invalidAddress"; updateStatus() }
     }
+#if STEAMVR_PREVIEW
+    @objc private func refreshConnection() {
+        guard active else { return }
+        view.endEditing(true)
+        let transport = selectedTransport
+        let host = hostField.text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let port = (portField.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let code = (codeField.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        var number = 8766
+        if transport == .lan {
+            guard (try? ConnectionInput.url(host: host, port: port, token: code)) != nil, let value = Int(port) else {
+                statusKey = "invalidAddress"; updateStatus(); return
+            }
+            number = value; preferences.host = host; preferences.port = port
+            try? preferenceStore.save(preferences)
+        }
+        closeEditor(save: false, resumeMotion: false)
+        motion.stop(); renderer?.clear()
+        frames = 0; sampleFrames = 0; receiveFPS = 0; frameWidth = 0; frameHeight = 0
+        frameSampleAt = ProcessInfo.processInfo.systemUptime
+        frameStatus.text = L.text("waitingFrame"); updateTestingGeometry()
+        client.setSettingsBase(settings)
+        if transport == .usb { startUSBControl() }
+        if !client.rebuildConnection(transport: transport, host: host, port: number, code: code) {
+            statusKey = transport == .usb ? "usbFailed" : "invalidAddress"; updateStatus()
+        }
+    }
+#endif
     @objc private func transportChanged(_ picker: UISegmentedControl) {
         closeEditor(save: false, resumeMotion: false)
         client.disconnect(notify: false); motion.stop(); renderer?.clear()
@@ -518,6 +552,7 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
         var needsMotion = settings.mode != "full"
 #if STEAMVR_PREVIEW
         if client.streamSession?.virtualHMD == true { needsMotion = true }
+        if client.posesArePaused { needsMotion = false }
 #endif
         if active && editor == nil && client.state == .connected && needsMotion && motion.available { motion.start() }
         else { motion.stop() }

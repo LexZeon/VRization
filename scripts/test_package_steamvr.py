@@ -32,6 +32,9 @@ class SteamVrPackageTests(unittest.TestCase):
             target = self.native / name
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_bytes(("original inert fixture " + name).encode())
+        (self.native / "drivers/vrization_phone/driver.vrdrivermanifest").write_text(json.dumps({
+            "name": "vrization_phone", "directory": "", "alwaysActivate": True,
+            "resourceOnly": False, "hmd_presence": []}), encoding="utf-8")
         (self.native / "native/README.md").write_text("[Licenses](licenses/README.md)\n")
         (self.native / "native/licenses/README.md").write_text("[Native](../README.md)\n")
         executable = self.root / "artifacts/steamvr/windows-dist/VRization-SteamVR.exe"
@@ -162,6 +165,21 @@ class SteamVrPackageTests(unittest.TestCase):
         self.write_report()
         with self.assertRaisesRegex(ValueError, "links to missing native/missing.md"):
             package.windows()
+
+
+    def test_hash_matching_invalid_or_always_present_manifest_is_not_packaged(self):
+        name = "drivers/vrization_phone/driver.vrdrivermanifest"
+        path = self.native / name
+        value = json.loads(path.read_text(encoding="utf-8"))
+        for presence in (["VRizationPhone"], ["*.*"]):
+            with self.subTest(presence=presence):
+                value["hmd_presence"] = presence
+                path.write_text(json.dumps(value), encoding="utf-8")
+                self.report["files"][name] = self.digest(path)
+                self.write_report()
+                with self.assertRaisesRegex(ValueError, "explicit empty list"):
+                    package.windows()
+                self.assertFalse((self.out / "VRization-SteamVR-Windows-x64.zip").exists())
 
 
 if __name__ == "__main__":

@@ -30,6 +30,9 @@
     <string name="code_hint">六位配对码</string>
     <string name="connect">连接电脑</string>
     <string name="disconnect">断开连接</string>
+    <string name="refresh_connection">刷新／重建连接</string>
+    <string name="refresh_connection_help">重新请求 USB，或使用下方的局域网地址与配对码。清除旧连接和画面，保留已保存的盒子适配与设置。若电脑输入已暂停，请在电脑点击“恢复”。</string>
+    <string name="refresh_connection_pause">正在重新连接；电脑输入暂停会保持，请按需在电脑点击“恢复”。</string>
     <string name="network_notice">局域网画面与控制未加密，请只在可信网络使用。第一人称陀螺仪鼠标控制使用电脑端设置，默认开启。在电脑按 F8 可停止控制；点击电脑端“恢复”可重新开启。</string>
     <string name="sensor_unavailable">未检测到旋转传感器：全屏和加强第一人称画面仍可使用；大屏幕及普通第一人称模式已禁用。陀螺仪鼠标控制不可用。</string>
     <string name="watch_mode">观看模式</string>

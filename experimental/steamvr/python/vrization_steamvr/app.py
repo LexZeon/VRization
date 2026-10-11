@@ -16,6 +16,7 @@ from PIL import Image
 from vrization_host.capture import CaptureConfig,MssCaptureSource
 from vrization_host.gui import HostWindow,BG,CARD,TEXT,MUTED,ACCENT,configure_dpi_awareness,monitor_display_name
 from vrization_host.i18n import load_language,save_language
+from vrization_host.storage import preference_path
 from vrization_host.usb import UsbManager
 from vrization_host.view_editor import HeadsetEditor
 from . import __version__
@@ -23,6 +24,8 @@ from .capture import MirrorCaptureSource,overlay_config
 from .host import PreviewHost
 from .ipc import FrameWriter,frame_name
 from .runtime import DriverManager,OwnedProcess,native_helper,diagnostics
+from .profiles import (BALANCED,CUSTOM,HMD_PROFILES,apply_hmd_profile,hmd_capture_profile,
+                       initial_hmd_capture,limit_hmd_capture,profile_label)
 
 
 def usb_factory(*args,**kwargs):
@@ -35,7 +38,10 @@ class PhoneWindow(HostWindow):
     def __init__(self,root,route,monitor=None,on_close=None):
         self.route=route;self.on_close=on_close
         def factory(**kwargs):
-            if route=="steamvr-phone":kwargs["capture_source"]=MirrorCaptureSource()
+            if route=="steamvr-phone":
+                self.config=limit_hmd_capture(initial_hmd_capture(kwargs["capture_config"],preference_path().exists()))
+                kwargs["capture_config"]=self.config
+                kwargs["capture_source"]=MirrorCaptureSource()
             return PreviewHost(route=route,**kwargs)
         super().__init__(root,initial_monitor=monitor,server_factory=factory,
                          usb_factory=usb_factory,control_port=18774)
@@ -68,16 +74,24 @@ class PhoneWindow(HostWindow):
         for child in tab.winfo_children():
             if isinstance(child,ttk.Label) and child.grid_info().get("row")==0:
                 child.configure(text=self.words("Capture source","采集来源"))
+            if isinstance(child,ttk.Label) and child.grid_info().get("row")==4:
+                child.configure(text=self.words(
+                    "Balanced is the default for new Phone HMD users. Width is the total stereo image: 1280 gives 640 pixels per eye. FPS is a target, not a measured guarantee. Saved settings are kept; audio is not streamed.",
+                    "新手机头显用户默认使用均衡预设。宽度是双眼画面的总宽度：1280 对应每眼 640 像素。帧率为目标，并非实测保证。保留已保存设置，不串流声音。"))
             if isinstance(child,ttk.LabelFrame) and child.grid_info().get("row")==3:child.grid_remove()
         self.monitor.configure(values=("SteamVR Phone HMD compositor",),state="disabled")
         self.monitor.current(0);self.use_region.set(False)
-        self.profile.configure(state="disabled")
-        self.config=replace(self.config,width=min(1920,self.config.width),fps=max(30,self.config.fps),region=None)
+        self.profile_names=list(HMD_PROFILES)+[CUSTOM]
+        self.profile.configure(values=[profile_label(name,self.language) for name in self.profile_names],state="readonly")
+        self.config=limit_hmd_capture(self.config)
         self.server.set_capture_config(self.config)
-        for key in ("width","fps"):self.capture_vars[key].set(str(getattr(self.config,key)))
+        self.profile.current(self.profile_names.index(hmd_capture_profile(self.config)))
+        for key in ("width","fps","quality"):self.capture_vars[key].set(str(getattr(self.config,key)))
         for child in tab.winfo_children():
             for group in child.winfo_children():
                 for widget in group.winfo_children():
+                    if isinstance(widget,ttk.Label) and widget.cget("text")==self.tr("最长输出边"):
+                        widget.configure(text=self.words("Total stereo width","双眼总宽度"))
                     if isinstance(widget,ttk.Combobox) and str(widget.cget("textvariable"))==str(self.capture_vars["width"]):
                         widget.configure(values=(640,960,1280,1600,1920))
                     if isinstance(widget,ttk.Combobox) and str(widget.cget("textvariable"))==str(self.capture_vars["fps"]):
@@ -89,11 +103,45 @@ class PhoneWindow(HostWindow):
     def apply_capture(self):
         if self.route!="steamvr-phone":return super().apply_capture()
         try:
-            self.config=replace(self.config,region=None,width=min(1920,int(self.capture_vars["width"].get())),
-                fps=max(30,int(self.capture_vars["fps"].get())),quality=int(self.capture_vars["quality"].get()))
-            self.server.set_capture_config(self.config);self._save_later();return True
+            self.config=limit_hmd_capture(replace(self.config,width=int(self.capture_vars["width"].get()),
+                fps=int(self.capture_vars["fps"].get()),quality=int(self.capture_vars["quality"].get())))
+            self.server.set_capture_config(self.config)
+            self.profile.current(self.profile_names.index(hmd_capture_profile(self.config)))
+            for key in ("width","fps","quality"):self.capture_vars[key].set(str(getattr(self.config,key)))
+            self._save_later();return True
         except ValueError as error:
             messagebox.showerror("VRization SteamVR",str(error),parent=self.root);return False
+
+    def change_profile(self,event=None):
+        if self.route!="steamvr-phone":return super().change_profile(event)
+        config=apply_hmd_profile(self.config,self.profile_names[self.profile.current()])
+        for key in ("width","fps","quality"):self.capture_vars[key].set(str(getattr(config,key)))
+        self.apply_capture()
+
+    def reset_all(self):
+        if self.route!="steamvr-phone":return super().reset_all()
+        # Keep the shared reset's input latch, USB policy and language handling.
+        # Its save point runs before rebuilding widgets, so replace the JPEG
+        # defaults there without copying the shared reset lifecycle.
+        self._hmd_reset_capture=True
+        try:super().reset_all()
+        finally:self._hmd_reset_capture=False
+
+    def _save(self):
+        if self.route=="steamvr-phone" and getattr(self,"_hmd_reset_capture",False):
+            self.config=limit_hmd_capture(apply_hmd_profile(self.config,BALANCED))
+            self.server.set_capture_config(self.config)
+        super()._save()
+
+    def _fit_tab(self,tab):
+        super()._fit_tab(tab)
+        if self.route!="steamvr-phone":return
+        old_text=self.tr("Reset restores the default picture, low latency, English, automatic USB and enabled gyro mouse. Your selected display/region and installed ADB path stay selected.")
+        for child in tab.winfo_children():
+            if isinstance(child,ttk.Label) and child.cget("text")==old_text:
+                child.configure(text=self.words(
+                    "Reset restores the default picture, Balanced stereo quality, English, automatic USB and enabled HMD tracking. Your desktop display selection and installed ADB path stay selected; tracking remains paused until you Resume on PC.",
+                    "重置恢复默认画面、均衡双眼画质、英文、自动 USB 和启用头显追踪。保留桌面显示器选择及已安装 ADB 路径；追踪继续暂停，直到在电脑恢复。"))
 
     def _game_tab(self,tab):
         if self.route!="steamvr-phone":return super()._game_tab(tab)

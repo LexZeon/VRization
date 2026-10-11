@@ -64,7 +64,7 @@ public final class MainActivity extends Activity {
     private GLSurfaceView surface;
     private ScrollView panel;
     private LinearLayout overlay;
-    private Button panelButton, connectButton;
+    private Button panelButton, connectButton, refreshButton;
     private TextView status, frameStatus;
     private TextView transportHelp, linkStatus, processingStatus, connectionNotice, stabilizationHelp, enhancedHelp;
     private LinearLayout lanInputs;
@@ -251,6 +251,10 @@ public final class MainActivity extends Activity {
         content.setOrientation(LinearLayout.VERTICAL); content.setPadding(dp(16), dp(8), dp(16), dp(16));
         panel.addView(content);
         overlay.addView(panel, new LinearLayout.LayoutParams(-1, 0, 1));
+        refreshButton = button(getString(R.string.refresh_connection), this::refreshConnection);
+        refreshButton.setTextColor(ACCENT); refreshButton.setTypeface(null, Typeface.BOLD);
+        content.addView(refreshButton, new LinearLayout.LayoutParams(-1, dp(52)));
+        content.addView(text(getString(R.string.refresh_connection_help), 12, MUTED, false));
         Button editHeadset = button(getString(R.string.edit_headset), this::startHeadsetEdit);
         editHeadset.setTextColor(ACCENT); editHeadset.setTypeface(null, Typeface.BOLD);
         content.addView(editHeadset, new LinearLayout.LayoutParams(-1, dp(52)));
@@ -388,22 +392,42 @@ public final class MainActivity extends Activity {
         if (client.isConnected() || (client.isConnecting() && !client.isAutomaticUsbAttempt())) {
             client.disconnect(true); return;
         }
+        startConnection();
+    }
+
+    /** An explicit retry, never a Connect/Disconnect toggle or a remote input Resume. */
+    private void refreshConnection() {
+        if (destroyed || !resumed) return;
+        explicitUsb.cancel(); initialUsb.stop(); finishPauseDisconnect();
+        finishHeadsetEdit(false, false);
+        // Invalidates socket/discovery epochs and queued decode before recentering locally.
+        // Existing callbacks cannot interpret late frames as the new stream's layout.
+        client.disconnect(false);
+        if (startConnection())
+            Toast.makeText(this, getString(R.string.refresh_connection_pause), Toast.LENGTH_LONG).show();
+    }
+
+    private boolean startConnection() {
         if (connectionMode == ConnectionMode.USB) {
-            recenter(); client.connectUsb(UsbConnectionAttempt.Source.PHONE_ACTION); return;
+            recenter(); client.connectUsb(UsbConnectionAttempt.Source.PHONE_ACTION); return true;
         }
-        String host = hostInput.getText().toString().trim();
-        String code = codeInput.getText().toString().trim();
-        int port;
-        try { port = Integer.parseInt(portInput.getText().toString().trim()); }
-        catch (NumberFormatException ignored) { status.setText(getString(R.string.invalid_port)); return; }
-        if (host.isEmpty() || host.contains("://") || host.contains("/") || port < 1 || port > 65535) {
-            status.setText(getString(R.string.invalid_address)); return;
+        final LanConnectionRequest request;
+        try {
+            request = LanConnectionRequest.parse(hostInput.getText().toString(),
+                portInput.getText().toString(), codeInput.getText().toString());
+        } catch (LanConnectionRequest.Invalid invalid) {
+            updateConnectButton();
+            status.setText(invalid.reason == LanConnectionRequest.Reason.PORT ? R.string.invalid_port
+                : invalid.reason == LanConnectionRequest.Reason.CODE ? R.string.invalid_code : R.string.invalid_address);
+            return false;
         }
-        if (!code.matches("[0-9]{6}")) { status.setText(getString(R.string.invalid_code)); return; }
-        preferences.edit().putString("host", host).putString("port", Integer.toString(port)).apply();
+        preferences.edit().putString("host", request.host).putString("port", Integer.toString(request.port)).apply();
         recenter();
-        try { client.connect(host, port, code); }
-        catch (IllegalArgumentException ignored) { client.disconnect(false); updateConnectButton(); status.setText(getString(R.string.invalid_host)); }
+        try { client.connect(request.host, request.port, request.code); }
+        catch (IllegalArgumentException ignored) {
+            client.disconnect(false); updateConnectButton(); status.setText(getString(R.string.invalid_host)); return false;
+        }
+        return true;
     }
 
     private void updateTransportUi() {

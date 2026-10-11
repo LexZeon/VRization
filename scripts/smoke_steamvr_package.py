@@ -24,11 +24,11 @@ import tempfile
 from unittest.mock import patch
 import zipfile
 
-from build_steamvr_native import COMMIT, PINS
+from build_steamvr_native import COMMIT, PINS, validate_phone_driver_manifest
 from package_release import check_document_links
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "0.5.0-steamvr-preview"
+VERSION = "0.5.1-steamvr-preview"
 EXE = "VRization-SteamVR.exe"
 NATIVE_FILES = {
     "native/VRization-SteamVR-Mirror.exe", "native/VRization-SteamVR-Overlay.exe",
@@ -148,8 +148,7 @@ def validate_archive(package: Path, folder: Path) -> dict:
                 and hashes["native/licenses/OpenVR-LICENSE.txt"] == PINS["LICENSE"],
                 "Bundled OpenVR binary or original license differs from its pin")
         driver = json.loads(archive.read("drivers/vrization_phone/driver.vrdrivermanifest"))
-        require(isinstance(driver, dict) and driver.get("name") == "vrization_phone"
-                and driver.get("hmd_presence") == ["VRizationPhone"], "Unexpected phone driver identity")
+        validate_phone_driver_manifest(driver)
         for name in ("Start-SteamVR-Preview.bat", "Start-SteamVR-Preview-second-monitor.bat"):
             launcher = archive.read(name).decode("utf-8").casefold()
             require("vrization-steamvr.exe" in launcher
@@ -221,6 +220,16 @@ def ipc_child(folder: Path, report: Path) -> None:
             writer.publish(4, 2, pixels)
             sample = reader.read()
             require(sample is not None and sample[:3] == (4, 2, pixels), "Real IPC stereo color bytes were not preserved")
+            require(len(sample) == 5 and type(sample[4]) is int and not sample[4] & 1,
+                    "Reader did not expose the coherent native publication sequence")
+            # Different publications can share GetTickCount64's coarse tick.
+            # Keep this fixture private to its unique map, with no pose/runtime.
+            with patch.object(ipc, "tick_ms", return_value=sample[3]):
+                writer.publish(4, 2, pixels)
+                repeated_tick = reader.read()
+            require(repeated_tick is not None and repeated_tick[3] == sample[3]
+                    and ((repeated_tick[4] - sample[4]) & 0xffffffff) == 2,
+                    "A new native publication sharing the tick lost its sequence identity")
             try:
                 conflict = ipc.FrameWriter(name)
             except FileExistsError:
@@ -246,6 +255,7 @@ def ipc_child(folder: Path, report: Path) -> None:
     result = {"passed": True, "frameDimensions": [4, 2], "pixelSHA256": hashlib.sha256(pixels).hexdigest(),
               "source": "IPC source and atomic DLL extracted from the checked ZIP",
               "inactiveAfterClose": True, "duplicateWriterRejected": True, "ownedStopEventVerified": True,
+              "sameTickPublicationSequenceVerified": True,
               "fixedPoseMapOpened": False, "currentDirectoryToolIgnored": True,
               "adbCheckScope": "Shared source resolver with extracted frozen EXE identity; not a frozen diagnostic adb_found claim",
               "sharedResolverSHA256": digest(Path(usb.__file__)), "ipcSourceSHA256": digest(Path(ipc.__file__)),
@@ -255,7 +265,7 @@ def ipc_child(folder: Path, report: Path) -> None:
 
 def smoke(package: Path, report: Path, version: str = VERSION) -> None:
     require(os.name == "nt", "The packaged Windows preview smoke test requires Windows")
-    require(version == VERSION, "This helper validates the 0.5.0-steamvr-preview contract")
+    require(version == VERSION, "This helper validates the 0.5.1-steamvr-preview contract")
     package, report = package.resolve(), report.resolve()
     require(package != report, "The smoke report must not overwrite its input ZIP")
     zip_sha = digest(package)

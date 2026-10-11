@@ -7,7 +7,7 @@ import shutil
 import subprocess
 import zipfile
 from package_release import check_document_links
-from build_steamvr_native import COMMIT,PINS
+from build_steamvr_native import COMMIT,PINS,validate_phone_driver_manifest
 
 ROOT=Path(__file__).resolve().parents[1]
 OUT=ROOT/"artifacts/steamvr/release"
@@ -46,6 +46,7 @@ def windows():
         if hashlib.sha256((native/name).read_bytes()).hexdigest()!=pin:raise ValueError("Upstream binary/license changed")
     binaries={path.relative_to(native).as_posix() for path in native.rglob("*") if path.suffix.lower() in {".dll",".exe",".lib"}}
     if binaries!={name for name in required if Path(name).suffix in {".dll",".exe"}}:raise ValueError("Unexpected native binary; preserve and review the bundle")
+    validate_phone_driver_manifest(json.loads((native/"drivers/vrization_phone/driver.vrdrivermanifest").read_text(encoding="utf-8")))
     executable=ROOT/"artifacts/steamvr/windows-dist/VRization-SteamVR.exe"
     if not executable.is_file():raise FileNotFoundError("Build the separate Windows preview first")
     archive_path=OUT/"VRization-SteamVR-Windows-x64.zip"

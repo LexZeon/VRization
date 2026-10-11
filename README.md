@@ -5,7 +5,7 @@
 <!-- vrization:english -->
 ## English
 
-**🧪 SteamVR experimental branch:** [Choose direct phone, Phone HMD or an existing SteamVR headset](experimental/steamvr/README.md). This separate preview keeps the published [v0.4.0-alpha](https://github.com/LexZeon/VRization/releases/tag/v0.4.0-alpha) and local stable `latest` unchanged. Phone HMD supports stereo compositor frames and gyro rotation; physical phone/PCVR testing is deferred. Read the [experimental module handoff](experimental/steamvr/docs/AI_HANDOFF.md) before changing this branch.
+**🧪 SteamVR experimental branch:** [Choose direct phone, Phone HMD or an existing SteamVR headset](experimental/steamvr/README.md). This separate preview keeps the published [v0.4.0-alpha](https://github.com/LexZeon/VRization/releases/tag/v0.4.0-alpha) and local stable `latest` unchanged. A physical Huawei connected to an unpublished host candidate received SteamVR background images through the Phone HMD route; sensor data reached the pose bridge. After paused editing, local PC Resume plus physical phone movement restored viewing, and the user reported normal recentering. Full physical-axis, VR-game, PCVR and stability acceptance remains incomplete. Read the [experimental module handoff](experimental/steamvr/docs/AI_HANDOFF.md) before changing this branch.
 
 **Put your PC screen inside a phone VR viewer.**
 
@@ -86,7 +86,15 @@ Selected desktop capture
 
 The existing-headset route relies on its already working PC transport, tracking and controllers. It does not supply a new universal standalone-headset connection. Phone HMD uses **Driver + Mirror + phone client**; an existing headset uses **desktop capture + Overlay**. GPU capture/resize/rendering and CPU JPEG processing remain separate stages.
 
-These diagrams describe implemented source paths. **Real SteamVR compositor output, physical phone/PCVR behavior, achieved FPS and motion-to-photon latency still require hardware testing.** See the [detailed architecture](https://github.com/LexZeon/VRization/blob/codex/steamvr-experimental/experimental/steamvr/docs/ARCHITECTURE.md) and [verification record](https://github.com/LexZeon/VRization/blob/codex/steamvr-experimental/experimental/steamvr/docs/VALIDATION.md).
+These diagrams describe implemented source paths. A follow-up Huawei session with an **unpublished host candidate** observed virtual-HMD activation, native undistorted Mirror eye acquisition, real sensor packets and SteamVR background/grid images delivered to the phone. A later candidate kept Mirror running through more than six seconds of paused fit editing; Save retained the pause, and local PC Resume followed by physical movement restored viewing. The user reported normal recentering. Resume alone while the phone stays still is not established as sufficient to restore the image. **These observations do not establish a VR-game pass, complete physical yaw/pitch/roll acceptance, PCVR support, long-duration stability, achieved display FPS or motion-to-photon latency.** See the [detailed architecture](https://github.com/LexZeon/VRization/blob/codex/steamvr-experimental/experimental/steamvr/docs/ARCHITECTURE.md) and [verification record](https://github.com/LexZeon/VRization/blob/codex/steamvr-experimental/experimental/steamvr/docs/VALIDATION.md).
+
+The **unpublished 0.5.1 patch** implements separate Phone HMD quality profiles: Balanced **1280 total SBS width /60 FPS target /Q75** for new users and Reset, Sharper **1920 /60 /Q80**, and Low latency **640 /60 /Q45**. Width is shared across the two source eyes; saved capture choices and direct-phone defaults are retained, and Reset does not release tracking pause. In a Huawei background/grid check, the phone UI reported about **58 decoded-receive FPS**, but a separate 1920/Q80 sample counted only **32.121283 native Mirror publications per second**. Repeated frame delivery explains why these counters differ; neither counter measures distinct displayed images or physical latency. Coherent-sequence deduplication and owned QPC/waitable-timer pacing are implemented in source; exact native builds and fresh performance verification remain pending.
+
+Current unpublished source versions are **Windows 0.5.1-steamvr-preview, Android 0.5.1-steamvr-preview/build 2 and iOS 0.5.1/build 2**. Ordinary VRization remains **0.4.0/build 8**; historical 0.5.0 preview downloads stay preserved. Exact release builds, native CI and real-phone reboot/Refresh acceptance are still pending.
+
+**Refresh is implemented on the PC and both preview phones.** The PC waits for full server and USB-relay cleanup before rebuilding; pressing Stop cancels the pending restart without skipping cleanup. Phones rebuild the selected USB/LAN transport and decoder generation and clear old images while retaining settings/fit. A newly confirmed HMD session can reset a dormant or failed Mirror once on the capture worker, dropping pending old frames; raw connections and repeated hello messages do not trigger resets. Refresh never resumes tracking or recenters it: use local PC Resume when appropriate. The focused capture/GUI/reconnect/Stop regression passed **18 software tests**; final builds and phone reboot/Refresh checks remain pending.
+
+**Open fault:** The user identified the black PC window as SteamVR's **Headset Window**. Its cause remains under diagnosis; a separate observed exited Mirror explains a connected phone waiting for video in one interval, but does not establish the cause of every black Headset Window. No complete recovery or achieved unique/display FPS is claimed.
 
 ### 📸 Interface
 
@@ -176,7 +184,7 @@ The [v0.3.0-alpha notes](docs/releases/v0.3.0-alpha.md) preserve editor / profil
 <!-- vrization:chinese -->
 ## 简体中文
 
-**🧪 SteamVR 实验分支：** [选择直接连手机、手机头显或现有 SteamVR 头显](experimental/steamvr/README.md)。独立实验版保留已发布的 [v0.4.0-alpha](https://github.com/LexZeon/VRization/releases/tag/v0.4.0-alpha) 及本地正式 `latest`。手机头显路线支持双眼合成画面和陀螺仪旋转；手机与 PCVR 实机测试留到下次。修改本分支前请阅读 [实验模块接手说明](experimental/steamvr/docs/AI_HANDOFF.md)。
+**🧪 SteamVR 实验分支：** [选择直接连手机、手机头显或现有 SteamVR 头显](experimental/steamvr/README.md)。独立实验版保留已发布的 [v0.4.0-alpha](https://github.com/LexZeon/VRization/releases/tag/v0.4.0-alpha) 及本地正式 `latest`。华为真机连接未发布的电脑端候选版，已通过手机头显路线收到 SteamVR 背景画面，传感器数据也到达姿态桥。暂停编辑后，电脑本地恢复加实际移动手机令画面恢复，用户报告回正正常。完整物理坐标、VR 游戏、PCVR 及稳定性验收尚未完成。修改本分支前请阅读 [实验模块接手说明](experimental/steamvr/docs/AI_HANDOFF.md)。
 
 **把电脑画面装进手机 VR 盒子。**
 
@@ -271,7 +279,15 @@ VRization 在这条主链旁边添加桌面覆盖层：
 
 已有头显路线依赖已经能工作的电脑连接、追踪和控制器，不提供新的通用一体机连接协议。手机头显使用 **Driver＋Mirror＋手机客户端**；已有头显使用**桌面采集＋Overlay**。GPU 采集／缩小／渲染与 CPU JPEG 处理仍是独立环节。
 
-这些图描述已实现的源码通路；**真实 SteamVR 合成输出、手机／PCVR 实机效果、实际帧率与运动到显示延迟仍需硬件测试**。详细模块见[架构说明](https://github.com/LexZeon/VRization/blob/codex/steamvr-experimental/experimental/steamvr/docs/ARCHITECTURE.md)和[验证记录](https://github.com/LexZeon/VRization/blob/codex/steamvr-experimental/experimental/steamvr/docs/VALIDATION.md)。
+这些图描述已实现的源码通路。后续华为真机会话使用**未发布的电脑端候选版**，已观察虚拟头显激活、原生 Mirror 获取未畸变双眼、真实传感器消息，以及 SteamVR 背景／网格传到手机。后续候选版在暂停适配编辑超过六秒时仍保持 Mirror 运行；保存保留暂停，电脑本地恢复后实际移动手机令画面恢复，用户报告回正正常。尚未证明手机静止时只点恢复就足以恢复画面。**这些观察不代表 VR 游戏通过、完整物理 yaw／pitch／roll、PCVR 支持、长期稳定性、真实显示帧率或运动到显示延迟已验收。**详细模块见[架构说明](https://github.com/LexZeon/VRization/blob/codex/steamvr-experimental/experimental/steamvr/docs/ARCHITECTURE.md)和[验证记录](https://github.com/LexZeon/VRization/blob/codex/steamvr-experimental/experimental/steamvr/docs/VALIDATION.md)。
+
+**未发布 0.5.1 补丁**已实现手机头显专属画质：新用户及重置使用均衡 **双眼总宽 1280／目标 60 FPS／Q75**，更清晰 **1920／60／Q80**，低延迟 **640／60／Q45**。总宽由两只源眼分配；保留已保存采集选择和直连默认值，重置不解除追踪暂停。华为背景／网格检查中，手机界面约 **58 个解码接收 FPS**，而独立的 1920／Q80 样本只计到**每秒 32.121283 次原生 Mirror 发布**。重复交付解释两个计数的区别，都不是不同图像的实际显示帧率或物理延迟。一致性序号去重及自有 QPC／可等待定时器节奏已在源码实现，准确原生构建和新性能验证仍待完成。
+
+当前未发布源码版本为 **Windows 0.5.1-steamvr-preview、Android 0.5.1-steamvr-preview/build 2、iOS 0.5.1/build 2**。普通版保持 **0.4.0/build 8**，历史 0.5.0 实验版下载原样保留；准确发布构建、原生 CI 及手机重启／刷新真机验收仍待完成。
+
+**电脑和两个实验手机客户端均已实现刷新。** 电脑等待服务器及 USB 中继完整清理后重建；停止只取消待执行重启，不跳过清理。手机重建已选 USB／局域网传输与解码代际，清掉旧画面并保留设置／适配。新确认的头显会话可在采集工作线程上对尚未发现退出或已失败的 Mirror 重置一次，丢弃旧待发帧；原始连接和重复 hello 不触发重置。刷新不会恢复追踪或重新居中，需要时由电脑本地恢复。采集／界面／复连／停止针对性回归通过 **18 项软件测试**，最终构建及手机重启／刷新检查仍待完成。
+
+**仍在定位的故障：** 用户确认电脑黑色窗口是 SteamVR 的 **Headset Window**。原因仍在诊断；另一次观察到的 Mirror 退出能解释该区间手机已连接却等待视频，但不能据此认定全部 Headset Window 黑屏都只有这个原因。不声称完整恢复或实际不同帧／显示帧率通过。
 
 ### 📸 看看界面
 

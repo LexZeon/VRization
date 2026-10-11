@@ -60,6 +60,9 @@ ENGLISH = {
 }
 
 CHINESE = {
+    'Refresh / Rebuild connection': '刷新／重建连接',
+    'Save or discard the headset editor before rebuilding the connection': '请先保存或弃用画面编辑，再重建连接',
+    'Rebuilding connection; settings are kept and control stays paused': '正在重建连接；保留设置，控制继续暂停',
     'Enhanced first person': '加强第一人称',
     'Enhanced first person fixes each eye to 1:1 and bends the image on the phone GPU. Scale, move and eye spacing still work. Field of view adjusts the warp; black corners are expected.': '加强第一人称将每只眼固定为 1:1，并在手机 GPU 上弯曲画面。仍可缩放、移动和调整双眼间距；视野角度调节变形强度，边角留黑属于正常现象。',
     "streaming stopped": "串流已停止",

@@ -1,6 +1,7 @@
 // Original VRization D3D11 mirror/IPC bridge, MIT. Official Valve SDK (BSD-3-Clause).
 #include "runtime.hpp"
 #include "gpu.hpp"
+#include "timing.hpp"
 #include <memory>
 
 namespace {
@@ -55,15 +56,16 @@ int wmain(int argc,wchar_t** argv) {
         }
         if(vrization::should_stop()) return 0;
         std::cout<<"ready: undistorted per-eye D3D11 mirror, GPU downsample then SBS BGRA"<<std::endl;
-        const auto interval=std::chrono::microseconds(1000000/args.fps);
+        vrization::FramePacer cadence(args.fps);
+        std::cout<<"cadence: QPC deadlines, "<<(cadence.high_resolution()?"local high-resolution timer":"local standard timer fallback")
+                 <<", cancellable Stop, no global timer changes"<<std::endl;
         while(!runtime.quitting()) {
-            const auto start=std::chrono::steady_clock::now();
             const auto serial=vrization::hmd_serial(runtime.system);
             if(serial.empty() || serial!=selectedSerial || (!args.allowNative && serial!="VRizationPhone"))
                 throw std::runtime_error("Selected HMD disconnected or changed; mirror stopped");
             const auto pixels=packer.pack(eyes.left(),eyes.right(),args.width);
             writer.publish(pixels.data(),packer.width(),packer.height());
-            std::this_thread::sleep_until(start+interval);
+            if(!cadence.wait_next(vrization::stopHandle,vrization::should_stop)) break;
         }
         writer.publish(nullptr,0,0,false); return 0;
     } catch(const std::exception& error) { std::cerr<<"error: "<<error.what()<<std::endl; return 1; }

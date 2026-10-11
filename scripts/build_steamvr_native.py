@@ -33,6 +33,21 @@ def digest(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def validate_phone_driver_manifest(value: object) -> None:
+    """Network/session discovery must not advertise a USB or always-present HMD.
+
+    Valve's pinned Driver API docs define hmd_presence as USB VID.PID patterns;
+    its tutorial/sample/driver.vrdrivermanifest demonstrates a legal empty list.
+    The real phone is discovered by the existing provider's pose-map gate.
+    """
+    if (not isinstance(value, dict) or value.get("name") != "vrization_phone"
+            or value.get("directory") != "" or value.get("alwaysActivate") is not True
+            or value.get("resourceOnly") is not False):
+        raise ValueError("Unexpected phone driver manifest identity or lifecycle")
+    if value.get("hmd_presence") != []:
+        raise ValueError("Phone driver hmd_presence must be an explicit empty list; discovery uses the active phone session")
+
+
 def fetch_sdk(destination: Path) -> dict[str, str]:
     """Only add missing files; a wrong existing file is preserved and rejected."""
     result = {}
@@ -79,6 +94,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--fetch-only", action="store_true")
     args = parser.parse_args(argv)
     sdk, build, output = args.sdk_root.resolve(), args.build_dir.resolve(), args.output.resolve()
+    source_manifest = ROOT / "experimental/steamvr/native/driver.vrdrivermanifest"
+    validate_phone_driver_manifest(json.loads(source_manifest.read_text(encoding="utf-8")))
     pins = fetch_sdk(sdk)
     license_source = ROOT / "experimental/steamvr/native/licenses/OpenVR-LICENSE.txt"
     if not license_source.is_file() or digest(license_source) != PINS["LICENSE"]:
@@ -106,6 +123,7 @@ def main(argv: list[str] | None = None) -> int:
     missing = [name for name in expected if not (output / name).is_file()]
     if missing:
         raise RuntimeError(f"Incomplete native staging: {missing}")
+    validate_phone_driver_manifest(json.loads((output / "drivers/vrization_phone/driver.vrdrivermanifest").read_text(encoding="utf-8")))
     if digest(output / "native/openvr_api.dll") != PINS["bin/win64/openvr_api.dll"]:
         raise ValueError("Staged OpenVR binary is not the pinned SDK DLL")
     if digest(output / "native/licenses/OpenVR-LICENSE.txt") != PINS["LICENSE"]:

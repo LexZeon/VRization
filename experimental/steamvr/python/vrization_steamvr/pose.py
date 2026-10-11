@@ -17,6 +17,7 @@ class HmdPoseGate:
         self.sink, self.tick_ms = sink, tick_ms
         self.lock = threading.RLock()
         self.epoch=0; self.last_seq=-1; self.last_time=-1; self.last_tick=0
+        self._last_publish_tick=0
         self.connected=False; self.accepted=False; self.paused=False; self.enabled=True
         self.pending_baseline=False; self.current=None; self.baseline=(0.,0.,0.,1.); self.output=None
 
@@ -29,6 +30,7 @@ class HmdPoseGate:
 
     def _invalidate(self):
         self.sink.publish(None, self.last_seq, self.connected, self.paused or not self.enabled)
+        self._last_publish_tick=self.tick_ms()
 
     def negotiate(self):
         with self.lock:
@@ -79,9 +81,18 @@ class HmdPoseGate:
             if self.output and sum(a*b for a,b in zip(q,self.output))<0: q=tuple(-x for x in q)
             self.output=q
             self.sink.publish(q,self.last_seq,True,False)
+            self._last_publish_tick=self.last_tick
             return True
 
     def tick(self):
         with self.lock:
-            if self.output is not None and self.tick_ms()-self.last_tick>500:
+            if not self.connected or not self.accepted:
+                return
+            now=self.tick_ms()
+            if self.output is not None and now-self.last_tick>500:
                 self.output=None; self._invalidate()
+            elif self.output is None and now-self._last_publish_tick>=100:
+                # Keep transport presence fresh while tracking is unavailable
+                # (editor, pause, no sensor or stale pose). Never replay a valid
+                # quaternion or advance the phone's sequence/pose timestamp.
+                self._invalidate()

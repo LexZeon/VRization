@@ -31,6 +31,8 @@ final class StreamClient: NSObject, URLSessionWebSocketDelegate {
     private var submittedDescriptor: StreamSession?
     private var pendingTrackingLost: Data?
     private var hmdSequencer = HMDPoseSequencer()
+    private var refreshPosePause: Bool?
+    var posesArePaused: Bool { posesPaused }
 #else
     private var protocolGate = HostSessionGate()
 #endif
@@ -118,6 +120,19 @@ final class StreamClient: NSObject, URLSessionWebSocketDelegate {
         return true
     }
 
+#if STEAMVR_PREVIEW
+    /// Explicitly discard the old transport/decoder generation. Keep the local
+    /// pose pause; neither hello nor Refresh can release the PC's F8 latch.
+    func rebuildConnection(transport: Transport, host: String = "", port: Int = 8766, code: String = "") -> Bool {
+        precondition(Thread.isMainThread)
+        let paused = posesPaused
+        invalidateTracking()
+        let started = transport == .usb ? connectUSB() : connect(host: host, port: port, code: code)
+        if started { posesPaused = paused; refreshPosePause = paused }
+        return started
+    }
+#endif
+
     func disconnect(notify: Bool = true, reason: String = "disconnected") {
         precondition(Thread.isMainThread)
         sessions.invalidate()
@@ -125,7 +140,7 @@ final class StreamClient: NSObject, URLSessionWebSocketDelegate {
         handshakeTimeout?.invalidate(); handshakeTimeout = nil
         protocolGate.reset()
 #if STEAMVR_PREVIEW
-        submittedDescriptor = nil; pendingTrackingLost = nil; onStreamSession?(nil)
+        submittedDescriptor = nil; pendingTrackingLost = nil; refreshPosePause = nil; onStreamSession?(nil)
 #endif
         heartbeat?.invalidate(); heartbeat = nil
         usb.stop()
@@ -368,7 +383,11 @@ final class StreamClient: NSObject, URLSessionWebSocketDelegate {
         guard state == .connecting, protocolGate.isEstablished else { return }
         handshakeTimeout?.invalidate(); handshakeTimeout = nil
         let epoch = generation
+#if STEAMVR_PREVIEW
+        posesPaused = refreshPosePause ?? false; refreshPosePause = nil
+#else
         posesPaused = false
+#endif
         // Schema negotiation must precede any callback-triggered profile send.
         // Its capability was already established by the validated host hello.
         pendingHello = schemaAlreadyRequested ? nil : clientHello()
@@ -389,7 +408,7 @@ final class StreamClient: NSObject, URLSessionWebSocketDelegate {
 
     private func clientHello() -> Data {
 #if STEAMVR_PREVIEW
-        return SteamVRProtocol.hello()
+        return SteamVRProtocol.hello(editing: posesPaused)
 #else
         return VRProtocol.hello()
 #endif

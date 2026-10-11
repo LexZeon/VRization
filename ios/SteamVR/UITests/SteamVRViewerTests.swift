@@ -7,9 +7,14 @@ final class SteamVRViewerTests: XCTestCase {
     private struct PoseRecord: Decodable { let q: [Double]?, seq: Int64, connected: Bool, paused: Bool }
     private struct Snapshot: Decodable {
         let fixtureReady: Bool, connected: Bool, settingsCount: Int, mouseMoves: [[Double]], poses: [PoseRecord]
+        let epoch: Int64, paused: Bool
         let settings: Settings
     }
-    private struct Settings: Decodable { let mode: String; let scale, offsetX, offsetY, eyeSeparation: Double }
+    private struct Settings: Decodable, Equatable {
+        let mode: String
+        let scale, offsetX, offsetY, eyeSeparation, fov, distance, distortion, sensitivity, stabilization: Double
+        let invertY: Bool
+    }
     private struct Rect: Decodable { let x, y, width, height: Double }
     override func setUpWithError() throws { continueAfterFailure = false }
     override func tearDownWithError() throws { app.terminate() }
@@ -19,7 +24,8 @@ final class SteamVRViewerTests: XCTestCase {
         app.launch(); XCUIDevice.shared.orientation = .landscapeRight
         XCTAssertTrue(app.buttons["settings.hide"].waitForExistence(timeout: 10))
         let version = app.staticTexts["version.info"]
-        XCTAssertTrue(version.label.contains("0.5.0")); XCTAssertTrue(version.label.contains("build 1"))
+        XCTAssertTrue(version.label.contains("0.5.1")); XCTAssertTrue(version.label.contains("build 2"))
+        XCTAssertTrue(app.buttons["connection.refresh"].isHittable)
     }
     private func waitContains(_ element: XCUIElement, _ text: String, timeout: TimeInterval = 20) {
         let predicate = NSPredicate(format: "label CONTAINS %@", text)
@@ -41,9 +47,11 @@ final class SteamVRViewerTests: XCTestCase {
         let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         attachment.name = name; attachment.lifetime = .keepAlways; add(attachment)
     }
-    private func observe(_ checkpoint: String? = nil) throws -> Snapshot {
-        var request = URLRequest(url: URL(string: "http://127.0.0.1:18789/" + (checkpoint == nil ? "snapshot" : "checkpoint"))!)
-        if let name = checkpoint {
+    private func observe(_ checkpoint: String? = nil, pauseTracking: Bool = false) throws -> Snapshot {
+        let path = pauseTracking ? "pause-tracking" : (checkpoint == nil ? "snapshot" : "checkpoint")
+        var request = URLRequest(url: URL(string: "http://127.0.0.1:18789/" + path)!)
+        if pauseTracking { request.httpMethod = "POST" }
+        else if let name = checkpoint {
             request.httpMethod = "POST"; request.httpBody = try JSONSerialization.data(withJSONObject: ["name": name])
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         }
@@ -101,6 +109,24 @@ final class SteamVRViewerTests: XCTestCase {
         } while Date() < deadline
         let value = try observe(); XCTAssertTrue(predicate(value)); return value
     }
+    private func refreshKeepingSettingsAndPause(_ checkpoint: String) throws {
+        // Apply the real host's emergency latch, never a sensor/UI bypass.
+        let previous = try observe(pauseTracking: true)
+        XCTAssertTrue(previous.connected); XCTAssertTrue(previous.paused)
+        let button = app.buttons["connection.refresh"]
+        XCTAssertTrue(button.isHittable); button.tap()
+        waitContains(app.staticTexts["connection.status"], "Connected.")
+        waitContains(app.staticTexts["frame.status"], "1280 × 480")
+        let refreshed = try waitHost { $0.connected && $0.epoch > previous.epoch }
+        XCTAssertEqual(refreshed.settings, previous.settings)
+        XCTAssertTrue(refreshed.paused); XCTAssertTrue(refreshed.mouseMoves.isEmpty)
+        XCTAssertTrue(refreshed.poses.allSatisfy { $0.q == nil })
+        let descriptor = app.staticTexts["stream.session"].value as? String ?? ""
+        XCTAssertTrue(descriptor.contains("epoch=\(refreshed.epoch);accepted=true;layout=sbs;target=virtual-hmd"))
+        let recorded = try observe(checkpoint)
+        XCTAssertEqual(recorded.epoch, refreshed.epoch); XCTAssertTrue(recorded.paused)
+        XCTAssertEqual(recorded.settings, previous.settings)
+    }
     func testLANIndependentStereoEyesBypassEnhancedAndCinemaProjection() throws {
         launch("lan"); try connect()
         let before = try observe("steamvr-lan-connected")
@@ -136,6 +162,8 @@ final class SteamVRViewerTests: XCTestCase {
         XCTAssertEqual(saved.settings.mode, "fps_enhanced"); XCTAssertLessThan(saved.settings.scale, before.settings.scale)
         XCTAssertTrue(saved.mouseMoves.isEmpty); XCTAssertTrue(saved.poses.allSatisfy { $0.q == nil })
         app.buttons["settings.hide"].tap(); screenshot("STEAMVR-04-SBS-saved-profile")
+        showOverlay(); try refreshKeepingSettingsAndPause("steamvr-lan-refreshed")
+        app.buttons["settings.hide"].tap(); screenshot("STEAMVR-08-LAN-refreshed-independent-eyes")
         showOverlay(); let toggle = app.buttons["connection.toggle"]; reveal(toggle); toggle.tap()
         waitContains(app.staticTexts["connection.status"], "Disconnected.")
         _ = try waitHost { !$0.connected }
@@ -150,6 +178,8 @@ final class SteamVRViewerTests: XCTestCase {
         XCTAssertTrue(host.poses.allSatisfy { $0.q == nil })
         XCTAssertTrue(host.poses.contains { $0.connected && $0.seq > 0 && $0.q == nil })
         app.buttons["settings.hide"].tap(); screenshot("STEAMVR-06-USB-independent-eyes")
+        showOverlay(); try refreshKeepingSettingsAndPause("steamvr-usb-refreshed")
+        app.buttons["settings.hide"].tap(); screenshot("STEAMVR-09-USB-refreshed-independent-eyes")
         showOverlay(); let toggle = app.buttons["connection.toggle"]; reveal(toggle); toggle.tap()
         waitContains(app.staticTexts["connection.status"], "Disconnected.")
         _ = try waitHost { !$0.connected }

@@ -8,8 +8,8 @@ android {
         minSdk 23
         targetSdk 35
         testInstrumentationRunner 'org.vrization.app.RenderMaskProbe'
-        versionCode 1
-        versionName '0.5.0-steamvr-preview'
+        versionCode 2
+        versionName '0.5.1-steamvr-preview'
         buildConfigField 'boolean', 'STEAMVR_EXPERIMENT', 'true'
     }
     compileOptions {

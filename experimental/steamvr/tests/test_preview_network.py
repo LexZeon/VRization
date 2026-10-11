@@ -7,6 +7,7 @@ import asyncio
 from io import BytesIO
 import json
 import math
+import time
 import unittest
 from unittest.mock import Mock
 
@@ -148,6 +149,76 @@ class PreviewNetworkTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.sink.last[0],(0.,0.,0.,1.))
         await ws.close()
 
+    async def test_editor_without_sensor_packets_keeps_connected_invalid_header_for_over_two_seconds(self):
+        ws,epoch=await self.connect()
+        await negotiate(ws)
+        await ws.send_json(packet(epoch,1))
+        await barrier(ws)
+        stamps=[]
+        publish=self.sink.publish
+        def observed(*args):
+            stamps.append((time.monotonic(),args))
+            publish(*args)
+        self.sink.publish=observed
+        await ws.send_json({"v":1,"type":"hello","editing":True})
+        await barrier(ws)
+        state=(self.host.hmd.last_seq,self.host.hmd.last_time,self.host.hmd.last_tick,self.host.hmd.baseline)
+        # No phone sensor data during editor use. Let the actual 50ms host
+        # watchdog run beyond four complete native 500ms freshness lifetimes.
+        await asyncio.sleep(2.1)
+        self.assertFalse(ws.closed)
+        self.assertTrue(self.host.hmd.accepted)
+        self.assertTrue(self.host.hmd.paused)
+        self.assertGreater(len(stamps),10)
+        self.assertLess(time.monotonic()-stamps[-1][0],.3)
+        self.assertTrue(all(args==(None,1,True,True) for _,args in stamps))
+        self.assertLess(max(b[0]-a[0] for a,b in zip(stamps,stamps[1:])),.4)
+        self.assertEqual(state,(self.host.hmd.last_seq,self.host.hmd.last_time,self.host.hmd.last_tick,self.host.hmd.baseline))
+        self.assertTrue(await next_binary(ws))
+        await ws.close()
+
+    async def test_accepted_missing_sensor_and_expired_pose_sessions_keep_only_invalid_presence(self):
+        for state in ("no-sensor","stale-pose"):
+            with self.subTest(state=state):
+                ws,epoch=await self.connect()
+                await negotiate(ws)
+                if state=="no-sensor":
+                    await ws.send_json(packet(epoch,1,q=None,valid=False))
+                else:
+                    await ws.send_json(packet(epoch,1))
+                await barrier(ws)
+                stamps=[]
+                publish=self.sink.publish
+                def observed(*args):
+                    stamps.append((time.monotonic(),args))
+                    publish(*args)
+                self.sink.publish=observed
+                try:
+                    last_tick=self.host.hmd.last_tick
+                    await asyncio.sleep(2.1)
+                    self.assertFalse(ws.closed)
+                    self.assertTrue(self.host.hmd.accepted)
+                    self.assertGreater(len(stamps),8)
+                    self.assertLess(time.monotonic()-stamps[-1][0],.3)
+                    self.assertTrue(all(args==(None,1,True,False) for _,args in stamps))
+                    self.assertEqual(self.host.hmd.last_tick,last_tick)
+                    self.assertEqual(self.host.hmd.last_seq,1)
+                    self.assertIsNone(self.host.hmd.output)
+                    await ws.close()
+                    # A ping response from a new owner is not involved: observe
+                    # this socket's actual EOF-driven ownership revocation.
+                    deadline=asyncio.get_running_loop().time()+3
+                    while self.host.hmd.connected and asyncio.get_running_loop().time()<deadline:
+                        await asyncio.sleep(.02)
+                    self.assertFalse(self.host.hmd.connected)
+                    self.assertFalse(self.host.hmd.accepted)
+                    before=len(stamps)
+                    await asyncio.sleep(.65)
+                    self.assertEqual(len(stamps),before)
+                finally:
+                    self.sink.publish=publish
+                    await ws.close()
+
     async def test_epoch_sequence_clock_replay_and_missing_sensor_cannot_fake_tracking(self):
         ws,epoch=await self.connect()
         await negotiate(ws)
@@ -254,6 +325,38 @@ class PreviewDirectCompatibilityTests(unittest.IsolatedAsyncioTestCase):
 
 
 class PreviewThreadStopTests(unittest.IsolatedAsyncioTestCase):
+    async def test_request_stop_immediately_retires_active_hmd_and_never_refreshes_after_close(self):
+        sink=RecordingPoseSink()
+        host=PreviewHost(route="steamvr-phone",capture_source=SyntheticStereoSource(),pose_sink=sink,
+                         host="127.0.0.1",port=free_port(),capture_config=CaptureConfig(fps=30))
+        try:
+            await asyncio.to_thread(host.start)
+            async with ClientSession() as client:
+                async with client.ws_connect(f"http://127.0.0.1:{host.port}/ws?token={host.token}") as ws:
+                    hello=await next_json(ws,"hello")
+                    await negotiate(ws)
+                    epoch=hello["streamSession"]["epoch"]
+                    await ws.send_json(packet(epoch,7))
+                    await barrier(ws)
+                    self.assertIsNotNone(sink.last[0])
+                    host.request_stop()
+                    self.assertFalse(host.hmd.connected)
+                    self.assertFalse(host.hmd.accepted)
+                    self.assertTrue(host.hmd.paused)
+                    self.assertEqual(sink.last,(None,7,False,True))
+                    self.assertFalse(host.hmd.pose(packet(epoch,8)))
+                    before=len(sink.snapshot())
+                    host.hmd.tick()
+                    self.assertEqual(len(sink.snapshot()),before)
+                self.assertTrue(await asyncio.to_thread(host.stop,4))
+                before=len(sink.snapshot())
+                await asyncio.sleep(.65)
+                self.assertEqual(len(sink.snapshot()),before)
+                self.assertFalse(sink.last[2])
+                self.assertIsNone(sink.last[0])
+        finally:
+            self.assertTrue(await asyncio.to_thread(host.stop,5))
+
     async def test_real_stop_restart_invalidates_pose_transport_and_preserves_pause(self):
         sink=RecordingPoseSink()
         source=SyntheticStereoSource()

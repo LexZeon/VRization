@@ -1,6 +1,7 @@
 """Mocked widget construction checks; importing the preview never opens a window."""
 import unittest
 from unittest.mock import Mock, patch
+from vrization_steamvr.profiles import CUSTOM,HMD_PROFILES
 from vrization_host.protocol import Settings
 from vrization_steamvr.app import PhoneWindow, usb_factory
 
@@ -39,6 +40,7 @@ class PreviewAppTests(unittest.TestCase):
         from vrization_host.capture import CaptureConfig
         window=PhoneWindow.__new__(PhoneWindow);window.route="steamvr-phone";window.root=Mock()
         window.server=Mock();window.config=CaptureConfig(monitor=2,region=(0,0,640,360))
+        window.profile=Mock();window.profile_names=list(HMD_PROFILES)+[CUSTOM]
         window.capture_vars={key:Mock() for key in ("width","fps","quality")}
         for key,value in {"width":"3840","fps":"5","quality":"45"}.items():
             window.capture_vars[key].get.return_value=value

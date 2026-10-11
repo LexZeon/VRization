@@ -5,13 +5,13 @@
 <!-- vrization:english -->
 ## English
 
-This page records software/build evidence for **0.5.0-steamvr-preview**. Huawei phone and PCVR acceptance is deferred at the user's request. A configured 60 FPS target, a Simulator screenshot or a successful native build does not establish achieved hardware FPS, cable reliability or physical motion-to-photon latency.
+This page preserves publication-time software/build evidence for **0.5.0-steamvr-preview** and records a subsequent authorized physical Huawei session below. Phone-HMD acceptance remains incomplete, and physical PCVR testing is still deferred. A configured 60 FPS target, a Simulator screenshot or a successful native build does not establish achieved hardware FPS, cable reliability or physical motion-to-photon latency.
 
 | Check | Actual evidence and scope |
 | --- | --- |
 | Windows/Python | **387 cases plus 312 subtests** passed locally, including the previous host tests, real local WebSocket acceptance ordering, session ownership, full quaternion gates, Stop/reconnect and real owned Windows map/event checks. **40 script cases** passed separately. |
 | Native Windows | Four Release targets and **365** runtime-independent CTest fixtures passed in [CI 38093072466](https://github.com/LexZeon/VRization/actions/runs/38093072466/job/114333306286), source `550f845f5b551f2c52c36491e3d0c37f313b0ff9`. Independently audited all 11 payload files plus build report, five AMD64 PE assets, ABI exports, five SDK pins and unchanged native sources. An earlier build of the same native code also passed a local software-WARP replay. No runtime or driver was started. |
-| Android | **133 original +43 new =176** local unit cases passed; both variants' APK, core AAR, lint and instrumentation compilation completed. The separate preview APK retains the canonical release certificate, application ID `org.vrization.steamvr`, `0.5.0-steamvr-preview` / build 1. Instrumentation and GPU pixels have not run on a physical device. |
+| Android at publication | **133 original +43 new =176** local unit cases passed; both variants' APK, core AAR, lint and instrumentation compilation completed. The separate preview APK retains the canonical release certificate, application ID `org.vrization.steamvr`, `0.5.0-steamvr-preview` / build 1. Physical instrumentation/GPU checks had not run at publication; the later session below has a separate scope. |
 | iOS preview | Final [CI 38094239121 / job 114336723064](https://github.com/LexZeon/VRization/actions/runs/38094239121/job/114336723064), source `a20ba0757dc3b0f45f3ffc16c87f061cc34d64bb`, passed **95 original +21 new Swift cases, three helper cases and two native UI cases**, zero failed/skipped/expected UI failures, both unsigned arm64 SDK builds, **7 original PNGs /50 pixel samples /6 connection checkpoints**. Both app identities and all **69 CI source archive files** were independently verified. The native test strictly confirms actual draft shrink before Save, then host synchronization. [CI 38094098823](https://github.com/LexZeon/VRization/actions/runs/38094098823/job/114336307526), source `979fd61`, also passed with identical iOS sources/helpers. See [iOS details](IOS.md). |
 | Original release regression | All four build jobs in [CI 38092149615](https://github.com/LexZeon/VRization/actions/runs/38092149615) passed for shared source `045ae23`. Its ordinary iOS audit verified **95 Swift /7 native UI /26 PNG /38 enhanced +16 ordinary color +2 seam checks /15 host checkpoints**, zero UI failures/skips and zero mouse moves, with `org.vrization.ios` **0.4.0/build 8**. The ordinary app/shared renderer/core/stable tests/project source is unchanged through final `a20ba075`. Ordinary package startup and Android retain their direct-phone scope; published v0.4.0 files remain preserved. |
 | Final Windows executable | **28** included project modules and its launcher match current source bytecode; **38** bundled native runtime files match their installed origins and the released v0.4.0 baseline; **47** project/runtime notice files match exact source bytes. Optional numpy/dxcam/comtypes, ADB and Windows graphics DLLs are excluded. This is an executable audit, not a live SteamVR test. |
@@ -21,12 +21,45 @@ The two phone-HMD UI fixtures use original synthetic per-eye color grids and inv
 
 OpenVR's original BSD-3-Clause license is byte-preserved, with v2.15.6 and exact commit/file pins; native code is original MIT with credited reference ideas. No SDK headers/import libraries, private signing keys, ADB binaries or system graphics DLLs are redistributed in the Windows runtime package. Native targets need a current **Microsoft Visual C++ v14 x64 runtime at least as new as their build toolset**; see the [official requirement](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist). The audited CI used MSVC 19.51. [Source credits](../native/licenses/README.md) distinguish SDK distribution, rewritten ideas and separately installed SteamVR/vendor software.
 
-### 📋 Next physical-device session
+### 📱 Follow-up physical Huawei session
 
-1. Check ordinary and preview installs coexist; cold launch and repeated USB connect/Stop/Disconnect/reconnect must work without cable replug. Verify both devices agree on the current session and clear live frames on either endpoint's Stop.
+The tested phone is **HUAWEI HBP-AL00, API 31**. Public-app checks below are distinguished from later **unpublished Windows host candidates** using the public preview APK; they do not establish acceptance for every Android derivative. Device serials, private paths and user desktop screenshots are excluded. The original saved preference-file hash remained unchanged through the protected connection/performance checks; temporary test tools are distinct from the production apps.
+
+| Observed check | Actual result and limit |
+| --- | --- |
+| Ordinary public app: **0.4.0/build 8** | Real USB phone Connect/Disconnect completed twice; PC Stop disconnected the phone, and phone reconnect succeeded without a cable replug. The receiver obtained real decoded frames and cleared its live frame on the checked stops. This is bounded lifecycle evidence, not a long-duration cable reliability guarantee. |
+| Ordinary physical GLES | **576 mask +108 enhanced-projection samples** passed on the real phone GPU using original synthetic calibration inputs. These offscreen checks verify viewer geometry/projection, not game stereoscopy, optical comfort or displayed stream FPS. |
+| Preview public app: **0.5.0-steamvr-preview/build 1** | Real-phone GLES checks passed **576 mask +108 enhanced +512 stereo-color samples**, **5 lifecycle checks** and **12 synthetic Android SensorManager orientation goldens**. Stereo inputs were synthetic independent eye patterns. The orientation cases validate known matrix conversions; they are not physical yaw/pitch/roll or a SteamVR tracking test. |
+| Ordinary passive USB delivery sample | Low-latency settings: **640 long edge /JPEG Q45 /60 FPS target**, selected ASUS portrait output, delivered image **360×640**. Over **15.005 seconds**, **879** decoded frames reached the view: **58.58047 decoded-delivery FPS**. The sampled UI reported receive **60 FPS**, ping round trip **7 ms**, and phone reception-to-texture processing **8.1 ms**. These are different counters/stages, not measured display FPS or end-to-end/motion-to-photon latency. Pose output was disabled for this passive sample; no gyro-to-mouse performance was inferred. |
+| Initial SteamVR runtime initialization | The public native driver loaded, `VRizationPhone` was added/selected, and SteamVR enabled its debug desktop display and logged compositor startup completion. Initial registration occurred with a fresh **invalid** host header, before a real sensor session; that initial event alone was not valid tracking. The manifest parse warning was separately corrected in source and packaging gates, without changing C++ registration behavior or existing DPVR/global configuration. |
+| Unpublished USB-policy host candidate: live Phone HMD chain | The host reported the real USB phone connected; `VRizationPhone` was active and the native Mirror logged ready undistorted per-eye D3D11 textures. A physical phone image showed SteamVR background/grid SBS, establishing compositor-to-phone delivery in that interval. Ten pose-map samples had **active + valid flags 3**, age **0–32 ms**, advancing sequence **761–851** and unit quaternion norm. This is real sensor/bridge evidence, not verified physical axes, game rendering, unique displayed FPS or motion-to-photon latency. |
+| Unpublished heartbeat candidate: editor/pause | Fit editing stopped sensor poses for **more than six seconds**; phone pose sequence stayed **19508**, map flags stayed **5 (active + paused, tracking invalid)**, and header age stayed **16–141 ms**. Mirror stayed alive while its frame sequence advanced **2228 → 2602**. Save did not clear pause; local PC Resume restored flags **3**. The phone initially remained gray while still, and SteamVR logged entering standby; subsequent physical movement restored viewing. This bounds the paused-header fix and preserves the local Resume latch; it does not establish that Resume alone while static restores the image or that long-term stability passed. |
+| Higher-quality UI samples: unpublished host candidates | At **1280 total SBS width /Q75 /60 FPS target**, the physical Huawei UI reported **58.0 decoded-receive FPS**, **8 ms ping RTT**, and **21.2 ms mean reception-to-texture processing**. At **1920 /Q80 /60**, it reported **58.6–58.7 FPS**, **21 ms RTT**, and **24.5 ms mean processing**. These are UI snapshots/rolling software counters for SteamVR background/grid imagery, not VR-game, distinct-frame display or end-to-end latency measurements. |
+| Native publication baseline: 1920/Q80/60 | Over **14.9744952 seconds**, **481** native frame-map publications were counted: **32.121283 publication FPS**. Every sampled frame header described **1920×960 BGRA**. Pose flags were **3** with maximum sampled pose age **32 ms**; sampled frame age was **47 ms**. The higher phone decoded count includes repeated captured-frame delivery. A Mirror publication is not proof of distinct pixel content, compositor-render FPS or physical display FPS; timestamp age is not motion-to-photon latency. This is the measured pre-optimization baseline, not a 60-unique-frame pass. |
+| Recenter observation | After phone Recenter, **20 output samples over two seconds** had quaternion norm 1 and rotation angle **0.031–0.097°** relative to the reset baseline. The user subsequently reported normal recentering after moving the phone. These are a bounded output observation and user feedback, not a complete calibrated physical yaw/pitch/roll or optical-comfort pass. |
+
+The manifest-source/build/package regression checks reject the invalid serial-as-USB-pattern and `*.*` always-present entries. **18 native-build/package script cases** plus **3 iOS helper-script cases** passed; **48** bilingual pages and local links passed the documentation check. These software checks do not substitute for testing a newly packaged USB-policy/manifest fix on the phone. No C++ registration behavior or existing DPVR/global SteamVR configuration was changed by the manifest fix.
+
+The preview USB failure was traced to loopback Host validation retaining ordinary reverse-video port **18765** while the preview APK used **18775**. The implemented fix adds keyword-only `usb_bootstrap_ports`: ordinary `(18765,)`, preview `(18775,)`, copied to a frozen set after validating exact integer ports in **1–65535**. **105 targeted cases plus 38 subtests**, including **21 new cases**, passed real local HTTP/WebSocket and fixture checks for both variants, strict configuration, Host/Origin handling, authorization, Stop and Android/iOS wiring. Those checks used loopback/fake transport. A later unpublished host candidate also established the physical USB Phone HMD chain described above; repeated lifecycle and cold-launch acceptance remains incomplete.
+
+Before the heartbeat fix, editor entry stopped sensor output and published an invalid active/paused pose header only once. The old watchdog did not refresh it after clearing the valid output; after **500 ms** the native driver treated the stale header as disconnected, and Mirror exited. Capture failure then latched PC tracking paused. The unpublished Python fix refreshes **invalid presence only every 100 ms** for a connected, accepted session; it never replays a valid quaternion or advances the phone pose sequence/time/baseline. Stop immediately closes the accepted/active gate, so a stopped/closed session cannot continue heartbeat. Earlier heartbeat regression: **416 Windows/Python cases plus 314 subtests**, with zero failures/errors/skips, passed software and real-loopback checks, including more than 2.1 seconds of editor/no-sensor/stale status and EOF/Stop. The physical editor interval above separately confirms the helper no longer exited from paused-header expiry in that interval; full static Resume, three-axis and stability acceptance remains incomplete.
+
+Current unpublished source versions are **Windows 0.5.1-steamvr-preview, Android 0.5.1-steamvr-preview/build 2 and iOS 0.5.1/build 2**. Ordinary VRization remains **0.4.0/build 8**; historical 0.5.0 preview downloads stay preserved. Exact release builds, native CI and real-phone reboot/Refresh acceptance are still pending.
+
+Final desktop/preview regression passed **445 tests plus 330 subtests** in 41.33 seconds; script regression passed **45 tests plus 67 subtests** in 5.86 seconds. Together: **490 tests plus 397 subtests**, zero failures/errors/skips. These are software/loopback checks, not native compilation or real-phone reboot/Refresh acceptance.
+
+The unpublished patch implements Phone HMD quality profiles: Balanced **1280/Q75/60** for new users/Reset, Sharper **1920/Q80/60**, Low latency **640/Q45/60**. Saved capture choices and direct-phone defaults stay unchanged; Reset preserves pause. Coherent-sequence deduplication retains new publications with the same coarse tick, and original owned QPC/high-resolution waitable-timer/Stop-cancellable pacing is implemented using [official API references](../native/licenses/README.md). These source changes still await final build/CI and fresh physical performance verification; the earlier native baseline remains intact, with no 59/60-unique-frame or physical-latency claim.
+
+**Refresh is implemented on the PC and both preview phones.** The PC waits for full server and USB-relay cleanup before rebuilding; pressing Stop cancels the pending restart without skipping cleanup. Phones rebuild the selected USB/LAN transport and decoder generation and clear old images while retaining settings/fit. A newly confirmed HMD session can reset a dormant or failed Mirror once on the capture worker, dropping pending old frames; raw connections and repeated hello messages do not trigger resets. Refresh never resumes tracking or recenters it: use local PC Resume when appropriate. The focused capture/GUI/reconnect/Stop regression passed **18 software tests**; final builds and phone reboot/Refresh checks remain pending.
+
+**Open fault:** The user identified the black PC window as SteamVR's **Headset Window**, and a captured window was fully black. A bounded read-only runtime snapshot reported fresh paused flags 5, connected=true and Standby, while no Mirror process was running. These observations do not isolate the fault. Its cause remains under diagnosis; a separate observed exited Mirror explains a connected phone waiting for video in one interval, but does not establish the cause of every black Headset Window. No complete recovery or achieved unique/display FPS is claimed.
+
+### 📋 Remaining physical-device acceptance
+
+1. Extend the candidate's observed physical USB Phone HMD connection to cold launch, repeated Stop/Disconnect/reconnect and both endpoints' frame clearing without cable replug; verify the current session agrees on both ends. Keep these preview checks distinct from the ordinary bounded connection pass.
 2. On Huawei, confirm distinct eye sources, optical fit, source aspect, saved display bounds, mirrored spacing, inward edge contact and Save/Discard synchronization in direct and SteamVR routes.
-3. Test real phone yaw, pitch and roll in both landscape orientations, recenter, stale tracking, F8/editor pause and local PC Resume. HMD route must produce zero OS mouse events; direct first-person behavior remains independently testable.
-4. Verify SteamVR recognizes only the explicitly registered Phone HMD, initializes without a physical display, and supplies real compositor textures; preserve DPVR/native drivers and test switching back to the physical headset. Test the existing-headset overlay and its resource cleanup using the existing transport/controllers.
+3. Complete real phone yaw, pitch and roll in both landscape orientations, quantitative recenter/roll checks, stale tracking, F8/editor pause and local PC Resume. The user reported normal recentering and restored viewing after physical movement, but Resume alone while static and complete physical-axis behavior remain unverified. HMD route must produce zero OS mouse events; direct first-person behavior remains independently testable.
+4. Extend the observed active Phone HMD, real pose stream and Mirror-to-phone background delivery to a real VR game and sustained idle/active transitions. Verify explicit virtual/native-HMD selection and switching while preserving DPVR/native drivers; test existing-headset overlay/resource cleanup with an actual connected headset and its original transport/controllers.
 5. Record achieved capture/delivery/display FPS, missed frames and software stage timings; measure motion-to-photon separately with physical equipment. FPS and timestamp age alone are not an end-to-end latency measurement. Improve bottlenecks after this measurement.
 
 Use [AI handoff](AI_HANDOFF.md) and [architecture](ARCHITECTURE.md) to continue in another chat; follow the [illustrated tutorial](TUTORIAL.md) for each route. Keep all old packages and app preferences.
@@ -36,13 +69,13 @@ Use [AI handoff](AI_HANDOFF.md) and [architecture](ARCHITECTURE.md) to continue 
 <!-- vrization:chinese -->
 ## 简体中文
 
-本页记录 **0.5.0-steamvr-preview** 的软件／构建证据。按用户安排，华为和 PCVR 验收留到下一次。目标 60 FPS、模拟器截图或原生构建成功不能证明真实硬件帧率、线缆可靠性或运动到显示的物理延迟。
+本页保留 **0.5.0-steamvr-preview** 发布时的软件／构建证据，并在下文另记后来获授权的华为真机会话。手机头显验收尚未完成，实体 PCVR 仍延期测试。目标 60 FPS、模拟器截图或原生构建成功不能证明真实硬件帧率、线缆可靠性或运动到显示的物理延迟。
 
 | 检查 | 实际证据与范围 |
 | --- | --- |
 | Windows／Python | 本机 **387 项加 312 个子检查**通过，涵盖旧电脑端、真实本地 WebSocket 接受顺序、会话所有权、完整四元数门控、停止／重连和真正的自有 Windows 映射／事件；另有 **40 项脚本测试**通过。 |
 | Windows 原生 | 四个 Release 目标和 **365** 项无需运行环境的 CTest 在 [CI 38093072466](https://github.com/LexZeon/VRization/actions/runs/38093072466/job/114333306286) 通过，源码 `550f845f5b551f2c52c36491e3d0c37f313b0ff9`；独立核对 11 个有效载荷文件及构建报告、5 个 AMD64 PE、ABI、5 个 SDK 固定哈希及相同原生源码。相同原生代码的较早构建也通过本机软件 WARP 复跑；未启动运行环境或驱动。 |
-| Android | 本机 **133 项原有 +43 项新增 =176** 单元测试通过；两个版本 APK、核心 AAR、lint、仪器测试编译完成。独立实验 APK 使用既有发布证书、`org.vrization.steamvr` 和 `0.5.0-steamvr-preview`／build 1。尚未在实体设备执行仪器测试或 GPU 像素测试。 |
+| 发布时 Android | 本机 **133 项原有 +43 项新增 =176** 单元测试通过；两个版本 APK、核心 AAR、lint、仪器测试编译完成。独立实验 APK 使用既有发布证书、`org.vrization.steamvr` 和 `0.5.0-steamvr-preview`／build 1。发布时尚未执行实体设备仪器／GPU 检查；下文后续会话的范围单独记录。 |
 | iOS 实验版 | 最终 [CI 38094239121／job 114336723064](https://github.com/LexZeon/VRization/actions/runs/38094239121/job/114336723064)、源码 `a20ba0757dc3b0f45f3ffc16c87f061cc34d64bb`，通过 **95 项原有 +21 项新增 Swift、3 项辅助脚本和 2 项原生 UI**，UI 零失败／跳过／预期失败；两个 SDK 未签名 arm64 构建、**7 张原始 PNG／50 个像素采样／6 个连接检查点**通过。独立核对双 SDK 应用标识及 **CI 源码包全部 69 个文件**。原生测试先严格确认实际草稿缩小，再保存并核对电脑同步。[CI 38094098823](https://github.com/LexZeon/VRization/actions/runs/38094098823/job/114336307526)、源码 `979fd61` 也通过，iOS 源码／辅助工具与最终构建一致；见 [iOS 详情](IOS.md)。 |
 | 原版回归 | [CI 38092149615](https://github.com/LexZeon/VRization/actions/runs/38092149615) 四个构建任务通过，共享源码 `045ae23`。普通 iOS 独立审核通过 **95 项 Swift／7 项原生 UI／26 张 PNG／38 项加强 +16 项普通颜色 +2 项接缝／15 个电脑检查点**，UI 零失败／跳过、零鼠标移动，应用标识 `org.vrization.ios`、**0.4.0/build 8**。普通应用／共享渲染器／核心／正式版测试／项目源码到最终 `a20ba075` 不变。普通包启动和 Android 保留手机直连范围，已发布 v0.4.0 文件继续保留。 |
 | 最终 Windows EXE | 内嵌 **28** 个项目模块及启动入口字节码与当前源码一致；**38** 个原生运行库与安装来源及 v0.4.0 发布基准一致；**47** 份项目／运行库许可原文一致。排除可选 numpy／dxcam／comtypes、ADB、Windows 图形 DLL；这属于 EXE 核对，不是真实 SteamVR 测试。 |
@@ -52,12 +85,45 @@ Use [AI handoff](AI_HANDOFF.md) and [architecture](ARCHITECTURE.md) to continue 
 
 OpenVR 的 BSD-3-Clause 原许可逐字保留，固定 v2.15.6、commit 和文件哈希；原生代码为 MIT 原创，记录参考思路。Windows 运行包不再分发 SDK 头文件／导入库、签名私钥、ADB 或系统图形 DLL。原生目标需要**至少与构建工具版本一样新的 Microsoft Visual C++ v14 x64 运行库**，见[官方要求](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist)；核验 CI 使用 MSVC 19.51。[来源记录](../native/licenses/README.md)区分 SDK 分发、重写思路、另装 SteamVR／厂商软件。
 
-### 📋 下次实体设备测试
+### 📱 后续华为真机会话
 
-1. 验证原版与实验版安装共存；冷启动和 USB 多次连接／停止／断开／重连不拔线，两端认可同一当前会话，任一端停止都清掉实时帧。
+测试手机为 **HUAWEI HBP-AL00，API 31**。下表区分公开应用检查与后来使用公开实验 APK 的**未发布 Windows 电脑端候选版**，不代表所有安卓衍生系统通过验收；不公开设备序列号、私有路径或用户桌面截图。受保护的连接／帧率检查前后，原有已保存偏好文件哈希保持一致；临时测试工具与生产应用区分。
+
+| 观察项目 | 实际结果与范围 |
+| --- | --- |
+| 普通公开应用：**0.4.0/build 8** | 真实 USB 手机连接／断开完成两次；电脑停止令手机断开，手机重连成功，无需重新插拔线缆。观看器收到真实已解码帧，并在检查的停止操作后清掉实时帧。这是限时生命周期证据，不保证长时间线缆稳定性。 |
+| 普通版真实 GLES | 手机实际 GPU 使用原创合成校准输入，通过 **576 个范围遮罩 +108 个加强投影采样**。离屏检查证明观看器几何／投影，不证明游戏立体渲染、光学舒适度或实际串流显示帧率。 |
+| 公开实验应用：**0.5.0-steamvr-preview/build 1** | 真机 GLES 通过 **576 个遮罩 +108 个加强 +512 个立体颜色采样**、**5 项生命周期检查**及 **12 个合成 Android SensorManager 方向标准值**。双眼输入为独立合成图案；方向标准值验证已知矩阵转换，不是实际转头 yaw／pitch／roll 或 SteamVR 追踪测试。 |
+| 普通版被动 USB 交付采样 | 低延迟设置为 **最长边 640／JPEG Q45／目标 60 FPS**，选择华硕竖屏输出，交付图像 **360×640**。**15.005 秒**内有 **879** 个已解码帧交付观看器，即 **58.58047 已解码交付 FPS**；采样时界面显示接收 **60 FPS**、ping 往返 **7 毫秒**、手机接收到纹理处理 **8.1 毫秒**。这些是不同计数／阶段，不是实际显示帧率或端到端／运动到显示延迟。本次被动采样关闭姿态输出，不据此推断陀螺仪鼠标性能。 |
+| 初始 SteamVR 运行环境初始化 | 公开原生驱动加载，`VRizationPhone` 被添加／选中，SteamVR 启用桌面调试显示并记录合成器启动完成。初始注册发生在电脑新鲜但**无效**的头信息存在时，当时尚无真实传感器会话，该初始事件本身不代表有效追踪。manifest 解析警告另在源码及打包检查修复，没有修改 C++ 注册行为或既有 DPVR／全局配置。 |
+| 未发布 USB 策略电脑端候选版：实时手机头显链路 | 电脑报告真实 USB 手机已连接，`VRizationPhone` 为活动头显，原生 Mirror 记录未畸变分眼 D3D11 纹理就绪。实际手机图像显示 SteamVR 背景／网格 SBS，证明该区间合成器画面确实交付手机。十个姿态映射样本为 **active＋valid 标志 3**，年龄 **0–32 毫秒**、序号 **761–851** 推进、四元数范数 1。这证明真实传感器／桥接消息，不验证物理坐标、游戏渲染、不同图像实际显示帧率或运动到显示延迟。 |
+| 未发布心跳候选版：编辑／暂停 | 适配编辑停止传感器姿态**超过六秒**；手机姿态序号保持 **19508**，映射标志保持 **5（active＋paused，追踪无效）**，头信息年龄为 **16–141 毫秒**。Mirror 保持存活，帧序号 **2228 → 2602** 推进。保存不解除暂停，电脑本地恢复令标志回到 **3**。手机静止时先保持灰色，SteamVR 记录进入待机；后来实际移动手机令画面恢复。该结果限定暂停头信息修复并保留本地恢复锁，不证明静止时仅点恢复就会出图或长期稳定通过。 |
+| 未发布电脑端候选版：高画质界面采样 | **SBS 总宽 1280／Q75／目标 60 FPS** 时，华为真机界面显示**解码接收 58.0 FPS**、**ping RTT 8 毫秒**、**接收到纹理处理平均 21.2 毫秒**；**1920／Q80／60** 为 **58.6–58.7 FPS**、**RTT 21 毫秒**、**平均处理 24.5 毫秒**。这些是 SteamVR 背景／网格的界面快照及滚动软件计数，不是 VR 游戏、不同帧实际显示或端到端延迟测量。 |
+| 原生发布基线：1920／Q80／60 | **14.9744952 秒**内计得 **481 次**原生帧映射发布，即 **32.121283 发布 FPS**。每个采样帧头均为 **1920×960 BGRA**；姿态标志 **3**，样本最大姿态年龄 **32 毫秒**，采样帧年龄 **47 毫秒**。手机更高的解码计数包含重复交付采集帧。一次 Mirror 发布不证明像素内容不同、合成器渲染帧率或实体显示帧率；时间戳年龄也不是运动到显示延迟。这是优化前实测基线，不代表每秒 60 个不同帧通过。 |
+| 居中观察 | 手机居中后，两秒内 **20 个输出样本**的四元数范数为 1，相对重置基准的旋转角为 **0.031–0.097°**。后来用户在移动手机后报告回正正常。这是有限输出观察与用户反馈，不是完整校准的物理 yaw／pitch／roll 或光学舒适度通过。 |
+
+manifest 源码／构建／打包回归检查拒绝把序列号当 USB 匹配以及 `*.*` 永久存在条目；**18 项原生构建／打包脚本测试**及 **3 项 iOS 辅助脚本测试**通过，**48** 个双语页面及本地链接通过文档检查。软件检查不能代替修复 USB 策略／manifest 后的新打包真机测试；manifest 修复没有改动 C++ 注册行为或既有 DPVR／全局 SteamVR 配置。
+
+实验版 USB 问题已定位到回环 Host 校验仍使用普通版反向视频端口 **18765**，而实验 APK 使用 **18775**。已实现的修复新增仅限关键字参数 `usb_bootstrap_ports`：普通 `(18765,)`、实验 `(18775,)`，严格校验为 **1–65535** 的整数端口后复制到不可变集合。**105 项针对性测试加 38 个子检查**通过，其中 **21 项新增**，覆盖两个版本、严格配置、Host／Origin、授权、停止及 Android／iOS 接线的真实本地 HTTP／WebSocket 与测试夹具。这些检查使用回环／模拟传输；后续未发布电脑端候选版也已建立上表记录的实体 USB 手机头显链路，但重复生命周期和冷启动验收尚未完成。
+
+心跳修复前，进入编辑器停止传感器输出，只写一次 active／paused 无效姿态头信息；旧看门狗清掉有效输出后不再刷新，超过 **500 毫秒**后原生驱动把过期头信息判为断联，Mirror 随即退出，采集错误再令电脑追踪锁定暂停。未发布 Python 修复只在已连接、已接受会话中**每 100 毫秒刷新无效存在状态**，不重放有效四元数，不递增手机姿态序号／时间／基准。停止立即关闭 accepted／active 门控，已停止或关闭会话不继续心跳。早先软件及真实回环检查通过 **416 项 Windows／Python 加 314 个子检查**，零失败／错误／跳过，包含超过 2.1 秒的编辑／无传感器／过期状态以及 EOF／停止。上表真机编辑区间另证明该区间不再因暂停头信息过期退出，但完整静止恢复、三轴和稳定性验收仍未完成。
+
+当前未发布源码版本为 **Windows 0.5.1-steamvr-preview、Android 0.5.1-steamvr-preview/build 2、iOS 0.5.1/build 2**。普通版保持 **0.4.0/build 8**，历史 0.5.0 实验版下载原样保留；准确发布构建、原生 CI 及手机重启／刷新真机验收仍待完成。
+
+最终桌面／实验版回归在 41.33 秒内通过 **445 项测试加 330 个子检查**；脚本回归在 5.86 秒内通过 **45 项测试加 67 个子检查**，合计 **490 项测试加 397 个子检查**，零失败／错误／跳过。范围为软件／回环，不是原生编译或手机重启／刷新真机验收。
+
+未发布补丁已实现手机头显画质：新用户／重置均衡 **1280／Q75／60**、更清晰 **1920／Q80／60**、低延迟 **640／Q45／60**。保留采集选择与直连默认值，重置保留暂停。一致性序号去重保留粗粒度 tick 相同的新发布；按[官方 API 来源](../native/licenses/README.md)原创实现自有 QPC／高分辨率可等待定时器／Stop 可取消节奏。源码改动仍待最终构建／CI 及新真机性能验证，原生实测旧基线原样保留，不声称每秒 59／60 个不同帧或物理延迟通过。
+
+**电脑和两个实验手机客户端均已实现刷新。** 电脑等待服务器及 USB 中继完整清理后重建；停止只取消待执行重启，不跳过清理。手机重建已选 USB／局域网传输与解码代际，清掉旧画面并保留设置／适配。新确认的头显会话可在采集工作线程上对尚未发现退出或已失败的 Mirror 重置一次，丢弃旧待发帧；原始连接和重复 hello 不触发重置。刷新不会恢复追踪或重新居中，需要时由电脑本地恢复。采集／界面／复连／停止针对性回归通过 **18 项软件测试**，最终构建及手机重启／刷新检查仍待完成。
+
+**仍在定位的故障：** 用户确认电脑黑色窗口是 SteamVR 的 **Headset Window**，该窗口截图全黑；一次有限只读运行状态快照为新鲜暂停标志 5、connected=true、Standby，且没有 Mirror 进程。这些局部现象不足以定位故障，原因仍在诊断；另一次观察到的 Mirror 退出能解释该区间手机已连接却等待视频，但不能据此认定全部 Headset Window 黑屏都只有这个原因。不声称完整恢复或实际不同帧／显示帧率通过。
+
+### 📋 剩余实体设备验收
+
+1. 将候选版已观察的实体 USB 手机头显连接扩展到冷启动、重复停止／断开／重连及两端清帧，均不拔线，并核对双方当前会话一致；这些实验版检查与普通版已有的限时连接通过区分。
 2. 华为测试分眼源、盒子光学适配、源比例、已保存显示范围、镜像间距、向内边缘接触、保存／弃用同步；覆盖直连和 SteamVR 路线。
-3. 两个横屏方向测试真实 yaw／pitch／roll、居中、追踪过期、F8／编辑器暂停和电脑恢复。头显路线系统鼠标事件必须为零；直连第一人称另外测试。
-4. 确认 SteamVR 只识别显式注册的手机头显，无实体显示可初始化并提供真实合成器纹理；保留 DPVR／原生驱动并测试切回实体头显。用既有连接方式／控制器测试已有头显覆盖层及资源清理。
+3. 完成两个横屏方向的真实 yaw／pitch／roll、量化居中／roll、追踪过期、F8／编辑器暂停和电脑恢复。用户报告实际移动后恢复画面、回正正常，但静止时仅点恢复及完整物理坐标行为尚未验证。头显路线系统鼠标事件必须为零；直连第一人称另外测试。
+4. 将已观察的活动手机头显、真实姿态流和 Mirror 到手机背景交付扩展到真实 VR 游戏及持续静止／活动切换。保留 DPVR／原生驱动，验证虚拟／实体头显显式选择及切换；接入真实头显后，用其原有连接方式／控制器测试覆盖层及资源清理。
 5. 记录真实采集／传输／显示帧率、漏帧和软件各阶段耗时；用实体设备另测运动到显示延迟。仅凭 FPS 或时间戳年龄不能等同端到端延迟，再按测量结果优化瓶颈。
 
 新聊天用 [AI 接手](AI_HANDOFF.md)和[架构](ARCHITECTURE.md)继续，各路线操作见[图文教程](TUTORIAL.md)，保留旧包与应用设置。

@@ -9,6 +9,7 @@ import android.os.Bundle;
 import android.os.SystemClock;
 import android.widget.Button;
 import android.widget.Spinner;
+import android.widget.TextView;
 import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
@@ -18,13 +19,24 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import org.vrization.core.VrRenderer;
+import org.vrization.core.VrSettings;
 
-/** Real Activity/socket/frame probe. Its preference editor discards writes instead of restoring data. */
+/** Real Activity/socket/frame probe. Preference writes are discarded for the whole Activity lifetime. */
 final class ConnectionProbe {
     private interface Check { boolean ready(); }
 
-    static Bundle run(Instrumentation test, boolean pcStopProbe) {
-        SharedPreferences original = test.getTargetContext().getSharedPreferences("vrization", 0);
+    /** Called by the runner immediately after synchronous onCreate, before onResume or queued UI callbacks.
+     * Production onCreate only reads this file; keep this guard installed through onDestroy so late
+     * settings callbacks cannot regain a real preference editor during cleanup.
+     */
+    static void protectActivity(Instrumentation test, MainActivity activity) {
+        SharedPreferences original = test.getTargetContext().getSharedPreferences(ClientVariant.PREFERENCES, 0);
+        setField(activity, "preferences", new ReadOnlyPreferences(original));
+        ((StreamClient) field(activity, "client")).setPoseEnabled(false);
+    }
+
+    static Bundle run(Instrumentation test, boolean pcStopProbe, int performanceSeconds, boolean refreshProbe) {
+        SharedPreferences original = test.getTargetContext().getSharedPreferences(ClientVariant.PREFERENCES, 0);
         Map<String, ?> before = new HashMap<>(original.getAll());
         MainActivity activity = null;
         StreamClient client = null;
@@ -34,10 +46,10 @@ final class ConnectionProbe {
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK).putExtra("suppress_usb_auto", true);
             activity = (MainActivity) test.startActivitySync(launch);
             final MainActivity phone = activity;
+            require(field(phone, "preferences") instanceof ReadOnlyPreferences,
+                "Runner did not protect preferences before Activity resume");
+            require(before.equals(original.getAll()), "User preferences changed during Activity startup");
             test.runOnMainSync(() -> {
-                setField(phone, "preferences", new ReadOnlyPreferences(original));
-                StreamClient stream = (StreamClient) field(phone, "client");
-                stream.setPoseEnabled(false);
                 ((Spinner) field(phone, "transportInput")).setSelection(0);
             });
             test.waitForIdleSync();
@@ -54,6 +66,12 @@ final class ConnectionProbe {
                 await(() -> stream.isConnected() && stream.deliveredFrameCount() - first >= 5,
                     35_000, "Cycle " + cycle + " did not receive hello and five real decoded frames");
                 result.putLong("connectedFrames" + cycle, stream.deliveredFrameCount() - first);
+                if (cycle == 1 && refreshProbe) {
+                    assertRefresh(test, phone, stream, result);
+                }
+                if (cycle == 1 && performanceSeconds > 0) {
+                    samplePerformance(test, phone, stream, result, performanceSeconds);
+                }
                 if (pcStopProbe && cycle == 1) {
                     progress(test, "WAITING_FOR_PC_STOP: click Stop on the PC within 45 seconds");
                     await(() -> !stream.isActive(), 45_000, "PC Stop did not disconnect the real phone session");
@@ -89,11 +107,72 @@ final class ConnectionProbe {
             final MainActivity phone = activity; final StreamClient stream = client;
             if (phone != null) test.runOnMainSync(() -> {
                 if (stream != null) stream.disconnect(false);
-                setField(phone, "preferences", original);
                 phone.finish();
             });
+            test.waitForIdleSync();
             require(before.equals(original.getAll()), "User preferences changed during cleanup");
         }
+    }
+
+    /** Real Refresh button while connected: new hello/frames, same local fit and pose test gate. */
+    private static void assertRefresh(Instrumentation test, MainActivity phone, StreamClient stream, Bundle result) {
+        AtomicReference<Map<String, Object>> fitted = new AtomicReference<>();
+        AtomicReference<StreamSession> previous = new AtomicReference<>();
+        test.runOnMainSync(() -> {
+            fitted.set(SettingsValues.encode(((VrSettings) field(phone, "settings")).copy()));
+            previous.set(stream.streamSession());
+        });
+        long frames = stream.deliveredFrameCount();
+        progress(test, "explicit Refresh while connected; old session/layout must be invalidated; no Resume");
+        test.runOnMainSync(() -> {
+            require(((Button) field(phone, "refreshButton")).performClick(), "Refresh button was not clickable");
+            require(!stream.isConnected(), "Refresh retained its already connected state");
+            require(!stream.streamSession().hmd && !stream.streamSession().stereo,
+                "Refresh retained the previous session layout before its new handshake");
+        });
+        await(() -> stream.isConnected() && stream.deliveredFrameCount() - frames >= 5,
+            35_000, "Refresh did not negotiate and receive five new decoded frames");
+        test.runOnMainSync(() -> {
+            require(field(phone, "client") == stream, "Refresh replaced the protected client");
+            require(fitted.get().equals(SettingsValues.encode((VrSettings) field(phone, "settings"))),
+                "Refresh changed headset fit or viewing settings");
+            require(!((PoseSendGate) field(stream, "poseGate")).maySend(true, 0),
+                "Refresh changed the probe's disabled pose gate");
+            if (previous.get().hmd)
+                require(stream.streamSession().hmd && stream.streamSession().epoch != previous.get().epoch,
+                    "Refresh kept the old virtual-HMD epoch");
+        });
+        result.putBoolean("refreshConnected", true); result.putBoolean("refreshFitUnchanged", true);
+        result.putBoolean("refreshPoseGateUnchanged", true);
+        result.putLong("refreshDeliveredFrames", stream.deliveredFrameCount() - frames);
+    }
+
+    /** Passive sampling of decoded frames delivered to the view; never a motion-to-photon measure. */
+    private static void samplePerformance(Instrumentation test, MainActivity phone, StreamClient stream,
+                                         Bundle result, int seconds) {
+        test.waitForIdleSync();
+        progress(test, "passive decoded-frame sample for " + seconds + " seconds; no settings gestures or mouse output");
+        long started = SystemClock.elapsedRealtime(), first = stream.deliveredFrameCount();
+        long duration = seconds * 1000L;
+        while (SystemClock.elapsedRealtime() - started < duration) {
+            require(stream.isConnected(), "Connection ended during passive performance sample");
+            SystemClock.sleep(20);
+        }
+        long elapsed = SystemClock.elapsedRealtime() - started;
+        long frames = stream.deliveredFrameCount() - first;
+        require(stream.isConnected() && elapsed > 0 && frames >= 0, "Invalid passive performance sample");
+        result.putLong("performanceSampleMillis", elapsed);
+        result.putLong("decodedDeliveredFrames", frames);
+        result.putDouble("decodedDeliveredFPS", frames * 1000d / elapsed);
+        result.putString("performanceScope", "Decoded frames delivered to the view; not displayed FPS or end-to-end latency");
+        result.putString("rttScope", "Existing app ping round-trip display; not motion-to-photon latency");
+        test.runOnMainSync(() -> {
+            result.putString("frameStatus", ((TextView) field(phone, "frameStatus")).getText().toString());
+            result.putString("linkStatus", ((TextView) field(phone, "linkStatus")).getText().toString());
+            result.putString("processingStatus", ((TextView) field(phone, "processingStatus")).getText().toString());
+        });
+        progress(test, "sample complete: " + result.getDouble("decodedDeliveredFPS")
+            + " decoded-delivered FPS; " + result.getString("linkStatus"));
     }
 
     private static void assertBlank(MainActivity phone) {

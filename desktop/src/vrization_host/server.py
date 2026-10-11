@@ -21,7 +21,14 @@ from .protocol import (ENHANCED_FIRST_PERSON_CAPABILITY, ProtocolError, Settings
 class HostServer:
     def __init__(self, capture_source=None, input_sink=None, settings: Settings | None = None,
                  capture_config: CaptureConfig | None = None, on_event=None,
-                 host: str = "0.0.0.0", port: int = 8765, usb_authorized=None, *, auto_control: bool = False):
+                 host: str = "0.0.0.0", port: int = 8765, usb_authorized=None, *, auto_control: bool = False,
+                 usb_bootstrap_ports: tuple[int, ...] | list[int] = (18765,)):
+        # Reverse USB preserves the phone-side Host authority. Embedders must
+        # explicitly declare their video ports; never trust an arbitrary port.
+        if (type(usb_bootstrap_ports) not in (tuple, list)
+                or any(type(value) is not int or not 1 <= value <= 65535 for value in usb_bootstrap_ports)):
+            raise ValueError("USB bootstrap ports must be a tuple/list of integers in 1..65535")
+        self._usb_bootstrap_ports = frozenset(usb_bootstrap_ports)
         self.capture_source = capture_source if capture_source is not None else MssCaptureSource()
         sink = input_sink if input_sink is not None else WindowsMouseSink()
         self.settings = settings or Settings()
@@ -176,10 +183,11 @@ class HostServer:
             loopback = ipaddress.ip_address(request.remote or "").is_loopback
         except ValueError:
             loopback = False
-        # Android's reverse tunnel preserves its phone-side Host port (18765).
+        # Only the real server authority and explicitly configured phone video
+        # authorities can obtain a token, with independent USB authorization.
         # Do not trust DNS-resolved names, forwarded headers, or browser origins.
         allowed_hosts = {f"{name}:{port}" for name in ("127.0.0.1", "localhost", "[::1]")
-                         for port in (self.port, 18765)}
+                         for port in (*self._usb_bootstrap_ports, self.port)}
         host_headers = request.headers.getall("Host", [])
         native_host = (len(host_headers) == 1 and host_headers[0].lower() in allowed_hosts
                        and "Origin" not in request.headers)
@@ -203,6 +211,14 @@ class HostServer:
             self.disarm("capture unavailable")
         self._emit("error", message=error)
 
+    def _capture_source_reset(self):
+        # A worker-owned close has completed. Preserve input pause; a subsequent
+        # capture error will latch it again, and only local Resume releases it.
+        with self.lock:
+            if not self._stopping.is_set():
+                self._capture_failed = False
+        self._emit("capture_restarted")
+
     async def _startup(self, app):
         with self.lock:
             self._capture_failed = False
@@ -210,7 +226,7 @@ class HostServer:
         self._buffer = LatestFrameBuffer()
         self._broadcast_lock = asyncio.Lock()
         self._worker = CaptureWorker(self.capture_source, self.get_capture_config, self._loop,
-                                     self._buffer, self._capture_error)
+                                     self._buffer, self._capture_error, on_source_reset=self._capture_source_reset)
         self._worker.start()
         self._watchdog = asyncio.create_task(self._watch_input())
 

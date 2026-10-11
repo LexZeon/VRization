@@ -23,6 +23,7 @@ class PreviewHost(HostServer):
             kwargs["input_sink"]=NoMouse()
             kwargs["auto_control"]=False
         kwargs.setdefault("port",8766)
+        kwargs.setdefault("usb_bootstrap_ports",(18775,))
         super().__init__(**kwargs)
 
     def _host_capabilities(self):
@@ -51,6 +52,7 @@ class PreviewHost(HostServer):
         return self._session_ready
 
     async def _on_client_hello(self,msg,ws):
+        first_confirmation=not self.stream_session.accepted
         if not self.stream_session.accepted:
             try:
                 self.stream_session.negotiate(msg.get("capabilities",[]))
@@ -65,6 +67,13 @@ class PreviewHost(HostServer):
         sent = await self._broadcast_settings(ws)
         if sent and self._ws is ws and not ws.closed and not self._stopping.is_set():
             if self.hmd:self.hmd.negotiate()
+            if first_confirmation and self.hmd and (self.session_generation>1 or self._capture_failed):
+                # Reconnecting a real phone must replace a Mirror that exited
+                # while its HMD was absent, even if the idle worker has not yet
+                # discovered that exit. Only the capture worker closes it;
+                # the existing tracking pause remains latched.
+                self._buffer.frame=None
+                self._worker.request_source_reset()
             self._session_ready=True
         elif self._ws is ws:
             await ws.close(code=1001,message=b"Session confirmation stalled",drain=False)
@@ -135,6 +144,7 @@ class PreviewHost(HostServer):
     def request_stop(self):
         if self.hmd:self.hmd.pause()
         super().request_stop()
+        if self.hmd:self.hmd.close()
 
     def stop(self,timeout=6):
         complete=super().stop(timeout)

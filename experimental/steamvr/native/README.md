@@ -5,9 +5,9 @@
 <!-- vrization:english -->
 ## English
 
-This directory implements the native part of the separate SteamVR experiment. It preserves the ordinary VRization app and its four direct-phone display modes. Native source implementation is available; compilation, fixture results and hardware acceptance are separate claims. Physical Huawei, iPhone, PCVR and SteamVR virtual-display tests are deferred to the next hardware session. A packaged DLL or passing WARP test does not establish that SteamVR can render to this phone HMD without a physical display.
+This directory implements the native part of the separate SteamVR experiment. It preserves the ordinary VRization app and its four direct-phone display modes. Native source implementation is available; compilation, fixture results and hardware acceptance are separate claims. A later authorized Huawei session observed Phone HMD activation, undistorted Mirror eyes and real sensor/background delivery; [validation](../docs/VALIDATION.md) records the precise versions and limits. Complete axes, real VR games, physical iPhone/PCVR and stable lifecycle/latency acceptance remain pending. A packaged DLL or passing WARP test does not establish that SteamVR can render to this phone HMD without a physical display.
 
-The four native targets compiled with x64 MSVC 19.51.36260.0 on source `045ae23745f47b41ce3542a69f1f4edc17f31fd1`. The native build/CTest step in [CI run 38092149008](https://github.com/LexZeon/VRization/actions/runs/38092149008/job/114330601507) passed **365 fixture checks**, and the same CI binaries passed an independent local software-WARP replay. This establishes the native fixture scope only; whole-package and phone/runtime hardware checks are separate.
+The previously published four native targets compiled with x64 MSVC 19.51.36260.0 on source `045ae23745f47b41ce3542a69f1f4edc17f31fd1`. The native build/CTest step in [CI run 38092149008](https://github.com/LexZeon/VRization/actions/runs/38092149008/job/114330601507) passed **365 fixture checks**, and the same CI binaries passed an independent local software-WARP replay. This establishes the native fixture scope only; whole-package and phone/runtime hardware checks are separate.
 
 The experiment has three host entries: original direct phone streaming; phone as a SteamVR HMD with phone orientation; and desktop viewing on an already connected SteamVR headset. The direct-phone entry uses the original stream path. These native targets implement the other two entries:
 
@@ -50,7 +50,7 @@ The native targets use `/MD`; the target PC needs the **Microsoft Visual C++ v14
 
 ### Runtime and Stop boundaries
 
-Host-owned processes accept `--frame-map Local\<unique-name>` and optional `--stop-event Local\<unique-name>`. The mirror also accepts `--width 640 --fps 60`. Both helpers wait up to 60 seconds for the selected runtime/HMD and report `waiting`; timeout or incompatible HMD exits with an explicit error. A runtime can start before the phone session: the driver repeats map discovery from `RunFrame`. Manual registration may still require a SteamVR restart; this has not been tested with hardware.
+Host-owned processes accept `--frame-map Local\<unique-name>` and optional `--stop-event Local\<unique-name>`. The mirror also accepts `--width 640 --fps 60`. Both helpers wait up to 60 seconds for the selected runtime/HMD and report `waiting`; timeout or incompatible HMD exits with an explicit error. A runtime can start before the phone session: the driver repeats map discovery from `RunFrame`. Manual registration may still require a SteamVR restart; one observed Phone HMD activation does not establish reliable cold-start/restart behavior.
 
 The mirror creates its D3D11 device on the adapter returned by OpenVR `GetDXGIOutputInfo`. It acquires both eye SRVs once per session, downsamples on the GPU before CPU readback, and releases them with `ReleaseMirrorTextureD3D11` while the OpenVR context is alive. Readback is tight BGRA at the resized resolution, never a full-resolution intermediate. Each source eye's aspect determines output height; the total SBS width is even and dimensions are bounded by 1920×1080. The source is compositor stereo, not a duplicated desktop frame. Typed sRGB views are reencoded once when producing encoded BGRA bytes.
 
@@ -83,16 +83,16 @@ Pose coordinates use OpenVR world axes: +X right, +Y up, −Z forward. Phone-to-
 
 `native_tests.cpp` exercises real Windows readonly mappings, exact layout and payload, writer conflicts, odd seqlocks, inactive/old generation clearing, mono odd-width frames, stale/future ticks, malformed quaternion/position/flags, XYZW→WXYZ conversion, and sequence zero. A real named Windows event checks nonblocking host Stop, latching and handle cleanup. WARP D3D11 renders independent red/blue eyes plus a gradient, checking all borders and the center seam, channel order, orientation, downsample samples and sRGB behavior. `LoadLibrary` checks the exported factory and pinned provider/display ABI without calling `Init` on a fake runtime context. CTest success must be recorded only after CI executes it. Six offline Python SDK tests have passed locally: exact license/pins, unchanged verified cache, preservation/rejection of corrupt cache, verified atomic download, wrong download rejection and oversized download rejection.
 
-For another developer or AI: `ipc.hpp` defines bounded ownership/snapshots; `pose.hpp` validates and converts tracking; `phone_driver.cpp` implements provider/display lifecycle; `gpu.hpp` owns GPU eye packing; `stop.hpp` observes the owned event; `runtime.hpp` parses arguments and owns OpenVR lifetime; `mirror.cpp` bridges compositor frames; `overlay.cpp` displays host frames; `native_tests.cpp` is runtime-independent evidence; `CMakeLists.txt` stages redistributable targets. Keep the pose map exclusive to the phone-HMD route, native overlay isolated from OS input, and direct-phone streaming independent. Preserve upstream notices, pin updates deliberately, and distinguish build/fixture evidence from real SteamVR, physical USB, gyro axes, latency and FPS measurements.
+For another developer or AI: `ipc.hpp` defines bounded ownership/snapshots; `pose.hpp` validates and converts tracking; `phone_driver.cpp` implements provider/display lifecycle; `gpu.hpp` owns GPU eye packing; `stop.hpp` observes the owned event; `timing.hpp` owns QPC cadence and Stop-cancellable high-resolution one-shot waits, with exact build/timer fixtures and fresh physical performance still pending; `runtime.hpp` parses arguments and owns OpenVR lifetime; `mirror.cpp` bridges compositor frames; `overlay.cpp` displays host frames; `native_tests.cpp` is runtime-independent evidence; `CMakeLists.txt` stages redistributable targets. Keep the pose map exclusive to the phone-HMD route, native overlay isolated from OS input, and direct-phone streaming independent. Preserve upstream notices, pin updates deliberately, and distinguish build/fixture evidence from real SteamVR, physical USB, gyro axes, latency and FPS measurements.
 
 ---
 
 <!-- vrization:chinese -->
 ## 简体中文
 
-本目录实现独立 SteamVR 实验版的原生部分，保留普通 VRization 及其四种直连手机显示模式。已经编写原生源码，但编译结果、自动化测试和硬件验收是分别需要证据的事项。华为、iPhone、PCVR 和 SteamVR 虚拟显示真机测试留到下一次硬件会话；打包出 DLL 或通过 WARP 测试，不代表 SteamVR 已能在没有实体显示器时为手机头显渲染。
+本目录实现独立 SteamVR 实验版的原生部分，保留普通 VRization 及其四种直连手机显示模式。已经编写原生源码，但编译结果、自动化测试和硬件验收是分别需要证据的事项。后来获授权的华为会话已观察手机头显激活、Mirror 未畸变双眼及真实传感器／背景交付，[验证](../docs/VALIDATION.md)注明准确版本和边界；完整坐标、真实 VR 游戏、实体 iPhone／PCVR、稳定生命周期和延迟验收仍待完成；打包出 DLL 或通过 WARP 测试，不代表 SteamVR 已能在没有实体显示器时为手机头显渲染。
 
-四个原生目标已用 x64 MSVC 19.51.36260.0 编译，源码为 `045ae23745f47b41ce3542a69f1f4edc17f31fd1`；[CI run 38092149008](https://github.com/LexZeon/VRization/actions/runs/38092149008/job/114330601507) 的原生构建／CTest 步骤通过 **365 项测试**，相同 CI 二进制的本地独立软件 WARP 复跑也通过。这只证明原生自动检查范围，完整包与手机／运行环境真机检查另行验收。
+之前已发布的四个原生目标已用 x64 MSVC 19.51.36260.0 编译，源码为 `045ae23745f47b41ce3542a69f1f4edc17f31fd1`；[CI run 38092149008](https://github.com/LexZeon/VRization/actions/runs/38092149008/job/114330601507) 的原生构建／CTest 步骤通过 **365 项测试**，相同 CI 二进制的本地独立软件 WARP 复跑也通过。这只证明原生自动检查范围，完整包与手机／运行环境真机检查另行验收。
 
 实验版电脑端有三个入口：原版手机直连串流、手机作为 SteamVR 头显并提供方向、已连接 SteamVR 头显观看桌面。直连入口沿用原有串流；以下原生组件实现另外两个入口：
 
@@ -135,7 +135,7 @@ drivers/vrization_phone/
 
 ### 运行与停止边界
 
-电脑端拥有的子进程接收 `--frame-map Local\<独立名称>`，可选 `--stop-event Local\<独立名称>`；Mirror 另接收 `--width 640 --fps 60`。两种工具最多等待选定运行环境／头显 60 秒并输出 `waiting`；超时或头显不匹配时明确报错退出。运行环境可先于手机会话启动：驱动从 `RunFrame` 重复发现映射。手动注册仍可能需要重启 SteamVR，此点尚未做硬件验证。
+电脑端拥有的子进程接收 `--frame-map Local\<独立名称>`，可选 `--stop-event Local\<独立名称>`；Mirror 另接收 `--width 640 --fps 60`。两种工具最多等待选定运行环境／头显 60 秒并输出 `waiting`；超时或头显不匹配时明确报错退出。运行环境可先于手机会话启动：驱动从 `RunFrame` 重复发现映射。手动注册仍可能需要重启 SteamVR；一次已观察手机头显激活不证明可靠冷启动／重启行为。
 
 Mirror 使用 OpenVR `GetDXGIOutputInfo` 指定的显卡创建设备，每次会话只获取一次两只眼的 SRV，先在 GPU 缩小，再读回 CPU，并在 OpenVR 上下文存活时调用 `ReleaseMirrorTextureD3D11` 释放。读回的是已缩小分辨率的紧密 BGRA，没有完整分辨率中间读回；输出高度由每只眼的源比例决定，SBS 总宽为偶数，最大 1920×1080。输入是合成器的真实双眼纹理，不是复制两份桌面帧。对于带类型的 sRGB 视图，输出编码 BGRA 时只重新编码一次。
 
@@ -168,4 +168,4 @@ Python 写／读端通过原创 `VRization-SteamVR-IPC.dll` 暴露 Windows 编�
 
 `native_tests.cpp` 检查真实 Windows 只读映射、准确布局及载荷、写入者冲突、奇数 seqlock、停用／旧代际清空、单画面奇数宽、过期／未来时间戳、异常四元数／位置／标记、XYZW→WXYZ 和零序号。真实 Windows 命名事件检查非阻塞电脑端 Stop、锁定状态及句柄清理。WARP D3D11 渲染分开的红蓝眼和渐变，检查所有边界及中缝、通道顺序、方向、缩小采样与 sRGB 行为。`LoadLibrary` 检查导出的工厂和锁定的提供器／显示 ABI，不在伪运行环境上调用 `Init`。只有 CI 实际运行后才能记录 CTest 通过。六项离线 Python SDK 测试已在本机通过：准确许可／锁定数据、合格缓存不修改、损坏缓存保留并拒绝、校验后原子下载、拒绝错误下载及拒绝超大下载。
 
-交给后续开发者或 AI：`ipc.hpp` 定义有边界的所有权与快照；`pose.hpp` 验证并转换追踪；`phone_driver.cpp` 实现提供器／显示生命周期；`gpu.hpp` 管理 GPU 双眼拼接；`stop.hpp` 观察自有事件；`runtime.hpp` 解析参数并管理 OpenVR 生命周期；`mirror.cpp` 桥接合成器帧；`overlay.cpp` 显示电脑端帧；`native_tests.cpp` 提供不依赖运行环境的证据；`CMakeLists.txt` 暂存可再分发目标。保持姿态映射只属于手机头显路线、原生覆盖层不触发系统输入、直连手机路线独立。保留上游声明，有意更新锁定版本，并区分构建／测试证据和真实 SteamVR、实体 USB、陀螺仪坐标、延迟及帧率测量。
+交给后续开发者或 AI：`ipc.hpp` 定义有边界的所有权与快照；`pose.hpp` 验证并转换追踪；`phone_driver.cpp` 实现提供器／显示生命周期；`gpu.hpp` 管理 GPU 双眼拼接；`stop.hpp` 观察自有事件；`timing.hpp` 管理 QPC 节奏及 Stop 可取消高分辨率单次等待，准确构建／定时器测试与新真机性能仍待完成；`runtime.hpp` 解析参数并管理 OpenVR 生命周期；`mirror.cpp` 桥接合成器帧；`overlay.cpp` 显示电脑端帧；`native_tests.cpp` 提供不依赖运行环境的证据；`CMakeLists.txt` 暂存可再分发目标。保持姿态映射只属于手机头显路线、原生覆盖层不触发系统输入、直连手机路线独立。保留上游声明，有意更新锁定版本，并区分构建／测试证据和真实 SteamVR、实体 USB、陀螺仪坐标、延迟及帧率测量。

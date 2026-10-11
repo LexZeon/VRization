@@ -2,6 +2,7 @@
 import hashlib
 import importlib.util
 import io
+import json
 from pathlib import Path
 import tempfile
 import unittest
@@ -58,6 +59,48 @@ class PinnedSdkTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "SHA256"):
                 BUILD.fetch_sdk(Path(folder))
             self.assertFalse((Path(folder) / "bin/fixture.dll").exists())
+
+
+class PhoneManifestTests(unittest.TestCase):
+    @staticmethod
+    def manifest():
+        return {"name": "vrization_phone", "directory": "", "alwaysActivate": True,
+                "resourceOnly": False, "hmd_presence": []}
+
+    def test_real_manifest_uses_explicit_session_discovery(self):
+        path = BUILD.ROOT / "experimental/steamvr/native/driver.vrdrivermanifest"
+        BUILD.validate_phone_driver_manifest(json.loads(path.read_text(encoding="utf-8")))
+
+    def test_serial_usb_wildcard_and_missing_presence_are_rejected(self):
+        # The serial caused a real SteamVR parse warning. A wildcard would hide
+        # that error by falsely announcing an HMD whenever the driver is installed.
+        for presence in (["VRizationPhone"], ["*.*"], ["12D1.*"], "", None):
+            with self.subTest(presence=presence):
+                value = self.manifest(); value["hmd_presence"] = presence
+                with self.assertRaisesRegex(ValueError, "explicit empty list"):
+                    BUILD.validate_phone_driver_manifest(value)
+        value = self.manifest(); del value["hmd_presence"]
+        with self.assertRaisesRegex(ValueError, "explicit empty list"):
+            BUILD.validate_phone_driver_manifest(value)
+
+    def test_invalid_driver_identity_and_boolean_types_are_rejected(self):
+        for key, replacement in (("name", "dpvr_e4"), ("directory", "other"),
+                                 ("alwaysActivate", 1), ("resourceOnly", 0)):
+            with self.subTest(key=key):
+                value = self.manifest(); value[key] = replacement
+                with self.assertRaisesRegex(ValueError, "identity or lifecycle"):
+                    BUILD.validate_phone_driver_manifest(value)
+
+    def test_invalid_source_is_rejected_before_download_or_build(self):
+        with tempfile.TemporaryDirectory() as folder, patch.object(BUILD, "ROOT", Path(folder)), \
+                patch.object(BUILD, "fetch_sdk") as fetch, patch.object(BUILD, "run") as run:
+            path = Path(folder) / "experimental/steamvr/native/driver.vrdrivermanifest"
+            path.parent.mkdir(parents=True)
+            value = self.manifest(); value["hmd_presence"] = ["VRizationPhone"]
+            path.write_text(json.dumps(value), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "explicit empty list"):
+                BUILD.main(["--fetch-only"])
+            fetch.assert_not_called(); run.assert_not_called()
 
 
 if __name__ == "__main__":
