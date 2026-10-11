@@ -37,6 +37,57 @@ Adjust image scale and offsets for large phones, eye separation, field of view, 
 
 The first production ASUS full-output → Huawei USB check showed phone decoded-FPS readings of **59.9 and 57.7**, with mean host sent FPS **59.66**. Repeated static frames and physical presentation are separate; these results do not establish 60 unique displayed images per second or end-to-end latency. See [the measured configuration and limits](docs/PERFORMANCE.md).
 
+### 🥽 How the SteamVR routes work
+
+These routes belong to the separate [v0.5.0 SteamVR preview](https://github.com/LexZeon/VRization/releases/tag/v0.5.0-steamvr-preview). Original direct-phone streaming remains available.
+
+**📱 Phone as a SteamVR headset — head orientation goes to the PC, independent eye pictures return to the phone:**
+
+```mermaid
+flowchart TD
+    A["Phone sensors: full rotation quaternion"] --> B["USB or LAN return path"]
+    B --> C["PC validates session, pose and pause state"]
+    C --> D["Pose shared memory"]
+    D --> E["VRization virtual HMD driver"]
+    E --> F["SteamVR supplies headset pose to the VR game"]
+    F --> G["VR game renders left and right eyes separately"]
+    G --> H["SteamVR compositor"]
+    H --> I["Mirror reads both eyes; GPU downsizes and packs side by side"]
+    I --> J["Image shared memory"]
+    J --> K["PC CPU encodes JPEG"]
+    K --> L["USB or LAN video path"]
+    L --> M["Phone decodes; GPU displays each source eye separately"]
+```
+
+Both shared-memory exchanges happen **inside the PC**, between Python and native C++ components. USB/LAN carries data between the PC and phone. This route directs phone rotation to the virtual HMD and never moves the Windows mouse. It currently provides **3DOF rotational tracking**, with fixed position and no tracked controllers. Scale, movement, eye spacing and viewer-lens fitting are applied at the phone's final rendering stage.
+
+**🎮 Existing PCVR or standalone headset — its existing SteamVR-compatible PC connection carries the game's main path:**
+
+```text
+Headset/controller tracking
+→ Existing driver and PC connection
+→ SteamVR supplies tracking to the VR game
+→ Game renders separate eyes
+→ SteamVR compositor
+→ Existing headset connection
+→ Headset display
+```
+
+VRization adds a desktop overlay alongside that path:
+
+```text
+Selected desktop capture
+→ Current JPEG frame interface and CPU decode
+→ BGRA image shared memory
+→ VRization Overlay
+→ SteamVR compositor
+→ Virtual desktop screen inside the headset
+```
+
+The existing-headset route relies on its already working PC transport, tracking and controllers. It does not supply a new universal standalone-headset connection. Phone HMD uses **Driver + Mirror + phone client**; an existing headset uses **desktop capture + Overlay**. GPU capture/resize/rendering and CPU JPEG processing remain separate stages.
+
+These diagrams describe implemented source paths. **Real SteamVR compositor output, physical phone/PCVR behavior, achieved FPS and motion-to-photon latency still require hardware testing.** See the [detailed architecture](https://github.com/LexZeon/VRization/blob/codex/steamvr-experimental/experimental/steamvr/docs/ARCHITECTURE.md) and [verification record](https://github.com/LexZeon/VRization/blob/codex/steamvr-experimental/experimental/steamvr/docs/VALIDATION.md).
+
 ### 📸 Interface
 
 | Windows host | Android client |
@@ -170,6 +221,57 @@ Windows 默认开启第一人称与加强第一人称的陀螺仪鼠标控制。
 **两种手机端与 Windows 均默认 USB 连接**，自动检测已授权设备。预设按最长边 / 目标 FPS / JPEG 质量表示：低延迟默认 **640 / 60 / Q45**，稳定 **640 / 30 / Q50**，画质 **960 / 30 / Q60**，也可自定义。目标帧率不代表实际达到的帧率。
 
 首轮正式 ASUS 全输出 → 华为 USB 实测，手机解码 FPS 两次读数为 **59.9、57.7**，主机平均发送 FPS **59.66**。重复静态帧与物理呈现需另外区分，不能当作每秒 60 张不同图像实际显示或端到端延迟。配置与限制详见 [实测说明](docs/PERFORMANCE.md)。
+
+### 🥽 SteamVR 链路怎么运行
+
+这些路线属于独立的 [v0.5.0 SteamVR 实验版](https://github.com/LexZeon/VRization/releases/tag/v0.5.0-steamvr-preview)，原来的手机直连仍然保留。
+
+**📱 手机作为 SteamVR 头显——姿态传到电脑，独立双眼画面传回手机：**
+
+```mermaid
+flowchart TD
+    A["手机传感器：完整旋转四元数"] --> B["USB 或局域网回传"]
+    B --> C["电脑校验会话、姿态与暂停状态"]
+    C --> D["姿态共享内存"]
+    D --> E["VRization 虚拟头显驱动"]
+    E --> F["SteamVR 向 VR 游戏提供头显姿态"]
+    F --> G["VR 游戏分别渲染左眼和右眼"]
+    G --> H["SteamVR 合成器"]
+    H --> I["Mirror 读取双眼，GPU 分眼缩小并左右拼接"]
+    I --> J["图像共享内存"]
+    J --> K["电脑 CPU 编码 JPEG"]
+    K --> L["USB 或局域网传送视频"]
+    L --> M["手机解码，GPU 分别显示对应的源眼画面"]
+```
+
+两处共享内存交换都发生在**电脑内部**，用于 Python 和原生 C++ 组件通信；电脑与手机之间仍通过 USB／局域网传输。这条路线将手机旋转交给虚拟头显，始终不移动 Windows 鼠标。目前提供 **3DOF 旋转追踪**，位置固定，没有追踪控制器。缩放、移动、眼间距和盒子镜片适配在手机最后的渲染阶段应用。
+
+**🎮 已有 PCVR／一体机——游戏主链沿用它已有的 SteamVR 兼容电脑连接：**
+
+```text
+头显／手柄追踪
+→ 原有驱动与电脑连接
+→ SteamVR 向 VR 游戏提供追踪
+→ 游戏分别渲染双眼
+→ SteamVR 合成器
+→ 原有头显连接
+→ 头显显示
+```
+
+VRization 在这条主链旁边添加桌面覆盖层：
+
+```text
+选定桌面采集
+→ 当前 JPEG 帧接口与 CPU 解码
+→ BGRA 图像共享内存
+→ VRization Overlay
+→ SteamVR 合成器
+→ 头显里的虚拟桌面大屏幕
+```
+
+已有头显路线依赖已经能工作的电脑连接、追踪和控制器，不提供新的通用一体机连接协议。手机头显使用 **Driver＋Mirror＋手机客户端**；已有头显使用**桌面采集＋Overlay**。GPU 采集／缩小／渲染与 CPU JPEG 处理仍是独立环节。
+
+这些图描述已实现的源码通路；**真实 SteamVR 合成输出、手机／PCVR 实机效果、实际帧率与运动到显示延迟仍需硬件测试**。详细模块见[架构说明](https://github.com/LexZeon/VRization/blob/codex/steamvr-experimental/experimental/steamvr/docs/ARCHITECTURE.md)和[验证记录](https://github.com/LexZeon/VRization/blob/codex/steamvr-experimental/experimental/steamvr/docs/VALIDATION.md)。
 
 ### 📸 看看界面
 

@@ -15,6 +15,41 @@ This is the separate **0.5.0-steamvr-preview** experiment, based on the released
 
 A standalone headset must already connect to SteamVR through a compatible transport. This preview does not supply an Android standalone OpenXR app, tracked controllers or a replacement vendor driver. It does not overwrite DPVR, remove other drivers, or edit `forceDriver` or global SteamVR configuration. Phone virtual-display/headless behavior and switching between virtual/physical HMDs remain hardware acceptance items; a SteamVR restart may be needed.
 
+### 🔗 How the three paths work
+
+**Direct phone:** The PC captures a desktop or selected region, prefers GPU crop/rotation/downscaling, reads the smaller pixels back and encodes JPEG on the CPU. USB or LAN carries that image to the phone, which decodes it and renders it with Android GLES or iOS Metal. Both eyes sample the **same desktop image**. First-person modes add a separate phone-orientation → PC mouse path; neither duplicating the image nor the Enhanced mode's wide-angle deformation creates independent game viewpoints or stereoscopic depth.
+
+**Phone as SteamVR HMD:** This route sends direction toward the game and returns the game's independent eye images. The phone sends its full normalized XYZW quaternion. The host checks the accepted session and tracking/pause state before publishing orientation for its virtual HMD driver; SteamVR then makes that orientation available to the VR game. The game renders separate left/right views, and the Mirror helper obtains both compositor eye textures. It scales each eye on the GPU before packing them side by side (SBS), then the host encodes the returned pixels as JPEG for the phone.
+
+```mermaid
+flowchart TB
+    subgraph tracking["Tracking: phone → PC"]
+        direction LR
+        P["Phone full orientation"] --> U["USB / LAN"] --> C["Session and pause validation"]
+    end
+    subgraph pose["Inside the PC: tracking bridge"]
+        direction LR
+        PM["Pose shared memory"] --> D["Virtual HMD driver"] --> R["SteamVR supplies game pose"]
+    end
+    subgraph rendering["Inside the PC: game and video bridge"]
+        direction LR
+        G["VR game: independent left / right views"] --> K["SteamVR compositor"] --> M["Mirror: GPU resize each eye and pack SBS"] --> F["Frame shared memory"] --> J["CPU JPEG encoding"]
+    end
+    subgraph viewing["Video: PC → phone"]
+        direction LR
+        V["USB / LAN"] --> B["Phone JPEG decoding"] --> O["GPU: split eyes, lens correction and fit"]
+    end
+    C --> PM
+    R --> G
+    J --> V
+```
+
+Both shared-memory blocks are **inside the PC**, connecting its host and native processes; they are not the phone connection. This HMD route never injects mouse movement. Tracking is **3DOF rotation with a fixed position at 1.6 m height**, without tracked translation or controllers. Phone scale, movement and eye spacing are applied at the final viewing stage, after separating the source eyes; they do not manufacture new viewpoints. GPU scaling still crosses a pixel readback, CPU JPEG encoding, phone decoding and texture upload, so this is **not an all-GPU zero-copy video chain**. Real SteamVR initialization, compositor delivery, phone optics and PCVR acceptance remain pending hardware tests.
+
+**Existing PCVR or connected standalone headset:** Its original tracking/game path remains **headset tracking → existing SteamVR-compatible transport/driver → SteamVR → VR game → compositor → the original headset display/transport**. Existing controllers and position tracking belong to that setup. VRization adds only its desktop Overlay alongside the game; it does not replace the headset driver, tracking, controllers or game renderer.
+
+The current desktop Overlay path is **desktop capture/downscaling → CPU JPEG encoding → CPU JPEG decoding back to BGRA → PC frame shared memory → native D3D11 texture upload → SteamVR Overlay → headset**. That extra JPEG round trip exists because the preview reuses the desktop capture interface; it must not be described as a direct shared GPU texture path. The overlay is a flat, head-relative screen, 3 m wide and 2 m ahead. Stop or stale data hides and clears it. The original headset's main game path continues independently, and physical headset validation is still pending.
+
 ### 📦 Separate installation and connection
 
 Extract the complete experimental Windows package and run its launcher. Keep that folder in place after manually registering its driver. The ordinary `Start-Windows.bat` and stable app install are independent; this experiment does not refresh stable `latest`.
@@ -76,6 +111,41 @@ Next hardware session must verify repeated USB connect/Stop/reconnect without ca
 | 🎮 现有 SteamVR 头显 | 在已连接实体头显前方 2 米添加宽 3 米的桌面覆盖层；SteamVR 游戏仍使用原有头显、控制器和追踪。 | 已有 PCVR 或一体机连接电脑的 SteamVR 通路；不需要手机应用 |
 
 一体机必须已通过兼容通路连接 SteamVR。本实验不提供 Android 一体机 OpenXR 应用、追踪控制器或替代厂商驱动，不覆盖 DPVR、不移除其他驱动，也不修改 `forceDriver` 或 SteamVR 全局配置。手机虚拟显示／无实体显示运行、虚拟与实体头显切换都留待实机验收，可能需要重启 SteamVR。
+
+### 🔗 三条链路怎样工作
+
+**手机直连：** 电脑采集桌面或选区，优先在 GPU 裁切、旋转和缩小，再回读较小的像素，由 CPU 编码 JPEG。USB 或局域网把图像传到手机，手机解码后用 Android GLES 或 iOS Metal 渲染。双眼采样的是**同一张桌面画面**。第一人称另有“手机方向 → 电脑鼠标”控制链；复制画面和加强模式的广角变形都不会生成独立游戏视角或立体深度。
+
+**手机作为 SteamVR 头显：** 这条路线把方向送往游戏，再把游戏的独立双眼画面传回来。手机发送完整归一化 XYZW 四元数；电脑验证已接受会话及追踪／暂停状态后，将方向交给虚拟头显驱动，SteamVR 再向 VR 游戏提供这个方向。游戏分别渲染左右眼，Mirror 工具取得合成器的两张眼纹理，先在 GPU 分别缩小，再横向拼成 SBS；电脑将回读像素编码为 JPEG，传给手机。
+
+```mermaid
+flowchart TB
+    subgraph tracking["追踪：手机 → 电脑"]
+        direction LR
+        P["手机完整方向"] --> U["USB／局域网"] --> C["会话校验与暂停状态"]
+    end
+    subgraph pose["电脑内部：姿态桥接"]
+        direction LR
+        PM["姿态共享内存"] --> D["虚拟头显驱动"] --> R["SteamVR 向游戏提供姿态"]
+    end
+    subgraph rendering["电脑内部：游戏与视频桥接"]
+        direction LR
+        G["VR 游戏：独立左右眼"] --> K["SteamVR 合成器"] --> M["Mirror：GPU 分眼缩小并拼成 SBS"] --> F["图像共享内存"] --> J["CPU 编码 JPEG"]
+    end
+    subgraph viewing["视频：电脑 → 手机"]
+        direction LR
+        V["USB／局域网"] --> B["手机解码 JPEG"] --> O["GPU：分眼、镜片补偿与显示适配"]
+    end
+    C --> PM
+    R --> G
+    J --> V
+```
+
+两块共享内存都在**电脑内部**，连接电脑服务与原生进程，不是手机连接方式。这条头显路线不会注入鼠标移动；追踪只有 **3DOF 旋转，位置固定在 1.6 米高度**，没有移动位置追踪或控制器。手机的缩放、移动和眼间距在分离源图双眼之后、最后显示阶段应用，不会制造新视角。GPU 缩小后仍需像素回读、CPU JPEG 编码、手机解码及纹理上传，所以它**不是全 GPU 零拷贝视频链**。真实 SteamVR 初始化、合成器出图、手机镜片与 PCVR 验收仍待真机测试。
+
+**现有 PCVR 或已连接的一体机：** 原有追踪／游戏主链仍是**头显追踪 → 已有兼容 SteamVR 的连接／驱动 → SteamVR → VR 游戏 → 合成器 → 原有头显显示／传输通路**。控制器及位置追踪由原有设备提供。VRization 只在游戏旁添加桌面 Overlay，不替换头显驱动、追踪、控制器或游戏渲染器。
+
+当前桌面覆盖层实际经过**桌面采集／缩小 → CPU JPEG 编码 → CPU JPEG 解码回 BGRA → 电脑图像共享内存 → 原生 D3D11 纹理上传 → SteamVR Overlay → 头显**。这次额外的 JPEG 往返来自复用桌面采集接口，不能描述成直接共享 GPU 纹理。覆盖层是随头部的平面屏幕，宽 3 米、位于前方 2 米；停止或数据过期时会隐藏并清空。原有头显游戏主链独立继续，实体头显验证仍待完成。
 
 ### 📦 独立安装与连接
 
