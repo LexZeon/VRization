@@ -173,7 +173,7 @@ def main():
             else: self.respond({"error": "unknown observation"}, 404)
         def do_POST(self):
             if self.path == "/pause-tracking":
-                host.disarm("native UI Refresh preserves the emergency latch")
+                host.disarm("native UI explicit Refresh recovers a prior enabled HMD pause")
                 self.respond(snapshot())
             elif self.path == "/checkpoint":
                 try:

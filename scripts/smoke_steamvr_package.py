@@ -217,6 +217,8 @@ def ipc_child(folder: Path, report: Path) -> None:
             require(Path(writer.mapping.atomic._name).resolve() == folder / "native/VRization-SteamVR-IPC.dll",
                     "IPC fixture loaded a DLL outside the ZIP")
             reader = ipc.FrameReader(name, stereo=True)
+            require(reader.read() is None,
+                    "Fresh shared memory before first publication was mistaken for corrupt capture")
             writer.publish(4, 2, pixels)
             sample = reader.read()
             require(sample is not None and sample[:3] == (4, 2, pixels), "Real IPC stereo color bytes were not preserved")
@@ -256,6 +258,7 @@ def ipc_child(folder: Path, report: Path) -> None:
               "source": "IPC source and atomic DLL extracted from the checked ZIP",
               "inactiveAfterClose": True, "duplicateWriterRejected": True, "ownedStopEventVerified": True,
               "sameTickPublicationSequenceVerified": True,
+              "initialZeroHeaderWaitVerified": True,
               "fixedPoseMapOpened": False, "currentDirectoryToolIgnored": True,
               "adbCheckScope": "Shared source resolver with extracted frozen EXE identity; not a frozen diagnostic adb_found claim",
               "sharedResolverSHA256": digest(Path(usb.__file__)), "ipcSourceSHA256": digest(Path(ipc.__file__)),

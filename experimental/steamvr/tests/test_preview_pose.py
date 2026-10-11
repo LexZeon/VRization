@@ -96,7 +96,7 @@ class HmdPoseTests(unittest.TestCase):
         self.assertTrue(self.gate.paused)
         self.assertIsNone(self.sink.last[0])
 
-    def test_only_local_resume_clears_pause_and_drops_accumulated_motion(self):
+    def test_explicit_resume_clears_pause_and_drops_accumulated_motion(self):
         self.ready()
         self.pose(1,yaw(.2))
         self.gate.pause()

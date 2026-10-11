@@ -30,7 +30,7 @@ final class VideoRefreshTests: XCTestCase {
         XCTAssertTrue(gate.acceptsFrame(newFrame)); XCTAssertFalse(gate.acceptsFrame(oldFrame))
         XCTAssertEqual(session.epoch, 11); XCTAssertTrue(session.virtualHMD)
     }
-    func testACKPausedIsStrictStatusAndCannotGrantResume() throws {
+    func testACKPausedIsStrictCompletedTransactionStatus() throws {
         for paused in [true, false] {
             var gate = VideoRefreshGate()
             _ = try gate.begin(session: session, supported: true, transportGeneration: 6, now: 100)
@@ -106,5 +106,57 @@ final class VideoRefreshTests: XCTestCase {
         XCTAssertThrowsError(try gate.acknowledge(ack(), session: .legacy, supported: true, transportGeneration: 6, now: 101))
         XCTAssertThrowsError(try gate.acknowledge(ack(), session: nil, supported: true, transportGeneration: 6, now: 101))
         XCTAssertFalse(gate.acceptsFrames)
+    }
+    func testOrdinaryConnectionDoesNotCarryRefreshIntent() {
+        var intent = RefreshReconnectIntent()
+        XCTAssertFalse(intent.consume(transportGeneration: 6, handshakeComplete: true,
+            session: session, supported: true))
+        XCTAssertNil(intent.transportGeneration)
+    }
+    func testRefreshIntentWaitsForCompleteAcceptedHandshakeAndConsumesOnce() {
+        var intent = RefreshReconnectIntent(); intent.arm(transportGeneration: 6)
+        XCTAssertFalse(intent.consume(transportGeneration: 6, handshakeComplete: false,
+            session: nil, supported: true))
+        XCTAssertEqual(intent.transportGeneration, 6)
+        XCTAssertTrue(intent.consume(transportGeneration: 6, handshakeComplete: true,
+            session: session, supported: true))
+        XCTAssertNil(intent.transportGeneration)
+        XCTAssertFalse(intent.consume(transportGeneration: 6, handshakeComplete: true,
+            session: session, supported: true))
+    }
+    func testLateHandshakeCannotConsumeNewerRefreshIntent() {
+        var intent = RefreshReconnectIntent(); intent.arm(transportGeneration: 7)
+        XCTAssertFalse(intent.consume(transportGeneration: 6, handshakeComplete: true,
+            session: session, supported: true))
+        XCTAssertEqual(intent.transportGeneration, 7)
+        XCTAssertTrue(intent.consume(transportGeneration: 7, handshakeComplete: true,
+            session: session, supported: true))
+    }
+    func testRefreshIntentNeverResumesLegacyMouseUnacceptedOrUnsupportedPeer() {
+        let rejected = [StreamSession.legacy,
+            StreamSession(epoch: 11, accepted: false, streamLayout: .sbs, inputTarget: .virtualHMD),
+            StreamSession(epoch: 11, accepted: true, streamLayout: .sbs, inputTarget: .mouse)]
+        for candidate in rejected {
+            var intent = RefreshReconnectIntent(); intent.arm(transportGeneration: 6)
+            XCTAssertFalse(intent.consume(transportGeneration: 6, handshakeComplete: true,
+                session: candidate, supported: true))
+            XCTAssertNil(intent.transportGeneration)
+        }
+        var intent = RefreshReconnectIntent(); intent.arm(transportGeneration: 6)
+        XCTAssertFalse(intent.consume(transportGeneration: 6, handshakeComplete: true,
+            session: session, supported: false))
+        XCTAssertNil(intent.transportGeneration)
+    }
+    func testStopLifecycleOrEditorCancelsReconnectRefreshIntent() {
+        var intent = RefreshReconnectIntent(); intent.arm(transportGeneration: 6)
+        intent.cancel()
+        XCTAssertFalse(intent.consume(transportGeneration: 6, handshakeComplete: true,
+            session: session, supported: true))
+        intent.arm(transportGeneration: 7)
+        XCTAssertTrue(intent.consume(transportGeneration: 7, handshakeComplete: true,
+            session: session, supported: true))
+        // Consuming does not re-arm itself on a timeout or another snapshot.
+        XCTAssertFalse(intent.consume(transportGeneration: 7, handshakeComplete: true,
+            session: session, supported: true))
     }
 }

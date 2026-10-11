@@ -405,7 +405,7 @@ public final class MainActivity extends Activity {
         startConnection();
     }
 
-    /** An explicit retry, never a Connect/Disconnect toggle or a remote input Resume. */
+    /** Explicit Refresh may recover enabled HMD tracking; ordinary Connect remains separate. */
     private void refreshConnection() {
         if (destroyed || !resumed) return;
         explicitUsb.cancel(); initialUsb.stop(); finishPauseDisconnect();
@@ -414,19 +414,31 @@ public final class MainActivity extends Activity {
     }
 
     private void rebuildConnection(boolean videoFallback) {
+        rebuildConnection(videoFallback, true);
+    }
+
+    private void rebuildConnection(boolean videoFallback, boolean requestHmdRecovery) {
         if (destroyed || !resumed) return;
         finishHeadsetEdit(false, false);
         // Invalidates socket/discovery epochs and queued decode before recentering locally.
         // Existing callbacks cannot interpret late frames as the new stream's layout.
         client.disconnect(false);
-        if (startConnection())
-            Toast.makeText(this, getString(videoFallback ? R.string.video_refresh_fallback : R.string.refresh_connection_pause),
+        if (startConnection(requestHmdRecovery))
+            Toast.makeText(this, getString(!requestHmdRecovery ? R.string.video_refresh_recovery_failed
+                : videoFallback ? R.string.video_refresh_fallback : R.string.refresh_connection_pause),
                 Toast.LENGTH_LONG).show();
     }
 
     private boolean startConnection() {
+        return startConnection(false);
+    }
+
+    private boolean startConnection(boolean requestHmdRecovery) {
         if (connectionMode == ConnectionMode.USB) {
-            recenter(); client.connectUsb(UsbConnectionAttempt.Source.PHONE_ACTION); return true;
+            recenter();
+            if (requestHmdRecovery) client.connectUsbForRefresh(() -> rebuildConnection(true, false));
+            else client.connectUsb(UsbConnectionAttempt.Source.PHONE_ACTION);
+            return true;
         }
         final LanConnectionRequest request;
         try {
@@ -440,7 +452,11 @@ public final class MainActivity extends Activity {
         }
         preferences.edit().putString("host", request.host).putString("port", Integer.toString(request.port)).apply();
         recenter();
-        try { client.connect(request.host, request.port, request.code); }
+        try {
+            if (requestHmdRecovery) client.connectForRefresh(request.host, request.port, request.code,
+                () -> rebuildConnection(true, false));
+            else client.connect(request.host, request.port, request.code);
+        }
         catch (IllegalArgumentException ignored) {
             client.disconnect(false); updateConnectButton(); status.setText(getString(R.string.invalid_host)); return false;
         }

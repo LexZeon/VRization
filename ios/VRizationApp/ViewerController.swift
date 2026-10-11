@@ -169,7 +169,8 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
         client.onVideoRefresh = { [weak self] pending, paused in
             guard let self = self else { return }
             if pending { self.clearStreamingImage() }
-            self.statusKey = pending ? "refreshingVideo" : (paused == true ? "videoRefreshedPaused" : "connected")
+            self.statusKey = pending ? "refreshingVideo" : (paused == true ? "videoRefreshedPaused" : "videoRefreshed")
+            if !pending { self.updateTracking() }
             self.updateStatus(); self.updateTestingGeometry()
         }
         client.onStreamSession = { [weak self] descriptor in

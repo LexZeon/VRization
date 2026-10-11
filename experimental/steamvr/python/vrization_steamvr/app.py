@@ -37,6 +37,7 @@ def usb_factory(*args,**kwargs):
 class PhoneWindow(HostWindow):
     def __init__(self,root,route,monitor=None,on_close=None):
         self.route=route;self.on_close=on_close
+        self._hmd_refresh_reconnect_token=None
         def factory(**kwargs):
             if route=="steamvr-phone":
                 self.config=limit_hmd_capture(initial_hmd_capture(kwargs["capture_config"],preference_path().exists()))
@@ -51,10 +52,29 @@ class PhoneWindow(HostWindow):
     def refresh_connection(self):
         if (self.route=="steamvr-phone" and not self._stop_in_progress
                 and self.editor is None and self.server.request_video_refresh()):
-            self._log(self.words("Rebuilding SteamVR video; tracking and saved settings are retained.",
-                                 "正在重建 SteamVR 视频；保留追踪状态及已保存设置。"))
+            self._log(self.words("Rebuilding SteamVR video and restoring enabled HMD tracking; settings are kept.",
+                                 "正在重建 SteamVR 视频；将恢复已开启的头显追踪，保留设置。"))
             return True
+        if self.route=="steamvr-phone" and not self._stop_in_progress and self.editor is None:
+            self._hmd_refresh_reconnect_token=self.server.hmd.refresh_pause_token()
         return super().refresh_connection()
+
+    def start(self, *, notify_phone=True):
+        if self._stop_in_progress:return False
+        token=getattr(self,"_hmd_refresh_reconnect_token",None)
+        if token is not None:
+            self.server.refresh_after_reconnect(resume_token=token)
+        started=super().start(notify_phone=notify_phone)
+        if token is not None:
+            self._hmd_refresh_reconnect_token=None
+            if not started:self.server.cancel_refresh_recovery()
+        return started
+
+    def stop(self, *, for_refresh=False):
+        if not for_refresh:
+            self._hmd_refresh_reconnect_token=None
+            self.server.cancel_refresh_recovery()
+        return super().stop(for_refresh=for_refresh)
 
     def _build(self):
         super()._build()
@@ -198,6 +218,8 @@ class PhoneWindow(HostWindow):
         self.editor=HeadsetEditor(self,self.server.get_settings_snapshot()[0],stereo=True)
 
     def close(self):
+        self._hmd_refresh_reconnect_token=None
+        self.server.cancel_refresh_recovery()
         super().close()
         if self.on_close:self.on_close()
 

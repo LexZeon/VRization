@@ -186,17 +186,28 @@ def main():
         assert not checkpoints[name]["connected"]
     for refreshed, original in (("steamvr-lan-refreshed", "steamvr-editor-saved"),
                                 ("steamvr-usb-refreshed", "steamvr-usb-connected")):
-        assert checkpoints[refreshed]["connected"] and checkpoints[refreshed]["paused"]
+        assert checkpoints[refreshed]["connected"] and not checkpoints[refreshed]["paused"]
         assert checkpoints[refreshed]["epoch"] == checkpoints[original]["epoch"]
         assert checkpoints[refreshed]["settings"] == checkpoints[original]["settings"]
         assert len(checkpoints[refreshed]["videoRefreshes"]) > len(checkpoints[original]["videoRefreshes"])
         acknowledgement = checkpoints[refreshed]["videoRefreshes"][-1]
-        assert acknowledgement["epoch"] == checkpoints[original]["epoch"] and acknowledgement["paused"] is True
+        assert acknowledgement["epoch"] == checkpoints[original]["epoch"] and acknowledgement["paused"] is False
         assert type(acknowledgement["requestId"]) is int and acknowledgement["requestId"] > 0
     reconnected = checkpoints["steamvr-usb-reconnected"]
     assert reconnected["connected"] and reconnected["paused"]
     assert reconnected["epoch"] > checkpoints["steamvr-usb-disconnected"]["epoch"]
     assert reconnected["settings"] == checkpoints["steamvr-usb-connected"]["settings"]
+    before_rebuild = checkpoints["steamvr-usb-refresh-disconnected"]
+    rebuilt = checkpoints["steamvr-usb-explicit-rebuilt"]
+    assert not before_rebuild["connected"] and before_rebuild["paused"]
+    assert rebuilt["connected"] and not rebuilt["paused"]
+    assert rebuilt["epoch"] > before_rebuild["epoch"]
+    assert rebuilt["settings"] == reconnected["settings"]
+    assert len(rebuilt["videoRefreshes"]) > len(before_rebuild["videoRefreshes"])
+    recovery = rebuilt["videoRefreshes"][-1]
+    assert recovery["epoch"] == rebuilt["epoch"] and recovery["paused"] is False
+    assert type(recovery["requestId"]) is int and recovery["requestId"] > 0
+    assert checkpoints["steamvr-editor-saved"]["paused"], "Save must not resume HMD tracking"
     assert not checkpoints["steamvr-usb-disconnected-final"]["connected"]
     check_stereo_pixels(report)
     package_simulator()

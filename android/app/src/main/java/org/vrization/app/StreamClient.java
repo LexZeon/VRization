@@ -82,6 +82,8 @@ final class StreamClient {
     private volatile boolean videoRefreshSupported;
     private final VideoRefreshGate videoRefresh = new VideoRefreshGate();
     private Runnable videoRefreshDeadline, videoRefreshFallback;
+    private final RefreshReconnectIntent refreshReconnect = new RefreshReconnectIntent();
+    private Runnable refreshReconnectFallback;
     private Call discovery;
     private Runnable helloDeadline;
     private Runnable usbRetry, usbDeadline;
@@ -118,18 +120,32 @@ final class StreamClient {
     long deliveredFrameCount() { return deliveredFrames.get(); }
 
     void connect(String host, int port, String code) {
+        connect(host, port, code, null);
+    }
+    void connectForRefresh(String host, int port, String code, Runnable fallback) {
+        connect(host, port, code, fallback);
+    }
+    private void connect(String host, int port, String code, Runnable refreshFallback) {
         disconnect(false);
         if (sessions.isClosed()) return;
         final long connectionEpoch = sessions.invalidate();
+        armRefreshReconnect(connectionEpoch, refreshFallback);
         connecting = true;
         openSocket(host, port, code, connectionEpoch, false);
     }
 
     void connectUsb() { connectUsb(UsbConnectionAttempt.Source.AUTOMATIC); }
     void connectUsb(UsbConnectionAttempt.Source source) {
+        connectUsb(source, null);
+    }
+    void connectUsbForRefresh(Runnable fallback) {
+        connectUsb(UsbConnectionAttempt.Source.PHONE_ACTION, fallback);
+    }
+    private void connectUsb(UsbConnectionAttempt.Source source, Runnable refreshFallback) {
         disconnect(false);
         if (sessions.isClosed()) return;
         final long connectionEpoch = sessions.invalidate();
+        armRefreshReconnect(connectionEpoch, refreshFallback);
         connecting = true;
         usbAttempt.start(connectionEpoch, SystemClock.elapsedRealtime(), source);
         usbFailureStatus = context.getString(R.string.usb_not_detected);
@@ -303,6 +319,7 @@ final class StreamClient {
                             listener.onSessionStarted();
                             listener.onSettings(json.optJSONObject("settings"), optionalSequence(json, "revision"), null);
                             listener.onStatus(context.getString(R.string.connected), true);
+                            takeRefreshReconnect(connectionEpoch);
                         });
                     } else if ("settings".equals(type)) {
                         JSONObject incoming = json.getJSONObject("settings");
@@ -312,6 +329,7 @@ final class StreamClient {
                             videoRefreshSupported = supportsVideoRefresh;
                             streamSession = descriptor; listener.onStreamSession(descriptor);
                             listener.onSettings(incoming, optionalSequence(json, "revision"), optionalSequence(json, "clientSeq"));
+                            takeRefreshReconnect(connectionEpoch);
                         });
                     } else if ("error".equals(type)) {
                         dispatchSocket(connectionEpoch, socketEpoch, () -> listener.onStatus(context.getString(
@@ -498,6 +516,20 @@ final class StreamClient {
         };
         main.postDelayed(videoRefreshDeadline, VideoRefreshGate.DEADLINE_MILLIS); return true;
     }
+    private void armRefreshReconnect(long connectionEpoch, Runnable fallback) {
+        boolean explicit = ClientVariant.EXPERIMENTAL && fallback != null;
+        refreshReconnect.start(connectionEpoch, explicit);
+        refreshReconnectFallback = explicit ? fallback : null;
+    }
+    private void takeRefreshReconnect(long connectionEpoch) {
+        if (!connected || !sessions.isCurrent(connectionEpoch)) return;
+        Runnable fallback = refreshReconnectFallback;
+        boolean request = refreshReconnect.take(connectionEpoch, streamSession, videoRefreshSupported);
+        if (!refreshReconnect.isPending()) refreshReconnectFallback = null;
+        // Consumption precedes the send. Duplicate snapshots cannot request
+        // another recovery; the bounded fallback does not arm another intent.
+        if (request && fallback != null) requestLiveVideoRefresh(fallback);
+    }
     private void clearVideoRefreshTimers() {
         if (videoRefreshDeadline != null) main.removeCallbacks(videoRefreshDeadline);
         videoRefreshDeadline = null; videoRefreshFallback = null;
@@ -505,6 +537,7 @@ final class StreamClient {
     void cancelPendingVideoRefresh() {
         if (videoRefresh.isPending()) videoRefresh.abort();
         clearVideoRefreshTimers();
+        refreshReconnect.cancel(); refreshReconnectFallback = null;
     }
     private void clearPending() {
         synchronized (decodeLock) {
@@ -559,6 +592,7 @@ final class StreamClient {
         sendHmdPose(null,SystemClock.elapsedRealtimeNanos(),false);
         sessions.invalidate(); connected = false; connecting = false;
         clearVideoRefreshTimers(); videoRefresh.newConnection();
+        refreshReconnect.cancel(); refreshReconnectFallback = null;
         streamSession = StreamSession.legacy();
         stabilizationSupported = false;
         enhancedSupported = false;

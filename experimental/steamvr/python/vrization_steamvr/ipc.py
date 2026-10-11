@@ -139,7 +139,8 @@ class StopEvent:
 
 
 class FrameReader:
-    def __init__(self,name,*,stereo=False):self.name=name;self.stereo=stereo;self.mapping=None
+    def __init__(self,name,*,stereo=False):
+        self.name=name;self.stereo=stereo;self.mapping=None;self._header_seen=False
     def read(self):
         """Return (width, height, BGRA, tickMs, coherent publication sequence)."""
         if self.mapping is None:
@@ -148,12 +149,20 @@ class FrameReader:
         for _ in range(4):
             header=self.mapping.snapshot(64)
             if header is None:continue
+            # CreateFileMapping exposes a fresh zero-filled view before the
+            # writer's first seqlocked inactive header. This is startup, not
+            # corrupt capture. Only that exact pre-publication state may wait;
+            # malformed headers and zeroing an established stream still fail.
+            if not self._header_seen and header==bytes(64):return None
             fields=FRAME.unpack(header);width,height,stride=fields[4:7]
             if not 1<=width<=1920 or not 1<=height<=1080 or stride!=width*4:
-                return decode_frame(header,b"",tick_ms(),stereo=self.stereo)
+                sample=decode_frame(header,b"",tick_ms(),stereo=self.stereo)
+                self._header_seen=True
+                return sample
             data=self.mapping.snapshot(64+stride*height)
             if data is None or data[:64]!=header:continue
             sample=decode_frame(data[:64],data[64:],tick_ms(),stereo=self.stereo)
+            self._header_seen=True
             # The complete payload header equals the first coherent header;
             # expose its verified sequence without changing the native ABI or
             # the pure decode_frame four-value contract.
@@ -161,6 +170,7 @@ class FrameReader:
         return None
     def close(self):
         if self.mapping:self.mapping.close();self.mapping=None
+        self._header_seen=False
 
 
 class FrameWriter:

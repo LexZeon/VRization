@@ -77,6 +77,9 @@ class RuntimeTests(unittest.TestCase):
         from vrization_steamvr.ipc import FrameWriter,FrameReader,frame_name
         name=frame_name();writer=FrameWriter(name);reader=FrameReader(name,stereo=True)
         try:
+            # The owned mapping exists before its first publication, as during
+            # native Mirror creation. It must not pause capture as corruption.
+            self.assertIsNone(reader.read())
             pixels=bytes([17,29,61,255])*8;writer.publish(4,2,pixels)
             sample=reader.read();self.assertEqual(sample[:3],(4,2,pixels))
             self.assertEqual(len(sample),5);self.assertEqual(sample[4],2)
@@ -84,6 +87,31 @@ class RuntimeTests(unittest.TestCase):
             fresh=reader.read();self.assertEqual(fresh[:3],sample[:3]);self.assertEqual(fresh[4],4)
             writer.close();self.assertIsNone(reader.read())
         finally:writer.close();reader.close()
+
+    def test_reader_waits_for_first_publication_but_rejects_zeroing_an_established_stream(self):
+        pixels=bytes((1,2,3,255))*8
+        inactive=FRAME.pack(b"VRF1",1,64,2,0,0,0,0,1000,bytes(24))
+        active=FRAME.pack(b"VRF1",1,64,4,4,2,16,1,1000,bytes(24))
+        reader=FrameReader("unused-fixture-name",stereo=True);mapping=reader.mapping=Mock()
+        mapping.snapshot.side_effect=[bytes(64),bytes(64),inactive,active,active+pixels,bytes(64)]
+        with patch("vrization_steamvr.ipc.tick_ms",return_value=1000):
+            self.assertIsNone(reader.read());self.assertIsNone(reader.read())
+            self.assertIsNone(reader.read())
+            self.assertEqual(reader.read(),(4,2,pixels,1000,4))
+            with self.assertRaisesRegex(ValueError,"Invalid frame header"):reader.read()
+        reader.close();mapping.close.assert_called_once()
+        reader.mapping=Mock();reader.mapping.snapshot.return_value=bytes(64)
+        self.assertIsNone(reader.read(),"A closed reader may wait on a newly owned mapping")
+        reader.close()
+
+    def test_reader_startup_exception_does_not_hide_nonzero_malformed_headers(self):
+        for offset in (0,4,8,12,28,32):
+            with self.subTest(offset=offset):
+                header=bytearray(64);header[offset]=1
+                reader=FrameReader("unused-fixture-name",stereo=True);reader.mapping=Mock()
+                reader.mapping.snapshot.return_value=bytes(header)
+                with self.assertRaisesRegex(ValueError,"Invalid frame header"):reader.read()
+                reader.close()
 
     def test_reader_sequence_belongs_to_the_same_validated_full_payload_header(self):
         pixels=bytes((1,2,3,255))*8

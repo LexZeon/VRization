@@ -115,7 +115,7 @@ class StereoPixelOracleTests(unittest.TestCase):
 
 
 class LiveRefreshFixtureTests(unittest.IsolatedAsyncioTestCase):
-    async def testActualFixtureRecordsCompletedRefreshWhileKeepingEpochSettingsAndPause(self):
+    async def testActualFixtureRecordsExplicitRefreshRecoveryKeepingEpochAndSettings(self):
         # Launch the actual fixture with its synthetic pixels/pose sink/usbmux.
         # The client is a loopback WebSocket, never a physical phone or OS input.
         def free_port():
@@ -158,6 +158,9 @@ class LiveRefreshFixtureTests(unittest.IsolatedAsyncioTestCase):
                         self.assertTrue(before["connected"]); self.assertTrue(before["paused"])
                         self.assertEqual(before["videoRefreshes"], [])
                         for request_id in (1, 2):
+                            if request_id > 1:
+                                before = await snapshot("pause-tracking", post=True)
+                                self.assertTrue(before["paused"])
                             await ws.send_json({"v": 1, "type": "refreshVideo", "epoch": before["epoch"], "requestId": request_id})
                             while True:
                                 message = await ws.receive(timeout=3)
@@ -166,7 +169,7 @@ class LiveRefreshFixtureTests(unittest.IsolatedAsyncioTestCase):
                                     acknowledgement = json.loads(message.data)
                                     if acknowledgement.get("type") == "videoRefresh": break
                             self.assertEqual(acknowledgement, {"v": 1, "type": "videoRefresh", "epoch": before["epoch"],
-                                "requestId": request_id, "paused": True})
+                                "requestId": request_id, "paused": False})
                             deadline = asyncio.get_running_loop().time() + 3
                             while True:
                                 after = await snapshot()
@@ -175,8 +178,8 @@ class LiveRefreshFixtureTests(unittest.IsolatedAsyncioTestCase):
                                 await asyncio.sleep(.025)
                             self.assertEqual(after["videoRefreshes"][-1]["requestId"], request_id)
                             self.assertEqual(after["videoRefreshes"][-1]["epoch"], before["epoch"])
-                            self.assertIs(after["videoRefreshes"][-1]["paused"], True)
-                            self.assertTrue(after["connected"]); self.assertTrue(after["paused"])
+                            self.assertIs(after["videoRefreshes"][-1]["paused"], False)
+                            self.assertTrue(after["connected"]); self.assertFalse(after["paused"])
                             self.assertEqual(after["epoch"], before["epoch"])
                             self.assertEqual(after["settings"], before["settings"])
                             self.assertEqual(after["mouseMoves"], [])

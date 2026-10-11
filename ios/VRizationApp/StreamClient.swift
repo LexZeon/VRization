@@ -36,6 +36,7 @@ final class StreamClient: NSObject, URLSessionWebSocketDelegate {
     private var videoRefresh = VideoRefreshGate()
     private var pendingVideoRefresh: Data?
     private var videoRefreshTimeout: Timer?
+    private var refreshReconnectIntent = RefreshReconnectIntent()
     private var reconnectLAN: (host: String, port: Int, code: String)?
     var canRefreshLiveVideo: Bool { state == .connected && protocolGate.supportsVideoRefresh }
     var videoRefreshPending: Bool { videoRefresh.pending != nil }
@@ -132,9 +133,9 @@ final class StreamClient: NSObject, URLSessionWebSocketDelegate {
     }
 
 #if STEAMVR_PREVIEW
-    /// Keep the accepted session and real motion running. Only the video decoder
-    /// waits for a matching post-close ACK; its paused flag grants no Resume.
-    func refreshVideo() -> Bool {
+    /// Keep the accepted session and real motion baseline. The host may recover
+    /// the enabled HMD pause captured by this explicit Refresh transaction.
+    func refreshVideo(allowReconnectIntent: Bool = true) -> Bool {
         precondition(Thread.isMainThread)
         guard canRefreshLiveVideo, let descriptor = streamSession else { return false }
         if videoRefresh.pending != nil { return true }
@@ -151,21 +152,34 @@ final class StreamClient: NSObject, URLSessionWebSocketDelegate {
             // No ACK cannot reopen the old image. Fall back using this session's
             // validated address, never newly edited fields or persisted pairing.
             _ = self.rebuildConnection(transport: currentTransport, host: address?.host ?? "",
-                port: address?.port ?? 8766, code: address?.code ?? "")
+                port: address?.port ?? 8766, code: address?.code ?? "", refreshIntent: allowReconnectIntent)
         }
         videoRefreshTimeout = timer; RunLoop.main.add(timer, forMode: .common)
         drain()
         return true
     }
-    /// Explicitly discard the old transport/decoder generation. Keep the local
-    /// pose pause; neither hello nor Refresh can release the PC's F8 latch.
-    func rebuildConnection(transport: Transport, host: String = "", port: Int = 8766, code: String = "") -> Bool {
+    /// Rebuild transport without implicitly resuming. Only this explicit user
+    /// intent can request one Refresh after the new complete HMD handshake.
+    func rebuildConnection(transport: Transport, host: String = "", port: Int = 8766, code: String = "",
+                           refreshIntent: Bool = true) -> Bool {
         precondition(Thread.isMainThread)
         let paused = posesPaused
         invalidateTracking()
         let started = transport == .usb ? connectUSB() : connect(host: host, port: port, code: code)
-        if started { posesPaused = paused; refreshPosePause = paused }
+        if started {
+            posesPaused = paused; refreshPosePause = paused
+            if refreshIntent { refreshReconnectIntent.arm(transportGeneration: generation) }
+        }
         return started
+    }
+    private func finishRefreshReconnect() {
+        guard state == .connected,
+              refreshReconnectIntent.consume(transportGeneration: generation,
+                  handshakeComplete: protocolGate.canReceiveFrames,
+                  session: streamSession, supported: canRefreshLiveVideo) else { return }
+        // This consumes the click once. A second missing ACK may reconnect,
+        // but cannot create an unbounded sequence of resume intentions.
+        _ = refreshVideo(allowReconnectIntent: false)
     }
 #endif
 
@@ -178,6 +192,7 @@ final class StreamClient: NSObject, URLSessionWebSocketDelegate {
 #if STEAMVR_PREVIEW
         submittedDescriptor = nil; pendingTrackingLost = nil; refreshPosePause = nil; onStreamSession?(nil)
         videoRefresh.cancel(); pendingVideoRefresh = nil; reconnectLAN = nil
+        refreshReconnectIntent.cancel()
         videoRefreshTimeout?.invalidate(); videoRefreshTimeout = nil
 #endif
         heartbeat?.invalidate(); heartbeat = nil
@@ -234,6 +249,7 @@ final class StreamClient: NSObject, URLSessionWebSocketDelegate {
 #endif
     func pauseForEditor() {
 #if STEAMVR_PREVIEW
+        refreshReconnectIntent.cancel()
         invalidateTracking()
 #endif
         posesPaused = true; pendingPose = nil
@@ -332,6 +348,10 @@ final class StreamClient: NSObject, URLSessionWebSocketDelegate {
                     supported: canRefreshLiveVideo, transportGeneration: generation,
                     now: ProcessInfo.processInfo.systemUptime) {
                     videoRefreshTimeout?.invalidate(); videoRefreshTimeout = nil
+                    // A matching completed explicit Refresh may release our
+                    // editor pause. It sends no Resume/recenter and cannot
+                    // override a newer host F8/Stop/disabled boundary.
+                    if !paused { posesPaused = false }
                     onVideoRefresh?(false, paused)
                 }
                 return
@@ -359,6 +379,9 @@ final class StreamClient: NSObject, URLSessionWebSocketDelegate {
                 beginConnected()
                 guard generation == epoch, state == .connected else { return }
                 deliverSettings(hello.settings, revision: hello.revision, sequence: nil)
+#if STEAMVR_PREVIEW
+                if generation == epoch { finishRefreshReconnect() }
+#endif
             case .message(let message):
                 if state == .connecting, wasAwaitingSnapshot {
                     if case .error = message { disconnect(reason: "protocolError"); return }
@@ -370,6 +393,9 @@ final class StreamClient: NSObject, URLSessionWebSocketDelegate {
                     beginConnected(schemaAlreadyRequested: true)
                     guard generation == epoch, state == .connected else { return }
                     deliverSettings(update.settings, revision: update.revision, sequence: update.clientSeq)
+#if STEAMVR_PREVIEW
+                    if generation == epoch { finishRefreshReconnect() }
+#endif
                 } else { handleMessage(message) }
             }
         } catch {

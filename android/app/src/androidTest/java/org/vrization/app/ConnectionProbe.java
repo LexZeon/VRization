@@ -114,7 +114,7 @@ final class ConnectionProbe {
         }
     }
 
-    /** Negotiated live reset retains HMD epoch; fallback rebuilds it. Neither may Resume input. */
+    /** Explicit Refresh may ask the host to recover HMD tracking; this probe still suppresses real poses. */
     private static void assertRefresh(Instrumentation test, MainActivity phone, StreamClient stream, Bundle result) {
         AtomicReference<Map<String, Object>> fitted = new AtomicReference<>();
         AtomicReference<StreamSession> previous = new AtomicReference<>();
@@ -126,7 +126,7 @@ final class ConnectionProbe {
             poseSequence[0] = ((java.util.concurrent.atomic.AtomicLong) field(stream, "poseSequence")).get();
         });
         progress(test, live[0] ? "live-video Refresh: same HMD epoch/socket/pose gate; wait for ACK and fresh native frames"
-            : "fallback Refresh: old session/layout invalidated; wait for new hello; no Resume");
+            : "fallback Refresh: old session/layout invalidated; one recovery request after a supported HMD handshake");
         test.runOnMainSync(() -> {
             require(((Button) field(phone, "refreshButton")).performClick(), "Refresh button was not clickable");
             if (live[0]) {

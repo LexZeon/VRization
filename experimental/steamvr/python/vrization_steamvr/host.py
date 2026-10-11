@@ -19,6 +19,7 @@ class PreviewHost(HostServer):
         self._video_refresh_ack_owner=None
         self._client_video_refresh=False
         self._video_refresh_last_id=0
+        self._refresh_after_reconnect=None
         self.stream_session=Session(route)
         self.route=route
         self.pose_sink=pose_sink if pose_sink is not None else PoseMap() if route=="steamvr-phone" else None
@@ -79,14 +80,19 @@ class PreviewHost(HostServer):
         if sent and self._ws is ws and not ws.closed and not self._stopping.is_set():
             if VIDEO_REFRESH in msg.get("capabilities",[]):self._client_video_refresh=True
             if self.hmd:self.hmd.negotiate()
-            if first_confirmation and self.hmd and (self.session_generation>1 or self._capture_failed):
+            self._session_ready=True
+            recovery=self._refresh_after_reconnect
+            if (first_confirmation and self.hmd and recovery is not None
+                    and self.session_generation>recovery[1]):
+                self._refresh_after_reconnect=None
+                self._begin_video_refresh(ws,None,resume_token=recovery[0])
+            elif first_confirmation and self.hmd and (self.session_generation>1 or self._capture_failed):
                 # Reconnecting a real phone must replace a Mirror that exited
                 # while its HMD was absent, even if the idle worker has not yet
                 # discovered that exit. Only the capture worker closes it;
                 # the existing tracking pause remains latched.
                 self._buffer.frame=None
                 self._worker.request_source_reset()
-            self._session_ready=True
         elif self._ws is ws:
             await ws.close(code=1001,message=b"Session confirmation stalled",drain=False)
 
@@ -99,7 +105,14 @@ class PreviewHost(HostServer):
                 raise ProtocolError("Video refresh needs the current negotiated HMD session")
             if msg["requestId"]<=self._video_refresh_last_id:
                 raise ProtocolError("Video refresh request is stale")
-            if self._video_refresh_pending is not None:
+            pending=self._video_refresh_pending
+            if pending is not None:
+                # A phone click can join a PC-owned reset rather than time out
+                # and unnecessarily disconnect. One phone ACK owns the receipt.
+                if pending[0] is ws and pending[1]==msg["epoch"] and pending[2] is None:
+                    self._video_refresh_pending=(ws,pending[1],msg["requestId"],pending[3],pending[4])
+                    self._video_refresh_last_id=msg["requestId"]
+                    return True
                 raise ProtocolError("Video refresh is already pending")
             if not self._begin_video_refresh(ws,msg["requestId"]):
                 raise ProtocolError("Video refresh is unavailable")
@@ -117,23 +130,24 @@ class PreviewHost(HostServer):
             return True
         return False
 
-    def _begin_video_refresh(self,ws,request_id):
+    def _begin_video_refresh(self,ws,request_id,*,resume_token=None):
         # Loop-owned transaction; actual GPU/helper cleanup belongs to the worker.
         if (not self.hmd or not self._session_ready or not self.stream_session.accepted
                 or self._ws is not ws or ws.closed or self._stopping.is_set()
                 or self._video_refresh_pending is not None):return False
         pending=(ws,self.stream_session.epoch,request_id)
-        self._video_refresh_pending=(*pending,0)
+        token=self.hmd.refresh_pause_token() if resume_token is None else resume_token
+        self._video_refresh_pending=(*pending,0,token)
         self._buffer.frame=None
         receipt=self._worker.request_source_reset()
         if not receipt:
             self._video_refresh_pending=None
             return False
-        self._video_refresh_pending=(*pending,receipt)
+        self._video_refresh_pending=(*pending,receipt,token)
         return True
 
     def request_video_refresh(self):
-        """PC-local video reset; never disconnect, resume or recenter tracking."""
+        """Explicit PC Refresh: reset video and recover an existing HMD pause."""
         if (not self.running or not self.hmd or not self._session_ready or self._ws is None
                 or self._ws.closed or self._stopping.is_set()):return False
         owner=self._ws
@@ -142,9 +156,19 @@ class PreviewHost(HostServer):
             # A repeated local click must not become a full reconnect/pause.
             # Coalesce only the current session's already-owned video reset.
             return pending[0] is owner and pending[1]==self.stream_session.epoch
-        async def request():self._begin_video_refresh(owner,None)
+        token=self.hmd.refresh_pause_token()
+        async def request():self._begin_video_refresh(owner,None,resume_token=token)
         asyncio.run_coroutine_threadsafe(request(),self._loop)
         return True
+
+    def refresh_after_reconnect(self, *, resume_token=None):
+        """One PC Refresh intent, consumed by a later confirmed HMD session."""
+        if self.hmd:
+            token=self.hmd.refresh_pause_token() if resume_token is None else resume_token
+            self._refresh_after_reconnect=(token,self.session_generation)
+
+    def cancel_refresh_recovery(self):
+        self._refresh_after_reconnect=None
 
     def _capture_source_reset(self):
         super()._capture_source_reset()
@@ -156,11 +180,12 @@ class PreviewHost(HostServer):
     async def _finish_video_refresh(self):
         pending=self._video_refresh_pending
         if pending is None or self._worker.completed_reset_generation<pending[3]:return
-        ws,epoch,request_id,_=pending
+        ws,epoch,request_id,_,resume_token=pending
         if (self._video_refresh_pending is not pending or self._ws is not ws or ws.closed
                 or self._stopping.is_set() or self.stream_session.epoch!=epoch):return
         if self._video_refresh_ack_owner is pending:return
         self._video_refresh_ack_owner=pending
+        resumed=self.hmd.resume_for_refresh(resume_token)
         try:
             if request_id is not None:
                 await asyncio.wait_for(ws.send_json({"v":1,"type":"videoRefresh","epoch":epoch,
@@ -176,7 +201,7 @@ class PreviewHost(HostServer):
         if self._video_refresh_pending is pending and self._ws is ws and not self._stopping.is_set():
             self._video_refresh_pending=None
             self._emit("video_refreshed",epoch=epoch,requestId=request_id,
-                       paused=self.hmd.paused or not self.hmd.enabled)
+                       paused=self.hmd.paused or not self.hmd.enabled,resumed=resumed)
 
     def set_auto_control(self,enabled):
         if self.hmd:
@@ -186,7 +211,7 @@ class PreviewHost(HostServer):
         else:super().set_auto_control(enabled)
 
     def disarm(self,reason="emergency stop"):
-        if self.hmd:self.hmd.pause()
+        if self.hmd:self.hmd.pause(invalidate_refresh=reason!="streaming stopped")
         super().disarm(reason)
 
     def resume_control(self):
@@ -228,9 +253,9 @@ class PreviewHost(HostServer):
             raise
 
     def request_stop(self):
-        if self.hmd:self.hmd.pause()
+        if self.hmd:self.hmd.stop()
+        self.cancel_refresh_recovery()
         super().request_stop()
-        if self.hmd:self.hmd.close()
 
     def stop(self,timeout=6):
         complete=super().stop(timeout)

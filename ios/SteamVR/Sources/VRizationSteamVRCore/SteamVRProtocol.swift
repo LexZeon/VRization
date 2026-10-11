@@ -34,7 +34,8 @@ public enum SteamVRProtocol {
 }
 
 /// Video has an independent generation: rebuilding it must never reset HMD
-/// orientation, its sequence, the accepted session, or the local input pause.
+/// orientation, its sequence, or the accepted session. Only an explicit Refresh
+/// transaction may recover a pre-existing enabled HMD pause on the host.
 public struct VideoRefreshGate {
     public struct Request: Equatable {
         public let epoch: Int64, requestId: Int64
@@ -64,7 +65,8 @@ public struct VideoRefreshGate {
         guard let request = pending, now.isFinite, request.transportGeneration == transportGeneration else { return false }
         return now >= request.deadline
     }
-    /// The paused value is a status hint only. It never grants Resume.
+    /// The paused value reports the host's completed explicit Refresh transaction.
+    /// It cannot authorize a separate resume control or clear a later host pause.
     /// Well-formed late ACKs cannot open a newer request or transport.
     public mutating func acknowledge(_ data: Data, session: StreamSession?, supported: Bool,
                                      transportGeneration: UInt64, now: Double) throws -> Bool? {
@@ -87,6 +89,23 @@ public struct VideoRefreshGate {
         return paused
     }
     public func acceptsFrame(_ captured: UInt64) -> Bool { acceptsFrames && captured == frameGeneration }
+}
+
+/// A Refresh that rebuilds transport carries one transient user intent into the
+/// new handshake. Ordinary Connect, settings, or partial snapshots never arm it.
+public struct RefreshReconnectIntent {
+    public private(set) var transportGeneration: UInt64?
+    public init() {}
+    public mutating func arm(transportGeneration: UInt64) {
+        self.transportGeneration = transportGeneration
+    }
+    public mutating func cancel() { transportGeneration = nil }
+    public mutating func consume(transportGeneration: UInt64, handshakeComplete: Bool,
+                                 session: StreamSession?, supported: Bool) -> Bool {
+        guard self.transportGeneration == transportGeneration, handshakeComplete else { return false }
+        self.transportGeneration = nil
+        return supported && session?.virtualHMD == true && session?.stereo == true
+    }
 }
 
 /// Recenter controls do not reset the monotonic pose sequence; skipped queued

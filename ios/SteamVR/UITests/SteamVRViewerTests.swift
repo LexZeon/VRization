@@ -26,7 +26,7 @@ final class SteamVRViewerTests: XCTestCase {
         app.launch(); XCUIDevice.shared.orientation = .landscapeRight
         XCTAssertTrue(app.buttons["settings.hide"].waitForExistence(timeout: 10))
         let version = app.staticTexts["version.info"]
-        XCTAssertTrue(version.label.contains("0.5.1")); XCTAssertTrue(version.label.contains("build 2"))
+        XCTAssertTrue(version.label.contains("0.5.1")); XCTAssertTrue(version.label.contains("build 3"))
         XCTAssertTrue(app.buttons["connection.refresh"].isHittable)
     }
     private func waitContains(_ element: XCUIElement, _ text: String, timeout: TimeInterval = 20) {
@@ -111,26 +111,26 @@ final class SteamVRViewerTests: XCTestCase {
         } while Date() < deadline
         let value = try observe(); XCTAssertTrue(predicate(value)); return value
     }
-    private func refreshKeepingSettingsAndPause(_ checkpoint: String) throws {
+    private func refreshRestoringPriorPause(_ checkpoint: String) throws {
         // Apply the real host's emergency latch, never a sensor/UI bypass.
         let previous = try observe(pauseTracking: true)
         XCTAssertTrue(previous.connected); XCTAssertTrue(previous.paused)
         let button = app.buttons["connection.refresh"]
         XCTAssertTrue(button.isHittable); button.tap()
-        waitContains(app.staticTexts["connection.status"], "Video refreshed. Tracking is paused;")
+        waitContains(app.staticTexts["connection.status"], "Video refreshed. HMD tracking is enabled.")
         waitContains(app.staticTexts["frame.status"], "1280 × 480")
         let refreshed = try waitHost { $0.connected && $0.epoch == previous.epoch && $0.videoRefreshes.count > previous.videoRefreshes.count }
         XCTAssertEqual(refreshed.epoch, previous.epoch)
         let acknowledgement = try XCTUnwrap(refreshed.videoRefreshes.last)
         XCTAssertEqual(acknowledgement.epoch, previous.epoch); XCTAssertGreaterThan(acknowledgement.requestId, 0)
-        XCTAssertTrue(acknowledgement.paused)
+        XCTAssertFalse(acknowledgement.paused)
         XCTAssertEqual(refreshed.settings, previous.settings)
-        XCTAssertTrue(refreshed.paused); XCTAssertTrue(refreshed.mouseMoves.isEmpty)
+        XCTAssertFalse(refreshed.paused); XCTAssertTrue(refreshed.mouseMoves.isEmpty)
         XCTAssertTrue(refreshed.poses.allSatisfy { $0.q == nil })
         let descriptor = app.staticTexts["stream.session"].value as? String ?? ""
         XCTAssertTrue(descriptor.contains("epoch=\(refreshed.epoch);accepted=true;layout=sbs;target=virtual-hmd"))
         let recorded = try observe(checkpoint)
-        XCTAssertEqual(recorded.epoch, refreshed.epoch); XCTAssertTrue(recorded.paused)
+        XCTAssertEqual(recorded.epoch, refreshed.epoch); XCTAssertFalse(recorded.paused)
         XCTAssertEqual(recorded.settings, previous.settings)
     }
     func testLANIndependentStereoEyesBypassEnhancedAndCinemaProjection() throws {
@@ -166,9 +166,10 @@ final class SteamVRViewerTests: XCTestCase {
         _ = try waitHost { $0.settings.scale < before.settings.scale && $0.settings.mode == "fps_enhanced" }
         let saved = try observe("steamvr-editor-saved")
         XCTAssertEqual(saved.settings.mode, "fps_enhanced"); XCTAssertLessThan(saved.settings.scale, before.settings.scale)
+        XCTAssertTrue(saved.paused, "Save must not clear the host's editor pause")
         XCTAssertTrue(saved.mouseMoves.isEmpty); XCTAssertTrue(saved.poses.allSatisfy { $0.q == nil })
         app.buttons["settings.hide"].tap(); screenshot("STEAMVR-04-SBS-saved-profile")
-        showOverlay(); try refreshKeepingSettingsAndPause("steamvr-lan-refreshed")
+        showOverlay(); try refreshRestoringPriorPause("steamvr-lan-refreshed")
         app.buttons["settings.hide"].tap(); screenshot("STEAMVR-08-LAN-refreshed-independent-eyes")
         showOverlay(); let toggle = app.buttons["connection.toggle"]; reveal(toggle); toggle.tap()
         waitContains(app.staticTexts["connection.status"], "Disconnected.")
@@ -184,8 +185,11 @@ final class SteamVRViewerTests: XCTestCase {
         XCTAssertTrue(host.poses.allSatisfy { $0.q == nil })
         XCTAssertTrue(host.poses.contains { $0.connected && $0.seq > 0 && $0.q == nil })
         app.buttons["settings.hide"].tap(); screenshot("STEAMVR-06-USB-independent-eyes")
-        showOverlay(); try refreshKeepingSettingsAndPause("steamvr-usb-refreshed")
+        showOverlay(); try refreshRestoringPriorPause("steamvr-usb-refreshed")
         app.buttons["settings.hide"].tap(); screenshot("STEAMVR-09-USB-refreshed-independent-eyes")
+        // Refresh above deliberately cleared the old pause. Establish a new
+        // real host latch so ordinary Disconnect/Connect has one to preserve.
+        XCTAssertTrue(try observe(pauseTracking: true).paused)
         showOverlay(); let toggle = app.buttons["connection.toggle"]; reveal(toggle); toggle.tap()
         waitContains(app.staticTexts["connection.status"], "Disconnected.")
         _ = try waitHost { !$0.connected }
@@ -203,6 +207,23 @@ final class SteamVRViewerTests: XCTestCase {
         XCTAssertTrue(reconnected.paused); XCTAssertEqual(reconnected.settings, host.settings)
         XCTAssertTrue(reconnected.mouseMoves.isEmpty); XCTAssertTrue(reconnected.poses.allSatisfy { $0.q == nil })
         _ = try observe("steamvr-usb-reconnected")
+        // Explicit Refresh while disconnected must carry one user intent
+        // across the complete handshake. Ordinary Connect above stayed paused.
+        reveal(toggle); toggle.tap(); waitContains(app.staticTexts["connection.status"], "Disconnected.")
+        _ = try waitHost { !$0.connected }
+        let beforeRebuild = try observe("steamvr-usb-refresh-disconnected")
+        XCTAssertTrue(beforeRebuild.paused)
+        let refresh = app.buttons["connection.refresh"]; XCTAssertTrue(refresh.isHittable); refresh.tap()
+        waitContains(app.staticTexts["connection.status"], "Video refreshed. HMD tracking is enabled.")
+        waitContains(app.staticTexts["frame.status"], "1280 × 480")
+        let rebuilt = try waitHost { $0.connected && $0.epoch > beforeRebuild.epoch &&
+            $0.videoRefreshes.count > beforeRebuild.videoRefreshes.count }
+        XCTAssertFalse(rebuilt.paused); XCTAssertEqual(rebuilt.settings, host.settings)
+        let recovered = try XCTUnwrap(rebuilt.videoRefreshes.last)
+        XCTAssertEqual(recovered.epoch, rebuilt.epoch); XCTAssertFalse(recovered.paused)
+        XCTAssertGreaterThan(recovered.requestId, 0)
+        XCTAssertTrue(rebuilt.mouseMoves.isEmpty); XCTAssertTrue(rebuilt.poses.allSatisfy { $0.q == nil })
+        _ = try observe("steamvr-usb-explicit-rebuilt")
         reveal(toggle); toggle.tap(); waitContains(app.staticTexts["connection.status"], "Disconnected.")
         _ = try waitHost { !$0.connected }; _ = try observe("steamvr-usb-disconnected-final")
     }

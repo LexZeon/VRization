@@ -19,6 +19,7 @@ class HmdPoseGate:
         self.epoch=0; self.last_seq=-1; self.last_time=-1; self.last_tick=0
         self._last_publish_tick=0
         self.connected=False; self.accepted=False; self.paused=False; self.enabled=True
+        self.pause_generation=0
         self.pending_baseline=False; self.current=None; self.baseline=(0.,0.,0.,1.); self.output=None
 
     def open(self, epoch):
@@ -41,12 +42,22 @@ class HmdPoseGate:
             self.connected=False; self.accepted=False; self.current=self.output=None
             self._invalidate()
 
-    def pause(self):
+    def stop(self):
+        # Revoke the current session in the same lock used by refresh recovery.
+        # A GUI full Refresh may retain its token for a later new session, but
+        # no already-in-flight completion may clear this Stop's pause.
         with self.lock:
+            self.paused=True; self.connected=False; self.accepted=False
+            self.current=self.output=None; self._invalidate()
+
+    def pause(self, *, invalidate_refresh=True):
+        with self.lock:
+            if invalidate_refresh:self.pause_generation+=1
             self.paused=True; self.output=None; self._invalidate()
 
     def enable(self, enabled):
         with self.lock:
+            if not enabled:self.pause_generation+=1
             self.enabled=bool(enabled)
             if not enabled: self.output=None; self._invalidate()
 
@@ -56,6 +67,21 @@ class HmdPoseGate:
             self.baseline=self.current or (0.,0.,0.,1.)
             self.pending_baseline=True
             self.current=self.output=None; self._invalidate()
+
+    def refresh_pause_token(self):
+        with self.lock:return self.pause_generation
+
+    def resume_for_refresh(self, token):
+        """An explicit HMD Refresh may recover an existing enabled pause.
+
+        Never replay stored motion, recenter an already-active stream, or
+        override a newer pause/disable while capture is being rebuilt.
+        """
+        with self.lock:
+            if (token!=self.pause_generation or not self.connected or not self.accepted
+                    or not self.enabled or not self.paused):return False
+            self.resume()
+            return True
 
     def recenter(self, *, phone_reset=False):
         with self.lock:
