@@ -145,7 +145,7 @@ def main():
     guard = threading.Lock(); events, checkpoints = [], []
     sink, poses = NoMouse(), RecordingPoseSink()
     def on_event(event):
-        if event.get("event") in {"connection", "settings", "input", "error", "stream-session"}:
+        if event.get("event") in {"connection", "settings", "input", "error", "stream-session", "video_refreshed", "usb"}:
             with guard: events.append(event)
     host = PreviewHost(route="steamvr-phone", capture_source=StereoCard(), pose_sink=poses,
                        input_sink=sink, settings=Settings(mode="fps_enhanced"),

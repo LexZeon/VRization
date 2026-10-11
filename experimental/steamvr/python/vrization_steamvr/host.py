@@ -135,8 +135,13 @@ class PreviewHost(HostServer):
     def request_video_refresh(self):
         """PC-local video reset; never disconnect, resume or recenter tracking."""
         if (not self.running or not self.hmd or not self._session_ready or self._ws is None
-                or self._ws.closed or self._stopping.is_set() or self._video_refresh_pending is not None):return False
+                or self._ws.closed or self._stopping.is_set()):return False
         owner=self._ws
+        pending=self._video_refresh_pending
+        if pending is not None:
+            # A repeated local click must not become a full reconnect/pause.
+            # Coalesce only the current session's already-owned video reset.
+            return pending[0] is owner and pending[1]==self.stream_session.epoch
         async def request():self._begin_video_refresh(owner,None)
         asyncio.run_coroutine_threadsafe(request(),self._loop)
         return True

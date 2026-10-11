@@ -23,7 +23,7 @@ flowchart LR
   M --> N[Existing SteamVR HMD and vendor tracking]
 ```
 
-The diagram describes implemented source paths; actual SteamVR and physical-device behavior remains unverified this session. The existing-headset path is a desktop overlay; native SteamVR applications render to the already connected HMD through SteamVR, not through VRization's phone encoder.
+The diagram describes implemented source paths. A bounded Huawei session already observed virtual HMD activation, real orientation packets and SteamVR compositor SBS reaching the phone; current live-refresh/reboot recovery, complete axes/games and native PCVR acceptance remain pending. See [precise validation scope](VALIDATION.md). The overlay arrow abbreviates desktop capture → CPU JPEG → CPU JPEG decode → BGRA map; it is not a direct GPU-only stream. The existing-headset path is a desktop overlay; native SteamVR applications render to the already connected HMD through SteamVR, not through VRization's phone encoder.
 
 ### Module boundaries and replacement points
 
@@ -31,7 +31,8 @@ The diagram describes implemented source paths; actual SteamVR and physical-devi
 | --- | --- |
 | `python/vrization_steamvr/app.py` | Separate launcher and route-specific panels; selects routes, local profile, display and explicit registration/runtime actions |
 | `python/vrization_steamvr/host.py` | `PreviewHost` extends `HostServer` hooks; pairs negotiated SBS with full HMD pose and installs a `NoMouse` sink only for the HMD route |
-| `python/vrization_steamvr/session.py` | Strict transient session descriptor and `hmdPose` parser; independent of saved settings and native APIs |
+| `python/vrization_steamvr/session.py` | Strict transient session, full `hmdPose` and `refreshVideo` request parser; independent of saved settings/native APIs |
+| `python/vrization_steamvr/profiles.py` | Independent Phone HMD quality presets/defaults; saved choices and direct-phone profile remain separate |
 | `python/vrization_steamvr/pose.py` | `HmdPoseGate`: accepted epoch, increasing sequence/time, quaternion baseline, pause latch, invalidation and 500 ms timeout; replaceable pose sink and clock |
 | `python/vrization_steamvr/ipc.py` | Windows map/event ownership, exact little-endian layouts, bounded snapshot/payload validation and `GetTickCount64` |
 | `python/vrization_steamvr/capture.py` | `MirrorCaptureSource`: starts only its helper on demand, retries readonly map discovery and wraps downsized BGRA in the normal host frame interface |
@@ -40,8 +41,10 @@ The diagram describes implemented source paths; actual SteamVR and physical-devi
 | `native/gpu.hpp`, `mirror.cpp` | Selected-adapter eye SRVs, original shader resize/color conversion, compact SBS readback, writer ownership and SRV release |
 | `native/overlay.cpp` | Existing-headset texture submission; hides/clears stale input and destroys only its unique overlay before texture teardown |
 | `native/ipc.hpp`, `stop.hpp`, `runtime.hpp` | Native layout/bounds, cooperative Stop and client OpenVR lifetime; no OS mouse API |
+| `native/timing.hpp` | Original QPC epoch/fractional cadence and owned high-resolution one-shot timer; Stop-cancellable, skips missed deadlines, no global timer change |
 | `native/ipc_bridge.cpp` | Original intrinsic DLL exports for Python seqlock increment/memory barriers; no assumed `kernel32` Interlocked export or OpenVR dependency |
 | Android `ClientVariant`, `StreamSession`, `HmdPoseValues` | Separate install/prefs/endpoints; video/input pairing and epoch-bound full quaternion messages |
+| Android `VideoRefreshGate`, `VideoRefreshValues`; iOS `VideoRefreshGate` in `SteamVRProtocol` | Video-only decoder generation, strict request/ACK identity, eight-second fallback, duplicate-tap and lifecycle cancellation; separate from continuous transport/pose epoch |
 | Android core `OrientationMath`, `AndroidPoseSource`, `StereoProjection`, `VrRenderer` | Framework rotation matrix + landscape remap + recenter; normalized Hamilton quaternion; per-eye aspect/UV clamps and GPU rendering |
 | iOS `SteamVRProtocol`, `StreamSession`, `HMDQuaternion`, `StereoSampling`, `SteamVRPreferences` | Independent Swift package for pairing, counters, full orientation, stereo slices and isolated preferences |
 | iOS shared `MotionSource`, `StereoRenderer`, `ViewerController`, stream/USB listeners | Core Motion full-attitude path, actual Metal per-eye rendering, lifecycle, editor and negotiated transport |
@@ -51,23 +54,25 @@ For another project, implement a new `CaptureSource` that supplies the ordinary 
 
 ### Negotiated session and data lifetime
 
-Host capability tokens are `stereo-sbs` and `hmd-orientation`, alongside existing capabilities. A `streamSession` object has exactly `v`, `epoch`, `accepted`, `streamLayout` and `inputTarget`. Supported pairings are `mono` + `mouse`, or `sbs` + `virtual-hmd`; hybrid pairings are rejected. Session epoch is a positive safe integer. The host initially marks the HMD session unaccepted, validates the client's hello capabilities, sends a complete accepted settings snapshot, then permits SBS frames/full orientation. A query parameter alone is not permission to stream SBS. No descriptor means legacy mono/mouse, never an inferred HMD.
+Host capability tokens are `stereo-sbs`, `hmd-orientation` and optional `video-refresh`, alongside existing capabilities. A `streamSession` object has exactly `v`, `epoch`, `accepted`, `streamLayout` and `inputTarget`. Supported pairings are `mono` + `mouse`, or `sbs` + `virtual-hmd`; hybrid pairings are rejected. Session epoch is a positive safe integer. The host initially marks the HMD session unaccepted, validates the client's hello capabilities, sends a complete accepted settings snapshot, then permits SBS frames/full orientation. A query parameter alone is not permission to stream SBS. No descriptor means legacy mono/mouse, never an inferred HMD.
 
 The `hmdPose` message uses protocol v1 with epoch, monotonic `seq`, monotonic phone `timeUs`, boolean `trackingValid`, and four finite near-unit XYZW values when valid. Unknown fields, malformed numbers, wrong epochs and reused sequences are rejected before IPC. Tracking-invalid messages need no quaternion. Pose recenter updates a baseline; full orientation is never reconstructed from legacy yaw/pitch/roll. Android uses the framework fused rotation matrix, display remap and `R0ᵀR`; iOS uses Core Motion full attitude with the equivalent landscape/recenter convention. Cross-platform quaternion goldens check the mathematical convention, not physical sensor axes.
 
+A live Phone HMD video refresh keeps the current WebSocket, epoch, full-pose sequence and recenter baseline. A capable phone sends exact `refreshVideo` fields `{v:1,type:"refreshVideo",epoch,requestId}` with positive safe integer epoch/request ID; only the current accepted owner may reset video, and request IDs must increase. The host clears pending frames and gates the sender before and after its frame wait. `CaptureWorker.request_source_reset()` returns a generation receipt; its owning thread closes the old source, checks Stop and marks the receipt completed before callbacks can acknowledge. `videoRefresh` echoes v1, epoch/requestId and a strict boolean paused status. Overlapping callbacks claim one ACK, old-owner completions cannot acknowledge replacement sessions, and a partially delivered ACK/drain failure closes only its own owner. The phone fences old decode work until matching ACK, then accepts new video; ACK does not authorize Resume. PC-local live reset needs no wire ACK. Unsupported/nonlive sessions or the phone's eight-second timeout use the complete-reconnect fallback; full cleanup precedes restart, and Stop cancels restart without skipping cleanup. No refresh clears an existing emergency pause.
+
 All user fit remains local schema 2 and synchronizes through the existing settings snapshot. `streamSession` is transient and must not be saved inside VRSettings. SBS rendering selects each half-source aspect, clamps UV to that eye's texel bounds, bypasses already-owned Cinema/enhanced projection, and restores the user's persisted mode on saved edits. Display edit Save/Discard is independent of tracking Resume.
 
-IPC contracts are fixed in [native guide](../native/README.md). The phone route alone creates `Local\VRizationPhonePoseV1`. Mirror creates a unique per-session frame map; host opens it readonly. Existing-headset overlay has the opposite direction: host writes a unique frame map, native overlay reads. Seqlock prevents torn header/payload reads; timestamp freshness is Windows uptime. Native readers expire at 500 ms, reject nonfinite/invalid tracking, and close stale/inactive mapping handles so old ownership cannot survive forever. Stop invalidates shared data before writer close. New frame sessions use new names instead of reusing old payloads.
+IPC contracts are fixed in [native guide](../native/README.md). The phone route alone creates `Local\VRizationPhonePoseV1`. Mirror creates a unique per-session frame map; host opens it readonly. Existing-headset overlay has the opposite direction: host writes a unique frame map, native overlay reads. Seqlock prevents torn header/payload reads; timestamp freshness is Windows uptime. Native readers expire at 500 ms, reject nonfinite/invalid tracking, and close stale/inactive mapping handles so old ownership cannot survive forever. Stop invalidates shared data before writer close. New frame sessions use new names instead of reusing old payloads. Python `FrameReader.read()` adds the coherently validated publication sequence as a fifth value; the pure decoder and native ABI retain their old shapes. Mirror skips only the same publication/quality, not a new sequence sharing a coarse tick. Accepted connected sessions refresh invalid presence while paused/no-sensor/stale; they never replay valid tracking or advance phone counters. Stop closes that presence gate.
 
 ### Local control and runtime preservation
 
 The HMD route's input sink cannot invoke mouse movement; legacy Euler pose messages are rejected there. Tracking defaults enabled locally but remains gated by accepted session, valid sensor data and pause state. F8, editing and Stop latch a local emergency pause; disconnect also invalidates current tracking. Reconnect, mode/setting changes, phone recenter and Save/Discard cannot clear the latch. Only the PC's local Resume action releases it, and the next fresh pose establishes its baseline. The inherited emergency boundaries and F8 availability checks remain active. The existing-headset overlay never writes HMD pose or injects OS input.
 
-Explicit registration changes only the extracted preview's driver path. There is no automatic registration on startup, no `forceDriver` edit, no deletion/replacement of DPVR or another driver, and no runtime termination on Stop. Helper processes have unique Stop events; cleanup is graceful with bounded fallback only for that owned child. Graphics adapter selection follows `GetDXGIOutputInfo`, which matters on integrated/discrete-GPU systems; real adapter compatibility and phone headless rendering require the next hardware test.
+Explicit registration changes only the extracted preview's driver path. There is no automatic registration on startup, no `forceDriver` edit, no deletion/replacement of DPVR or another driver, and no runtime termination on Stop. Helper processes have unique Stop events; cleanup is graceful with bounded fallback only for that owned child. Graphics adapter selection follows `GetDXGIOutputInfo`, which matters on integrated/discrete-GPU systems; one observed Huawei/debug-display setup worked, while repeatable cold-start, other adapters and native-headset compatibility still need physical acceptance.
 
 ### Evidence and license boundaries
 
-Native tests cover byte layout/maps, Stop event/latch, pose validation, real WARP eye packing and factory ABI without a runtime context. Android preview JVM tests and compiled instrumentation, Swift tests/Simulator and both Apple SDK builds have distinct scopes; report actual completed results, not expected counts. Physical USB, optical fitting, real SteamVR initialization/compositor output, existing-headset lifecycle, gyro axes, sustained FPS and motion-to-photon latency are deferred.
+Native tests cover byte layout/maps, Stop event/latch, pose validation, real WARP eye packing and factory ABI without a runtime context. Android preview JVM tests and compiled instrumentation, Swift tests/Simulator and both Apple SDK builds have distinct scopes; report actual completed results, not expected counts. Physical Huawei USB/rendering and one real SteamVR background chain have bounded evidence in [validation](VALIDATION.md); current live-refresh/reboot recovery, optical comfort, complete axes/games/native-headset lifecycle, sustained FPS and motion-to-photon latency remain incomplete. Current code freeze `ad092b0` passed 503 actual Python/script tests plus 429 subtests, 413 native fixtures/complete Windows ZIP gate and 195 Android unit tests; iOS CI remains pending. Preserve the following earlier native baseline as historical evidence.
 
 Native source `045ae23745f47b41ce3542a69f1f4edc17f31fd1` compiled all four targets in the native step of [CI 38092149008](https://github.com/LexZeon/VRization/actions/runs/38092149008/job/114330601507); all 365 CTest fixture checks passed and the exact binaries passed a local software-WARP replay. Six offline SDK provenance/fetch tests passed. These narrow results do not establish whole-package or hardware acceptance.
 
@@ -96,7 +101,7 @@ flowchart LR
   M --> N[现有 SteamVR 头显及厂商追踪]
 ```
 
-图描述已编写的源码通路，本轮没有验证真实 SteamVR 或实体设备。已有头显路线只是桌面覆盖层；原生 SteamVR 应用由 SteamVR 直接渲染到已连接头显，不经过 VRization 手机编码器。
+图描述已编写的源码通路；有限华为会话已观察虚拟头显激活、真实方向消息及 SteamVR 合成器 SBS 交付手机，当前活动刷新／重启恢复、完整坐标／游戏和原生 PCVR 验收仍待完成，见[准确验证范围](VALIDATION.md)。覆盖层箭头省略桌面采集→CPU JPEG→CPU JPEG 解码→BGRA 映射，不是直接全 GPU 串流。已有头显路线只是桌面覆盖层；原生 SteamVR 应用由 SteamVR 直接渲染到已连接头显，不经过 VRization 手机编码器。
 
 ### 模块边界与替换点
 
@@ -104,7 +109,8 @@ flowchart LR
 | --- | --- |
 | `python/vrization_steamvr/app.py` | 独立启动器和分路线界面，选择路线、本地设置、显示器及显式注册／运行环境操作 |
 | `python/vrization_steamvr/host.py` | `PreviewHost` 扩展 `HostServer` 钩子，配对协商后的 SBS 与完整姿态，仅头显路线装入 `NoMouse` |
-| `python/vrization_steamvr/session.py` | 严格临时会话和 `hmdPose` 解析，独立于持久设置与原生 API |
+| `python/vrization_steamvr/session.py` | 严格临时会话、完整 `hmdPose` 及 `refreshVideo` 请求解析，独立于持久设置／原生 API |
+| `python/vrization_steamvr/profiles.py` | 独立手机头显画质预设／默认值，保留已保存选择和直连配置隔离 |
 | `python/vrization_steamvr/pose.py` | `HmdPoseGate`：合法代际、递增序号／时间、四元数基准、暂停锁定、失效及 500 毫秒超时；可替换姿态输出和时钟 |
 | `python/vrization_steamvr/ipc.py` | Windows 映射／事件所有权、准确小端布局、有边界的快照／载荷校验及 `GetTickCount64` |
 | `python/vrization_steamvr/capture.py` | `MirrorCaptureSource`：按需只启动自身工具，重试只读发现映射，把缩小 BGRA 包装成原电脑帧接口 |
@@ -113,8 +119,10 @@ flowchart LR
 | `native/gpu.hpp`、`mirror.cpp` | 指定显卡双眼 SRV、原创 shader 缩小／颜色转换、紧凑 SBS 读回、写入所有权和 SRV 释放 |
 | `native/overlay.cpp` | 已有头显纹理提交，隐藏／清空旧输入，在纹理销毁前仅销毁自身覆盖层 |
 | `native/ipc.hpp`、`stop.hpp`、`runtime.hpp` | 原生布局／边界、协作 Stop 及 OpenVR 客户端生命周期，没有系统鼠标 API |
+| `native/timing.hpp` | 原创 QPC 起点／小数节奏及自有高分辨率单次定时器，Stop 可取消、跳过错过期限，不改全局定时器 |
 | `native/ipc_bridge.cpp` | 原创 intrinsic DLL 为 Python 导出 seqlock 递增／内存屏障，不假设 `kernel32` 导出 Interlocked，无 OpenVR 依赖 |
 | Android `ClientVariant`、`StreamSession`、`HmdPoseValues` | 独立安装／设置／端点、视频／输入配对及代际绑定完整四元数消息 |
+| Android `VideoRefreshGate`、`VideoRefreshValues`；iOS `SteamVRProtocol` 内 `VideoRefreshGate` | 仅视频解码代际、严格请求／确认身份、八秒后备、重复点击和生命周期取消，与连续传输／姿态代际分离 |
 | Android 核心 `OrientationMath`、`AndroidPoseSource`、`StereoProjection`、`VrRenderer` | 系统旋转矩阵、横屏重映射、居中、归一化 Hamilton 四元数、分眼比例／UV 边界与 GPU 渲染 |
 | iOS `SteamVRProtocol`、`StreamSession`、`HMDQuaternion`、`StereoSampling`、`SteamVRPreferences` | 独立 Swift 包，管理配对、序号、完整方向、双眼切片和隔离设置 |
 | iOS 共享 `MotionSource`、`StereoRenderer`、`ViewerController`、串流／USB 监听 | Core Motion 完整姿态、真实 Metal 分眼渲染、生命周期、编辑器和协商传输 |
@@ -124,23 +132,25 @@ flowchart LR
 
 ### 会话协商与数据生命周期
 
-电脑能力除旧项外增加 `stereo-sbs`、`hmd-orientation`。`streamSession` 精确包含 `v`、`epoch`、`accepted`、`streamLayout`、`inputTarget`；仅接受 `mono`＋`mouse` 或 `sbs`＋`virtual-hmd`，混合组合拒绝。代际为正安全整数。头显会话初始未接受，验证手机 hello 能力并发送完整已接受设置快照后，才放行 SBS 帧／完整方向；仅 URL 查询参数不能授权 SBS。没有描述符则为旧 mono／mouse，不推测头显。
+电脑能力除旧项外增加 `stereo-sbs`、`hmd-orientation` 及可选 `video-refresh`。`streamSession` 精确包含 `v`、`epoch`、`accepted`、`streamLayout`、`inputTarget`；仅接受 `mono`＋`mouse` 或 `sbs`＋`virtual-hmd`，混合组合拒绝。代际为正安全整数。头显会话初始未接受，验证手机 hello 能力并发送完整已接受设置快照后，才放行 SBS 帧／完整方向；仅 URL 查询参数不能授权 SBS。没有描述符则为旧 mono／mouse，不推测头显。
 
 `hmdPose` 使用 v1，带代际、递增 `seq`、递增手机 `timeUs`、布尔 `trackingValid`，有效时提供四个有限、接近单位的 XYZW 数值。未知字段、异常数值、错误代际与重复序号在 IPC 前被拒绝，无效追踪消息无需四元数。居中更新基准，绝不从旧 yaw／pitch／roll 重建完整方向；Android 使用系统融合旋转矩阵、显示重映射和 `R0ᵀR`，iOS 使用等价横屏／居中约定的 Core Motion 完整姿态。跨平台四元数 golden 证明数学约定，不证明实体传感器坐标。
 
+活动手机头显的视频刷新保持当前 WebSocket、代际、完整姿态序号及居中基准；具备能力的手机发送精确 `refreshVideo` 字段 `{v:1,type:"refreshVideo",epoch,requestId}`，代际／请求序号须安全正整数，只有当前已接受所有者可重置视频，请求序号递增。电脑清掉待发帧，并在发送器等帧前后门控。`CaptureWorker.request_source_reset()` 返回代际回执，所属线程关闭旧源、检查 Stop 并标记回执完成后，回调才可确认；`videoRefresh` 回显 v1、代际／请求序号及严格布尔暂停状态。重叠回调只认领一次确认，旧所有者完成不能确认替换会话，部分送达确认的排空失败只关闭自身所有者。手机在匹配确认前隔离旧解码任务，之后接受新视频；确认不授予恢复。电脑本地活动重置无需协议确认。不支持／非活动会话或手机八秒超时使用完整重连后备；完整清理先于重启，停止取消重启而不跳过清理。任何刷新都不清除已有紧急暂停。
+
 用户适配仍保存在本地 schema 2，通过原设置快照同步，`streamSession` 临时字段不得存入 VRSettings。SBS 按每眼半幅比例渲染，将 UV 限制在该眼像素边界，绕过已由 SteamVR 决定的大屏幕／加强投影；保存编辑时恢复用户持久模式。显示保存／弃用与追踪恢复相互独立。
 
-IPC 准确约定见[原生教程](../native/README.md)。只有手机头显路线创建 `Local\VRizationPhonePoseV1`；Mirror 创建每会话独立帧映射，电脑只读。已有头显相反：电脑写独立帧映射，原生 Overlay 只读。seqlock 防止头／载荷撕裂，时间使用 Windows 开机毫秒；原生读端 500 毫秒过期，拒绝无效／非有限追踪，并关闭旧／停用映射句柄，避免永久遗留所有权。停止先失效共享数据再关闭写入者；新帧会话换名称，不复用旧载荷。
+IPC 准确约定见[原生教程](../native/README.md)。只有手机头显路线创建 `Local\VRizationPhonePoseV1`；Mirror 创建每会话独立帧映射，电脑只读。已有头显相反：电脑写独立帧映射，原生 Overlay 只读。seqlock 防止头／载荷撕裂，时间使用 Windows 开机毫秒；原生读端 500 毫秒过期，拒绝无效／非有限追踪，并关闭旧／停用映射句柄，避免永久遗留所有权。停止先失效共享数据再关闭写入者；新帧会话换名称，不复用旧载荷。Python `FrameReader.read()` 追加一致性校验的发布序号作为第五个值，纯解码器和原生 ABI 保持旧形状。Mirror 只跳过同发布／同质量，不跳过粗粒度 tick 相同的新序号；已接受、已连接会话在暂停／无传感器／过期时刷新无效存在，不重放有效追踪或推进手机序号，停止关闭存在门控。
 
 ### 本地控制与运行环境保留
 
 头显路线的输入输出不能移动鼠标，也拒绝旧欧拉角消息。追踪本地默认启用，但仍受已接受会话、有效传感器与暂停状态限制。F8、编辑和停止锁定本地紧急暂停，断开也令当前追踪无效；重连、切模式／设置、手机居中及保存／弃用都不能解除。仅电脑“恢复”解除，下一份新姿态建立基准；既有紧急边界与 F8 可用性检查仍有效。已有头显覆盖层不写头显姿态，也不注入系统输入。
 
-显式注册只改变本包驱动路径，无启动时自动注册、无 `forceDriver` 修改、不删除／替换 DPVR 或其他驱动，停止也不终止运行环境。工具有独立 Stop 事件，优先正常清理，后备操作限于自身子进程。图形显卡由 `GetDXGIOutputInfo` 选择，集显／独显电脑尤其需要这点；真实显卡兼容与手机无实体显示运行留待下次测试。
+显式注册只改变本包驱动路径，无启动时自动注册、无 `forceDriver` 修改、不删除／替换 DPVR 或其他驱动，停止也不终止运行环境。工具有独立 Stop 事件，优先正常清理，后备操作限于自身子进程。图形显卡由 `GetDXGIOutputInfo` 选择，集显／独显电脑尤其需要这点；一次华为／调试显示组合已观察运行，但可重复冷启动、其他显卡和原生头显兼容仍需真机验收。
 
 ### 证据与许可边界
 
-原生测试覆盖字节布局／映射、Stop 事件／锁定、姿态校验、实际 WARP 双眼拼接和无运行环境上下文的工厂 ABI。Android 实验版 JVM／已编译仪器测试、Swift／模拟器与双 Apple SDK 构建范围不同，记录已完成结果而不是预期数量。实体 USB、光学适配、真实 SteamVR 初始化／合成输出、已有头显生命周期、陀螺仪坐标、持续帧率、运动到显示延迟均留待真机。
+原生测试覆盖字节布局／映射、Stop 事件／锁定、姿态校验、实际 WARP 双眼拼接和无运行环境上下文的工厂 ABI。Android 实验版 JVM／已编译仪器测试、Swift／模拟器与双 Apple SDK 构建范围不同，记录已完成结果而不是预期数量。实体华为 USB／渲染及一次真实 SteamVR 背景链路已在[验证记录](VALIDATION.md)提供有限证据；当前活动刷新／重启恢复、光学舒适度、完整坐标／游戏／原生头显生命周期、持续帧率和运动到显示延迟仍未完成。冻结源码 `ad092b0` 通过 503 个实际 Python／脚本测试加 429 子检查、413 原生夹具／完整 Windows ZIP 门控及 195 Android 单元，iOS CI 尚待。下列早先原生基线作为历史证据保留。
 
 原生源码 `045ae23745f47b41ce3542a69f1f4edc17f31fd1` 的四个目标已在 [CI 38092149008](https://github.com/LexZeon/VRization/actions/runs/38092149008/job/114330601507) 原生步骤编译，365 项 CTest 通过，相同二进制本地软件 WARP 复跑也通过；六项离线 SDK 来源／下载测试通过。这些有限结果不代表完整包或硬件验收。
 

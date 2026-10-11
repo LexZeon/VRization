@@ -78,6 +78,9 @@ class VideoRefreshNetworkTests(unittest.IsolatedAsyncioTestCase):
         owner=self.host._ws
         self.release.clear();await ws.send_json(refresh(epoch));await self.wait_closed_source()
         self.assertFalse(self.host._frames_allowed());self.assertFalse(self.host.hmd.paused)
+        pending=self.host._video_refresh_pending
+        self.assertTrue(self.host.request_video_refresh())
+        self.assertIs(self.host._video_refresh_pending,pending)
         await ws.send_json(packet(epoch,2,(0,.2,0,.9797958971132712)));await barrier(ws)
         self.assertEqual(self.host.hmd.last_seq,2);self.assertIsNotNone(self.host.hmd.output)
         self.assertEqual(self.host.hmd.baseline,before[1]);self.assertIs(self.host._ws,owner)
@@ -136,6 +139,8 @@ class VideoRefreshNetworkTests(unittest.IsolatedAsyncioTestCase):
     async def test_pc_live_refresh_uses_the_same_worker_without_disconnecting(self):
         ws,epoch=await self.connect(capability=False);self.release.clear()
         self.assertTrue(self.host.request_video_refresh());await self.wait_closed_source()
+        self.assertTrue(self.host.request_video_refresh())
+        self.assertTrue(self.host.request_video_refresh())
         self.assertFalse(self.host.hmd.paused);self.release.set()
         async with asyncio.timeout(3):
             while not any(event["event"]=="video_refreshed" for event in self.events):await asyncio.sleep(.005)

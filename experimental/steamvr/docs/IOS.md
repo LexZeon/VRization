@@ -7,6 +7,8 @@
 
 ### A separate app
 
+The published preview remains **0.5.0/build 1**; current unpublished code freeze `ad092b0` is **0.5.1/build 2**, with ordinary **0.4.0/build 8** preserved. Live-video Refresh is integrated in source; current iOS CI and physical iPhone/recovery acceptance remain pending. The released baseline results below keep their original source/version attribution. Huawei observations belong to Android, not iPhone; see [validation](VALIDATION.md).
+
 The preview app is **VRization SteamVR Experimental**, version **0.5.0, build 1**, bundle identifier `org.vrization.ios.steamvr`. It uses a separate Xcode project and local preferences; the ordinary VRization app and its saved settings remain available. English is the default; select English or 中文 in settings.
 
 This client receives either an ordinary desktop picture or independently rendered left/right SteamVR pictures. Its negotiated session decides the route. The phone HMD route sends full head orientation to the virtual headset; it does not inject mouse movement. Windows setup and driver registration are documented in the [native guide](../native/README.md).
@@ -40,6 +42,10 @@ For LAN, choose **LAN**, enter the host's address, preview port **8766** and cur
 
 The phone waits for a validated host hello and a complete accepted session snapshot before displaying stereo frames or sending HMD orientation. “Connected” with “Waiting for computer frame” can mean that transport is ready while the computer has no compositor picture yet. Check the host's selected route and capture status. A changed route or session epoch clears the picture and requires reconnecting. An old host remains ordinary mono/mouse streaming; it cannot silently become a virtual headset.
 
+### Refresh without interrupting a live HMD
+
+The 0.5.1 source adds a toolbar **Refresh** action. With an accepted live virtual-HMD session and negotiated `video-refresh`, it asks the capture worker to replace only Mirror/video. The USB/LAN transport, session epoch, continuous orientation sequence and recenter baseline stay in place; saved settings/fit and the PC pause latch remain. The independent `VideoRefreshGate` changes decoder generation and rejects pre-ACK/old decode work until a matching v1 `videoRefresh` acknowledgment for the current epoch/request. Its boolean paused field reports state, not permission to Resume. Refresh sends no Recenter, Resume or settings replay. An editor/nonlive/unsupported route or eight-second timeout uses full reconnect with existing pause policy; use local PC Resume when already paused. Background/Disconnect/Stop cancels pending refresh and stale callbacks cannot restore a picture. New source behavior still needs current Xcode CI and physical recovery acceptance.
+
 ### Fit, move and recenter
 
 Long-press the picture to show settings; Hide returns to the view. Open the display editor at the top of settings. Drag a corner to scale proportionally, drag inside an eye to move it, and adjust mirrored eye spacing. Save commits and synchronizes the layout; Discard restores the previous layout. Local preferences survive relaunch. Reset restores this experimental app's defaults without modifying the ordinary app's profile.
@@ -68,9 +74,11 @@ Evidence is recorded under `artifacts/ios-steamvr/`: `UI.xcresult`, `screenshots
 
 Physical iPhone USB, both landscape orientations on real sensors, game compatibility, SteamVR compositor integration, sustained FPS and end-to-end latency require later hardware testing. The received FPS and ping in the app are stream throughput and round-trip time, not a motion-to-photon measurement. Synthetic screenshots must not be substituted for native UI evidence.
 
+**0.5.1 attempt history:** The earlier full-reconnect candidate `fc607e6` in [CI 38108240331](https://github.com/LexZeon/VRization/actions/runs/38108240331) passed 95 stable/21 preview Swift tests and both unsigned SDK builds, but its native UI had one pass and one failure after simulated USB full-reconnect Refresh (`usbFailed`). Its retained images/checkpoints are partial evidence, not a completed UI or new live-refresh pass. Current [CI 38109367242](https://github.com/LexZeon/VRization/actions/runs/38109367242), source `ad092b0`, is still running for iOS. Expected 30 preview Swift cases, two native UI cases and their new image/checkpoint assertions are plans until executed and independently reviewed. Three local helper-script tests passed; neither they nor Windows/Android CI establish iOS acceptance.
+
 ### Modules and references
 
-`ios/SteamVR` contains the reusable `VRizationSteamVRCore`: strict transient session negotiation, independent eye UVs, full quaternion recentering, wire messages and isolated preferences. Shared app adapters compile their extra behavior only with `STEAMVR_PREVIEW`: `MotionSource` reads fused rotations; `StreamClient` binds frames/poses to the accepted session and transport generation; `JPEGDecoder` preserves packed pixels; `StereoRenderer` applies eye sampling; `HeadsetEditorView` uses per-eye geometry; `ViewerController` connects these modules to the normal UI. The transient layout/epoch, pairing code and tracking samples are never saved in the profile. Retain these boundaries when embedding the core in another project.
+`ios/SteamVR` contains the reusable `VRizationSteamVRCore`: strict transient session negotiation, `VideoRefreshGate` request/ACK and independent decode-generation lifetime, independent eye UVs, full quaternion recentering, wire messages and isolated preferences. Shared app adapters compile their extra behavior only with `STEAMVR_PREVIEW`: `MotionSource` reads fused rotations; `StreamClient` binds frames/poses to the accepted session and transport generation; `JPEGDecoder` preserves packed pixels; `StereoRenderer` applies eye sampling; `HeadsetEditorView` uses per-eye geometry; `ViewerController` connects these modules to the normal UI. The transient layout/epoch, pairing code and tracking samples are never saved in the profile. Retain these boundaries when embedding the core in another project.
 
 The quaternion, negotiation and UV implementations and synthetic card are original VRization code under the project's MIT license. API/convention references, checked 2026-10-10: Apple's [CMAttitude rotationMatrix](https://developer.apple.com/documentation/coremotion/cmattitude/rotationmatrix), [CMQuaternion](https://developer.apple.com/documentation/coremotion/cmquaternion) and [xArbitraryZVertical](https://developer.apple.com/documentation/coremotion/cmattitudereferenceframe/xarbitraryzvertical), authored by Apple and subject to Apple's documentation/SDK terms; no Apple sample code or SDK binaries are copied. The OpenVR world-axis contract (+X right, +Y up, −Z forward) follows Valve's [Driver API documentation at v2.15.6 commit 0924064](https://github.com/ValveSoftware/openvr/blob/0924064316de3effbcd1acf1e309182a2deb1c05/docs/Driver_API_Documentation.md#poses), an architecture reference. The iOS app bundles no OpenVR library or driver; the Windows bundle's BSD-3-Clause notices are preserved in the [native license record](../native/licenses/README.md). UIKit, Metal, ImageIO and Core Motion are Apple system frameworks, not redistributable project dependencies.
 
@@ -80,6 +88,8 @@ The quaternion, negotiation and UV implementations and synthetic card are origin
 ## 简体中文
 
 ### 独立应用
+
+公开实验版仍为 **0.5.0/build 1**；当前未发布冻结源码 `ad092b0` 为 **0.5.1/build 2**，普通 **0.4.0/build 8** 保留。活动视频刷新源码已集成，当前 iOS CI 和实体 iPhone／恢复验收尚待；下文保留已发布基线的原源码／版本来源，华为观察属于 Android，不代表 iPhone，通过[验证记录](VALIDATION.md)查看范围。
 
 实验应用名为 **VRization SteamVR Experimental**，版本 **0.5.0，build 1**，Bundle ID 为 `org.vrization.ios.steamvr`。它使用独立 Xcode 项目和本地设置，普通 VRization 应用及其已有设置继续保留。默认语言为英文，可在设置选择 English 或中文。
 
@@ -114,6 +124,10 @@ python scripts/build_ios_steamvr.py
 
 手机在合法电脑握手和完整、已接受的会话快照到达后，才显示双眼视频和发送头显方向。“已连接”但“等待电脑画面”可能表示传输已准备好，电脑尚无合成器画面；请检查电脑路线及采集状态。路线或会话代际改变后会清除画面，需要重新连接。旧电脑端仅使用普通单图／鼠标路线，不能静默升级为虚拟头显。
 
+### 活动头显刷新时不中断追踪
+
+0.5.1 源码新增工具栏“**刷新**”。已接受活动虚拟头显会话且协商 `video-refresh` 时，只请求采集工作线程替换 Mirror／视频，保持 USB／局域网传输、会话代际、连续方向序号与居中基准，保留设置／适配和电脑暂停锁。独立 `VideoRefreshGate` 更新解码代际，匹配当前代际／请求的 v1 `videoRefresh` 确认前拒绝旧解码／未确认帧；布尔暂停字段只报告状态，不授权恢复。刷新不发送居中、恢复或设置重放；编辑器／非活动／不支持路线或八秒超时使用原暂停策略下的完整重连，已有暂停须由电脑本地恢复。后台／断开／停止取消待刷新，迟到回调不能恢复画面。新源码行为仍待当前 Xcode CI 及实体恢复验收。
+
 ### 调整、移动和回正
 
 长按画面打开设置，隐藏按钮返回观看。设置顶部打开显示编辑器，拖动顶点等比缩放、拖动画面内部移动，并调整镜像双眼间距。保存提交并同步布局，弃用恢复此前布局。本地设置会在重启应用后沿用；重置只恢复实验应用默认值，不修改普通版配置。
@@ -142,8 +156,10 @@ SteamVR SBS 已包含两只投影后的眼睛。手机每只眼只采样对应�
 
 实体 iPhone USB、真传感器下两种横屏方向、游戏兼容性、SteamVR 合成器集成、持续帧率及端到端延迟需要后续硬件测试。应用接收 FPS 与 ping 分别代表传输吞吐和往返时间，不是动作到显示的延迟测量。不能用合成截图替代原生界面证据。
 
+**0.5.1 尝试历史：** 早先完整重连候选源码 `fc607e6` 的 [CI 38108240331](https://github.com/LexZeon/VRization/actions/runs/38108240331) 通过 95 项正式／21 项实验 Swift 与双 SDK 未签名构建，但原生 UI 一项通过、一项在模拟 USB 完整重连刷新后失败（`usbFailed`）；保留的图像／检查点仅是部分证据，不是完整 UI 或新活动刷新通过。当前 [CI 38109367242](https://github.com/LexZeon/VRization/actions/runs/38109367242)、源码 `ad092b0` 的 iOS 尚在运行；预期 30 项实验 Swift、两项原生 UI 和新图像／检查点断言，必须实际执行且独立审查后才记录通过。三项本地辅助脚本测试已通过，但它们和 Windows／Android CI 均不能证明 iOS 验收。
+
 ### 模块与来源
 
-`ios/SteamVR` 的可复用 `VRizationSteamVRCore` 包含严格的临时会话协商、独立双眼 UV、完整四元数回正、协议消息及隔离设置。共享应用适配层只有编译条件 `STEAMVR_PREVIEW` 才启用额外行为：`MotionSource` 读取融合旋转；`StreamClient` 将帧／姿态绑定已接受的会话及传输代际；`JPEGDecoder` 保留拼接像素；`StereoRenderer` 分眼采样；`HeadsetEditorView` 使用分眼几何；`ViewerController` 将模块连接到正常界面。临时布局／代际、配对码和追踪样本不写入配置。移植到其他项目时保留这些边界。
+`ios/SteamVR` 的可复用 `VRizationSteamVRCore` 包含严格临时会话协商、`VideoRefreshGate` 请求／确认与独立解码代际生命周期、独立双眼 UV、完整四元数回正、协议消息及隔离设置。共享应用适配层只有编译条件 `STEAMVR_PREVIEW` 才启用额外行为：`MotionSource` 读取融合旋转；`StreamClient` 将帧／姿态绑定已接受的会话及传输代际；`JPEGDecoder` 保留拼接像素；`StereoRenderer` 分眼采样；`HeadsetEditorView` 使用分眼几何；`ViewerController` 将模块连接到正常界面。临时布局／代际、配对码和追踪样本不写入配置。移植到其他项目时保留这些边界。
 
 四元数、协商、UV 实现及合成色卡是 VRization 原创代码，适用项目 MIT 许可。API／约定参考于 2026-10-10 核对：Apple 编写的 [CMAttitude rotationMatrix](https://developer.apple.com/documentation/coremotion/cmattitude/rotationmatrix)、[CMQuaternion](https://developer.apple.com/documentation/coremotion/cmquaternion)、[xArbitraryZVertical](https://developer.apple.com/documentation/coremotion/cmattitudereferenceframe/xarbitraryzvertical)，适用 Apple 文档／SDK 条款；没有复制 Apple 示例代码或 SDK 二进制。OpenVR 世界坐标约定（+X 向右、+Y 向上、−Z 向前）参考 Valve 的 [v2.15.6 commit 0924064 驱动 API 文档](https://github.com/ValveSoftware/openvr/blob/0924064316de3effbcd1acf1e309182a2deb1c05/docs/Driver_API_Documentation.md#poses)，属于架构参考。iOS 应用不附带 OpenVR 库或驱动，Windows 包的 BSD-3-Clause 声明保存在[原生许可记录](../native/licenses/README.md)。UIKit、Metal、ImageIO、Core Motion 是 Apple 系统框架，不是项目可再分发依赖。

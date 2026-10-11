@@ -11,6 +11,8 @@ The previously published four native targets compiled with x64 MSVC 19.51.36260.
 
 The later `fc607e6` candidate in [CI run 38108240331](https://github.com/LexZeon/VRization/actions/runs/38108240331) also compiled and passed **365 native checks plus 48 owned-timer cadence checks = 413 fixtures**. Its extracted Windows ZIP passed isolated diagnostics without GUI, runtime, capture or input. The timer is therefore compiled/fixture-tested in that candidate; fresh physical publication FPS and the later live-refresh source/package remain unverified.
 
+The newer `ad092b0` code freeze in [CI 38109367242](https://github.com/LexZeon/VRization/actions/runs/38109367242) also passed the same **413 fixtures**, including the owned high-resolution timer, and the extracted Windows ZIP/owned-IPC diagnostic gate. Independent verification checked all staged and ZIP native hashes, SDK pins and report/CTest identity. iOS CI and physical live-refresh/performance acceptance remain pending.
+
 The experiment has three host entries: original direct phone streaming; phone as a SteamVR HMD with phone orientation; and desktop viewing on an already connected SteamVR headset. The direct-phone entry uses the original stream path. These native targets implement the other two entries:
 
 | Target | Data path | Ownership |
@@ -97,6 +99,8 @@ For another developer or AI: `ipc.hpp` defines bounded ownership/snapshots; `pos
 之前已发布的四个原生目标已用 x64 MSVC 19.51.36260.0 编译，源码为 `045ae23745f47b41ce3542a69f1f4edc17f31fd1`；[CI run 38092149008](https://github.com/LexZeon/VRization/actions/runs/38092149008/job/114330601507) 的原生构建／CTest 步骤通过 **365 项测试**，相同 CI 二进制的本地独立软件 WARP 复跑也通过。这只证明原生自动检查范围，完整包与手机／运行环境真机检查另行验收。
 
 后来 `fc607e6` 候选版的 [CI run 38108240331](https://github.com/LexZeon/VRization/actions/runs/38108240331) 也完成编译并通过 **365 个原生检查加 48 个自有定时器节奏检查，合计 413 个夹具检查**。解压 Windows ZIP 通过独立诊断，没有启动界面、运行环境、采集或输入；因此该候选版定时器已实际编译／测试，但新真机发布 FPS 和后来活动刷新源码／打包仍未验收。
+
+更新冻结源码 `ad092b0` 的 [CI 38109367242](https://github.com/LexZeon/VRization/actions/runs/38109367242) 同样通过 **413 个夹具检查**，含自有高分辨率定时器，以及解压 Windows ZIP／自有 IPC 诊断门控；独立核对暂存及 ZIP 内全部原生哈希、SDK 固定值和报告／CTest 身份。iOS CI、活动刷新真机恢复和性能仍待验收。
 
 实验版电脑端有三个入口：原版手机直连串流、手机作为 SteamVR 头显并提供方向、已连接 SteamVR 头显观看桌面。直连入口沿用原有串流；以下原生组件实现另外两个入口：
 

@@ -1,12 +1,18 @@
-"""Checker-only CPU fixtures, never native screenshots or device evidence."""
+"""CPU pixel fixtures and synthetic loopback protocol; no native/device evidence."""
+import asyncio
 from contextlib import redirect_stdout
 from io import BytesIO, StringIO
 import json
+import os
 from pathlib import Path
+import socket
+import subprocess
+import sys
 import tempfile
 import unittest
 import zipfile
 
+from aiohttp import ClientSession, WSMsgType
 from PIL import Image
 import build_ios_steamvr as build
 from ios_steamvr_test_host import StereoCard
@@ -106,6 +112,80 @@ class StereoPixelOracleTests(unittest.TestCase):
                              "experimental/steamvr/native/licenses/OpenVR-LICENSE.txt", "LICENSE"):
                 self.assertIn(required,names)
             self.assertFalse(any(".build/" in name or name.endswith((".dll",".exe")) for name in names))
+
+
+class LiveRefreshFixtureTests(unittest.IsolatedAsyncioTestCase):
+    async def testActualFixtureRecordsCompletedRefreshWhileKeepingEpochSettingsAndPause(self):
+        # Launch the actual fixture with its synthetic pixels/pose sink/usbmux.
+        # The client is a loopback WebSocket, never a physical phone or OS input.
+        def free_port():
+            with socket.socket() as probe:
+                probe.bind(("127.0.0.1", 0)); return probe.getsockname()[1]
+        port, observation = free_port(), free_port()
+        while observation == port: observation = free_port()
+        with tempfile.TemporaryDirectory(prefix="ios-refresh-event-regression-") as temporary:
+            process = subprocess.Popen([sys.executable, "-X", "utf8", str(build.ROOT / "scripts/ios_steamvr_test_host.py"),
+                "--port", str(port), "--control-port", str(observation), "--report", str(Path(temporary) / "host.json")],
+                cwd=build.ROOT, env=os.environ.copy(), stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            try:
+                async with ClientSession(trust_env=False) as client:
+                    async def snapshot(path="snapshot", post=False):
+                        operation = client.post if post else client.get
+                        async with operation(f"http://127.0.0.1:{observation}/{path}") as response:
+                            self.assertEqual(response.status, 200); return await response.json()
+                    deadline = asyncio.get_running_loop().time() + 10
+                    while True:
+                        if process.poll() is not None:
+                            self.fail("Synthetic fixture exited: " + process.communicate()[0].decode("utf-8", errors="replace"))
+                        try:
+                            if (await snapshot())["fixtureReady"]: break
+                        except OSError: pass
+                        self.assertLess(asyncio.get_running_loop().time(), deadline)
+                        await asyncio.sleep(.025)
+                    async with client.ws_connect(f"http://127.0.0.1:{port}/ws?token=123456") as ws:
+                        hello = await ws.receive_json(timeout=3)
+                        self.assertEqual(hello["type"], "hello")
+                        self.assertIn("video-refresh", hello["capabilities"])
+                        await ws.send_json({"v": 1, "type": "hello", "settingsSchema": 2,
+                            "capabilities": ["enhanced-first-person", "stereo-sbs", "hmd-orientation", "video-refresh"]})
+                        while True:
+                            message = await ws.receive(timeout=3)
+                            self.assertIn(message.type, (WSMsgType.TEXT, WSMsgType.BINARY))
+                            if message.type == WSMsgType.TEXT:
+                                full = json.loads(message.data)
+                                if full.get("type") == "settings" and full["streamSession"]["accepted"]: break
+                        before = await snapshot("pause-tracking", post=True)
+                        self.assertTrue(before["connected"]); self.assertTrue(before["paused"])
+                        self.assertEqual(before["videoRefreshes"], [])
+                        for request_id in (1, 2):
+                            await ws.send_json({"v": 1, "type": "refreshVideo", "epoch": before["epoch"], "requestId": request_id})
+                            while True:
+                                message = await ws.receive(timeout=3)
+                                self.assertIn(message.type, (WSMsgType.TEXT, WSMsgType.BINARY))
+                                if message.type == WSMsgType.TEXT:
+                                    acknowledgement = json.loads(message.data)
+                                    if acknowledgement.get("type") == "videoRefresh": break
+                            self.assertEqual(acknowledgement, {"v": 1, "type": "videoRefresh", "epoch": before["epoch"],
+                                "requestId": request_id, "paused": True})
+                            deadline = asyncio.get_running_loop().time() + 3
+                            while True:
+                                after = await snapshot()
+                                if len(after["videoRefreshes"]) == request_id: break
+                                self.assertLess(asyncio.get_running_loop().time(), deadline)
+                                await asyncio.sleep(.025)
+                            self.assertEqual(after["videoRefreshes"][-1]["requestId"], request_id)
+                            self.assertEqual(after["videoRefreshes"][-1]["epoch"], before["epoch"])
+                            self.assertIs(after["videoRefreshes"][-1]["paused"], True)
+                            self.assertTrue(after["connected"]); self.assertTrue(after["paused"])
+                            self.assertEqual(after["epoch"], before["epoch"])
+                            self.assertEqual(after["settings"], before["settings"])
+                            self.assertEqual(after["mouseMoves"], [])
+                            self.assertTrue(all(pose["q"] is None for pose in after["poses"]))
+                            while (await ws.receive(timeout=3)).type != WSMsgType.BINARY: pass
+            finally:
+                if process.poll() is None: process.terminate()
+                try: process.communicate(timeout=8)
+                except subprocess.TimeoutExpired: process.kill(); process.communicate(timeout=3)
 
 
 if __name__ == "__main__": unittest.main()
