@@ -9,6 +9,8 @@ User-visible changes are listed newest first. Dates are GitHub publication dates
 
 ### Unreleased
 
+- **Documentation only:** Added the LexZeon contact email, [lexzeonstudio@gmail.com](mailto:lexzeonstudio@gmail.com), to both README pages and the contribution and private security-reporting guidance.
+
 - **Documentation only:** Added bilingual README diagrams explaining the SteamVR phone-HMD pose/video loop and existing-headset game/desktop-overlay paths, including component roles, GPU/CPU stages and pending hardware verification. Application versions and published downloads are unchanged.
 
 - **Release management:** The ordinary-channel archive now selects only public releases containing the exact `VRization-Windows-x64.zip` asset. Separate SteamVR preview releases are excluded from automatic and explicit ordinary `latest` selection. This changes release tooling; no application runtime behavior is changed.
@@ -122,6 +124,8 @@ First Windows / Android preview.
 按从新到旧记录用户能感受到的变化。日期使用 GitHub 发布日期，时区为 **UTC**。每个版本都链接到详细发布说明、下载与验证范围。目标帧率或构建成功不等于硬件性能保证。
 
 ### 未发布
+
+- **纯文档：** 在两份 README、贡献指南及私密安全报告说明中补充 LexZeon 联系邮箱 [lexzeonstudio@gmail.com](mailto:lexzeonstudio@gmail.com)。
 
 - **纯文档：** README 新增双语流程图，解释 SteamVR 手机头显的姿态／视频循环及已有头显的游戏／桌面覆盖层通路，注明组件职责、GPU／CPU 环节和待完成硬件验证。应用版本与已发布下载保持原样。
 
