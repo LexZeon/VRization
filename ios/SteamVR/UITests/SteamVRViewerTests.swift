@@ -5,9 +5,11 @@ import XCTest
 final class SteamVRViewerTests: XCTestCase {
     private let app = XCUIApplication()
     private struct PoseRecord: Decodable { let q: [Double]?, seq: Int64, connected: Bool, paused: Bool }
+    private struct RefreshRecord: Decodable { let epoch: Int64, requestId: Int64, paused: Bool }
     private struct Snapshot: Decodable {
         let fixtureReady: Bool, connected: Bool, settingsCount: Int, mouseMoves: [[Double]], poses: [PoseRecord]
         let epoch: Int64, paused: Bool
+        let videoRefreshes: [RefreshRecord]
         let settings: Settings
     }
     private struct Settings: Decodable, Equatable {
@@ -115,9 +117,13 @@ final class SteamVRViewerTests: XCTestCase {
         XCTAssertTrue(previous.connected); XCTAssertTrue(previous.paused)
         let button = app.buttons["connection.refresh"]
         XCTAssertTrue(button.isHittable); button.tap()
-        waitContains(app.staticTexts["connection.status"], "Connected.")
+        waitContains(app.staticTexts["connection.status"], "Video refreshed. Tracking is paused;")
         waitContains(app.staticTexts["frame.status"], "1280 × 480")
-        let refreshed = try waitHost { $0.connected && $0.epoch > previous.epoch }
+        let refreshed = try waitHost { $0.connected && $0.epoch == previous.epoch && $0.videoRefreshes.count > previous.videoRefreshes.count }
+        XCTAssertEqual(refreshed.epoch, previous.epoch)
+        let acknowledgement = try XCTUnwrap(refreshed.videoRefreshes.last)
+        XCTAssertEqual(acknowledgement.epoch, previous.epoch); XCTAssertGreaterThan(acknowledgement.requestId, 0)
+        XCTAssertTrue(acknowledgement.paused)
         XCTAssertEqual(refreshed.settings, previous.settings)
         XCTAssertTrue(refreshed.paused); XCTAssertTrue(refreshed.mouseMoves.isEmpty)
         XCTAssertTrue(refreshed.poses.allSatisfy { $0.q == nil })
@@ -183,9 +189,21 @@ final class SteamVRViewerTests: XCTestCase {
         showOverlay(); let toggle = app.buttons["connection.toggle"]; reveal(toggle); toggle.tap()
         waitContains(app.staticTexts["connection.status"], "Disconnected.")
         _ = try waitHost { !$0.connected }
-        XCTAssertFalse(try observe("steamvr-usb-disconnected").connected)
+        let stopped = try observe("steamvr-usb-disconnected")
+        XCTAssertFalse(stopped.connected)
         let session = app.staticTexts["stream.session"].value as? String ?? ""
         XCTAssertEqual(session, "unnegotiated")
         app.buttons["settings.hide"].tap(); screenshot("STEAMVR-07-USB-disconnected-clears-Metal")
+        // A genuine transport disconnect still creates a new accepted epoch;
+        // unlike live video Refresh it must retain the host's pause latch.
+        showOverlay(); reveal(toggle); toggle.tap()
+        waitContains(app.staticTexts["connection.status"], "Connected.")
+        waitContains(app.staticTexts["frame.status"], "1280 × 480")
+        let reconnected = try waitHost { $0.connected && $0.epoch > stopped.epoch }
+        XCTAssertTrue(reconnected.paused); XCTAssertEqual(reconnected.settings, host.settings)
+        XCTAssertTrue(reconnected.mouseMoves.isEmpty); XCTAssertTrue(reconnected.poses.allSatisfy { $0.q == nil })
+        _ = try observe("steamvr-usb-reconnected")
+        reveal(toggle); toggle.tap(); waitContains(app.staticTexts["connection.status"], "Disconnected.")
+        _ = try waitHost { !$0.connected }; _ = try observe("steamvr-usb-disconnected-final")
     }
 }

@@ -31,8 +31,12 @@
     <string name="connect">Connect</string>
     <string name="disconnect">Disconnect</string>
     <string name="refresh_connection">Refresh / rebuild connection</string>
-    <string name="refresh_connection_help">Retry USB or the LAN address and pairing code below. Clears the old connection and picture; keeps your saved headset fit and settings. If PC input is paused, use Resume on the PC.</string>
+    <string name="refresh_connection_help">A supported, connected SteamVR phone resets video only, keeping tracking and its connection. Otherwise retry USB or the LAN address and code below. Saved fit and settings stay. Existing PC input pauses stay paused; use Resume on the PC if needed.</string>
     <string name="refresh_connection_pause">Retrying connection; a PC input pause stays paused. Use Resume on the PC if needed.</string>
+    <string name="video_refreshing">Refreshing PC video; tracking and the current connection continue…</string>
+    <string name="video_refresh_ready">PC video reset confirmed. Waiting for fresh frames; tracking connection retained.</string>
+    <string name="video_refresh_ready_paused">PC video reset confirmed. Input remains paused; use Resume on the PC.</string>
+    <string name="video_refresh_fallback">Video reset could not finish. Rebuilding the connection; if input is paused, use Resume on the PC.</string>
     <string name="network_notice">Video and controls are unencrypted. Use a trusted LAN. First-person gyro mouse control uses the PC setting, enabled by default. Press F8 on the PC to stop control; Resume on the PC restores it.</string>
     <string name="sensor_unavailable">No rotation sensor detected. Full and Enhanced first person displays remain available; Cinema and ordinary First-person are disabled. Gyro mouse control is unavailable.</string>
     <string name="watch_mode">Viewing mode</string>

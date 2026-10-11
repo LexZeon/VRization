@@ -62,6 +62,16 @@ final class SteamVRCoreTests: XCTestCase {
         _ = try gate.receiveText(snapshot())
         XCTAssertTrue(gate.canReceiveFrames)
     }
+    func testVideoRefreshCapabilityRequiresFullAcceptedVirtualHMDSnapshot() throws {
+        var gate = SteamVRSessionGate()
+        var object = try JSONSerialization.jsonObject(with: hello()) as! [String: Any]
+        object["capabilities"] = Array(caps) + ["video-refresh"]
+        _ = try gate.receiveText(data(object)); XCTAssertFalse(gate.supportsVideoRefresh)
+        _ = try gate.receiveText(snapshot()); XCTAssertTrue(gate.supportsVideoRefresh)
+        gate.reset(); XCTAssertFalse(gate.supportsVideoRefresh)
+        _ = try gate.receiveText(hello(legacy: true)); XCTAssertFalse(gate.supportsVideoRefresh)
+        XCTAssertFalse(try acceptedGate().supportsVideoRefresh)
+    }
     func testDescriptorChangePoisonsGateUntilReconnect() throws {
         for (key, value) in [("epoch", 12 as Any), ("accepted", false as Any), ("inputTarget", "mouse" as Any)] {
             var gate = try acceptedGate(); var descriptor = session; descriptor[key] = value

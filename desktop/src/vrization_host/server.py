@@ -428,6 +428,8 @@ class HostServer:
                 after, frame = await self._buffer.next(after)
                 if self._stopping.is_set() or self._ws is not ws:
                     break
+                if not self._frames_allowed():
+                    continue  # A live video rebuild may have started during next().
                 send_started = time.perf_counter()
                 await asyncio.wait_for(ws.send_bytes(frame.jpeg), timeout=2)
                 sent_at = time.perf_counter()

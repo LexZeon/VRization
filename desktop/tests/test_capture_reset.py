@@ -7,6 +7,35 @@ from vrization_host.capture import CaptureConfig, CaptureWorker, Frame
 
 
 class CaptureResetTests(unittest.TestCase):
+    def test_overlapping_reset_receipts_complete_only_after_their_own_close(self):
+        entered, release = threading.Event(), threading.Event()
+        completed = []
+        class Source:
+            closes = 0
+            def close(source):
+                source.closes += 1
+                if source.closes == 1:
+                    entered.set()
+                    if not release.wait(3):raise RuntimeError("Fixture release missing")
+            def read(source, config):
+                return None
+        source=Source()
+        def reset_done():
+            completed.append(worker.completed_reset_generation)
+            if len(completed)==2:worker.stop_event.set()
+        worker=CaptureWorker(source,lambda:CaptureConfig(),None,None,self.fail,on_source_reset=reset_done)
+        self.assertEqual(worker.request_source_reset(),1)
+        worker.active.set();worker.start()
+        try:
+            self.assertTrue(entered.wait(3))
+            self.assertEqual(worker.request_source_reset(),2)
+            self.assertEqual(worker.completed_reset_generation,0)
+        finally:
+            release.set();worker.thread.join(3)
+            if worker.thread.is_alive():worker.stop()
+        self.assertEqual(completed,[1,2])
+        self.assertFalse(worker.thread.is_alive())
+
     def test_reset_during_a_read_drops_old_frame_and_closes_on_the_worker_thread(self):
         entered, release = threading.Event(), threading.Event()
         callbacks, published, calls = queue.SimpleQueue(), [], []

@@ -287,6 +287,8 @@ class CaptureWorker:
         self._pending: Frame | None = None
         self._scheduled = False
         self._source_reset = threading.Event()
+        self._reset_generation = 0
+        self.completed_reset_generation = 0
         self.on_source_reset = on_source_reset
 
     def start(self):
@@ -297,9 +299,10 @@ class CaptureWorker:
         if self.stop_event.is_set():
             return False
         with self._handoff_lock:
+            self._reset_generation += 1
             self._source_reset.set()
             self._pending = None
-        return True
+            return self._reset_generation
 
     def _publish(self):
         with self._handoff_lock:
@@ -324,11 +327,14 @@ class CaptureWorker:
                 previous_fps = config.fps
                 try:
                     if self._source_reset.is_set():
-                        self._source_reset.clear()
+                        with self._handoff_lock:
+                            self._source_reset.clear()
+                            reset_generation = self._reset_generation
                         self.source.close()
                         if self.stop_event.is_set():
                             break
                         next_frame_at = started
+                        self.completed_reset_generation = reset_generation
                         if self.on_source_reset:
                             self.on_source_reset()
                     if self.stop_event.is_set():

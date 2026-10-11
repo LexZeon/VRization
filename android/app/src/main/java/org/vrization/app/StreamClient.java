@@ -50,6 +50,8 @@ final class StreamClient {
         void onFrame(Bitmap bitmap, long session, long receivedAtNanos);
         void onDecodedStats(int width, int height, double fps);
         void onProcessingStats(double milliseconds);
+        void onVideoRefreshStarted();
+        void onVideoRefreshReady(boolean paused);
     }
     private final Listener listener;
     private final Context context;
@@ -77,6 +79,9 @@ final class StreamClient {
     private volatile boolean stabilizationSupported;
     private volatile boolean enhancedSupported;
     private volatile boolean pendingEnhancedSnapshot;
+    private volatile boolean videoRefreshSupported;
+    private final VideoRefreshGate videoRefresh = new VideoRefreshGate();
+    private Runnable videoRefreshDeadline, videoRefreshFallback;
     private Call discovery;
     private Runnable helloDeadline;
     private Runnable usbRetry, usbDeadline;
@@ -95,7 +100,7 @@ final class StreamClient {
         }
     };
     private byte[] pendingJpeg;
-    private long pendingEpoch, pendingSocketEpoch;
+    private long pendingEpoch, pendingSocketEpoch, pendingVideoGeneration;
     private long pendingReceivedAt;
     private boolean decoding;
 
@@ -107,6 +112,8 @@ final class StreamClient {
     boolean supportsStabilization() { return stabilizationSupported; }
     boolean supportsEnhancedFirstPerson() { return enhancedSupported; }
     boolean waitsForEnhancedSnapshot() { return pendingEnhancedSnapshot; }
+    boolean supportsLiveVideoRefresh() { return connected && streamSession.hmd && streamSession.accepted && videoRefreshSupported; }
+    boolean isVideoRefreshPending() { return videoRefresh.isPending(); }
     /** Phone-local diagnostic: counts real decoded frames handed to the view during this instance. */
     long deliveredFrameCount() { return deliveredFrames.get(); }
 
@@ -258,7 +265,8 @@ final class StreamClient {
                     try {
                         JSONObject hello = message("hello").put("client", "android").put("device", Build.MODEL)
                             .put("settingsSchema", 2).put("capabilities", new JSONArray().put("enhanced-first-person"));
-                        if (ClientVariant.EXPERIMENTAL) hello.getJSONArray("capabilities").put("stereo-sbs").put("hmd-orientation");
+                        if (ClientVariant.EXPERIMENTAL) hello.getJSONArray("capabilities").put("stereo-sbs").put("hmd-orientation")
+                            .put(VideoRefreshValues.CAPABILITY);
                         webSocket.send(hello.toString());
                     } catch (JSONException ignored) { }
                 });
@@ -272,6 +280,7 @@ final class StreamClient {
                     final boolean supportsStabilization = handshake.supportsStabilization();
                     final boolean supportsEnhanced = handshake.supportsEnhancedFirstPerson();
                     final boolean waitsForEnhanced = handshake.waitsForEnhancedSnapshot();
+                    final boolean supportsVideoRefresh = handshake.supportsVideoRefresh();
                     final StreamSession descriptor = handshake.streamSession();
                     String type = json.optString("type");
                     if (established) {
@@ -287,7 +296,8 @@ final class StreamClient {
                             stabilizationSupported = supportsStabilization;
                             enhancedSupported = supportsEnhanced;
                             pendingEnhancedSnapshot = waitsForEnhanced;
-                            frameStats.newSession(connectionEpoch);
+                            videoRefreshSupported = supportsVideoRefresh;
+                            frameStats.newSession(videoRefresh.generation());
                             ping.reset(); main.removeCallbacks(pingTick); main.post(pingTick);
                             streamSession = descriptor; listener.onStreamSession(descriptor);
                             listener.onSessionStarted();
@@ -299,6 +309,7 @@ final class StreamClient {
                         dispatchSocket(connectionEpoch, socketEpoch, () -> {
                             stabilizationSupported |= supportsStabilization;
                             pendingEnhancedSnapshot = waitsForEnhanced;
+                            videoRefreshSupported = supportsVideoRefresh;
                             streamSession = descriptor; listener.onStreamSession(descriptor);
                             listener.onSettings(incoming, optionalSequence(json, "revision"), optionalSequence(json, "clientSeq"));
                         });
@@ -309,6 +320,15 @@ final class StreamClient {
                         dispatchSocket(connectionEpoch, socketEpoch, () -> {
                             Long milliseconds = ping.pong(SystemClock.elapsedRealtime());
                             if (milliseconds != null) listener.onRoundTrip(milliseconds);
+                        });
+                    } else if ("videoRefresh".equals(type)) {
+                        VideoRefreshValues.Ack acknowledgement = VideoRefreshValues.acknowledgement(SettingsJson.fields(json));
+                        dispatchSocket(connectionEpoch, socketEpoch, () -> {
+                            videoRefresh.acknowledge(acknowledgement, SystemClock.elapsedRealtime(), () -> {
+                                clearVideoRefreshTimers();
+                                frameStats.newSession(videoRefresh.generation());
+                                listener.onVideoRefreshReady(acknowledgement.paused);
+                            });
                         });
                     }
                 } catch (JSONException | IllegalArgumentException ignored) {
@@ -383,9 +403,12 @@ final class StreamClient {
     }
 
     private void queueJpeg(byte[] jpeg, long connectionEpoch, long socketEpoch, long receivedAt) {
+        long videoGeneration = videoRefresh.captureGeneration();
+        if (videoGeneration < 0) return;
         synchronized (decodeLock) {
             if (!sessions.isCurrent(connectionEpoch) || !socketAttempt.isCurrent(socketEpoch)) return;
             pendingJpeg = jpeg; pendingEpoch = connectionEpoch; pendingSocketEpoch = socketEpoch; pendingReceivedAt = receivedAt;
+            pendingVideoGeneration = videoGeneration;
             if (decoding) return;
             decoding = true;
             try { decoder.execute(this::decodeLatest); }
@@ -396,13 +419,15 @@ final class StreamClient {
     private void decodeLatest() {
         while (true) {
             byte[] jpeg;
-            long frameEpoch, frameSocketEpoch, receivedAt;
+            long frameEpoch, frameSocketEpoch, frameVideoGeneration, receivedAt;
             synchronized (decodeLock) {
                 jpeg = pendingJpeg; frameEpoch = pendingEpoch; frameSocketEpoch = pendingSocketEpoch;
                 receivedAt = pendingReceivedAt; pendingJpeg = null;
+                frameVideoGeneration = pendingVideoGeneration;
                 if (jpeg == null || sessions.isClosed()) { decoding = false; return; }
             }
-            if (!sessions.isCurrent(frameEpoch) || !socketAttempt.isCurrent(frameSocketEpoch) || !connected) continue;
+            if (!sessions.isCurrent(frameEpoch) || !socketAttempt.isCurrent(frameSocketEpoch) || !connected
+                || videoRefresh.captureGeneration() != frameVideoGeneration) continue;
             BitmapFactory.Options options = new BitmapFactory.Options();
             options.inJustDecodeBounds = true;
             BitmapFactory.decodeByteArray(jpeg, 0, jpeg.length, options);
@@ -420,32 +445,66 @@ final class StreamClient {
             try { bitmap = BitmapFactory.decodeByteArray(jpeg, 0, jpeg.length, options); }
             catch (OutOfMemoryError ignored) { continue; }
             if (bitmap != null) {
-                publishBitmap(bitmap, frameEpoch, frameSocketEpoch, receivedAt);
+                publishBitmap(bitmap, frameEpoch, frameSocketEpoch, frameVideoGeneration, receivedAt);
             }
         }
     }
 
-    private void publishBitmap(Bitmap bitmap, long frameEpoch, long frameSocketEpoch, long receivedAt) {
+    private void publishBitmap(Bitmap bitmap, long frameEpoch, long frameSocketEpoch, long frameVideoGeneration, long receivedAt) {
         // The renderer has its own one-slot handoff. Avoid waiting behind UI work,
         // while serializing this short transfer with disconnect/session invalidation.
         boolean delivered = sessions.deliverCurrent(frameEpoch, () -> {
             boolean currentSocket = socketAttempt.deliverCurrent(frameSocketEpoch, () -> {
-                if (!connected) { bitmap.recycle(); return; }
-                int width = bitmap.getWidth(), height = bitmap.getHeight();
-                listener.onFrame(bitmap, frameEpoch, receivedAt);
-                deliveredFrames.incrementAndGet();
-                Double fps = frameStats.decoded(frameEpoch, SystemClock.elapsedRealtimeNanos());
-                if (fps != null) dispatchSocket(frameEpoch, frameSocketEpoch, () -> listener.onDecodedStats(width, height, fps));
+                boolean currentVideo = videoRefresh.deliverCurrent(frameVideoGeneration, () -> {
+                    if (!connected) { bitmap.recycle(); return; }
+                    int width = bitmap.getWidth(), height = bitmap.getHeight();
+                    listener.onFrame(bitmap, frameVideoGeneration, receivedAt);
+                    deliveredFrames.incrementAndGet();
+                    Double fps = frameStats.decoded(frameVideoGeneration, SystemClock.elapsedRealtimeNanos());
+                    if (fps != null) dispatchSocket(frameEpoch, frameSocketEpoch, () ->
+                        videoRefresh.deliverCurrent(frameVideoGeneration, () -> listener.onDecodedStats(width, height, fps)));
+                });
+                if (!currentVideo) bitmap.recycle();
             });
             if (!currentSocket) bitmap.recycle();
         });
         if (!delivered) bitmap.recycle();
     }
-    void recordTextureSubmission(long frameEpoch, long receivedAt, long submittedAt) {
-        sessions.deliverCurrent(frameEpoch, () -> {
-            Double milliseconds = frameStats.uploaded(frameEpoch, receivedAt, submittedAt);
-            if (milliseconds != null) sessions.dispatch(frameEpoch, () -> listener.onProcessingStats(milliseconds));
+    void recordTextureSubmission(long videoGeneration, long receivedAt, long submittedAt) {
+        videoRefresh.deliverCurrent(videoGeneration, () -> {
+            if (!connected) return;
+            Double milliseconds = frameStats.uploaded(videoGeneration, receivedAt, submittedAt);
+            if (milliseconds != null) main.post(() -> videoRefresh.deliverCurrent(videoGeneration, () -> {
+                if (connected) listener.onProcessingStats(milliseconds);
+            }));
         });
+    }
+    /** Only the negotiated live HMD path can reset video while retaining tracking/socket identity. */
+    boolean requestLiveVideoRefresh(Runnable fallback) {
+        if (!supportsLiveVideoRefresh()) return false;
+        if (videoRefresh.isPending()) return true;
+        VideoRefreshGate.Request request = videoRefresh.begin(streamSession.epoch, SystemClock.elapsedRealtime());
+        if (request == null) return false;
+        clearPending(); listener.onVideoRefreshStarted();
+        videoRefreshFallback = fallback;
+        if (!send(new JSONObject(VideoRefreshValues.request(request.epoch, request.requestId)))) {
+            videoRefresh.abort(); clearVideoRefreshTimers(); fallback.run(); return true;
+        }
+        videoRefreshDeadline = () -> {
+            if (!videoRefresh.expire(request, SystemClock.elapsedRealtime())) return;
+            Runnable reconnect = videoRefreshFallback;
+            clearVideoRefreshTimers();
+            if (reconnect != null) reconnect.run();
+        };
+        main.postDelayed(videoRefreshDeadline, VideoRefreshGate.DEADLINE_MILLIS); return true;
+    }
+    private void clearVideoRefreshTimers() {
+        if (videoRefreshDeadline != null) main.removeCallbacks(videoRefreshDeadline);
+        videoRefreshDeadline = null; videoRefreshFallback = null;
+    }
+    void cancelPendingVideoRefresh() {
+        if (videoRefresh.isPending()) videoRefresh.abort();
+        clearVideoRefreshTimers();
     }
     private void clearPending() {
         synchronized (decodeLock) {
@@ -499,10 +558,12 @@ final class StreamClient {
     void disconnect(boolean report) {
         sendHmdPose(null,SystemClock.elapsedRealtimeNanos(),false);
         sessions.invalidate(); connected = false; connecting = false;
+        clearVideoRefreshTimers(); videoRefresh.newConnection();
         streamSession = StreamSession.legacy();
         stabilizationSupported = false;
         enhancedSupported = false;
         pendingEnhancedSnapshot = false;
+        videoRefreshSupported = false;
         stopUsbAttempt();
         main.removeCallbacks(pingTick); ping.reset();
         Call request = discovery; discovery = null;

@@ -78,4 +78,6 @@
 "steamHelp" = "Accepted stereo streams use independent left/right eye images and preserve the source projection in every display mode. Headset fitting and one lens correction remain adjustable. Direct mono streams retain the ordinary four modes. Audio stays on the computer. Backgrounding disconnects video and tracking.";
 "steamUSBNotice" = "Preview USB uses its own app and ports. Install Apple Devices on Windows, unlock this iPhone, connect a data cable and tap Trust. Keep this app in the foreground, then Connect on either device. F8 on the computer pauses HMD tracking; only the computer's Resume restores it. FPS and RTT are not end-to-end latency.";
 "refreshConnection" = "Refresh";
-"refreshConnectionHelp" = "Refresh rebuilds the selected USB or LAN connection and clears the old image. Saved settings and the computer's tracking pause remain; Refresh never resumes tracking or resets defaults.";
+"refreshConnectionHelp" = "Refresh rebuilds video inside a compatible active SteamVR phone session, keeping tracking, settings and pause unchanged. A disconnected or older peer reconnects; after reconnect, use Resume on the computer if tracking is paused. Refresh never resets defaults or grants Resume.";
+"refreshingVideo" = "Refreshing video…";
+"videoRefreshedPaused" = "Video refreshed. Tracking is paused; use Resume on the computer.";

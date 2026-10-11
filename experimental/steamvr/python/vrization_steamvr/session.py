@@ -5,6 +5,7 @@ from vrization_host.protocol import ProtocolError, parse_message
 
 STEREO = "stereo-sbs"
 ORIENTATION = "hmd-orientation"
+VIDEO_REFRESH = "video-refresh"
 MAX_SAFE = 9_007_199_254_740_991
 
 class Session:
@@ -41,6 +42,13 @@ def parse_preview_message(data):
         msg = json.loads(data)
     except (ValueError, TypeError, RecursionError) as error:
         raise ProtocolError("Invalid JSON") from error
+    if isinstance(msg, dict) and msg.get("type") == "refreshVideo":
+        if (set(msg) != {"v", "type", "epoch", "requestId"}
+                or type(msg["v"]) is not int or msg["v"] != 1
+                or any(type(msg[key]) is not int or not 1 <= msg[key] <= MAX_SAFE
+                       for key in ("epoch", "requestId"))):
+            raise ProtocolError("Invalid video refresh fields")
+        return msg
     if not isinstance(msg, dict) or msg.get("type") != "hmdPose":
         return parse_message(data)
     allowed = {"v", "type", "epoch", "seq", "timeUs", "trackingValid", "q"}

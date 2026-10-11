@@ -5,7 +5,7 @@ from vrization_host.server import HostServer
 from . import __version__
 from .ipc import PoseMap, tick_ms
 from .pose import HmdPoseGate
-from .session import Session, STEREO, ORIENTATION, parse_preview_message
+from .session import Session, STEREO, ORIENTATION, VIDEO_REFRESH, parse_preview_message
 
 class NoMouse:
     def move(self, dx, dy):
@@ -15,6 +15,10 @@ class NoMouse:
 class PreviewHost(HostServer):
     def __init__(self, *, route="direct-phone", pose_sink=None, clock=tick_ms, **kwargs):
         self._session_ready=False
+        self._video_refresh_pending=None
+        self._video_refresh_ack_owner=None
+        self._client_video_refresh=False
+        self._video_refresh_last_id=0
         self.stream_session=Session(route)
         self.route=route
         self.pose_sink=pose_sink if pose_sink is not None else PoseMap() if route=="steamvr-phone" else None
@@ -27,7 +31,7 @@ class PreviewHost(HostServer):
         super().__init__(**kwargs)
 
     def _host_capabilities(self):
-        return super()._host_capabilities()+[STEREO,ORIENTATION]
+        return super()._host_capabilities()+[STEREO,ORIENTATION,VIDEO_REFRESH]
 
     def _host_version(self):
         return __version__
@@ -39,17 +43,24 @@ class PreviewHost(HostServer):
         return parse_preview_message(data)
 
     def _session_opened(self,generation):
+        self._video_refresh_pending=None
+        self._video_refresh_ack_owner=None
+        self._client_video_refresh=False
+        self._video_refresh_last_id=0
         self._session_ready=self.route=="direct-phone"
         self.stream_session.open(generation)
         if self.hmd:self.hmd.open(generation)
 
     def _session_closed(self,generation):
+        self._video_refresh_pending=None
+        self._video_refresh_ack_owner=None
+        self._client_video_refresh=False
         self._session_ready=False
         self.stream_session.close()
         if self.hmd:self.hmd.close()
 
     def _frames_allowed(self):
-        return self._session_ready
+        return self._session_ready and self._video_refresh_pending is None
 
     async def _on_client_hello(self,msg,ws):
         first_confirmation=not self.stream_session.accepted
@@ -66,6 +77,7 @@ class PreviewHost(HostServer):
         # until validated client hello before any SBS byte may be transmitted.
         sent = await self._broadcast_settings(ws)
         if sent and self._ws is ws and not ws.closed and not self._stopping.is_set():
+            if VIDEO_REFRESH in msg.get("capabilities",[]):self._client_video_refresh=True
             if self.hmd:self.hmd.negotiate()
             if first_confirmation and self.hmd and (self.session_generation>1 or self._capture_failed):
                 # Reconnecting a real phone must replace a Mirror that exited
@@ -80,6 +92,19 @@ class PreviewHost(HostServer):
 
     async def _handle_custom_message(self,msg,ws):
         kind=msg["type"]
+        if kind=="refreshVideo":
+            if (not self.hmd or not self._session_ready or not self.stream_session.accepted
+                    or not self._client_video_refresh or self._ws is not ws or ws.closed
+                    or self._stopping.is_set() or msg["epoch"]!=self.stream_session.epoch):
+                raise ProtocolError("Video refresh needs the current negotiated HMD session")
+            if msg["requestId"]<=self._video_refresh_last_id:
+                raise ProtocolError("Video refresh request is stale")
+            if self._video_refresh_pending is not None:
+                raise ProtocolError("Video refresh is already pending")
+            if not self._begin_video_refresh(ws,msg["requestId"]):
+                raise ProtocolError("Video refresh is unavailable")
+            self._video_refresh_last_id=msg["requestId"]
+            return True
         if kind=="hmdPose":
             if self.hmd is None:raise ProtocolError("Direct phone uses mouse poses")
             if not self._session_ready:raise ProtocolError("HMD pose needs negotiated capabilities")
@@ -91,6 +116,62 @@ class PreviewHost(HostServer):
             self.hmd.recenter(phone_reset=True)
             return True
         return False
+
+    def _begin_video_refresh(self,ws,request_id):
+        # Loop-owned transaction; actual GPU/helper cleanup belongs to the worker.
+        if (not self.hmd or not self._session_ready or not self.stream_session.accepted
+                or self._ws is not ws or ws.closed or self._stopping.is_set()
+                or self._video_refresh_pending is not None):return False
+        pending=(ws,self.stream_session.epoch,request_id)
+        self._video_refresh_pending=(*pending,0)
+        self._buffer.frame=None
+        receipt=self._worker.request_source_reset()
+        if not receipt:
+            self._video_refresh_pending=None
+            return False
+        self._video_refresh_pending=(*pending,receipt)
+        return True
+
+    def request_video_refresh(self):
+        """PC-local video reset; never disconnect, resume or recenter tracking."""
+        if (not self.running or not self.hmd or not self._session_ready or self._ws is None
+                or self._ws.closed or self._stopping.is_set() or self._video_refresh_pending is not None):return False
+        owner=self._ws
+        async def request():self._begin_video_refresh(owner,None)
+        asyncio.run_coroutine_threadsafe(request(),self._loop)
+        return True
+
+    def _capture_source_reset(self):
+        super()._capture_source_reset()
+        # Read the transaction on the event loop, after request_source_reset()
+        # has returned its receipt. Even an immediate close cannot ACK early.
+        if self._loop and self._loop.is_running():
+            asyncio.run_coroutine_threadsafe(self._finish_video_refresh(),self._loop)
+
+    async def _finish_video_refresh(self):
+        pending=self._video_refresh_pending
+        if pending is None or self._worker.completed_reset_generation<pending[3]:return
+        ws,epoch,request_id,_=pending
+        if (self._video_refresh_pending is not pending or self._ws is not ws or ws.closed
+                or self._stopping.is_set() or self.stream_session.epoch!=epoch):return
+        if self._video_refresh_ack_owner is pending:return
+        self._video_refresh_ack_owner=pending
+        try:
+            if request_id is not None:
+                await asyncio.wait_for(ws.send_json({"v":1,"type":"videoRefresh","epoch":epoch,
+                    "requestId":request_id,"paused":self.hmd.paused or not self.hmd.enabled}),2)
+        except (ConnectionError,RuntimeError,asyncio.TimeoutError):
+            # ACK bytes may have arrived before drain failed. Revoke only this
+            # owner so a peer cannot cancel its deadline yet wait forever.
+            if self._video_refresh_pending is pending and self._ws is ws:
+                await ws.close(code=1001,message=b"Video refresh acknowledgement stalled",drain=False)
+            return
+        finally:
+            if self._video_refresh_ack_owner is pending:self._video_refresh_ack_owner=None
+        if self._video_refresh_pending is pending and self._ws is ws and not self._stopping.is_set():
+            self._video_refresh_pending=None
+            self._emit("video_refreshed",epoch=epoch,requestId=request_id,
+                       paused=self.hmd.paused or not self.hmd.enabled)
 
     def set_auto_control(self,enabled):
         if self.hmd:

@@ -78,4 +78,6 @@
 "steamHelp" = "接受的立体串流在所有显示模式中都独立采样左右眼，并保留源投影；盒子适配和一层镜片校正仍可调整。直接单眼串流保留普通四种模式。音频留在电脑；进入后台会断开画面和跟踪。";
 "steamUSBNotice" = "实验版 USB 使用独立应用和端口。在 Windows 安装 Apple Devices，解锁 iPhone、连接数据线并点信任。保持应用前台，可在任一端点连接。电脑 F8 暂停头显跟踪，只有电脑端“恢复”能重新开启。帧率和 RTT 不是端到端延迟。";
 "refreshConnection" = "刷新";
-"refreshConnectionHelp" = "刷新会重建当前 USB 或局域网连接，并清除旧画面；保留已保存设置和电脑的跟踪暂停。刷新不会恢复跟踪或重置默认设置。";
+"refreshConnectionHelp" = "对于支持此功能的活跃 SteamVR 手机会话，刷新仅重建视频，保持追踪、设置与暂停状态。断线或旧版端会重新连接；重连后若追踪暂停，请在电脑点击 Resume（恢复）。刷新不会重置默认设置或授权恢复追踪。";
+"refreshingVideo" = "正在刷新视频…";
+"videoRefreshedPaused" = "视频已刷新。追踪仍暂停，请在电脑点击 Resume（恢复）。";

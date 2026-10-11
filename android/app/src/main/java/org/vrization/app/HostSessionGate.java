@@ -7,7 +7,7 @@ import org.vrization.core.VrSettings;
 /** A transport opening is not an established protocol session. Fail closed until reconnect. */
 final class HostSessionGate {
     private boolean established, failed;
-    private boolean stabilization, enhanced;
+    private boolean stabilization, enhanced, videoRefresh;
     private boolean pendingEnhancedSnapshot;
     private StreamSession session = StreamSession.legacy();
     private List<?> sessionCapabilities = java.util.Collections.emptyList();
@@ -16,6 +16,8 @@ final class HostSessionGate {
     boolean supportsStabilization() { return isEstablished() && stabilization; }
     boolean supportsEnhancedFirstPerson() { return isEstablished() && enhanced; }
     boolean waitsForEnhancedSnapshot() { return isEstablished() && pendingEnhancedSnapshot; }
+    boolean supportsVideoRefresh() { return isEstablished() && ClientVariant.EXPERIMENTAL && videoRefresh
+        && session.hmd && session.accepted; }
     void fail() { failed = true; }
     @SuppressWarnings("unchecked")
     private static Map<String, Object> object(Object value) {
@@ -67,6 +69,7 @@ final class HostSessionGate {
                 stabilization = settings.containsKey("stabilization")
                     || (capabilities instanceof List && ((List<?>) capabilities).contains("stabilization"));
                 enhanced = capabilities instanceof List && ((List<?>) capabilities).contains("enhanced-first-person");
+                videoRefresh = capabilities instanceof List && ((List<?>) capabilities).contains(VideoRefreshValues.CAPABILITY);
                 pendingEnhancedSnapshot = enhanced && !Boolean.TRUE.equals(negotiated);
                 if (VrSettings.ENHANCED_FIRST_PERSON.equals(settings.get("mode")) && !enhanced)
                     throw new IllegalArgumentException("Enhanced mode without host capability");
@@ -85,6 +88,9 @@ final class HostSessionGate {
             }
             else if ("error".equals(type)) {
                 if (!(message.get("message") instanceof String)) throw new IllegalArgumentException("Invalid host error");
+            } else if ("videoRefresh".equals(type)) {
+                if (!supportsVideoRefresh()) throw new IllegalArgumentException("Unnegotiated video acknowledgement");
+                VideoRefreshValues.acknowledgement(message);
             } else if (!"pong".equals(type)) throw new IllegalArgumentException("Unexpected host message");
             return false;
         } catch (IllegalArgumentException error) { failed = true; throw error; }

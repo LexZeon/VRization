@@ -166,6 +166,12 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
         client.onRTT = { [weak self] value in self?.rtt = value; if self?.client.state == .connected { self?.updateFrameStatus() } }
         client.onCapabilitiesChanged = { [weak self] in self?.updateStabilizationNotice() }
 #if STEAMVR_PREVIEW
+        client.onVideoRefresh = { [weak self] pending, paused in
+            guard let self = self else { return }
+            if pending { self.clearStreamingImage() }
+            self.statusKey = pending ? "refreshingVideo" : (paused == true ? "videoRefreshedPaused" : "connected")
+            self.updateStatus(); self.updateTestingGeometry()
+        }
         client.onStreamSession = { [weak self] descriptor in
             guard let self = self else { return }
             self.closeEditor(save: false, resumeMotion: false)
@@ -445,6 +451,18 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
     @objc private func refreshConnection() {
         guard active else { return }
         view.endEditing(true)
+        if editor == nil && client.canRefreshLiveVideo {
+            if client.refreshVideo() { return }
+        }
+        rebuildConnection()
+    }
+    private func clearStreamingImage() {
+        renderer?.clear()
+        frames = 0; sampleFrames = 0; receiveFPS = 0; frameWidth = 0; frameHeight = 0
+        frameSampleAt = ProcessInfo.processInfo.systemUptime
+        frameStatus.text = L.text("waitingFrame"); updateTestingGeometry()
+    }
+    private func rebuildConnection() {
         let transport = selectedTransport
         let host = hostField.text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let port = (portField.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
@@ -458,10 +476,7 @@ final class ViewerController: UIViewController, UIScrollViewDelegate {
             try? preferenceStore.save(preferences)
         }
         closeEditor(save: false, resumeMotion: false)
-        motion.stop(); renderer?.clear()
-        frames = 0; sampleFrames = 0; receiveFPS = 0; frameWidth = 0; frameHeight = 0
-        frameSampleAt = ProcessInfo.processInfo.systemUptime
-        frameStatus.text = L.text("waitingFrame"); updateTestingGeometry()
+        motion.stop(); clearStreamingImage()
         client.setSettingsBase(settings)
         if transport == .usb { startUSBControl() }
         if !client.rebuildConnection(transport: transport, host: host, port: number, code: code) {

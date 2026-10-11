@@ -48,6 +48,14 @@ class PhoneWindow(HostWindow):
 
     def words(self,en,zh):return zh if self.language=="zh" else en
 
+    def refresh_connection(self):
+        if (self.route=="steamvr-phone" and not self._stop_in_progress
+                and self.editor is None and self.server.request_video_refresh()):
+            self._log(self.words("Rebuilding SteamVR video; tracking and saved settings are retained.",
+                                 "正在重建 SteamVR 视频；保留追踪状态及已保存设置。"))
+            return True
+        return super().refresh_connection()
+
     def _build(self):
         super()._build()
         route_title=self.words("Phone SteamVR HMD","手机 SteamVR 头显") if self.route=="steamvr-phone" else self.words("Direct phone","手机直连")

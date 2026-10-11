@@ -114,37 +114,53 @@ final class ConnectionProbe {
         }
     }
 
-    /** Real Refresh button while connected: new hello/frames, same local fit and pose test gate. */
+    /** Negotiated live reset retains HMD epoch; fallback rebuilds it. Neither may Resume input. */
     private static void assertRefresh(Instrumentation test, MainActivity phone, StreamClient stream, Bundle result) {
         AtomicReference<Map<String, Object>> fitted = new AtomicReference<>();
         AtomicReference<StreamSession> previous = new AtomicReference<>();
+        boolean[] live = {false}; long[] frames = {0}, poseSequence = {0};
         test.runOnMainSync(() -> {
             fitted.set(SettingsValues.encode(((VrSettings) field(phone, "settings")).copy()));
             previous.set(stream.streamSession());
+            live[0] = stream.supportsLiveVideoRefresh();
+            poseSequence[0] = ((java.util.concurrent.atomic.AtomicLong) field(stream, "poseSequence")).get();
         });
-        long frames = stream.deliveredFrameCount();
-        progress(test, "explicit Refresh while connected; old session/layout must be invalidated; no Resume");
+        progress(test, live[0] ? "live-video Refresh: same HMD epoch/socket/pose gate; wait for ACK and fresh native frames"
+            : "fallback Refresh: old session/layout invalidated; wait for new hello; no Resume");
         test.runOnMainSync(() -> {
             require(((Button) field(phone, "refreshButton")).performClick(), "Refresh button was not clickable");
-            require(!stream.isConnected(), "Refresh retained its already connected state");
-            require(!stream.streamSession().hmd && !stream.streamSession().stereo,
-                "Refresh retained the previous session layout before its new handshake");
+            if (live[0]) {
+                require(stream.isConnected() && stream.isVideoRefreshPending(), "Live reset disconnected or did not await ACK");
+                require(stream.streamSession().epoch == previous.get().epoch && stream.streamSession().accepted,
+                    "Live reset changed the accepted HMD session");
+            } else {
+                require(!stream.isConnected(), "Fallback retained its already connected state");
+                require(!stream.streamSession().hmd && !stream.streamSession().stereo,
+                    "Fallback retained the previous session layout before its new handshake");
+            }
+            frames[0] = stream.deliveredFrameCount();
         });
-        await(() -> stream.isConnected() && stream.deliveredFrameCount() - frames >= 5,
-            35_000, "Refresh did not negotiate and receive five new decoded frames");
+        await(() -> stream.isConnected() && !stream.isVideoRefreshPending() && stream.deliveredFrameCount() - frames[0] >= 5,
+            35_000, "Refresh did not finish and receive five new decoded frames");
         test.runOnMainSync(() -> {
             require(field(phone, "client") == stream, "Refresh replaced the protected client");
             require(fitted.get().equals(SettingsValues.encode((VrSettings) field(phone, "settings"))),
                 "Refresh changed headset fit or viewing settings");
             require(!((PoseSendGate) field(stream, "poseGate")).maySend(true, 0),
                 "Refresh changed the probe's disabled pose gate");
-            if (previous.get().hmd)
-                require(stream.streamSession().hmd && stream.streamSession().epoch != previous.get().epoch,
-                    "Refresh kept the old virtual-HMD epoch");
+            if (previous.get().hmd) {
+                require(stream.streamSession().hmd, "Refresh lost the virtual-HMD route");
+                require(live[0] == (stream.streamSession().epoch == previous.get().epoch),
+                    "Refresh used the wrong live/fallback session lifecycle");
+            }
+            if (live[0]) require(poseSequence[0] == ((java.util.concurrent.atomic.AtomicLong) field(stream, "poseSequence")).get(),
+                "Live reset emitted an invalid-tracking or recenter/pose message through the protected gate");
         });
         result.putBoolean("refreshConnected", true); result.putBoolean("refreshFitUnchanged", true);
         result.putBoolean("refreshPoseGateUnchanged", true);
-        result.putLong("refreshDeliveredFrames", stream.deliveredFrameCount() - frames);
+        result.putBoolean("liveVideoRefresh", live[0]);
+        result.putBoolean("refreshHmdEpochRetained", stream.streamSession().epoch == previous.get().epoch);
+        result.putLong("refreshDeliveredFrames", stream.deliveredFrameCount() - frames[0]);
     }
 
     /** Passive sampling of decoded frames delivered to the view; never a motion-to-photon measure. */

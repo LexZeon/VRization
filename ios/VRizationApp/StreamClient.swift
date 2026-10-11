@@ -33,6 +33,13 @@ final class StreamClient: NSObject, URLSessionWebSocketDelegate {
     private var hmdSequencer = HMDPoseSequencer()
     private var refreshPosePause: Bool?
     var posesArePaused: Bool { posesPaused }
+    private var videoRefresh = VideoRefreshGate()
+    private var pendingVideoRefresh: Data?
+    private var videoRefreshTimeout: Timer?
+    private var reconnectLAN: (host: String, port: Int, code: String)?
+    var canRefreshLiveVideo: Bool { state == .connected && protocolGate.supportsVideoRefresh }
+    var videoRefreshPending: Bool { videoRefresh.pending != nil }
+    var onVideoRefresh: ((Bool, Bool?) -> Void)?
 #else
     private var protocolGate = HostSessionGate()
 #endif
@@ -55,15 +62,18 @@ final class StreamClient: NSObject, URLSessionWebSocketDelegate {
         super.init()
 #if STEAMVR_PREVIEW
         decoder.onUnsupportedStereo = { [weak self] epoch in
-            guard let self = self, self.generation == epoch, self.state == .connected else { return }
+            guard let self = self, self.videoRefresh.acceptsFrame(epoch), self.state == .connected else { return }
             self.disconnect(reason: "steamRasterUnsupported")
         }
 #endif
         decoder.onImage = { [weak self] image, epoch in
-            guard let self = self, epoch == self.generation, self.state == .connected else { return }
+            guard let self = self, self.state == .connected else { return }
 #if STEAMVR_PREVIEW
-            guard self.protocolGate.acceptsFrame(generation: epoch, activeGeneration: self.generation,
+            guard self.videoRefresh.acceptsFrame(epoch),
+                  self.protocolGate.acceptsFrame(generation: self.generation, activeGeneration: self.generation,
                                                  captured: self.submittedDescriptor) else { return }
+#else
+            guard epoch == self.generation else { return }
 #endif
             self.onFrame?(image)
         }
@@ -103,6 +113,7 @@ final class StreamClient: NSObject, URLSessionWebSocketDelegate {
         guard var parts = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return false }
         parts.queryItems = (parts.queryItems ?? []) + [URLQueryItem(name: "streamSession", value: "1")]
         guard let previewURL = parts.url else { return false }; url = previewURL
+        reconnectLAN = (host, port, code)
 #endif
         let config = URLSessionConfiguration.ephemeral
         config.timeoutIntervalForRequest = 15
@@ -121,6 +132,31 @@ final class StreamClient: NSObject, URLSessionWebSocketDelegate {
     }
 
 #if STEAMVR_PREVIEW
+    /// Keep the accepted session and real motion running. Only the video decoder
+    /// waits for a matching post-close ACK; its paused flag grants no Resume.
+    func refreshVideo() -> Bool {
+        precondition(Thread.isMainThread)
+        guard canRefreshLiveVideo, let descriptor = streamSession else { return false }
+        if videoRefresh.pending != nil { return true }
+        let epoch = generation, address = reconnectLAN, currentTransport = transport
+        do {
+            pendingVideoRefresh = try videoRefresh.begin(session: descriptor, supported: true,
+                transportGeneration: epoch, now: ProcessInfo.processInfo.systemUptime)
+        } catch { return false }
+        decoder.reset(generation: videoRefresh.frameGeneration)
+        onVideoRefresh?(true, nil)
+        let timer = Timer(timeInterval: VideoRefreshGate.timeout, repeats: false) { [weak self] _ in
+            guard let self = self, self.generation == epoch, self.state == .connected,
+                  self.videoRefresh.expired(now: ProcessInfo.processInfo.systemUptime, transportGeneration: epoch) else { return }
+            // No ACK cannot reopen the old image. Fall back using this session's
+            // validated address, never newly edited fields or persisted pairing.
+            _ = self.rebuildConnection(transport: currentTransport, host: address?.host ?? "",
+                port: address?.port ?? 8766, code: address?.code ?? "")
+        }
+        videoRefreshTimeout = timer; RunLoop.main.add(timer, forMode: .common)
+        drain()
+        return true
+    }
     /// Explicitly discard the old transport/decoder generation. Keep the local
     /// pose pause; neither hello nor Refresh can release the PC's F8 latch.
     func rebuildConnection(transport: Transport, host: String = "", port: Int = 8766, code: String = "") -> Bool {
@@ -141,6 +177,8 @@ final class StreamClient: NSObject, URLSessionWebSocketDelegate {
         protocolGate.reset()
 #if STEAMVR_PREVIEW
         submittedDescriptor = nil; pendingTrackingLost = nil; refreshPosePause = nil; onStreamSession?(nil)
+        videoRefresh.cancel(); pendingVideoRefresh = nil; reconnectLAN = nil
+        videoRefreshTimeout?.invalidate(); videoRefreshTimeout = nil
 #endif
         heartbeat?.invalidate(); heartbeat = nil
         usb.stop()
@@ -149,7 +187,11 @@ final class StreamClient: NSObject, URLSessionWebSocketDelegate {
         sending = false; pendingHello = nil; pendingSettings = nil; pendingPose = nil; pendingRecenter = false; pendingPing = false
         posesPaused = false
         pingSentAt = nil; onRTT?(nil)
+#if STEAMVR_PREVIEW
+        decoder.reset(generation: videoRefresh.frameGeneration)
+#else
         decoder.reset(generation: generation)
+#endif
         if notify { onState?(state, reason) }
     }
 
@@ -219,6 +261,7 @@ final class StreamClient: NSObject, URLSessionWebSocketDelegate {
         guard !sending, state == .connected else { return }
         let data: Data
         if let hello = pendingHello { data = hello; pendingHello = nil }
+        else if let refresh = takeVideoRefresh() { data = refresh }
         else if let lost = takeTrackingLost() { data = lost }
         else if pendingRecenter {
 #if STEAMVR_PREVIEW
@@ -281,6 +324,19 @@ final class StreamClient: NSObject, URLSessionWebSocketDelegate {
 
     private func handle(_ data: Data) {
         do {
+#if STEAMVR_PREVIEW
+            guard data.count <= VRProtocol.maximumTextBytes else { throw SteamVRSessionError.invalid("Host text too large") }
+            if let object = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+               object["type"] as? String == "videoRefresh" {
+                if let paused = try videoRefresh.acknowledge(data, session: streamSession,
+                    supported: canRefreshLiveVideo, transportGeneration: generation,
+                    now: ProcessInfo.processInfo.systemUptime) {
+                    videoRefreshTimeout?.invalidate(); videoRefreshTimeout = nil
+                    onVideoRefresh?(false, paused)
+                }
+                return
+            }
+#endif
             let hadSupport = supportsStabilization
             let hadEnhanced = supportsEnhancedFirstPerson
             let wasAwaitingSnapshot = protocolGate.awaitingSettingsSnapshot
@@ -332,12 +388,13 @@ final class StreamClient: NSObject, URLSessionWebSocketDelegate {
             // Unlabelled binary frames cannot be attached to a pending or
             // changed descriptor, even after the transport itself is open.
             guard protocolGate.canReceiveFrames else { return }
+            guard videoRefresh.acceptsFrames else { return }
             submittedDescriptor = streamSession
 #endif
             if state == .connecting, protocolGate.awaitingSettingsSnapshot { return }
             guard state == .connected else { disconnect(reason: "protocolError"); return }
 #if STEAMVR_PREVIEW
-            decoder.submit(data, generation: generation, stereo: streamSession?.stereo == true)
+            decoder.submit(data, generation: videoRefresh.frameGeneration, stereo: streamSession?.stereo == true)
 #else
             decoder.submit(data, generation: generation)
 #endif
@@ -416,6 +473,13 @@ final class StreamClient: NSObject, URLSessionWebSocketDelegate {
     private func takeTrackingLost() -> Data? {
 #if STEAMVR_PREVIEW
         let result = pendingTrackingLost; pendingTrackingLost = nil; return result
+#else
+        return nil
+#endif
+    }
+    private func takeVideoRefresh() -> Data? {
+#if STEAMVR_PREVIEW
+        let result = pendingVideoRefresh; pendingVideoRefresh = nil; return result
 #else
         return nil
 #endif

@@ -76,6 +76,7 @@ public struct SteamVRSessionGate {
     public var awaitingSettingsSnapshot: Bool { stable.awaitingSettingsSnapshot || awaitingStreamSnapshot }
     public var canReceiveFrames: Bool { isEstablished && !awaitingSettingsSnapshot && descriptor?.accepted == true }
     public var acceptsHMDPose: Bool { canReceiveFrames && descriptor?.virtualHMD == true && capabilities.contains("hmd-orientation") }
+    public var supportsVideoRefresh: Bool { acceptsHMDPose && capabilities.contains("video-refresh") }
     public init() {}
     public mutating func reset() { self = SteamVRSessionGate() }
 

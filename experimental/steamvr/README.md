@@ -7,7 +7,7 @@
 
 This separate SteamVR experiment is based on released v0.4.0 and was first published as **0.5.0-steamvr-preview**. Keep ordinary VRization and all historical downloads. Its three entries connect different frame/input paths; they are not additional direct-phone display modes. English is the default, with selectable Simplified Chinese. A later authorized Huawei session observed real USB/GLES behavior and part of the Phone HMD chain using an unpublished host candidate. Physical-axis, optics, VR-game, PCVR, long-duration stability, display-FPS and end-to-end-latency acceptance remains incomplete; see [the bounded evidence](docs/VALIDATION.md).
 
-Current unpublished source versions are **Windows 0.5.1-steamvr-preview, Android 0.5.1-steamvr-preview/build 2 and iOS 0.5.1/build 2**. Ordinary VRization remains **0.4.0/build 8**; historical 0.5.0 preview downloads stay preserved. Exact release builds, native CI and real-phone reboot/Refresh acceptance are still pending.
+Current unpublished source versions are **Windows 0.5.1-steamvr-preview, Android 0.5.1-steamvr-preview/build 2 and iOS 0.5.1/build 2**. Ordinary VRization remains **0.4.0/build 8**; historical 0.5.0 preview downloads stay preserved. Final release builds, latest-source CI and real-phone reboot/live-Refresh acceptance remain pending; prior-candidate native fixture and package results are recorded separately.
 
 | Entry | What it does | What to use |
 | --- | --- | --- |
@@ -93,7 +93,7 @@ The unpublished host fix refreshes only **invalid tracking status** while an acc
 
 Stop closes the current host session and owned native helper, clears old frames and invalidates pose data. Helpers observe a unique host Stop event and clean up their own resources; a bounded termination fallback exists for a stuck child. The existing-headset overlay hides/clears on inactive or stale frames and destroys only its own overlay. It does not shut down SteamVR or another app.
 
-**Refresh is implemented on the PC and both preview phones.** The PC waits for full server and USB-relay cleanup before rebuilding; pressing Stop cancels the pending restart without skipping cleanup. Phones rebuild the selected USB/LAN transport and decoder generation and clear old images while retaining settings/fit. A newly confirmed HMD session can reset a dormant or failed Mirror once on the capture worker, dropping pending old frames; raw connections and repeated hello messages do not trigger resets. Refresh never resumes tracking or recenters it: use local PC Resume when appropriate. The focused capture/GUI/reconnect/Stop regression passed **18 software tests**; final builds and phone reboot/Refresh checks remain pending.
+**Refresh keeps a live Phone HMD session connected while rebuilding video.** The host source replaces Mirror on its capture worker, retaining orientation, session epoch, recenter baseline, settings and fit; it does not pause, Resume, Recenter or resend settings. Phone requests require the negotiated `video-refresh` capability, and video remains gated until the worker has closed the old source and confirmed the matching request. Existing F8/editor/Stop pauses remain latched; use PC-local Resume if already paused. Without a live compatible session, or after the phone's eight-second deadline, Refresh falls back to a complete reconnect under the existing Stop/pause policy. PC full-reconnect cleanup finishes before restart; Stop cancels restart while cleanup continues. Host live-refresh checks passed **15 software tests plus 32 subtests**; final phone integration, full CI and real-phone recovery remain pending.
 
 **Open fault:** The user identified the black PC window as SteamVR's **Headset Window**. Its cause remains under diagnosis; a separate observed exited Mirror explains a connected phone waiting for video in one interval, but does not establish the cause of every black Headset Window. No complete recovery or achieved unique/display FPS is claimed.
 
@@ -122,7 +122,7 @@ Remaining hardware work must extend the observed USB Phone HMD chain to repeated
 
 这是基于已发布 v0.4.0 的独立 SteamVR 实验版，首个公开版本为 **0.5.0-steamvr-preview**，保留普通 VRization 及全部历史下载。三个入口分别连接不同的画面／输入通路，不是新增直连手机显示模式。软件默认英文，可选择简体中文。后来获授权的华为真机会话已观察真实 USB／GLES 行为，并使用未发布的电脑端候选版走通部分手机头显链路。物理坐标、光学、VR 游戏、PCVR、长期稳定性、显示帧率和端到端延迟尚未完整验收，见[有限范围证据](docs/VALIDATION.md)。
 
-当前未发布源码版本为 **Windows 0.5.1-steamvr-preview、Android 0.5.1-steamvr-preview/build 2、iOS 0.5.1/build 2**。普通版保持 **0.4.0/build 8**，历史 0.5.0 实验版下载原样保留；准确发布构建、原生 CI 及手机重启／刷新真机验收仍待完成。
+当前未发布源码版本为 **Windows 0.5.1-steamvr-preview、Android 0.5.1-steamvr-preview/build 2、iOS 0.5.1/build 2**。普通版保持 **0.4.0/build 8**，历史 0.5.0 实验版下载原样保留；最终发布构建、最新源码 CI 及手机重启／活动刷新真机验收仍待完成；先前候选版原生测试与打包结果单独记录。
 
 | 入口 | 功能 | 使用条件 |
 | --- | --- | --- |
@@ -208,7 +208,7 @@ SBS 为每眼使用各自半幅源图及自身比例，仍可缩放、移动、�
 
 停止会关闭当前电脑会话和自身原生子进程，清除旧帧并令姿态无效。工具检查独立 Stop 事件，清理自己的资源；对子进程卡死保留限时结束后备方式。已有头显覆盖层在数据停用／过期时隐藏、清空，只销毁自己覆盖层，不关闭 SteamVR 或其他应用。
 
-**电脑和两个实验手机客户端均已实现刷新。** 电脑等待服务器及 USB 中继完整清理后重建；停止只取消待执行重启，不跳过清理。手机重建已选 USB／局域网传输与解码代际，清掉旧画面并保留设置／适配。新确认的头显会话可在采集工作线程上对尚未发现退出或已失败的 Mirror 重置一次，丢弃旧待发帧；原始连接和重复 hello 不触发重置。刷新不会恢复追踪或重新居中，需要时由电脑本地恢复。采集／界面／复连／停止针对性回归通过 **18 项软件测试**，最终构建及手机重启／刷新检查仍待完成。
+**刷新可保持活动手机头显会话，只重建视频。** 电脑端源码在采集工作线程替换 Mirror，保留方向、会话代际、居中基准、设置和适配；不暂停、不恢复、不居中，也不重发设置。手机请求须协商 `video-refresh` 能力，旧采集源关闭并确认匹配请求之前不重新放行视频。已有 F8／编辑器／停止暂停锁保持，需要时由电脑本地恢复；没有活动兼容会话或手机等待超过八秒时，按原停止／暂停策略退回完整重连。电脑完整重连先清理再重启，停止取消重启而清理继续。电脑端活动刷新通过 **15 项软件测试加 32 个子检查**；最终手机集成、全量 CI 和真机恢复仍待完成。
 
 **仍在定位的故障：** 用户确认电脑黑色窗口是 SteamVR 的 **Headset Window**。原因仍在诊断；另一次观察到的 Mirror 退出能解释该区间手机已连接却等待视频，但不能据此认定全部 Headset Window 黑屏都只有这个原因。不声称完整恢复或实际不同帧／显示帧率通过。
 

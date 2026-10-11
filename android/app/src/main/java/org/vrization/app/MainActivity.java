@@ -193,6 +193,16 @@ public final class MainActivity extends Activity {
             @Override public void onRoundTrip(long milliseconds) {
                 if (!destroyed) linkStatus.setText(getString(R.string.ping_stats, milliseconds));
             }
+            @Override public void onVideoRefreshStarted() {
+                renderer.clearFrames(); surface.requestRender();
+                frameStatus.setText(R.string.waiting_frame); processingStatus.setText(R.string.waiting_processing);
+                status.setText(R.string.video_refreshing);
+            }
+            @Override public void onVideoRefreshReady(boolean paused) {
+                renderer.resumeFrames(); surface.requestRender();
+                status.setText(paused ? R.string.video_refresh_ready_paused : R.string.video_refresh_ready);
+                // The ACK's paused bit is a notice, never permission to resume input.
+            }
         });
         renderer.setTextureSubmissionListener(client::recordTextureSubmission);
         createUi();
@@ -399,12 +409,19 @@ public final class MainActivity extends Activity {
     private void refreshConnection() {
         if (destroyed || !resumed) return;
         explicitUsb.cancel(); initialUsb.stop(); finishPauseDisconnect();
+        if (headsetEdit == null && client.requestLiveVideoRefresh(() -> rebuildConnection(true))) return;
+        rebuildConnection(false);
+    }
+
+    private void rebuildConnection(boolean videoFallback) {
+        if (destroyed || !resumed) return;
         finishHeadsetEdit(false, false);
         // Invalidates socket/discovery epochs and queued decode before recentering locally.
         // Existing callbacks cannot interpret late frames as the new stream's layout.
         client.disconnect(false);
         if (startConnection())
-            Toast.makeText(this, getString(R.string.refresh_connection_pause), Toast.LENGTH_LONG).show();
+            Toast.makeText(this, getString(videoFallback ? R.string.video_refresh_fallback : R.string.refresh_connection_pause),
+                Toast.LENGTH_LONG).show();
     }
 
     private boolean startConnection() {
@@ -642,6 +659,7 @@ public final class MainActivity extends Activity {
         });
     }
     @Override protected void onPause() {
+        client.cancelPendingVideoRefresh();
         client.sendHmdPose(null,android.os.SystemClock.elapsedRealtimeNanos(),false);
         resumed = false; finishHeadsetEdit(false, false); initialUsb.stop(); trackingActive = false; pose.stop();
         finishPauseDisconnect();

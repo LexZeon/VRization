@@ -152,12 +152,16 @@ def main():
                        host="127.0.0.1", port=args.port,
                        capture_config=CaptureConfig(width=1280, fps=12), on_event=on_event)
     def snapshot():
-        with guard: count = sum(event.get("event") == "settings" for event in events)
+        with guard:
+            count = sum(event.get("event") == "settings" for event in events)
+            refreshes = [dict(event) for event in events if event.get("event") == "video_refreshed"
+                         and type(event.get("requestId")) is int and event["requestId"] > 0]
         with host.hmd.lock:
             epoch, paused = host.hmd.epoch, host.hmd.paused
         return {"fixtureReady": ready.is_set(), "connected": host.controller.connected,
                 "settingsCount": count, "settings": host.get_settings_snapshot()[0].to_dict(),
-                "mouseMoves": list(sink.moves), "poses": poses.snapshot(), "epoch": epoch, "paused": paused}
+                "mouseMoves": list(sink.moves), "poses": poses.snapshot(), "epoch": epoch, "paused": paused,
+                "videoRefreshes": refreshes}
     class ObservationHandler(BaseHTTPRequestHandler):
         def log_message(self, *_): pass
         def respond(self, payload, status=200):

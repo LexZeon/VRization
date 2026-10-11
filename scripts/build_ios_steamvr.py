@@ -187,8 +187,17 @@ def main():
     for refreshed, original in (("steamvr-lan-refreshed", "steamvr-editor-saved"),
                                 ("steamvr-usb-refreshed", "steamvr-usb-connected")):
         assert checkpoints[refreshed]["connected"] and checkpoints[refreshed]["paused"]
-        assert checkpoints[refreshed]["epoch"] > checkpoints[original]["epoch"]
+        assert checkpoints[refreshed]["epoch"] == checkpoints[original]["epoch"]
         assert checkpoints[refreshed]["settings"] == checkpoints[original]["settings"]
+        assert len(checkpoints[refreshed]["videoRefreshes"]) > len(checkpoints[original]["videoRefreshes"])
+        acknowledgement = checkpoints[refreshed]["videoRefreshes"][-1]
+        assert acknowledgement["epoch"] == checkpoints[original]["epoch"] and acknowledgement["paused"] is True
+        assert type(acknowledgement["requestId"]) is int and acknowledgement["requestId"] > 0
+    reconnected = checkpoints["steamvr-usb-reconnected"]
+    assert reconnected["connected"] and reconnected["paused"]
+    assert reconnected["epoch"] > checkpoints["steamvr-usb-disconnected"]["epoch"]
+    assert reconnected["settings"] == checkpoints["steamvr-usb-connected"]["settings"]
+    assert not checkpoints["steamvr-usb-disconnected-final"]["connected"]
     check_stereo_pixels(report)
     package_simulator()
 
